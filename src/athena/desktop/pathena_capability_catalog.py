@@ -16,7 +16,7 @@ from typing import Final, Protocol
 from PySide6.QtWidgets import QListWidget, QWidget
 
 CAPABILITY_SCHEMA_VERSION: Final = 1
-CAPABILITY_CATALOG_VERSION: Final = "2026.08.25.1"
+CAPABILITY_CATALOG_VERSION: Final = "2026.09.18.1"
 
 
 class CommandLike(Protocol):
@@ -102,7 +102,7 @@ _CAPABILITIES: Final = (
         workspace_row=3,
     ),
     CapabilityMetadata(
-        "Open Files",
+        "Open Sources",
         "Workspaces",
         "Captured local sources, processing readiness and real import paths.",
         workspace_row=4,
@@ -211,7 +211,12 @@ EXTENSION_CAPABILITY_METADATA: Final = {
         "ComfyUI",
         "Open the local-only ComfyUI bridge for endpoint checks and explicit API-workflow queueing.",
         target_object_name="comfyUiDialog",
-    )
+    ),
+    "Open PALLAS": CapabilityMetadata(
+        "Open PALLAS",
+        "PALLAS",
+        "Open the synchronized semantic workspace backed by the current grounded graph.",
+    ),
 }
 
 

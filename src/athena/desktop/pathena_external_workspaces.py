@@ -13,6 +13,7 @@ from athena.desktop.pathena_comfyui import (
     ComfyUiError,
     install_comfyui_integration,
 )
+from athena.desktop.pathena_pallas_command import install_pallas_command
 from athena.desktop.pathena_pallas_full_view import PallasFullViewController
 
 
@@ -33,6 +34,8 @@ class ExternalWorkspaceCoordinator(QObject):
         self.comfyui: ComfyUiController | None = None
         self._dialog: QWidget | None = None
         self._disposed = False
+
+        install_pallas_command(command_palette, pallas)
 
         try:
             self.comfyui = install_comfyui_integration(

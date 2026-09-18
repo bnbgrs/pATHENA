@@ -73,6 +73,7 @@ from athena.desktop.pathena_progressive_workspace_2300 import (
     install_progressive_workspace_refinement,
 )
 from athena.desktop.pathena_quiet_success_decay_6400 import apply_quiet_success_decay
+from athena.desktop.pathena_reference_parity import install_reference_parity
 from athena.desktop.pathena_research_experience_2500 import install_research_experience
 from athena.desktop.pathena_research_knowledge_transition_2700 import (
     install_research_knowledge_transition,
@@ -236,6 +237,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     transient_dialog_shortcuts = install_transient_dialog_shortcut_continuity(command_palette)
     command_palette_truth = install_command_palette_truth(command_palette)
     capability_help = install_capability_help(command_palette)
+    app.aboutToQuit.connect(capability_help.dispose)
     empty_search_comprehension = install_empty_search_comprehension(
         window,
         command_palette,
@@ -285,6 +287,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         system_backup.backup,
         research_results_extension,
     )
+    reference_parity = install_reference_parity(window, command_palette.open)
     install_primary_input_accessibility(
         window,
         chat_prompt=window.prompt_input,
@@ -297,6 +300,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     window.show()
     exit_code = app.exec()
     heartbeat.stop()
+    reference_parity.dispose()
+    reference_parity.deleteLater()
     selection_disappearance_handoff.deleteLater()
     background_completion_accessibility.deleteLater()
     research_knowledge_transition.deleteLater()
@@ -334,6 +339,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     files_workspace.deleteLater()
     system_backup.deleteLater()
     system_workspace.deleteLater()
+    capability_help.dispose()
     capability_help.deleteLater()
     command_palette_truth.deleteLater()
     transient_dialog_shortcuts.deleteLater()

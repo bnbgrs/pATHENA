@@ -1,4 +1,10 @@
-"""Render the eleven canonical pATHENA reference surfaces on native Windows."""
+"""Render the eleven canonical pATHENA surfaces without re-entrant timers.
+
+This companion capture path exists because several reference surfaces are now
+hosted inside the shared shell rather than detached dialogs. It deliberately
+runs each capture to completion before opening the next surface so PNG work can
+never allow a later QTimer to mutate the route being captured.
+"""
 
 from __future__ import annotations
 
@@ -22,6 +28,71 @@ WORKSPACE_SURFACE_LABELS = (
     "System",
     "Settings",
 )
+
+_REFERENCE_KNOWLEDGE_DRAFTS = (
+    (
+        "concept",
+        "Adaptive memory",
+        "Local memory should preserve useful context while keeping every retained item "
+        "inspectable, attributable, and reversible.",
+        "supported",
+    ),
+    (
+        "decision",
+        "Human-controlled forgetting",
+        "Forgetting remains an explicit user decision; automated maintenance may propose "
+        "changes but cannot silently erase canonical knowledge.",
+        "asserted",
+    ),
+    (
+        "project_knowledge",
+        "Local-first provenance",
+        "pATHENA keeps canonical knowledge and its revision history in the isolated local "
+        "runtime so the visual capture exercises the real repository-backed workbench.",
+        "supported",
+    ),
+)
+
+
+def _seed_reference_knowledge(runtime_root: Path) -> tuple[str, ...]:
+    """Create an idempotent, repository-backed Knowledge state for visual capture."""
+    from athena.config.settings import AthenaSettings
+    from athena.core.application import AthenaApplication
+    from athena.knowledge.models import (
+        EpistemicStatus,
+        KnowledgeKind,
+        KnowledgeUnitDraft,
+    )
+
+    core = AthenaApplication(settings=AthenaSettings(local_root=runtime_root))
+    core.start(run_startup_maintenance=False)
+    try:
+        actor_id = core.chat.ensure_local_user()
+        existing = {
+            snapshot.revision.payload.title: snapshot
+            for snapshot in core.knowledge_repository.list_current(limit=500)
+            if snapshot.revision.payload.title is not None
+        }
+        knowledge_ids: list[str] = []
+        for kind, title, body, status in _REFERENCE_KNOWLEDGE_DRAFTS:
+            snapshot = existing.get(title)
+            if snapshot is not None:
+                knowledge_ids.append(str(snapshot.knowledge_id))
+                continue
+            revision = core.knowledge_repository.create_knowledge_unit(
+                actor_id=actor_id,
+                draft=KnowledgeUnitDraft(
+                    knowledge_kind=KnowledgeKind(kind),
+                    title=title,
+                    body=body,
+                    epistemic_status=EpistemicStatus(status),
+                ),
+                reason="isolated native visual-regression fixture",
+            )
+            knowledge_ids.append(str(revision.knowledge_id))
+        return tuple(knowledge_ids)
+    finally:
+        core.stop()
 
 
 def _safe_name(value: str) -> str:
@@ -93,6 +164,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     screenshot_directory.mkdir(parents=True, exist_ok=True)
     os.environ["ATHENA_LOCAL_ROOT"] = str(runtime_root)
     os.environ["QT_QPA_PLATFORM"] = "offscreen"
+    reference_knowledge_ids = _seed_reference_knowledge(runtime_root)
 
     _DiagnosticComfyHandler.posted_prompts.clear()
     comfy_server = ThreadingHTTPServer(("127.0.0.1", 0), _DiagnosticComfyHandler)
@@ -114,8 +186,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         encoding="utf-8",
     )
 
-    from PySide6.QtCore import QTimer
-    from PySide6.QtWidgets import QMainWindow, QWidget
+    from PySide6.QtCore import Qt, QTimer
+    from PySide6.QtWidgets import QListWidget, QMainWindow, QPlainTextEdit, QWidget
 
     from athena.desktop.app import create_application
     from athena.desktop.app import main as desktop_main
@@ -145,7 +217,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
         return windows[0]
 
-    def save_widget(widget: QWidget, *, ordinal: int, label: str, kind: str) -> str:
+    def save_widget(widget: QWidget, *, ordinal: int, label: str, kind: str) -> None:
         output = screenshot_directory / f"{ordinal:02d}-{_safe_name(label)}.png"
         if not widget.grab().save(str(output), "PNG"):
             raise RuntimeError(f"Qt failed to save {output.name}.")
@@ -159,20 +231,70 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "height": widget.height(),
             }
         )
-        return output.name
 
-    def capture_row(row: int) -> None:
-        try:
-            window = find_window()
-            navigation = getattr(window, "navigation", None)
-            pages = getattr(window, "pages", None)
-            if navigation is None or pages is None:
-                raise RuntimeError("Desktop navigation contract is unavailable.")
-            if navigation.count() != 7 or pages.count() != 7:
-                raise RuntimeError(
-                    "Candidate must expose seven primary navigation pages; "
-                    f"found {navigation.count()} nav items and {pages.count()} pages."
-                )
+    def wait_for_reference_knowledge(window: QMainWindow) -> dict[str, object]:
+        knowledge_list = window.findChild(QListWidget, "persistentKnowledgeList")
+        knowledge_details = window.findChild(
+            QPlainTextEdit,
+            "persistentKnowledgeDetails",
+        )
+        if knowledge_list is None or knowledge_details is None:
+            raise RuntimeError("Real repository-backed Knowledge workbench is unavailable.")
+
+        expected_ids = set(reference_knowledge_ids)
+        deadline = time.monotonic() + 8.0
+        observed_ids: set[str] = set()
+        detail_id = ""
+        detail_state = ""
+        while time.monotonic() < deadline:
+            app.processEvents()
+            observed_ids = {
+                str(knowledge_list.item(index).data(Qt.ItemDataRole.UserRole))
+                for index in range(knowledge_list.count())
+            }
+            detail_id = str(
+                knowledge_details.property("pathenaKnowledgeEntityId") or ""
+            )
+            detail_state = str(
+                knowledge_details.property("pathenaKnowledgeReviewState") or ""
+            )
+            if (
+                expected_ids.issubset(observed_ids)
+                and detail_id in expected_ids
+                and detail_state == "ready"
+                and knowledge_details.toPlainText().strip()
+            ):
+                return {
+                    "fixture": "isolated repository-backed canonical Knowledge",
+                    "knowledge_count": knowledge_list.count(),
+                    "selected_knowledge_state": detail_state,
+                }
+            time.sleep(0.05)
+
+        raise RuntimeError(
+            "Repository-backed Knowledge did not become capture-ready: "
+            f"expected={len(expected_ids)}, observed={len(observed_ids)}, "
+            f"detail_state={detail_state!r}, detail_id={detail_id!r}."
+        )
+
+    def capture_workspaces() -> None:
+        window = find_window()
+        navigation = getattr(window, "navigation", None)
+        pages = getattr(window, "pages", None)
+        if navigation is None or pages is None:
+            raise RuntimeError("Desktop navigation contract is unavailable.")
+        if navigation.count() != 7 or pages.count() != 7:
+            raise RuntimeError(
+                "Candidate must expose seven primary navigation pages; "
+                f"found {navigation.count()} nav items and {pages.count()} pages."
+            )
+
+        full_view = getattr(window, "_pathena_pallas_full_view_controller", None)
+        if full_view is not None and getattr(full_view, "is_open", False):
+            full_view.close_workspace()
+            app.processEvents()
+
+        for row, label in enumerate(WORKSPACE_SURFACE_LABELS):
             navigation.setCurrentRow(row)
             app.processEvents()
             if navigation.currentRow() != row or pages.currentIndex() != row:
@@ -181,19 +303,14 @@ def main(argv: Sequence[str] | None = None) -> int:
                     f"requested row {row}, navigation row {navigation.currentRow()}, "
                     f"page index {pages.currentIndex()}."
                 )
-            label = WORKSPACE_SURFACE_LABELS[row]
+            knowledge_evidence = (
+                wait_for_reference_knowledge(window) if row == 1 else {}
+            )
             save_widget(window, ordinal=row + 1, label=label, kind="workspace")
             captures[-1]["navigation_label"] = navigation.item(row).text()
             captures[-1]["row"] = row
             captures[-1]["page_index"] = pages.currentIndex()
-        except Exception as exc:  # noqa: BLE001
-            errors.append(f"workspace row {row}: {type(exc).__name__}: {exc}")
-
-    def capture_workspaces() -> None:
-        for row in range(7):
-            capture_row(row)
-            if errors:
-                return
+            captures[-1].update(knowledge_evidence)
 
     def diagnostic_pallas_snapshot() -> PallasGraphSnapshot:
         focus = PallasSemanticNode(
@@ -269,24 +386,21 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
 
     def capture_pallas() -> None:
-        full_view = None
+        window = find_window()
+        grounded = window.property("pathenaPallasGroundedController")
+        if not isinstance(grounded, PallasGroundedFieldController):
+            raise RuntimeError("Real PALLAS grounded controller is unavailable.")
+        grounded.apply_snapshot(diagnostic_pallas_snapshot())
+        full_view = getattr(window, "_pathena_pallas_full_view_controller", None)
+        if full_view is None or not callable(getattr(full_view, "open_workspace", None)):
+            raise RuntimeError("Real PALLAS full-view controller is unavailable.")
         try:
-            window = find_window()
-            grounded = window.property("pathenaPallasGroundedController")
-            if not isinstance(grounded, PallasGroundedFieldController):
-                raise RuntimeError("Real PALLAS grounded controller is unavailable.")
-            grounded.apply_snapshot(diagnostic_pallas_snapshot())
-            full_view = getattr(window, "_pathena_pallas_full_view_controller", None)
-            if full_view is None or not callable(getattr(full_view, "open_workspace", None)):
-                raise RuntimeError("Real PALLAS full-view controller is unavailable.")
             full_view.open_workspace()
             app.processEvents()
             workspace = getattr(full_view, "workspace", None)
-            host = getattr(full_view, "_host", None)
             if (
                 workspace is None
-                or not isinstance(host, QWidget)
-                or not host.isVisible()
+                or not workspace.isVisible()
                 or getattr(full_view, "is_open", False) is not True
             ):
                 raise RuntimeError("PALLAS shell workspace did not become visible.")
@@ -298,11 +412,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 raise RuntimeError("PALLAS reference graph did not render all diagnostic nodes.")
             save_widget(window, ordinal=8, label="PALLAS", kind="full-pallas")
             captures[-1]["fixture"] = "diagnostic semantic graph; presentation only"
-            captures[-1]["shell_hosted"] = True
-        except Exception as exc:  # noqa: BLE001
-            errors.append(f"PALLAS: {type(exc).__name__}: {exc}")
         finally:
-            if full_view is not None and callable(getattr(full_view, "close_workspace", None)):
+            if callable(getattr(full_view, "close_workspace", None)):
                 full_view.close_workspace()
                 app.processEvents()
 
@@ -321,96 +432,99 @@ def main(argv: Sequence[str] | None = None) -> int:
         return controller
 
     def capture_commands() -> None:
-        try:
-            controller = palette_controller()
-            controller.open()
-            app.processEvents()
-            if not controller.dialog.isVisible():
-                raise RuntimeError("Command Palette did not become visible.")
-            labels = {command.label for command in controller._commands}
-            if "Open ComfyUI" not in labels:
-                raise RuntimeError("Command Palette does not expose the ComfyUI integration.")
-            save_widget(
-                controller.dialog,
-                ordinal=9,
-                label="Command Palette",
-                kind="command-palette",
-            )
-            captures[-1]["result_count"] = controller.results.count()
-            controller.dialog.hide()
-        except Exception as exc:  # noqa: BLE001
-            errors.append(f"Command Palette: {type(exc).__name__}: {exc}")
+        controller = palette_controller()
+        controller.open()
+        app.processEvents()
+        if not controller.dialog.isVisible():
+            raise RuntimeError("Command Palette did not become visible.")
+        labels = {command.label for command in controller._commands}
+        if "Open ComfyUI" not in labels:
+            raise RuntimeError("Command Palette does not expose the ComfyUI integration.")
+        save_widget(
+            controller.dialog,
+            ordinal=9,
+            label="Command Palette",
+            kind="command-palette",
+        )
+        captures[-1]["result_count"] = controller.results.count()
+        controller.dialog.hide()
+        app.processEvents()
 
     def capture_help() -> None:
-        try:
-            controller = palette_controller()
-            controller.open_help()
-            app.processEvents()
-            if not controller.help_dialog.isVisible():
-                raise RuntimeError("Help surface did not become visible.")
-            help_text = controller.help_text.toPlainText()
-            if "pATHENA capabilities" not in help_text or "Open ComfyUI" not in help_text:
-                raise RuntimeError("Help did not render the live ComfyUI capability.")
-            save_widget(controller.help_dialog, ordinal=10, label="Help", kind="help")
-            captures[-1]["catalog_version"] = str(
-                controller.help_text.property("pathenaCapabilityCatalogVersion") or ""
-            )
-            captures[-1]["catalog_drift"] = bool(
-                controller.help_text.property("pathenaCapabilityCatalogDrift")
-            )
-            controller.help_dialog.hide()
-        except Exception as exc:  # noqa: BLE001
-            errors.append(f"Help: {type(exc).__name__}: {exc}")
+        controller = palette_controller()
+        controller.open_help()
+        app.processEvents()
+        if not controller.help_dialog.isVisible():
+            raise RuntimeError("Help surface did not become visible.")
+        help_text = controller.help_text.toPlainText()
+        if "pATHENA capabilities" not in help_text or "Open ComfyUI" not in help_text:
+            raise RuntimeError("Help did not render the live ComfyUI capability.")
+        save_widget(controller.help_dialog, ordinal=10, label="Help", kind="help")
+        captures[-1]["catalog_version"] = str(
+            controller.help_text.property("pathenaCapabilityCatalogVersion") or ""
+        )
+        captures[-1]["catalog_drift"] = bool(
+            controller.help_text.property("pathenaCapabilityCatalogDrift")
+        )
+        controller.help_dialog.hide()
+        app.processEvents()
 
     def capture_comfyui() -> None:
-        try:
-            palette = palette_controller()
-            controller = getattr(palette, "_pathena_comfyui_controller", None)
-            if controller is None:
-                raise RuntimeError("Real ComfyUI controller is unavailable.")
-            controller.load_workflow(comfy_workflow)
-            if not controller.check_connection():
-                raise RuntimeError("ComfyUI local diagnostic endpoint did not become ready.")
-            if not controller.queue_selected_workflow():
-                raise RuntimeError("ComfyUI diagnostic workflow did not queue.")
-            controller.open()
-            app.processEvents()
-            dialog = getattr(controller, "dialog", None)
-            if not isinstance(dialog, QWidget) or not dialog.isVisible():
-                raise RuntimeError("ComfyUI dialog did not become visible.")
-            if dialog.property("pathenaComfyUiLocalOnly") is not True:
-                raise RuntimeError("ComfyUI surface lost its local-only contract.")
-            prompt_id = controller.receipt.property("pathenaComfyUiPromptId")
-            if prompt_id != "visual-regression-prompt":
-                raise RuntimeError("ComfyUI queue receipt did not preserve prompt identity.")
-            if _DiagnosticComfyHandler.posted_prompts != [
-                {
-                    "prompt": {
-                        "1": {
-                            "class_type": "DiagnosticNode",
-                            "inputs": {"value": 1},
-                        }
+        palette = palette_controller()
+        controller = getattr(palette, "_pathena_comfyui_controller", None)
+        if controller is None:
+            raise RuntimeError("Real ComfyUI controller is unavailable.")
+        controller.load_workflow(comfy_workflow)
+        if not controller.check_connection():
+            raise RuntimeError("ComfyUI local diagnostic endpoint did not become ready.")
+        if not controller.queue_selected_workflow():
+            raise RuntimeError("ComfyUI diagnostic workflow did not queue.")
+        controller.open()
+        app.processEvents()
+        dialog = getattr(controller, "dialog", None)
+        if not isinstance(dialog, QWidget) or not dialog.isVisible():
+            raise RuntimeError("ComfyUI dialog did not become visible.")
+        if dialog.property("pathenaComfyUiLocalOnly") is not True:
+            raise RuntimeError("ComfyUI surface lost its local-only contract.")
+        prompt_id = controller.receipt.property("pathenaComfyUiPromptId")
+        if prompt_id != "visual-regression-prompt":
+            raise RuntimeError("ComfyUI queue receipt did not preserve prompt identity.")
+        expected = [
+            {
+                "prompt": {
+                    "1": {
+                        "class_type": "DiagnosticNode",
+                        "inputs": {"value": 1},
                     }
                 }
-            ]:
-                raise RuntimeError("ComfyUI local server did not receive the exact API workflow.")
-            save_widget(dialog, ordinal=11, label="ComfyUI", kind="comfyui")
-            captures[-1]["endpoint"] = controller.endpoint.text()
-            captures[-1]["prompt_id"] = prompt_id
-            captures[-1]["transport"] = "loopback HTTP; proxy bypassed"
-            dialog.hide()
-        except Exception as exc:  # noqa: BLE001
-            errors.append(f"ComfyUI: {type(exc).__name__}: {exc}")
+            }
+        ]
+        if _DiagnosticComfyHandler.posted_prompts != expected:
+            raise RuntimeError("ComfyUI local server did not receive the exact API workflow.")
+        save_widget(dialog, ordinal=11, label="ComfyUI", kind="comfyui")
+        captures[-1]["endpoint"] = controller.endpoint.text()
+        captures[-1]["prompt_id"] = prompt_id
+        captures[-1]["transport"] = "loopback HTTP; proxy bypassed"
+        dialog.hide()
+        app.processEvents()
 
-    first_capture_ms = args.initial_delay_seconds * 1_000
-    QTimer.singleShot(first_capture_ms, capture_workspaces)
+    def capture_all() -> None:
+        stages = (
+            ("workspaces", capture_workspaces),
+            ("PALLAS", capture_pallas),
+            ("Command Palette", capture_commands),
+            ("Help", capture_help),
+            ("ComfyUI", capture_comfyui),
+        )
+        for label, stage in stages:
+            try:
+                stage()
+            except Exception as exc:  # noqa: BLE001
+                errors.append(f"{label}: {type(exc).__name__}: {exc}")
+                break
+        QTimer.singleShot(100, app.quit)
 
-    after_workspaces_ms = first_capture_ms + 1_000
-    QTimer.singleShot(after_workspaces_ms, capture_pallas)
-    QTimer.singleShot(after_workspaces_ms + 1_000, capture_commands)
-    QTimer.singleShot(after_workspaces_ms + 2_000, capture_help)
-    QTimer.singleShot(after_workspaces_ms + 3_000, capture_comfyui)
-    QTimer.singleShot(after_workspaces_ms + 4_000, app.quit)
+    QTimer.singleShot(args.initial_delay_seconds * 1_000, capture_all)
 
     try:
         exit_code = desktop_main(["pathena-ui-reference-capture"])

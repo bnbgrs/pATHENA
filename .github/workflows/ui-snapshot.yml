@@ -1,17 +1,35 @@
 name: pATHENA 11-Surface Visual Regression
 
 on:
-  push:
+  pull_request:
     branches:
-      - bot/pathena-candidate
-      - postmerge/ui
+      - develop/pathena-next
     paths:
       - ".github/workflows/ui-snapshot.yml"
       - "scripts/render_pathena_ui_snapshot.py"
       - "scripts/render_pathena_ui_snapshot_fontsafe.py"
+      - "scripts/render_pathena_ui_snapshot_sequential.py"
       - "scripts/compare_pathena_ui_snapshots.py"
       - "tests/qa/**"
       - "tests/qa/visual-baseline-windows.json"
+      - "tests/unit/test_pathena_visual_knowledge_fixture.py"
+      - "src/athena/desktop/**"
+      - "pyproject.toml"
+      - "uv.lock"
+  push:
+    branches:
+      - bot/pathena-candidate
+      - postmerge/ui
+      - manual/ui-11screen-longrun-20260915
+    paths:
+      - ".github/workflows/ui-snapshot.yml"
+      - "scripts/render_pathena_ui_snapshot.py"
+      - "scripts/render_pathena_ui_snapshot_fontsafe.py"
+      - "scripts/render_pathena_ui_snapshot_sequential.py"
+      - "scripts/compare_pathena_ui_snapshots.py"
+      - "tests/qa/**"
+      - "tests/qa/visual-baseline-windows.json"
+      - "tests/unit/test_pathena_visual_knowledge_fixture.py"
       - "src/athena/desktop/**"
       - "pyproject.toml"
       - "uv.lock"
@@ -45,6 +63,8 @@ jobs:
         run: |
           if ("${{ github.event_name }}" -eq "workflow_dispatch") {
             $candidate = "${{ inputs.candidate_sha }}"
+          } elseif ("${{ github.event_name }}" -eq "pull_request") {
+            $candidate = "${{ github.event.pull_request.head.sha }}"
           } else {
             $candidate = "${{ github.sha }}"
           }
@@ -89,8 +109,10 @@ jobs:
           uv run --locked --extra dev --extra desktop --no-sync ruff check `
             scripts/render_pathena_ui_snapshot.py `
             scripts/render_pathena_ui_snapshot_fontsafe.py `
+            scripts/render_pathena_ui_snapshot_sequential.py `
             scripts/compare_pathena_ui_snapshots.py `
-            tests/qa/test_visual_snapshot_compare.py
+            tests/qa/test_visual_snapshot_compare.py `
+            tests/unit/test_pathena_visual_knowledge_fixture.py
           if ($LASTEXITCODE -ne 0) { throw "Visual harness Ruff failed." }
 
       - name: Mypy comparator
@@ -120,6 +142,13 @@ jobs:
           uv run --locked --extra dev --extra desktop --no-sync pytest -q tests/unit/test_pathena_navigation_context_accessibility.py
           if ($LASTEXITCODE -ne 0) { throw "Primary navigation accessibility contract failed." }
 
+      - name: Run repository-backed Knowledge visual fixture contract
+        shell: pwsh
+        run: |
+          $env:PYTHONPATH = (Get-Location).Path
+          uv run --locked --extra dev --extra desktop --no-sync pytest -q tests/unit/test_pathena_visual_knowledge_fixture.py
+          if ($LASTEXITCODE -ne 0) { throw "Repository-backed Knowledge visual fixture failed." }
+
       - name: Capture exactly eleven canonical surfaces with native fonts
         shell: pwsh
         run: |
@@ -142,6 +171,18 @@ jobs:
             throw "Eleven-surface capture failed with exit code $captureExit."
           }
 
+      - name: Emit exact-head review payloads
+        shell: pwsh
+        run: |
+          $actualRoot = Join-Path (Get-Location) "artifacts\\visual-actual"
+          Get-ChildItem -Path $actualRoot -Filter "*.png" | Sort-Object Name | ForEach-Object {
+            $name = $_.Name
+            $payload = [Convert]::ToBase64String([IO.File]::ReadAllBytes($_.FullName))
+            Write-Host "===== BEGIN PATHENA PNG $name ====="
+            Write-Host $payload
+            Write-Host "===== END PATHENA PNG $name ====="
+          }
+
       - name: Verify captured workspace route identity
         shell: pwsh
         run: |
@@ -158,6 +199,16 @@ jobs:
             if ([int]$capture.page_index -ne $row) { throw "Workspace row $row captured page index $($capture.page_index)." }
             if ([int]$capture.ordinal -ne ($row + 1)) { throw "Workspace row $row has ordinal $($capture.ordinal)." }
             if ($capture.label -ne $expected[$row]) { throw "Workspace row $row label '$($capture.label)' != '$($expected[$row])'." }
+          }
+          $knowledge = $workspace | Where-Object { [int]$_.row -eq 1 }
+          if ($knowledge.fixture -ne "isolated repository-backed canonical Knowledge") {
+            throw "Knowledge capture did not report the repository-backed fixture."
+          }
+          if ([int]$knowledge.knowledge_count -lt 3) {
+            throw "Knowledge capture exposed fewer than three persisted entries."
+          }
+          if ($knowledge.selected_knowledge_state -ne "ready") {
+            throw "Knowledge capture did not verify its selected persisted detail."
           }
 
       - name: Compare committed baseline or emit proposal
@@ -177,6 +228,9 @@ jobs:
               --write-baseline `
               --candidate-sha $env:CANDIDATE_SHA
             if ($LASTEXITCODE -ne 0) { throw "Baseline proposal generation failed." }
+            Write-Host "===== BEGIN VISUAL BASELINE PROPOSAL ====="
+            Get-Content $proposal -Raw
+            Write-Host "===== END VISUAL BASELINE PROPOSAL ====="
             throw "Committed visual baseline is absent; proposal uploaded for review."
           }
           uv run --locked --extra desktop --no-sync python scripts/compare_pathena_ui_snapshots.py `

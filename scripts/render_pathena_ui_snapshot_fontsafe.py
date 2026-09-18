@@ -56,7 +56,7 @@ def _prepare_application() -> QApplication:
 
     stylesheet = PATHENA_STYLESHEET
     stylesheet = stylesheet.replace(
-        '"Segoe UI Variable", "Segoe UI", sans-serif', f'"{content}"'
+        '"Segoe UI Variable", "Segoe UI", "Inter", sans-serif', f'"{content}"'
     )
     stylesheet = stylesheet.replace(
         '"Georgia", "Times New Roman", serif', f'"{display}"'
@@ -100,7 +100,7 @@ def _write_capture_failure(argv: Sequence[str], exc: Exception) -> None:
 
 def main() -> int:
     _prepare_application()
-    from render_pathena_ui_snapshot import main as render_main
+    from render_pathena_ui_snapshot_sequential import main as render_main
 
     argv = sys.argv[1:]
     try:

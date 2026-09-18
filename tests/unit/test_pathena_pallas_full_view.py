@@ -9,7 +9,7 @@ pytest.importorskip("PySide6")
 
 from PySide6.QtCore import Qt
 from PySide6.QtTest import QTest
-from PySide6.QtWidgets import QApplication, QFrame
+from PySide6.QtWidgets import QApplication, QFrame, QLabel
 
 from athena.desktop.app import create_application
 from athena.desktop.pathena_pallas_field import install_pallas_grounded_field
@@ -150,6 +150,49 @@ def test_full_view_selection_updates_compact_view_and_shared_inspector() -> None
     assert panel is not None
     assert panel.property("pathenaPallasSelectionId") == "canonical_claim:claim-2"
     assert workspace.breadcrumb.text().endswith("CLAIM / Supported claim")
+
+    inspector.dispose()
+    full_view.dispose()
+    window.close()
+
+
+def test_full_view_reclaims_stale_inspector_and_restores_previous_context() -> None:
+    app, window, grounded, full_view = _surface()
+    object_id = window.findChild(QLabel, "objectId")
+    heading = window.findChild(QLabel, "inspectorHeading")
+    body = window.findChild(QLabel, "inspectorBody")
+    panel = window.findChild(QFrame, "inspector")
+    assert object_id is not None
+    assert heading is not None
+    assert body is not None
+    assert panel is not None
+
+    object_id.setText("SOURCE / NONE")
+    heading.setText("No source selected")
+    body.setText("Source workspace context")
+    panel.show()
+
+    inspector = install_pallas_context_inspector(window, grounded)
+    grounded.apply_snapshot(_snapshot())
+    app.processEvents()
+    assert panel.property("pathenaPallasSelectionId") == "focus:run-2"
+
+    object_id.setText("SOURCE / NONE")
+    heading.setText("No source selected")
+    body.setText("Stale source context")
+
+    full_view.open_workspace()
+    app.processEvents()
+    assert object_id.text().startswith("PALLAS / FOCUS /")
+    assert heading.text().endswith("Grounded response")
+    assert panel.property("pathenaPallasSelectionId") == "focus:run-2"
+
+    full_view.close_workspace()
+    app.processEvents()
+    assert object_id.text() == "SOURCE / NONE"
+    assert heading.text() == "No source selected"
+    assert body.text() == "Source workspace context"
+    assert panel.property("pathenaPallasSelectionId") is None
 
     inspector.dispose()
     full_view.dispose()
