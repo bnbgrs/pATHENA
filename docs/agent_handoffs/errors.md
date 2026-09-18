@@ -2,30 +2,30 @@
 
 ## Exact source of truth
 - Develop: `03157f15246c8acb0f51a30631bf45c4d2a72416`.
-- Error worker: ledger refresh `01170b94326b61fd71673befef53584e5d9fe2db` before this handoff update.
+- Error worker: ledger refresh `63cbd8edb598ef03d16ac160715e2c0b5def8411` before this handoff update.
 - Spec/Core: `6dddda87919cc5363ccf664863f6b4dca83784ed`; no new current-SHA failure evidence.
-- Backend: `71e551364c5355e8d030b0964c39d9ed53e502bb`; Backend Focused `35324506141 = SUCCESS`; canonical `35324506070 = FAILURE`.
-- UI: `e149515870b773548a164658775159f29de323af`; current handoff still has `PAIRS_VERIFIED_0_OF_11` / `MATCH_0_OF_11`.
+- Backend: `1ab371ba7e3198acca019b4975c5d2f22e4ce537`; Backend Focused `35329720681 = SUCCESS`; canonical `35329720830 = FAILURE`.
+- UI: `e149515870b773548a164658775159f29de323af`; no new Error-worker visual closure evidence.
 - `main` and `bnbgrs/ATHENA` remain strictly read-only.
 
 ## ITERATION-1 — Backend successor consumed
-Backend advanced to `71e551...` (`Backend: restore durable verify contract regression`). The bounded test file now again expects `{"pipeline_version":"backup-deep-verify-v1"}` and uses `"wrong"` as the deliberately invalid pipeline version.
+Backend advanced from `71e551...` to `1ab371ba...` (`Backend: restore Ruff import boundary`). Current source has `pytest` before the `athena.*` imports with a blank separator.
 
-## ITERATION-2 — ERR-0075 exact closure
-Canonical `35324506070` full pytest is SUCCESS: `5331 passed, 17 skipped, 2 warnings`. This closes the newly reproduced durable-service contract regression on exact `71e551...`. `ERR-0075 = FIXED`; do not reopen without a new exact-SHA reproduction.
+## ITERATION-2 — canonical exact evidence
+Backend Focused `35329720681` is SUCCESS. Canonical `35329720830` is terminal FAILURE. Linux storage regressions, Local-install smoke and Windows path safety are SUCCESS. Python specification validator, mypy and full pytest are SUCCESS; Ruff alone fails.
 
-## ITERATION-3 — ERR-0074 remains exact and isolated
-Canonical Python quality has Specification Validator SUCCESS, mypy SUCCESS and pytest SUCCESS; Ruff alone fails. Exact diagnostics contain one fixable `I001` at `tests/unit/test_backup_verify_durable_service.py:1:1` and explicitly say `help: Organize imports` / `1 fixable with --fix`. The current block is `from __future__`, `from unittest.mock import Mock`, straight `import athena...`, `import pytest`, then `from athena...`. No further hand-authored import permutations count as closure evidence.
+## ITERATION-3 — ERR-0074 remains isolated
+Downloaded canonical diagnostics artifact `canonical-quality-diagnostics-1ab371ba7e3198acca019b4975c5d2f22e4ce537` contains exactly one fixable `I001` at `tests/unit/test_backup_verify_durable_service.py:1:1`, with `help: Organize imports` and `1 fixable with --fix`. This is exact-SHA reproduction, not historical inference. Repository `pyproject.toml` pins Ruff `==0.15.22`.
 
-## ITERATION-4 — release guards held
-Windows Path Safety, Linux Storage and Local-install are SUCCESS on exact `71e551...`. Windows storage/durable-filesystem/API-boundary/Core-ownership/packaged-runtime/adaptive-chat/restart/pypdf guards remain green. `ERR-0059 = FIXED`; no new manifest-truth failure signature exists and canonical full pytest is green.
+## ITERATION-4 — closed clusters held
+Canonical full pytest is SUCCESS, so `ERR-0075 = FIXED` and `ERR-0059 = FIXED` remain held closed absent new exact failure signatures. Current Linux/Windows/Local-install release guards remain green. No guard, test, security, storage or recovery contract was weakened.
 
-## ITERATION-5 — visual ownership held
-`ERR-0054 = OPEN`, UI/Visual-Review-owned. UI remains `e1495158...`; its handoff explicitly reports zero of eleven pairs verified for the candidate. Error worker neither creates nor accepts a baseline.
+## ITERATION-5 — ownership / anti-stagnation
+`ERR-0074 = OPEN` remains Backend-owned because Backend is actively mutating the same bounded test file. Error worker does not parallel-edit it. Repeated hand-authored import permutations are explicitly non-closure evidence. `ERR-0054 = OPEN` remains UI/Visual-Review-owned; Error worker does not create or accept a baseline.
 
 ## Next root cause
-1. Backend: `ERR-0074` only — execute repository-pinned Ruff 0.15.22 `check --fix tests/unit/test_backup_verify_durable_service.py` on exact source and consume the complete generated transformation.
-2. Require focused Ruff PASS before another canonical candidate; do not submit another hand-authored import permutation.
+1. Backend: execute repository-pinned Ruff 0.15.22 `check --fix tests/unit/test_backup_verify_durable_service.py` on exact current source and consume the complete generated transformation.
+2. Require focused Ruff PASS before another canonical candidate.
 3. Close `ERR-0074` only from terminal exact-SHA canonical Ruff success.
-4. Keep `ERR-0075`, `ERR-0059` and all current release guards closed unless a new exact-SHA failure reproduces them.
+4. Keep `ERR-0075`, `ERR-0059` and current release guards closed unless a new exact-SHA failure reproduces them.
 5. Error worker consumes the next Backend successor immediately, then moves to the next independent current failure cluster.
