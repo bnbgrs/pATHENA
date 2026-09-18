@@ -381,22 +381,76 @@ def main(argv: Sequence[str] | None = None) -> int:
                 load_requested = True
 
             cards = window.findChildren(QWidget, "chatMessage")
+            body_labels = [
+                label
+                for object_name in ("userMessage", "message")
+                for label in window.findChildren(QLabel, object_name)
+            ]
+            geometry_ready = (
+                len(cards) == len(_REFERENCE_CHAT_MESSAGES)
+                and all(
+                    card.isVisible()
+                    and card.width() >= 100
+                    and card.height() >= 24
+                    for card in cards
+                )
+            )
+            text_ready = (
+                len(body_labels) == len(_REFERENCE_CHAT_MESSAGES)
+                and all(
+                    label.isVisible()
+                    and label.width() >= 80
+                    and label.height() >= 12
+                    and label.text().strip()
+                    for label in body_labels
+                )
+            )
             if (
                 getattr(window, "loaded_chat_id", None) == reference_chat_id
-                and len(cards) == len(_REFERENCE_CHAT_MESSAGES)
+                and geometry_ready
+                and text_ready
             ):
-                return {
-                    "fixture": "isolated repository-backed canonical Chat",
-                    "chat_id": reference_chat_id,
-                    "message_count": len(cards),
-                }
+                # A queued chat-loaded signal can create the cards one event-loop
+                # turn before Qt has completed the final layout/paint pass. Require
+                # one short stable interval, then prove the same widgets remain
+                # visible before the screenshot is allowed to proceed.
+                app.processEvents()
+                time.sleep(0.15)
+                app.processEvents()
+                stable_cards = window.findChildren(QWidget, "chatMessage")
+                if (
+                    len(stable_cards) == len(_REFERENCE_CHAT_MESSAGES)
+                    and all(
+                        card.isVisible()
+                        and card.width() >= 100
+                        and card.height() >= 24
+                        for card in stable_cards
+                    )
+                ):
+                    return {
+                        "fixture": "isolated repository-backed canonical Chat",
+                        "chat_id": reference_chat_id,
+                        "message_count": len(stable_cards),
+                        "visible_message_count": sum(
+                            1 for card in stable_cards if card.isVisible()
+                        ),
+                        "message_geometry": [
+                            {
+                                "width": card.width(),
+                                "height": card.height(),
+                            }
+                            for card in stable_cards
+                        ],
+                    }
             time.sleep(0.05)
 
+        cards = window.findChildren(QWidget, "chatMessage")
         raise RuntimeError(
             "Repository-backed Chat did not become capture-ready: "
             f"listed_index={listed_index}, "
             f"loaded_chat_id={getattr(window, 'loaded_chat_id', None)!r}, "
-            f"message_cards={len(window.findChildren(QWidget, 'chatMessage'))}."
+            f"message_cards={len(cards)}, "
+            f"visible_cards={sum(1 for card in cards if card.isVisible())}."
         )
 
     def capture_workspaces() -> None:
