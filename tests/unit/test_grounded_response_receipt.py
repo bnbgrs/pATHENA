@@ -16,10 +16,10 @@ from athena.chat.service import ChatService
 from athena.common.ids import uuid_to_blob
 from athena.storage.database import SQLiteDatabase
 from athena.storage.schema_contract import (
-    GROUNDED_RESPONSE_RECEIPT_MIGRATION_ID,
-    GROUNDED_RESPONSE_RECEIPT_SCHEMA_VERSION,
+    JOB_DEPENDENCY_GRAPH_MIGRATION_ID,
     PROTECTED_SOURCE_SEMANTIC_MIGRATION_ID,
     PROTECTED_SOURCE_SEMANTIC_SCHEMA_VERSION,
+    SCHEMA_VERSION,
 )
 
 
@@ -59,10 +59,7 @@ def test_fresh_database_contains_grounded_receipt_schema(
             ).fetchone()[0]
         )
 
-        assert (
-            user_version
-            == GROUNDED_RESPONSE_RECEIPT_SCHEMA_VERSION
-        )
+        assert user_version == SCHEMA_VERSION
 
         table = database.connection.execute(
             """
@@ -89,9 +86,9 @@ def test_fresh_database_contains_grounded_receipt_schema(
         assert metadata is not None
 
         assert tuple(metadata) == (
-            GROUNDED_RESPONSE_RECEIPT_SCHEMA_VERSION,
-            GROUNDED_RESPONSE_RECEIPT_MIGRATION_ID,
-            GROUNDED_RESPONSE_RECEIPT_SCHEMA_VERSION,
+            SCHEMA_VERSION,
+            JOB_DEPENDENCY_GRAPH_MIGRATION_ID,
+            SCHEMA_VERSION,
         )
 
     finally:
@@ -108,6 +105,11 @@ def test_v39_database_migrates_to_v40(
     )
 
     with database.write_transaction() as connection:
+        # This fixture synthesizes a historical v39 database from a current
+        # schema. Remove every later additive object before lowering metadata;
+        # production migrations intentionally remain fail-closed.
+        connection.execute("DROP TABLE job_dependencies")
+        connection.execute("DROP TABLE job_parent_links")
         connection.execute(
             """
             DROP INDEX
@@ -156,10 +158,7 @@ def test_v39_database_migrates_to_v40(
             ).fetchone()[0]
         )
 
-        assert (
-            user_version
-            == GROUNDED_RESPONSE_RECEIPT_SCHEMA_VERSION
-        )
+        assert user_version == SCHEMA_VERSION
 
         table = migrated.connection.execute(
             """

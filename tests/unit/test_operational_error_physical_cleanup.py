@@ -75,6 +75,10 @@ def _set_version(
     )
 
     try:
+        if version < schema_module.JOB_DEPENDENCY_GRAPH_SCHEMA_VERSION:
+            connection.execute("DROP TABLE IF EXISTS job_dependencies")
+            connection.execute("DROP TABLE IF EXISTS job_parent_links")
+
         if (
             version
             < schema_module.GROUNDED_RESPONSE_RECEIPT_SCHEMA_VERSION
@@ -394,7 +398,7 @@ def test_physical_cleanup_migration_removes_deleted_canary(
 
     assert metadata == (
         schema_module.SCHEMA_VERSION,
-        schema_module.GROUNDED_RESPONSE_RECEIPT_MIGRATION_ID,
+        schema_module.JOB_DEPENDENCY_GRAPH_MIGRATION_ID,
         schema_module.SCHEMA_VERSION,
     )
 
@@ -407,7 +411,7 @@ def test_physical_cleanup_migration_removes_deleted_canary(
         path
     )
 
-    v39_object_names = {
+    later_object_names = {
         "source_protected_semantic_payloads",
         "source_protection_representation_blobs",
         "idx_source_protected_semantic_scope",
@@ -416,12 +420,16 @@ def test_physical_cleanup_migration_removes_deleted_canary(
         "idx_source_protection_representation_old_blob",
         "grounded_response_receipts",
         "idx_grounded_response_receipts_chat",
+        "job_parent_links",
+        "idx_job_parent_links_parent",
+        "job_dependencies",
+        "idx_job_dependencies_depends_on",
     }
 
     preserved_objects_after = tuple(
         row
         for row in objects_after
-        if str(row[1]) not in v39_object_names
+        if str(row[1]) not in later_object_names
     )
 
     assert preserved_objects_after == objects_before
@@ -432,7 +440,7 @@ def test_physical_cleanup_migration_removes_deleted_canary(
             str(row[1]),
         )
         for row in objects_after
-        if str(row[1]) in v39_object_names
+        if str(row[1]) in later_object_names
     }
 
     assert added_objects == {
@@ -468,33 +476,53 @@ def test_physical_cleanup_migration_removes_deleted_canary(
             "index",
             "idx_grounded_response_receipts_chat",
         ),
+        (
+            "table",
+            "job_parent_links",
+        ),
+        (
+            "index",
+            "idx_job_parent_links_parent",
+        ),
+        (
+            "table",
+            "job_dependencies",
+        ),
+        (
+            "index",
+            "idx_job_dependencies_depends_on",
+        ),
     }
 
     counts_after = _table_counts(
         path
     )
 
-    v39_tables = {
+    later_tables = {
         "source_protected_semantic_payloads",
         "source_protection_representation_blobs",
         "grounded_response_receipts",
+        "job_parent_links",
+        "job_dependencies",
     }
 
     preserved_counts_after = {
         table: count
         for table, count in counts_after.items()
-        if table not in v39_tables
+        if table not in later_tables
     }
 
     assert preserved_counts_after == counts_before
 
     assert {
         table: counts_after[table]
-        for table in v39_tables
+        for table in later_tables
     } == {
         "source_protected_semantic_payloads": 0,
         "source_protection_representation_blobs": 0,
         "grounded_response_receipts": 0,
+        "job_parent_links": 0,
+        "job_dependencies": 0,
     }
 
     _assert_integrity(
@@ -609,7 +637,7 @@ def test_v38_second_start_does_not_repeat_cleanup(
 
     assert metadata == (
         schema_module.SCHEMA_VERSION,
-        schema_module.GROUNDED_RESPONSE_RECEIPT_MIGRATION_ID,
+        schema_module.JOB_DEPENDENCY_GRAPH_MIGRATION_ID,
         schema_module.SCHEMA_VERSION,
     )
 

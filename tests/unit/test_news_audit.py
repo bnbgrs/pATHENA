@@ -1266,6 +1266,12 @@ def test_v29_migration_backfills_legacy_event_assessment_without_model(
     # older schema boundary. Production migration
     # behavior remains intentionally fail-closed.
     legacy.execute(
+        "DROP TABLE IF EXISTS job_dependencies"
+    )
+    legacy.execute(
+        "DROP TABLE IF EXISTS job_parent_links"
+    )
+    legacy.execute(
         "DROP TABLE IF EXISTS "
         "grounded_response_receipts"
     )
