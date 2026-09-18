@@ -2,30 +2,29 @@
 
 ## Exact source of truth
 - Develop: `03157f15246c8acb0f51a30631bf45c4d2a72416`.
-- Error worker: ledger refresh `164171db5c07c1a14c58f32cccaf6bcc681b7dd1` before this handoff update.
+- Error worker: ledger refresh `8fc5027b94db26614a546475988406aeb84757b7` before this handoff update.
 - Spec/Core: `6dddda87919cc5363ccf664863f6b4dca83784ed`; no new current-SHA failure evidence.
-- Backend: `0f312cce81d7c64c3b09da42c505d86baa73a8ee`; Backend Focused `35311052004 = SUCCESS`; canonical `35311052020 = FAILURE`.
+- Backend: `f6d90e5070027357b19bf78647db7725e26d0dd2`; Backend Focused `35314812669 = SUCCESS`; canonical `35314812695 = FAILURE`.
 - UI: `e149515870b773548a164658775159f29de323af`; no Error-worker closure evidence.
 - `main` and `bnbgrs/ATHENA` remain strictly read-only.
 
 ## ITERATION-1 — new Backend successor consumed
-Backend advanced to `0f312cce...` (`Backend: apply canonical straight-import ordering`). The commit changes only the import block of `tests/unit/test_backup_verify_durable_service.py`.
+Backend advanced to `f6d90e...` (`Backend: apply Ruff first-party import boundary`). The commit edits only `tests/unit/test_backup_verify_durable_service.py`, but it changes both imports and durable-service test expectations.
 
-## ITERATION-2 — exact canonical cascade deduplicated
-Canonical `35311052020` is terminal FAILURE only in Python Ruff. Specification validator, mypy and full pytest are SUCCESS. Linux storage, Local-install and Windows path/release-guard jobs are SUCCESS. Backend Focused `35311052004` is SUCCESS.
+## ITERATION-2 — exact canonical cascade reclassified
+Canonical `35314812695` is terminal FAILURE in Python quality. Specification validator and mypy are SUCCESS. Ruff fails with one fixable I001. Full pytest now also fails: `2 failed, 5329 passed, 17 skipped`. Linux storage, Local-install and Windows path/release-guard jobs are SUCCESS. Backend Focused `35314812669` is SUCCESS, so that focused workflow is insufficient to establish full durable-service contract closure.
 
-## ITERATION-3 — ERR-0074 remains reproduced; manual-order hypothesis retired
-Exact `0f312cce...` moves `import pytest` directly after the straight `import athena.jobs.backup_verify_durable_service as durable_service` and before the `from athena...` imports. Canonical Ruff still fails. This invalidates the previous remaining manual-order combination as a closure path. Repeated manual import permutations are no longer acceptable root-cause work. Backend must execute repository-pinned Ruff 0.15.22 `check --fix tests/unit/test_backup_verify_durable_service.py`, preserve the complete generated diff, and demonstrate focused Ruff PASS before another canonical candidate.
+## ITERATION-3 — ERR-0075 newly reproduced and reopened
+Both full-pytest failures are in `tests/unit/test_backup_verify_durable_service.py` and come from the current Backend test edits. Production serializes `pinned_configuration_json` as `{"pipeline_version":"backup-deep-verify-v1"}`, but the test now incorrectly expects `{"pipeline_version":1}`. The invalid-version test now computes `BACKUP_VERIFY_DEEP_PIPELINE_VERSION + 1`; because the constant is a string this raises `TypeError` before service validation. This is a test-contract regression, not evidence to change production behavior. Backend should restore the string contract and use a deliberately wrong string pipeline version, then require focused durable-service pytest PASS.
 
-## ITERATION-4 — held closures and release guards
-`ERR-0075 = FIXED`: Backend Focused and canonical full pytest are green on exact `0f312cce...`. `ERR-0059 = FIXED`: no exact manifest-truth regression is reproduced; preserve capture-derived fields, `assigned_reference_count = 11`, and fail-closed exact-eleven semantics. Windows path/storage/durable-filesystem/API-boundary/ownership/packaged-runtime/adaptive-chat/restart/pypdf, Linux storage and Local-install remain green and must not be weakened.
+## ITERATION-4 — ERR-0074 remains exact and independent
+Ruff still reports one fixable I001 in the same test file. The new blank first-party boundary is not accepted by canonical Ruff. No further manual import guessing: execute repository-pinned Ruff 0.15.22 `check --fix tests/unit/test_backup_verify_durable_service.py`, consume the exact generated import diff, and require focused Ruff PASS.
 
-## ITERATION-5 — visual ownership held
-`ERR-0054 = OPEN`, UI/Visual-Review-owned. UI remains at `e1495158...`; no current evidence establishes completed truthful review of all eleven original-reference + exact-render pairs. Error worker neither creates nor accepts a baseline.
+## ITERATION-5 — held closures and ownership
+`ERR-0059 = FIXED`: canonical executes `tests/qa/test_visual_capture_manifest_truth.py` successfully on exact `f6d90e...`; preserve capture-derived fields, `assigned_reference_count = 11`, and fail-closed exact-eleven semantics. Windows path/storage/durable-filesystem/API-boundary/ownership/packaged-runtime/adaptive-chat/restart/pypdf, Linux storage and Local-install remain green and must not be weakened. `ERR-0054 = OPEN`, UI/Visual-Review-owned; Error worker neither creates nor accepts a baseline.
 
 ## Next root cause
-1. Backend: `ERR-0074` only — execute pinned Ruff 0.15.22 `check --fix tests/unit/test_backup_verify_durable_service.py` on exact `0f312cce...` and consume the complete generated transformation.
-2. Do not submit another hand-authored import permutation as a fix candidate.
-3. Require focused Ruff and focused durable-service pytest PASS before any further canonical candidate.
-4. Close `ERR-0074` only from terminal exact-SHA canonical Ruff success.
-5. Error worker consumes the next Backend successor immediately, then moves to the next independent current failure cluster.
+1. Backend first repairs `ERR-0075` in the already-owned bounded test file: restore the production string pipeline contract and invalid-string test input; focused durable-service pytest PASS required.
+2. Backend then closes `ERR-0074` with actual pinned Ruff `--fix`; focused Ruff PASS required.
+3. Do not launch canonical until both focused checks pass. Then require terminal exact-SHA canonical Ruff + full pytest PASS before closure.
+4. Error worker consumes the next Backend successor and immediately moves to any newly evidenced independent cluster.
