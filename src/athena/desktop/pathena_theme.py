@@ -274,15 +274,15 @@ QLineEdit#promptInput:focus {{
 }}
 
 QPushButton#sendButton {{
-    min-width: 48px;
-    max-width: 48px;
-    min-height: 48px;
-    max-height: 48px;
+    min-width: {SHELL.composer_action_size - 2}px;
+    max-width: {SHELL.composer_action_size - 2}px;
+    min-height: {SHELL.composer_action_size - 2}px;
+    max-height: {SHELL.composer_action_size - 2}px;
     padding: 0;
     color: {PALETTE.text};
     background: {PALETTE.accent};
     border: 1px solid {PALETTE.accent};
-    border-radius: 24px;
+    border-radius: {SHELL.composer_action_size // 2}px;
     font-size: 20px;
     font-weight: 600;
 }}

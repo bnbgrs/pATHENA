@@ -202,7 +202,10 @@ class PathenaMainWindow(AthenaMainWindow):
         self.send_button.setText("→")
         self.send_button.setToolTip("Send message (Ctrl+Enter)")
         self.send_button.setAccessibleName("Send message")
-        self.send_button.setFixedSize(44, 44)
+        self.send_button.setFixedSize(
+            SHELL.composer_action_size,
+            SHELL.composer_action_size,
+        )
 
         self.new_chat_button.setText("New")
         self.new_chat_button.setToolTip("Start a new conversation")

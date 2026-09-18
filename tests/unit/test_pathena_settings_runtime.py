@@ -273,6 +273,9 @@ def test_real_controller_snapshot_signal_drives_settings_runtime(tmp_path) -> No
         assert runtime.network_value.text() == "Local Core · connected"
         assert window.model_selector.currentData() == "Local Qwen"
         assert runtime.panel.parentWidget() is window.pages.widget(6)
+        assert runtime.provider_value.wordWrap() is True
+        assert runtime.network_value.wordWrap() is True
+        assert runtime.persistence_value.wordWrap() is True
     finally:
         window.refresh_timer.stop()
         window.close()

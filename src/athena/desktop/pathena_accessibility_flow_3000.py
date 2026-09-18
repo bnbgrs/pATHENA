@@ -30,7 +30,7 @@ _TARGETS: tuple[AccessibilityTarget, ...] = (
         "workspace navigation",
         "Workspace navigation",
         "Choose the active pATHENA workspace.",
-        "Use arrow keys to move between Chat, Knowledge, Research, Jobs, Files, "
+        "Use arrow keys to move between Chat, Knowledge, Research, Jobs, Sources, "
         "System and Settings.",
         Qt.FocusPolicy.StrongFocus,
     ),

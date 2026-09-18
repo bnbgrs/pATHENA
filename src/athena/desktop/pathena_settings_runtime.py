@@ -17,6 +17,7 @@ from PySide6.QtCore import QObject, QSettings, Qt, Slot
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
+    QSizePolicy,
     QVBoxLayout,
     QWidget,
 )
@@ -197,12 +198,19 @@ class SettingsRuntimeController(QObject):
     def _status_row(name: str, value: QLabel) -> QHBoxLayout:
         row = QHBoxLayout()
         row.setContentsMargins(0, 0, 0, 0)
-        row.setSpacing(16)
+        row.setSpacing(12)
         label = QLabel(name)
         label.setObjectName("settingsLabel")
+        label.setMinimumWidth(84)
+        value.setWordWrap(True)
+        value.setMinimumWidth(0)
+        value.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        value.setSizePolicy(
+            QSizePolicy.Policy.Ignored,
+            QSizePolicy.Policy.Preferred,
+        )
         row.addWidget(label)
-        row.addStretch(1)
-        row.addWidget(value)
+        row.addWidget(value, 1)
         return row
 
     def _update_settings_copy(self) -> None:

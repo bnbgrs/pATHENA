@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import inspect
 
+from athena.desktop.pathena_design_tokens import PALETTE
 from athena.desktop.pathena_research_experience_2500 import (
     _RESEARCH_REFINEMENTS,
     _RESEARCH_STYLESHEET,
@@ -44,10 +45,14 @@ def test_research_experience_has_keyboard_and_accessibility_contract() -> None:
     assert "setFocusPolicy" in source
 
 
-def test_research_experience_keeps_quiet_visual_contract() -> None:
-    assert "#F26A21" in _RESEARCH_STYLESHEET
-    assert "#070707" in _RESEARCH_STYLESHEET
-    assert "#1E1E1E" in _RESEARCH_STYLESHEET
+def test_research_experience_uses_reference_tokens_not_legacy_black_orange() -> None:
+    assert PALETTE.canvas in _RESEARCH_STYLESHEET
+    assert PALETTE.surface in _RESEARCH_STYLESHEET
+    assert PALETTE.accent in _RESEARCH_STYLESHEET
+    assert "#F26A21" not in _RESEARCH_STYLESHEET
+    assert "#070707" not in _RESEARCH_STYLESHEET
+    assert "#090909" not in _RESEARCH_STYLESHEET
+    assert "#1E1E1E" not in _RESEARCH_STYLESHEET
     lowered = _RESEARCH_STYLESHEET.lower()
     assert "glow" not in lowered
     assert "shadow" not in lowered

@@ -68,6 +68,22 @@ UI_REFINEMENT_TASKS_2101_2200: tuple[str, ...] = tuple(
     for refinement in _LAYOUT_REFINEMENTS
 )
 
+_REFERENCE_BROWSER_RATIOS = {
+    "knowledgeWorkspace": 0.28,
+    "researchWorkspace": 0.27,
+    "jobsWorkspace": 0.30,
+    "filesWorkspace": 0.28,
+}
+
+_REFERENCE_LIST_WIDTHS = {
+    "persistentKnowledgeList": 268,
+    "persistentClaimList": 268,
+    "semanticReviewList": 284,
+    "researchJobList": 276,
+    "durableJobList": 304,
+    "sourceList": 276,
+}
+
 
 def apply_ui_refinements_2101_2200(window: QWidget) -> tuple[int, ...]:
     """Register the 100 adaptive-layout tasks in the shared integrity accounting."""
@@ -147,40 +163,35 @@ class PathenaLayoutRefinement(QObject):
                     label.setMaximumHeight(34 if compact else 64 if wide else 52)
 
     def _tune_splitters(self, *, compact: bool, wide: bool) -> None:
-        for workspace_name in (
-            "knowledgeWorkspace",
-            "researchWorkspace",
-            "jobsWorkspace",
-            "filesWorkspace",
-        ):
+        for workspace_name, reference_ratio in _REFERENCE_BROWSER_RATIOS.items():
             workspace = self.window.findChild(QWidget, workspace_name)
             if workspace is None:
                 continue
             for splitter in workspace.findChildren(QSplitter):
                 splitter.setChildrenCollapsible(False)
-                splitter.setHandleWidth(1 if compact else 2)
-                total = max(600, splitter.width())
-                if compact:
-                    left = max(220, int(total * 0.38))
-                elif wide:
-                    left = max(300, int(total * 0.31))
-                else:
-                    left = max(260, int(total * 0.34))
-                splitter.setSizes([left, max(300, total - left)])
+                splitter.setHandleWidth(1)
+                total = max(720, splitter.width())
+                ratio = reference_ratio + (0.03 if compact else -0.01 if wide else 0.0)
+                left = max(236, int(total * ratio))
+                right = max(420, total - left)
+                splitter.setSizes([left, right])
 
     def _tune_lists(self, *, compact: bool, wide: bool) -> None:
-        minimum = 220 if compact else 320 if wide else 280
-        for name in (
-            "persistentKnowledgeList",
-            "persistentClaimList",
-            "semanticReviewList",
-            "researchJobList",
-            "durableJobList",
-            "sourceList",
-        ):
+        for name, reference_width in _REFERENCE_LIST_WIDTHS.items():
             view = self.window.findChild(QAbstractItemView, name)
-            if view is not None:
-                view.setMinimumWidth(minimum)
+            if view is None:
+                continue
+            minimum = (
+                reference_width - 28
+                if compact
+                else reference_width + 12
+                if wide
+                else reference_width
+            )
+            view.setMinimumWidth(max(228, minimum))
+            view.setMaximumWidth(
+                reference_width + (76 if compact else 112 if wide else 92)
+            )
 
     def _tune_composer(self, *, compact: bool, wide: bool) -> None:
         prompt = self.window.findChild(QLineEdit, "promptInput")

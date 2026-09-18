@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from athena.desktop.pathena_design_tokens import PALETTE
 from athena.desktop.pathena_jobs_experience_2800 import (
     _DETAIL_LABELS,
     _REFINEMENTS,
@@ -60,9 +61,14 @@ def test_job_detail_humanizer_preserves_values_and_improves_labels() -> None:
     assert _DETAIL_LABELS["REQUESTED_SCOPE"] == "Requested scope"
 
 
-def test_jobs_experience_keeps_quiet_workspace_contract() -> None:
-    assert "#F26A21" in _STYLESHEET
-    assert "#080808" in _STYLESHEET
+def test_jobs_experience_uses_reference_tokens_not_legacy_black_orange() -> None:
+    assert PALETTE.canvas in _STYLESHEET
+    assert PALETTE.surface in _STYLESHEET
+    assert PALETTE.accent in _STYLESHEET
+    assert PALETTE.error in _STYLESHEET
+    assert "#F26A21" not in _STYLESHEET
+    assert "#080808" not in _STYLESHEET
+    assert "#090909" not in _STYLESHEET
     lowered = _STYLESHEET.lower()
     assert "glow" not in lowered
     assert "shadow" not in lowered

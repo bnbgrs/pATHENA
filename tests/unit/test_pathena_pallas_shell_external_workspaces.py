@@ -169,6 +169,7 @@ def test_pallas_and_comfyui_are_mutually_exclusive_and_command_is_registered() -
     assert comfyui is not None
 
     labels = {command.label for command in palette._commands}  # noqa: SLF001
+    assert "Open PALLAS" in labels
     assert "Open ComfyUI" in labels
     assert window.property("pathenaComfyUiInstalled") is True
     assert window.property("pathenaComfyUiUnavailableReason") is None
@@ -228,6 +229,7 @@ def test_invalid_optional_comfyui_configuration_does_not_break_pallas(
     assert window.property("pathenaComfyUiInstalled") is False
     assert "local HTTP" in str(window.property("pathenaComfyUiUnavailableReason"))
     assert window.property("pathenaExternalWorkspaceMutualExclusion") is False
+    assert "Open PALLAS" in labels
     assert "Open ComfyUI" not in labels
 
     pallas.open_workspace()

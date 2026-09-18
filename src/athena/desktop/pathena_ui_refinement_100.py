@@ -229,7 +229,7 @@ def apply_ui_refinements(window: QWidget) -> tuple[int, ...]:
         navigation,
         _accessible(
             "Workspace navigation",
-            "Switch between Chat, Knowledge, Research, Jobs, Files, System and Settings.",
+            "Switch between Chat, Knowledge, Research, Jobs, Sources, System and Settings.",
         ),
     )
     _apply(applied, 3, pages, _accessible("Current workspace"))

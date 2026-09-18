@@ -136,12 +136,12 @@ def test_reference_composer_uses_large_work_surface_and_send_target() -> None:
         assert composer.height() == 88
         assert window.prompt_input.minimumHeight() == 44
         assert window.ground_button.minimumHeight() == 36
-        assert window.send_button.width() == 44
-        assert window.send_button.height() == 44
-        assert window.send_button.minimumWidth() == 44
-        assert window.send_button.maximumWidth() == 44
-        assert window.send_button.minimumHeight() == 44
-        assert window.send_button.maximumHeight() == 44
+        assert window.send_button.width() == SHELL.composer_action_size
+        assert window.send_button.height() == SHELL.composer_action_size
+        assert window.send_button.minimumWidth() == SHELL.composer_action_size
+        assert window.send_button.maximumWidth() == SHELL.composer_action_size
+        assert window.send_button.minimumHeight() == SHELL.composer_action_size
+        assert window.send_button.maximumHeight() == SHELL.composer_action_size
     finally:
         window.close()
 
