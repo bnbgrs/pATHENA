@@ -877,7 +877,9 @@ class AthenaMainWindow(QMainWindow):
             state = "LOADED" if model.loaded else "AVAILABLE / NOT LOADED"
             self.settings_model_value.setText(f"{model.display_name} · {state}")
             self.settings_model_value.setStyleSheet(
-                "color: #63D98B;" if model.loaded else f"color: {TEXT_MUTED};"
+                "color: #63D98B;"
+                if model.loaded and self._model_freshness == "fresh"
+                else f"color: {TEXT_MUTED};"
             )
 
             runtime_limit = model.loaded_context_length or model.context_capacity
