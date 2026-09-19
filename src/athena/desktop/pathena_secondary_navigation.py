@@ -42,9 +42,9 @@ class SettingsSecondaryNavigation(QObject):
         if not isinstance(page_layout, QVBoxLayout):
             raise RuntimeError("pATHENA Settings page has no vertical layout")
 
-        model_target = getattr(window, "context_spin", None)
+        model_target = getattr(window, "settings_model_selector", None)
         if not isinstance(model_target, QWidget):
-            raise RuntimeError("pATHENA Settings model controls are unavailable")
+            raise RuntimeError("pATHENA Settings model selector is unavailable")
 
         runtime_target = settings_page.findChild(QWidget, "settingsRuntimePanel")
         sections = [SecondarySection("model", "Model & inference", model_target)]

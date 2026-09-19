@@ -293,6 +293,7 @@ class AthenaMainWindow(QMainWindow):
         self.send_button = QPushButton("CTRL+ENTER")
         self.chat_selector = QComboBox()
         self.model_selector = QComboBox()
+        self.settings_model_selector = QComboBox()
         self.context_slider = QSlider(Qt.Orientation.Horizontal)
         self.context_value_label = QLabel("—")
         self.delete_chat_button = QPushButton("DELETE")
@@ -317,6 +318,7 @@ class AthenaMainWindow(QMainWindow):
         self._last_rendered_sequence = 0
         self._core_transport_ready = False
         self._provider_ready = False
+        self._model_freshness = "unavailable"
         self._last_model_error: str | None = None
         self.local_model_metric = MetricRow("MODEL", "not connected")
         self.context_metric = MetricRow("CTX", "—")
@@ -571,44 +573,86 @@ class AthenaMainWindow(QMainWindow):
         llms = tuple(model for model in snapshot.models if model.model_type == "llm")
         previous_model = self._selected_model_id()
         self._models_by_id = {model.backend_model_id: model for model in llms}
+        model_freshness = snapshot.resolved_model_freshness
+        self._model_freshness = model_freshness
+        provider_ready = (
+            snapshot.provider is not None
+            and snapshot.provider.status == "ready"
+            and model_freshness != "unavailable"
+        )
+        loaded = next((model for model in llms if model.loaded), None)
+        target_model = (
+            previous_model
+            if previous_model in self._models_by_id
+            else loaded.backend_model_id
+            if loaded is not None
+            else llms[0].backend_model_id
+            if llms
+            else None
+        )
+        empty_label = (
+            "LM STUDIO UNAVAILABLE"
+            if not provider_ready
+            else "NO LOCAL LLM MODELS"
+        )
 
-        self.model_selector.blockSignals(True)
-        try:
-            self.model_selector.clear()
-            for model in llms:
-                state = "LOADED" if model.loaded else "AVAILABLE"
-                self.model_selector.addItem(
-                    f"{model.display_name} · {state}",
-                    model.backend_model_id,
-                )
-                index = self.model_selector.count() - 1
-                self.model_selector.setItemData(
-                    index,
-                    QColor("#63D98B" if model.loaded else TEXT_DIM),
-                    Qt.ItemDataRole.ForegroundRole,
-                )
-                self.model_selector.setItemData(
-                    index,
-                    (
-                        "Loaded in LM Studio and ready for chat"
-                        if model.loaded
-                        else "Available in LM Studio but not currently loaded"
-                    ),
-                    Qt.ItemDataRole.ToolTipRole,
-                )
-            if llms:
-                loaded = next((model for model in llms if model.loaded), None)
-                target_model = (
-                    previous_model
-                    if previous_model in self._models_by_id
-                    else loaded.backend_model_id
-                    if loaded is not None
-                    else llms[0].backend_model_id
-                )
-                target_index = self.model_selector.findData(target_model)
-                self.model_selector.setCurrentIndex(max(0, target_index))
-        finally:
-            self.model_selector.blockSignals(False)
+        for selector in (self.model_selector, self.settings_model_selector):
+            selector.blockSignals(True)
+            try:
+                selector.clear()
+                if not llms:
+                    selector.addItem(empty_label, None)
+                    selector.setItemData(
+                        0,
+                        QColor(TEXT_MUTED),
+                        Qt.ItemDataRole.ForegroundRole,
+                    )
+                    selector.setItemData(
+                        0,
+                        (
+                            "LM Studio is unavailable or model discovery failed."
+                            if not provider_ready
+                            else "LM Studio is ready, but no local LLM models were reported."
+                        ),
+                        Qt.ItemDataRole.ToolTipRole,
+                    )
+                    selector.setCurrentIndex(0)
+                    continue
+
+                for model in llms:
+                    state = "LOADED" if model.loaded else "AVAILABLE"
+                    if model_freshness == "stale":
+                        state += " · STALE"
+                    selector.addItem(
+                        f"{model.display_name} · {state}",
+                        model.backend_model_id,
+                    )
+                    index = selector.count() - 1
+                    selector.setItemData(
+                        index,
+                        QColor(
+                            "#63D98B"
+                            if model.loaded and model_freshness == "fresh"
+                            else TEXT_DIM
+                        ),
+                        Qt.ItemDataRole.ForegroundRole,
+                    )
+                    selector.setItemData(
+                        index,
+                        (
+                            "Last known LM Studio model state; current discovery is stale"
+                            if model_freshness == "stale"
+                            else "Loaded in LM Studio and ready for chat"
+                            if model.loaded
+                            else "Available in LM Studio but not currently loaded"
+                        ),
+                        Qt.ItemDataRole.ToolTipRole,
+                    )
+
+                target_index = selector.findData(target_model)
+                selector.setCurrentIndex(max(0, target_index))
+            finally:
+                selector.blockSignals(False)
 
         committed_chat_id = self._committed_chat_id()
         selector_target = (
@@ -654,13 +698,17 @@ class AthenaMainWindow(QMainWindow):
 
         self._configure_context_for_selected_model()
         selected = self._selected_model()
-        self.model_selector.setStyleSheet(
+        selector_style = (
             "color: #63D98B;"
-            if selected is not None and selected.loaded
+            if selected is not None
+            and selected.loaded
+            and model_freshness == "fresh"
             else f"color: {TEXT_MUTED};"
             if selected is not None
             else ""
         )
+        for selector in (self.model_selector, self.settings_model_selector):
+            selector.setStyleSheet(selector_style)
     def _build_settings_page(self, page: QWidget) -> QWidget:
         layout = QVBoxLayout(page)
         layout.setContentsMargins(8, 0, 18, 28)
@@ -681,9 +729,21 @@ class AthenaMainWindow(QMainWindow):
         layout.addWidget(_rule())
 
         model_row = QHBoxLayout()
-        model_row.addWidget(QLabel("MODEL"))
+        model_label = QLabel("MODEL")
+        model_label.setObjectName("settingsLabel")
+        model_row.addWidget(model_label)
+        self.settings_model_selector.setObjectName("settingsModelSelector")
+        self.settings_model_selector.setMinimumWidth(220)
+        self.settings_model_selector.setAccessibleName("Local model")
+        self.settings_model_selector.setToolTip(
+            "Choose the local model used for chat and these inference settings"
+        )
+        self.settings_model_selector.activated.connect(
+            self._on_settings_model_selected
+        )
+        model_row.addWidget(self.settings_model_selector, 1)
         self.settings_model_value.setObjectName("settingsValue")
-        model_row.addWidget(self.settings_model_value, 1)
+        model_row.addWidget(self.settings_model_value)
         layout.addLayout(model_row)
 
         ctx_row = QHBoxLayout()
@@ -817,7 +877,9 @@ class AthenaMainWindow(QMainWindow):
             state = "LOADED" if model.loaded else "AVAILABLE / NOT LOADED"
             self.settings_model_value.setText(f"{model.display_name} · {state}")
             self.settings_model_value.setStyleSheet(
-                "color: #63D98B;" if model.loaded else f"color: {TEXT_MUTED};"
+                "color: #63D98B;"
+                if model.loaded and self._model_freshness == "fresh"
+                else f"color: {TEXT_MUTED};"
             )
 
             runtime_limit = model.loaded_context_length or model.context_capacity
@@ -882,19 +944,50 @@ class AthenaMainWindow(QMainWindow):
             for control in controls:
                 control.blockSignals(False)
 
+    def _sync_settings_model_selector(self) -> None:
+        model_id = self._selected_model_id()
+        target_index = self.settings_model_selector.findData(model_id)
+        if target_index < 0:
+            return
+        self.settings_model_selector.blockSignals(True)
+        try:
+            self.settings_model_selector.setCurrentIndex(target_index)
+        finally:
+            self.settings_model_selector.blockSignals(False)
+
+    def _on_settings_model_selected(self, index: int) -> None:
+        if index < 0:
+            return
+        model_id = self.settings_model_selector.itemData(index)
+        target_index = self.model_selector.findData(model_id)
+        if target_index < 0:
+            return
+        self.model_selector.blockSignals(True)
+        try:
+            self.model_selector.setCurrentIndex(target_index)
+        finally:
+            self.model_selector.blockSignals(False)
+        self._on_model_selected(target_index)
+
     def _on_model_selected(self, _index: int) -> None:
+        self._sync_settings_model_selector()
         self._configure_context_for_selected_model()
         model = self._selected_model()
         if model is not None:
             self.local_model_metric.set_value(model.display_name)
             self.model_metric.set_value(model.display_name)
-            self.model_selector.setStyleSheet(
-                "color: #63D98B;" if model.loaded else f"color: {TEXT_MUTED};"
+            selector_style = (
+                "color: #63D98B;"
+                if model.loaded and self._model_freshness == "fresh"
+                else f"color: {TEXT_MUTED};"
             )
+            for selector in (self.model_selector, self.settings_model_selector):
+                selector.setStyleSheet(selector_style)
         else:
             self.local_model_metric.set_value("none selected")
             self.model_metric.set_value("—")
-            self.model_selector.setStyleSheet("")
+            for selector in (self.model_selector, self.settings_model_selector):
+                selector.setStyleSheet("")
         self._update_ready_state()
         self._sync_composer_enabled()
 
@@ -1326,6 +1419,8 @@ class AthenaMainWindow(QMainWindow):
         self.chat_selector.activated.connect(self._on_chat_selected)
         self.model_selector.setObjectName("modelSelector")
         self.model_selector.setMinimumWidth(180)
+        self.model_selector.setAccessibleName("Local model")
+        self.model_selector.setToolTip("Choose the local model used for chat")
         self.model_selector.activated.connect(self._on_model_selected)
         self.context_slider.setObjectName("contextSlider")
         self.context_slider.setMinimumWidth(130)
@@ -1616,7 +1711,27 @@ class AthenaMainWindow(QMainWindow):
         self._core_ready = False
         self._core_transport_ready = False
         self._provider_ready = False
+        self._model_freshness = "unavailable"
         self._last_model_error = None
+        self._models_by_id = {}
+        for selector in (self.model_selector, self.settings_model_selector):
+            selector.blockSignals(True)
+            try:
+                selector.clear()
+                selector.addItem("CORE UNAVAILABLE", None)
+                selector.setItemData(
+                    0,
+                    QColor(TEXT_MUTED),
+                    Qt.ItemDataRole.ForegroundRole,
+                )
+                selector.setItemData(
+                    0,
+                    "ATHENA Core is unavailable, so local model discovery cannot run.",
+                    Qt.ItemDataRole.ToolTipRole,
+                )
+            finally:
+                selector.blockSignals(False)
+        self._configure_context_for_selected_model()
         self.core_metric.set_value("disconnected")
         self.local_model_metric.set_value("not connected")
         self.model_metric.set_value("—")
@@ -2073,9 +2188,9 @@ class AthenaMainWindow(QMainWindow):
             controls_available and self.current_chat_id is not None
         )
         model_available = controls_available and self._selected_model() is not None
-        self.model_selector.setEnabled(
-            controls_available and self.model_selector.count() > 0
-        )
+        model_selectors_enabled = controls_available and bool(self._models_by_id)
+        self.model_selector.setEnabled(model_selectors_enabled)
+        self.settings_model_selector.setEnabled(model_selectors_enabled)
         self.new_chat_button.setEnabled(controls_available)
         model = self._selected_model()
         context_known = (

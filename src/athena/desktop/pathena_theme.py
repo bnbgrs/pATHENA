@@ -281,7 +281,8 @@ QLabel#promptMarker {{
 }}
 
 QComboBox#chatSelector,
-QComboBox#modelSelector {{
+QComboBox#modelSelector,
+QComboBox#settingsModelSelector {{
     min-height: 30px;
     background: {PALETTE.surface};
     border-color: {PALETTE.border};
@@ -289,7 +290,8 @@ QComboBox#modelSelector {{
 }}
 
 QComboBox#chatSelector:hover,
-QComboBox#modelSelector:hover {{
+QComboBox#modelSelector:hover,
+QComboBox#settingsModelSelector:hover {{
     background: {PALETTE.surface_hover};
     border-color: {PALETTE.border_strong};
 }}
