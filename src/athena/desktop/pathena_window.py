@@ -434,6 +434,8 @@ class PathenaMainWindow(AthenaMainWindow):
             self.settings_model_value.setText("—")
         else:
             state = "Loaded" if model.loaded else "Not loaded"
+            if self._model_freshness == "stale":
+                state += " · stale"
             self.settings_model_value.setText(f"{model.display_name} · {state}")
         self.thinking_checkbox.setText("On" if self.thinking_checkbox.isChecked() else "Off")
 
