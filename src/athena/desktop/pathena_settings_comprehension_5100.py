@@ -14,7 +14,6 @@ from typing import cast
 from PySide6.QtCore import QObject, QTimer
 from PySide6.QtWidgets import (
     QAbstractButton,
-    QComboBox,
     QLabel,
     QSlider,
     QSpinBox,
