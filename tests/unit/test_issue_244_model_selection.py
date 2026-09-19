@@ -103,13 +103,22 @@ class _ChatRecorder:
         self.last_send = kwargs
 
 
+def _attach_chat_recorder(window: PathenaMainWindow) -> _ChatRecorder:
+    recorder = _ChatRecorder()
+    window.api_controller = cast(DesktopApiController, recorder)
+    return recorder
+
+
 def test_issue_244_model_selectors_use_real_snapshot_and_stay_synchronized() -> None:
     _app()
     window = PathenaMainWindow()
     try:
         secondary = install_settings_secondary_navigation(window)
+        recorder = _attach_chat_recorder(window)
         window.apply_api_snapshot(_snapshot(_models()))
 
+        assert window.model_selector.isEnabled()
+        assert window.settings_model_selector.isEnabled()
         expected_ids = ["qwen-loaded", "llama-available"]
         assert [
             window.model_selector.itemData(index)
@@ -142,8 +151,6 @@ def test_issue_244_model_selectors_use_real_snapshot_and_stay_synchronized() -> 
         assert window.settings_model_selector.currentData() == "qwen-loaded"
         assert window.context_spin.maximum() == 48_000
 
-        recorder = _ChatRecorder()
-        window.api_controller = cast(DesktopApiController, recorder)
         window.prompt_input.setText("Use the selected model")
         window._submit_prompt()
 
@@ -159,6 +166,7 @@ def test_issue_244_empty_and_unavailable_model_states_remain_explicit() -> None:
     window = PathenaMainWindow()
     try:
         install_settings_secondary_navigation(window)
+        _attach_chat_recorder(window)
 
         window.apply_api_snapshot(
             _snapshot(
@@ -200,6 +208,7 @@ def test_issue_244_model_chooser_renders_in_chat_and_settings_at_release_sizes(
     window = PathenaMainWindow()
     try:
         secondary = install_settings_secondary_navigation(window)
+        _attach_chat_recorder(window)
         window.apply_api_snapshot(_snapshot(_models()))
         window.resize(width, height)
         window.show()
