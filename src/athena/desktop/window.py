@@ -318,6 +318,7 @@ class AthenaMainWindow(QMainWindow):
         self._last_rendered_sequence = 0
         self._core_transport_ready = False
         self._provider_ready = False
+        self._model_freshness = "unavailable"
         self._last_model_error: str | None = None
         self.local_model_metric = MetricRow("MODEL", "not connected")
         self.context_metric = MetricRow("CTX", "—")
@@ -573,6 +574,7 @@ class AthenaMainWindow(QMainWindow):
         previous_model = self._selected_model_id()
         self._models_by_id = {model.backend_model_id: model for model in llms}
         model_freshness = snapshot.resolved_model_freshness
+        self._model_freshness = model_freshness
         provider_ready = (
             snapshot.provider is not None
             and snapshot.provider.status == "ready"
@@ -973,7 +975,9 @@ class AthenaMainWindow(QMainWindow):
             self.local_model_metric.set_value(model.display_name)
             self.model_metric.set_value(model.display_name)
             selector_style = (
-                "color: #63D98B;" if model.loaded else f"color: {TEXT_MUTED};"
+                "color: #63D98B;"
+                if model.loaded and self._model_freshness == "fresh"
+                else f"color: {TEXT_MUTED};"
             )
             for selector in (self.model_selector, self.settings_model_selector):
                 selector.setStyleSheet(selector_style)
@@ -1705,6 +1709,7 @@ class AthenaMainWindow(QMainWindow):
         self._core_ready = False
         self._core_transport_ready = False
         self._provider_ready = False
+        self._model_freshness = "unavailable"
         self._last_model_error = None
         self._models_by_id = {}
         for selector in (self.model_selector, self.settings_model_selector):
