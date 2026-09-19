@@ -1,0 +1,44 @@
+name: Issue 244 final verification
+
+on:
+  push:
+    branches:
+      - verify/issue-244-final
+
+permissions:
+  contents: read
+
+jobs:
+  issue-244:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      QT_QPA_PLATFORM: offscreen
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: "pip"
+      - name: Install pinned resolver and desktop runtime
+        run: |
+          python -m pip install --disable-pip-version-check "uv==0.11.21"
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y libegl1
+          uv lock --check
+      - name: Ruff changed UI slice
+        run: |
+          uv run --locked --extra dev --extra desktop ruff check \
+            src/athena/desktop/window.py \
+            src/athena/desktop/pathena_window.py \
+            src/athena/desktop/pathena_secondary_navigation.py \
+            src/athena/desktop/pathena_settings_comprehension_5100.py \
+            tests/unit/test_issue_244_model_selection.py
+      - name: Mypy desktop source
+        run: uv run --locked --extra dev --extra desktop mypy src/athena
+      - name: Issue 244 focused Qt regressions
+        run: |
+          uv run --locked --extra dev --extra desktop pytest -q \
+            tests/unit/test_issue_244_model_selection.py \
+            tests/unit/test_pathena_window.py \
+            tests/unit/test_pathena_secondary_navigation.py
