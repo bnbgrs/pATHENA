@@ -11,7 +11,11 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PySide6.QtWidgets import QApplication
 
 from athena.api.contracts import HealthResponse, ModelResponse, ProviderHealthResponse
-from athena.desktop.api_controller import DesktopApiController, DesktopApiSnapshot
+from athena.desktop.api_controller import (
+    DesktopApiController,
+    DesktopApiSnapshot,
+    SnapshotFreshness,
+)
 from athena.desktop.pathena_secondary_navigation import (
     install_settings_secondary_navigation,
 )
@@ -71,7 +75,7 @@ def _snapshot(
     *,
     provider_status: str = "ready",
     model_error: str | None = None,
-    model_freshness: str | None = None,
+    model_freshness: SnapshotFreshness | None = None,
 ) -> DesktopApiSnapshot:
     return DesktopApiSnapshot(
         health=HealthResponse(
@@ -87,7 +91,7 @@ def _snapshot(
         models=models,
         chats=(),
         model_error=model_error,
-        model_freshness=cast(object, model_freshness),
+        model_freshness=model_freshness,
     )
 
 
