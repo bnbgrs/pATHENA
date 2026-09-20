@@ -65,7 +65,6 @@ def test_layout_refinement_preserves_user_splitter_within_density() -> None:
     window.resize(1400, 900)
 
     controller = refinement.PathenaLayoutRefinement(window)
-    baseline = splitter.sizes()
     assert splitter.property("pathenaAdaptiveSplitterTracking") is True
     assert splitter.property("pathenaUserAdjustedSplitter") is False
 
