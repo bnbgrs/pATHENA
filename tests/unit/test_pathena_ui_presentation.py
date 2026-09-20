@@ -335,8 +335,9 @@ def test_pathena_session_controls_hide_machine_metadata() -> None:
 
         model_index = window.model_selector.findData(model_id)
         assert model_index >= 0
-        assert window.model_selector.itemText(model_index) == "Qwen Local"
-        assert "LOADED" not in window.model_selector.itemText(model_index)
+        model_label = window.model_selector.itemText(model_index)
+        assert model_label == "Qwen Local · Loaded"
+        assert model_id not in model_label
         assert window.settings_model_value.text() == "Qwen Local · Loaded"
 
         window.thinking_checkbox.setChecked(True)
