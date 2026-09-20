@@ -54,25 +54,32 @@ def test_layout_breakpoints_and_task_range_are_stable() -> None:
     assert tuple(range(2101, 2201))[-1] == 2200
 
 
-def test_layout_refinement_retunes_splitters_only_when_density_changes() -> None:
+def test_layout_refinement_preserves_user_splitter_within_density() -> None:
     _app()
     window = QWidget()
+    workspace = QWidget(window)
+    workspace.setObjectName("knowledgeWorkspace")
+    splitter = refinement.QSplitter(workspace)
+    splitter.addWidget(QWidget(splitter))
+    splitter.addWidget(QWidget(splitter))
     window.resize(1400, 900)
+
     controller = refinement.PathenaLayoutRefinement(window)
-    calls: list[tuple[bool, bool]] = []
-    controller._tune_splitters = lambda *, compact, wide: calls.append((compact, wide))  # type: ignore[method-assign]
+    baseline = splitter.sizes()
+    assert splitter.property("pathenaAdaptiveSplitterTracking") is True
+    assert splitter.property("pathenaUserAdjustedSplitter") is False
+
+    splitter.setSizes([330, 390])
+    splitter.splitterMoved.emit(330, 1)
+    user_sizes = splitter.sizes()
+    assert splitter.property("pathenaUserAdjustedSplitter") is True
 
     controller.apply_for_width(1450)
-    controller.apply_for_width(1500)
-    assert calls == []
+    assert splitter.sizes() == user_sizes
 
     controller.apply_for_width(1200)
-    assert calls == [(True, False)]
-
-    controller.apply_for_width(1180)
-    assert calls == [(True, False)]
-
-    controller.apply_for_width(1600)
-    assert calls == [(True, False), (False, True)]
+    assert splitter.property("pathenaUserAdjustedSplitter") is False
+    assert splitter.sizes() != user_sizes
+    assert splitter.sizes() != baseline or baseline == user_sizes
 
     window.close()
