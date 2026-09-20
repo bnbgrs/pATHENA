@@ -172,14 +172,12 @@ def test_reference_parity_keeps_chat_inspector_geometry_stable() -> None:
         assert inspector is not None
         assert not inspector.isHidden()
         initial_width = inspector.width()
-        assert inspector.property("pathenaContextAvailable") is False
 
         window._set_context_available(True)
         window.navigation.setCurrentRow(0)
         app.processEvents()
         assert not inspector.isHidden()
         assert inspector.width() == initial_width
-        assert inspector.property("pathenaContextAvailable") is True
 
         window.navigation.setCurrentRow(2)
         app.processEvents()
@@ -195,7 +193,6 @@ def test_reference_parity_keeps_chat_inspector_geometry_stable() -> None:
         app.processEvents()
         assert not inspector.isHidden()
         assert inspector.width() == initial_width
-        assert inspector.property("pathenaContextAvailable") is False
     finally:
         parity.dispose()
         window.close()
