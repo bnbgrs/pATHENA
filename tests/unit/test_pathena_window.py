@@ -73,7 +73,7 @@ def test_reference_shell_owns_orange_navigation_selection() -> None:
         window.close()
 
 
-def test_reference_body_directly_owns_workspace_and_contextual_inspector() -> None:
+def test_reference_body_directly_owns_workspace_and_chat_inspector() -> None:
     app = _app()
     window = PathenaMainWindow()
     app.processEvents()
@@ -95,7 +95,7 @@ def test_reference_body_directly_owns_workspace_and_contextual_inspector() -> No
             label.text() == "EVIDENCE & ACTIVITY"
             for label in inspector.findChildren(QLabel)
         )
-        assert inspector.isHidden()
+        assert not inspector.isHidden()
     finally:
         window.close()
 
@@ -146,7 +146,7 @@ def test_reference_composer_uses_large_work_surface_and_send_target() -> None:
         window.close()
 
 
-def test_reference_inspector_follows_grounding_and_non_chat_navigation() -> None:
+def test_reference_inspector_is_stable_in_chat_and_hidden_elsewhere() -> None:
     app = _app()
     window = PathenaMainWindow()
     app.processEvents()
@@ -154,23 +154,26 @@ def test_reference_inspector_follows_grounding_and_non_chat_navigation() -> None
         inspector = window.findChild(QFrame, "inspector")
         assert inspector is not None
         _assert_inspector_width(inspector)
-        assert inspector.isHidden()
+        assert not inspector.isHidden()
         assert window.details_button.isHidden()
 
         window._set_context_available(True)
         assert not inspector.isHidden()
+        _assert_inspector_width(inspector)
 
         window._enter_new_chat_state(clear_transient=True)
-        assert inspector.isHidden()
+        assert not inspector.isHidden()
+        _assert_inspector_width(inspector)
 
         window.navigation.setCurrentRow(2)
-        assert not inspector.isHidden()
+        assert inspector.isHidden()
 
         window._set_context_available(False)
-        assert not inspector.isHidden()
+        assert inspector.isHidden()
 
         window.navigation.setCurrentRow(0)
-        assert inspector.isHidden()
+        assert not inspector.isHidden()
+        _assert_inspector_width(inspector)
 
         assert window.send_button.text() == "→"
         assert window.send_button.accessibleName() == "Send message"
