@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
 )
 
 _ACCESSIBLE_NAMES = {
+    "settings_model_selector": "Local model",
     "context_slider": "Context size slider",
     "context_spin": "Context size exact value",
     "max_output_slider": "Maximum output slider",
@@ -30,6 +31,8 @@ _ACCESSIBLE_NAMES = {
 }
 
 _LABEL_BUDDIES = {
+    "MODEL": "settings_model_selector",
+    "Model": "settings_model_selector",
     "CTX": "context_spin",
     "MAX OUTPUT TOKENS": "max_output_spin",
     "TEMPERATURE": "temperature_spin",
@@ -76,6 +79,14 @@ class SettingsComprehensionController(QObject):
             widget.setProperty("pathenaSettingsModelState", model_state)
             widget.setProperty("pathenaSettingsContextMode", context_mode)
             widget.setProperty("pathenaSettingsPerModel", True)
+
+        self._set_tip(
+            "settings_model_selector",
+            (
+                "Choose the local LLM used by chat and the per-model inference controls "
+                "below. Loaded and available state comes from LM Studio discovery."
+            ),
+        )
 
         context_tip = self._context_tip(model_state, capacity)
         self._set_tip("context_slider", context_tip)
@@ -169,6 +180,7 @@ class SettingsComprehensionController(QObject):
 
     def _controls(self) -> tuple[QWidget, ...]:
         names = (
+            "settings_model_selector",
             "context_slider",
             "context_spin",
             "max_output_slider",
