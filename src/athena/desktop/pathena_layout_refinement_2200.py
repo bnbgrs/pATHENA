@@ -102,6 +102,7 @@ class PathenaLayoutRefinement(QObject):
     def __init__(self, window: QWidget) -> None:
         super().__init__(window)
         self.window = window
+        self._last_density: str | None = None
         window.installEventFilter(self)
         self.apply_for_width(window.width())
 
@@ -113,15 +114,20 @@ class PathenaLayoutRefinement(QObject):
     def apply_for_width(self, width: int) -> None:
         compact = width < _COMPACT
         wide = width >= _WIDE
+        density = "compact" if compact else "wide" if wide else "comfortable"
+        density_changed = density != self._last_density
+
         self._tune_workspace_margins(compact=compact, wide=wide)
-        self._tune_splitters(compact=compact, wide=wide)
+        self._tune_splitters(
+            compact=compact,
+            wide=wide,
+            reset_user_adjustment=density_changed,
+        )
         self._tune_lists(compact=compact, wide=wide)
         self._tune_composer(compact=compact, wide=wide)
         self._tune_tabs(compact=compact)
-        self.window.setProperty(
-            "pathenaLayoutDensity",
-            "compact" if compact else "wide" if wide else "comfortable",
-        )
+        self.window.setProperty("pathenaLayoutDensity", density)
+        self._last_density = density
 
     def _tune_workspace_margins(self, *, compact: bool, wide: bool) -> None:
         if compact:
@@ -162,7 +168,13 @@ class PathenaLayoutRefinement(QObject):
                 if label.wordWrap():
                     label.setMaximumHeight(34 if compact else 64 if wide else 52)
 
-    def _tune_splitters(self, *, compact: bool, wide: bool) -> None:
+    def _tune_splitters(
+        self,
+        *,
+        compact: bool,
+        wide: bool,
+        reset_user_adjustment: bool,
+    ) -> None:
         for workspace_name, reference_ratio in _REFERENCE_BROWSER_RATIOS.items():
             workspace = self.window.findChild(QWidget, workspace_name)
             if workspace is None:
@@ -170,11 +182,29 @@ class PathenaLayoutRefinement(QObject):
             for splitter in workspace.findChildren(QSplitter):
                 splitter.setChildrenCollapsible(False)
                 splitter.setHandleWidth(1)
+
+                if not splitter.property("pathenaAdaptiveSplitterTracking"):
+                    splitter.splitterMoved.connect(
+                        lambda _pos, _index, target=splitter: target.setProperty(
+                            "pathenaUserAdjustedSplitter", True
+                        )
+                    )
+                    splitter.setProperty("pathenaAdaptiveSplitterTracking", True)
+
+                if reset_user_adjustment:
+                    splitter.setProperty("pathenaUserAdjustedSplitter", False)
+                elif splitter.property("pathenaUserAdjustedSplitter"):
+                    continue
+
                 total = max(720, splitter.width())
                 ratio = reference_ratio + (0.03 if compact else -0.01 if wide else 0.0)
                 left = max(236, int(total * ratio))
                 right = max(420, total - left)
-                splitter.setSizes([left, right])
+                splitter.blockSignals(True)
+                try:
+                    splitter.setSizes([left, right])
+                finally:
+                    splitter.blockSignals(False)
 
     def _tune_lists(self, *, compact: bool, wide: bool) -> None:
         for name, reference_width in _REFERENCE_LIST_WIDTHS.items():
