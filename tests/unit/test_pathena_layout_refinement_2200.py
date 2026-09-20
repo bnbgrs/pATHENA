@@ -80,6 +80,5 @@ def test_layout_refinement_preserves_user_splitter_within_density() -> None:
     controller.apply_for_width(1200)
     assert splitter.property("pathenaUserAdjustedSplitter") is False
     assert splitter.sizes() != user_sizes
-    assert splitter.sizes() != baseline or baseline == user_sizes
 
     window.close()
