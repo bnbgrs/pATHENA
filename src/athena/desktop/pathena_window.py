@@ -177,6 +177,12 @@ class PathenaMainWindow(AthenaMainWindow):
         self.model_selector.setMinimumWidth(210)
         self.model_selector.setMaximumWidth(320)
         self.model_selector.setToolTip("Choose a local model")
+        self.settings_model_selector.setMinimumWidth(260)
+        self.settings_model_selector.setMaximumWidth(420)
+        self.settings_model_selector.setToolTip(
+            "Choose the local model used for chat and inference settings"
+        )
+        self.settings_model_selector.setAccessibleName("Local model")
 
         composer = self.findChild(QFrame, "composer")
         if composer is not None:
@@ -438,6 +444,8 @@ class PathenaMainWindow(AthenaMainWindow):
             self.settings_model_value.setText("—")
         else:
             state = "Loaded" if model.loaded else "Not loaded"
+            if self._model_freshness == "stale":
+                state += " · stale"
             self.settings_model_value.setText(f"{model.display_name} · {state}")
         self.thinking_checkbox.setText("On" if self.thinking_checkbox.isChecked() else "Off")
 
@@ -484,14 +492,27 @@ class PathenaMainWindow(AthenaMainWindow):
 
     def _apply_control_snapshot(self, snapshot: DesktopApiSnapshot) -> None:
         super()._apply_control_snapshot(snapshot)
-        models = {model.backend_model_id: model for model in snapshot.models if model.model_type == "llm"}
-        for index in range(self.model_selector.count()):
-            model_id = self.model_selector.itemData(index)
-            if not isinstance(model_id, str):
-                continue
-            model = models.get(model_id)
-            if model is not None:
-                self.model_selector.setItemText(index, model.display_name)
+        models = {
+            model.backend_model_id: model
+            for model in snapshot.models
+            if model.model_type == "llm"
+        }
+        model_freshness = snapshot.resolved_model_freshness
+        for selector in (self.model_selector, self.settings_model_selector):
+            for index in range(selector.count()):
+                model_id = selector.itemData(index)
+                if not isinstance(model_id, str):
+                    continue
+                model = models.get(model_id)
+                if model is None:
+                    continue
+                state = "Loaded" if model.loaded else "Available"
+                if model_freshness == "stale":
+                    state += " · stale"
+                selector.setItemText(
+                    index,
+                    f"{model.display_name} · {state}",
+                )
 
         chats = {chat.chat_id: chat for chat in snapshot.chats}
         for index in range(self.chat_selector.count()):
