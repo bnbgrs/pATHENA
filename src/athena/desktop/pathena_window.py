@@ -343,11 +343,10 @@ class PathenaMainWindow(AthenaMainWindow):
         inspector = self.findChild(QFrame, "inspector")
         if inspector is None:
             return
-        context_button = getattr(self, "context_button", None)
-        context_available = (
-            isinstance(context_button, QPushButton) and not context_button.isHidden()
-        )
-        inspector.setVisible(self.navigation.currentRow() != 0 or context_available)
+        # The generic Evidence & Activity inspector belongs to Chat only.
+        # Reserve its fixed-width geometry throughout the Chat route so context
+        # availability never shifts the central workspace sideways.
+        inspector.setVisible(self.navigation.currentRow() == 0)
 
     def _set_context_available(self, available: bool) -> None:
         button = getattr(self, "context_button", None)
