@@ -146,7 +146,7 @@ def test_reference_composer_uses_large_work_surface_and_send_target() -> None:
         window.close()
 
 
-def test_reference_inspector_is_stable_in_chat_and_hidden_elsewhere() -> None:
+def test_reference_inspector_reserves_chat_and_defers_non_chat_ownership() -> None:
     app = _app()
     window = PathenaMainWindow()
     app.processEvents()
@@ -166,10 +166,10 @@ def test_reference_inspector_is_stable_in_chat_and_hidden_elsewhere() -> None:
         _assert_inspector_width(inspector)
 
         window.navigation.setCurrentRow(2)
-        assert inspector.isHidden()
+        assert not inspector.isHidden()
 
         window._set_context_available(False)
-        assert inspector.isHidden()
+        assert not inspector.isHidden()
 
         window.navigation.setCurrentRow(0)
         assert not inspector.isHidden()
