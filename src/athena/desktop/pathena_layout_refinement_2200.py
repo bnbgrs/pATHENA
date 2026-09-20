@@ -102,6 +102,7 @@ class PathenaLayoutRefinement(QObject):
     def __init__(self, window: QWidget) -> None:
         super().__init__(window)
         self.window = window
+        self._last_density: str | None = None
         window.installEventFilter(self)
         self.apply_for_width(window.width())
 
@@ -113,15 +114,17 @@ class PathenaLayoutRefinement(QObject):
     def apply_for_width(self, width: int) -> None:
         compact = width < _COMPACT
         wide = width >= _WIDE
+        density = "compact" if compact else "wide" if wide else "comfortable"
+        density_changed = density != self._last_density
+
         self._tune_workspace_margins(compact=compact, wide=wide)
-        self._tune_splitters(compact=compact, wide=wide)
+        if density_changed:
+            self._tune_splitters(compact=compact, wide=wide)
         self._tune_lists(compact=compact, wide=wide)
         self._tune_composer(compact=compact, wide=wide)
         self._tune_tabs(compact=compact)
-        self.window.setProperty(
-            "pathenaLayoutDensity",
-            "compact" if compact else "wide" if wide else "comfortable",
-        )
+        self.window.setProperty("pathenaLayoutDensity", density)
+        self._last_density = density
 
     def _tune_workspace_margins(self, *, compact: bool, wide: bool) -> None:
         if compact:
