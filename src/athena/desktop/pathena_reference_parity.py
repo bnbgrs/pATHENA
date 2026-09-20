@@ -1101,8 +1101,9 @@ class ReferenceParityController(QObject):
         if composer is not None:
             composer.setVisible(row == 0)
 
-        # Dedicated workspaces own their detail panes. The generic inspector is
-        # evidence-centric and appears only when Chat has real context to show.
+        # Dedicated workspaces own their detail panes. Keep the generic Chat
+        # inspector's geometry reserved while Chat is active so grounded context
+        # can appear without shifting the central workspace sideways.
         inspector = self.window.findChild(QFrame, "inspector")
         if inspector is not None:
             context_button = getattr(self.window, "context_button", None)
@@ -1110,7 +1111,13 @@ class ReferenceParityController(QObject):
                 isinstance(context_button, QPushButton)
                 and not context_button.isHidden()
             )
-            inspector.setVisible(row == 0 and context_available)
+            inspector.setProperty("pathenaContextAvailable", context_available)
+            inspector.setAccessibleDescription(
+                "Chat inspector; grounded context available"
+                if context_available
+                else "Chat inspector; waiting for grounded context"
+            )
+            inspector.setVisible(row == 0)
 
     def dispose(self) -> None:
         """Disconnect the final shared-shell listener before application teardown."""
