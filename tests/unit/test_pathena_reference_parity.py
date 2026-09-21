@@ -162,7 +162,7 @@ def test_reference_parity_forces_cobalt_focus_on_real_research_inputs() -> None:
         window.close()
 
 
-def test_reference_parity_keeps_chat_inspector_geometry_stable() -> None:
+def test_reference_parity_keeps_generic_inspector_contextual() -> None:
     app = _app()
     window = PathenaMainWindow()
     parity = install_reference_parity(window, lambda: None)
@@ -170,29 +170,19 @@ def test_reference_parity_keeps_chat_inspector_geometry_stable() -> None:
     try:
         inspector = window.findChild(QFrame, "inspector")
         assert inspector is not None
-        assert not inspector.isHidden()
-        initial_width = inspector.width()
+        assert inspector.isHidden()
 
         window._set_context_available(True)
-        window.navigation.setCurrentRow(0)
-        app.processEvents()
         assert not inspector.isHidden()
-        assert inspector.width() == initial_width
 
         window.navigation.setCurrentRow(2)
-        app.processEvents()
         assert inspector.isHidden()
 
         window.navigation.setCurrentRow(0)
-        app.processEvents()
         assert not inspector.isHidden()
-        assert inspector.width() == initial_width
 
         window._set_context_available(False)
-        window.navigation.setCurrentRow(0)
-        app.processEvents()
-        assert not inspector.isHidden()
-        assert inspector.width() == initial_width
+        assert inspector.isHidden()
     finally:
         parity.dispose()
         window.close()
