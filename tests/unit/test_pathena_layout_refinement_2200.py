@@ -1,6 +1,19 @@
 from __future__ import annotations
 
+import os
+
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+
+from PySide6.QtWidgets import QApplication, QWidget
+
 from athena.desktop import pathena_layout_refinement_2200 as refinement
+
+
+def _app() -> QApplication:
+    app = QApplication.instance()
+    if isinstance(app, QApplication):
+        return app
+    return QApplication([])
 
 
 def test_adaptive_layout_pass_defines_exactly_one_hundred_tasks() -> None:
@@ -39,3 +52,32 @@ def test_layout_breakpoints_and_task_range_are_stable() -> None:
     )
     assert tuple(range(2101, 2201))[0] == 2101
     assert tuple(range(2101, 2201))[-1] == 2200
+
+
+def test_layout_refinement_preserves_user_splitter_within_density() -> None:
+    _app()
+    window = QWidget()
+    workspace = QWidget(window)
+    workspace.setObjectName("knowledgeWorkspace")
+    splitter = refinement.QSplitter(workspace)
+    splitter.addWidget(QWidget(splitter))
+    splitter.addWidget(QWidget(splitter))
+    window.resize(1400, 900)
+
+    controller = refinement.PathenaLayoutRefinement(window)
+    assert splitter.property("pathenaAdaptiveSplitterTracking") is True
+    assert splitter.property("pathenaUserAdjustedSplitter") is False
+
+    splitter.setSizes([330, 390])
+    splitter.splitterMoved.emit(330, 1)
+    user_sizes = splitter.sizes()
+    assert splitter.property("pathenaUserAdjustedSplitter") is True
+
+    controller.apply_for_width(1450)
+    assert splitter.sizes() == user_sizes
+
+    controller.apply_for_width(1200)
+    assert splitter.property("pathenaUserAdjustedSplitter") is False
+    assert splitter.sizes() != user_sizes
+
+    window.close()
