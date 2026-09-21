@@ -124,23 +124,45 @@ jobs:
           $env:ATHENA_LOCAL_ROOT = $runtime
           $marker = "windows-package-smoke-$env:CANDIDATE_SHA"
 
-          $created = @(& $worker -m athena chat new 2>&1)
-          if ($LASTEXITCODE -ne 0) { throw "Packaged chat creation failed: $($created -join [Environment]::NewLine)" }
-          $match = [regex]::Match(($created -join [Environment]::NewLine), "Chat created:\s+([0-9a-fA-F-]{36})")
-          if (-not $match.Success) { throw "Packaged chat creation did not return a chat id." }
+          function Invoke-CapturedWorker {
+            param(
+              [Parameter(Mandatory = $true)][string[]]$WorkerArguments,
+              [Parameter(Mandatory = $true)][string]$Label
+            )
+            $token = [guid]::NewGuid().ToString("N")
+            $stdoutPath = Join-Path $env:RUNNER_TEMP "$Label-$token.stdout.txt"
+            $stderrPath = Join-Path $env:RUNNER_TEMP "$Label-$token.stderr.txt"
+            try {
+              $process = Start-Process -FilePath $worker -WorkingDirectory $pkg -ArgumentList $WorkerArguments -Wait -PassThru -NoNewWindow -RedirectStandardOutput $stdoutPath -RedirectStandardError $stderrPath
+              $stdout = if (Test-Path -LiteralPath $stdoutPath) { Get-Content -LiteralPath $stdoutPath -Raw } else { "" }
+              $stderr = if (Test-Path -LiteralPath $stderrPath) { Get-Content -LiteralPath $stderrPath -Raw } else { "" }
+              return [pscustomobject]@{
+                ExitCode = $process.ExitCode
+                Text = (($stdout, $stderr) -join [Environment]::NewLine).Trim()
+              }
+            }
+            finally {
+              Remove-Item -LiteralPath $stdoutPath, $stderrPath -Force -ErrorAction SilentlyContinue
+            }
+          }
+
+          $created = Invoke-CapturedWorker -WorkerArguments @("-m", "athena", "chat", "new") -Label "chat-new"
+          if ($created.ExitCode -ne 0) { throw "Packaged chat creation failed: $($created.Text)" }
+          $match = [regex]::Match($created.Text, "Chat created:\s+([0-9a-fA-F-]{36})")
+          if (-not $match.Success) { throw "Packaged chat creation did not return a chat id: $($created.Text)" }
           $chatId = $match.Groups[1].Value
 
-          $added = @(& $worker -m athena chat add $chatId $marker 2>&1)
-          if ($LASTEXITCODE -ne 0) { throw "Packaged chat write failed: $($added -join [Environment]::NewLine)" }
+          $added = Invoke-CapturedWorker -WorkerArguments @("-m", "athena", "chat", "add", $chatId, $marker) -Label "chat-add"
+          if ($added.ExitCode -ne 0) { throw "Packaged chat write failed: $($added.Text)" }
 
-          $promoted = @(& $worker -m athena knowledge promote $chatId 1 --kind fact --title "Windows package smoke" 2>&1)
-          if ($LASTEXITCODE -ne 0) { throw "Packaged Knowledge promotion failed: $($promoted -join [Environment]::NewLine)" }
+          $promoted = Invoke-CapturedWorker -WorkerArguments @("-m", "athena", "knowledge", "promote", $chatId, "1", "--kind", "fact", "--title", "Windows-package-smoke") -Label "knowledge-promote"
+          if ($promoted.ExitCode -ne 0) { throw "Packaged Knowledge promotion failed: $($promoted.Text)" }
 
           # This is a new packaged process and application lifecycle, proving disk persistence.
-          $listed = @(& $worker -m athena knowledge list --limit 10 2>&1)
-          if ($LASTEXITCODE -ne 0) { throw "Packaged Knowledge reload failed: $($listed -join [Environment]::NewLine)" }
-          if (($listed -join [Environment]::NewLine) -notmatch [regex]::Escape($marker)) {
-            throw "Persisted Knowledge marker was not recovered after packaged restart."
+          $listed = Invoke-CapturedWorker -WorkerArguments @("-m", "athena", "knowledge", "list", "--limit", "10") -Label "knowledge-list"
+          if ($listed.ExitCode -ne 0) { throw "Packaged Knowledge reload failed: $($listed.Text)" }
+          if ($listed.Text -notmatch [regex]::Escape($marker)) {
+            throw "Persisted Knowledge marker was not recovered after packaged restart: $($listed.Text)"
           }
 
       - name: Verify truthful provider state without a test provider
@@ -149,9 +171,32 @@ jobs:
           $pkg = Join-Path $env:RUNNER_TEMP "pathena-portable\pATHENA"
           $worker = Join-Path $pkg "pATHENA-Worker.exe"
           $env:ATHENA_LOCAL_ROOT = Join-Path $env:RUNNER_TEMP "pathena-package-runtime"
-          $status = @(& $worker -m athena model status 2>&1)
-          $exitCode = $LASTEXITCODE
-          $text = $status -join [Environment]::NewLine
+
+          function Invoke-CapturedWorker {
+            param(
+              [Parameter(Mandatory = $true)][string[]]$WorkerArguments,
+              [Parameter(Mandatory = $true)][string]$Label
+            )
+            $token = [guid]::NewGuid().ToString("N")
+            $stdoutPath = Join-Path $env:RUNNER_TEMP "$Label-$token.stdout.txt"
+            $stderrPath = Join-Path $env:RUNNER_TEMP "$Label-$token.stderr.txt"
+            try {
+              $process = Start-Process -FilePath $worker -WorkingDirectory $pkg -ArgumentList $WorkerArguments -Wait -PassThru -NoNewWindow -RedirectStandardOutput $stdoutPath -RedirectStandardError $stderrPath
+              $stdout = if (Test-Path -LiteralPath $stdoutPath) { Get-Content -LiteralPath $stdoutPath -Raw } else { "" }
+              $stderr = if (Test-Path -LiteralPath $stderrPath) { Get-Content -LiteralPath $stderrPath -Raw } else { "" }
+              return [pscustomobject]@{
+                ExitCode = $process.ExitCode
+                Text = (($stdout, $stderr) -join [Environment]::NewLine).Trim()
+              }
+            }
+            finally {
+              Remove-Item -LiteralPath $stdoutPath, $stderrPath -Force -ErrorAction SilentlyContinue
+            }
+          }
+
+          $status = Invoke-CapturedWorker -WorkerArguments @("-m", "athena", "model", "status") -Label "model-status"
+          $exitCode = $status.ExitCode
+          $text = $status.Text
           Write-Host $text
           if ($exitCode -notin @(0, 2)) {
             throw "Packaged provider status returned unexpected exit code $exitCode."
