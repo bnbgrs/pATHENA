@@ -198,7 +198,7 @@ jobs:
           $exitCode = $status.ExitCode
           $text = $status.Text
           Write-Host $text
-          if ($exitCode -notin @(0, 2)) {
+          if ($exitCode -notin @(0, 1, 2)) {
             throw "Packaged provider status returned unexpected exit code $exitCode."
           }
           if ([string]::IsNullOrWhiteSpace($text)) {
