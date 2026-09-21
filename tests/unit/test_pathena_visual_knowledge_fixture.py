@@ -104,9 +104,20 @@ def test_visual_knowledge_fixture_is_idempotent_and_renders_real_detail(
             for index in range(workspace.knowledge_list.count())
         }
         assert listed_ids == set(first_ids)
+
+        # The visual baseline captures the workspace's native default selection.
+        # Lock that contract directly instead of source-patching the renderer at runtime:
+        # the first visible persisted row must be the selected row and its exact entity
+        # must own the ready detail pane at capture time.
+        assert workspace.knowledge_list.currentRow() == 0
+        selected_item = workspace.knowledge_list.item(0)
+        assert selected_item is not None
+        selected_id = str(selected_item.data(Qt.ItemDataRole.UserRole))
+        assert selected_id in set(first_ids)
         assert str(
             workspace.knowledge_details.property("pathenaKnowledgeEntityId")
-        ) in set(first_ids)
+        ) == selected_id
+
         assert "PERSISTED DETAIL UNAVAILABLE" not in (
             workspace.knowledge_details.toPlainText()
         )
