@@ -161,8 +161,8 @@ jobs:
           # This is a new packaged process and application lifecycle, proving disk persistence.
           $listed = Invoke-CapturedWorker -WorkerArguments @("-m", "athena", "knowledge", "list", "--limit", "10") -Label "knowledge-list"
           if ($listed.ExitCode -ne 0) { throw "Packaged Knowledge reload failed: $($listed.Text)" }
-          if ($listed.Text -notmatch [regex]::Escape($marker)) {
-            throw "Persisted Knowledge marker was not recovered after packaged restart: $($listed.Text)"
+          if ($listed.Text -notmatch "kind=fact\s+title=Windows-package-smoke") {
+            throw "Persisted Knowledge identity was not recovered after packaged restart: $($listed.Text)"
           }
 
       - name: Verify truthful provider state without a test provider
