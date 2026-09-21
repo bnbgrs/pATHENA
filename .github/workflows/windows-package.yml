@@ -1,0 +1,261 @@
+name: pATHENA Windows Package
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: Exact commit SHA or ref to package
+        required: false
+        type: string
+  pull_request:
+    branches:
+      - develop/pathena-next
+    paths:
+      - "scripts/build_windows_portable.ps1"
+      - "scripts/windows_packaging_safety.ps1"
+      - "src/athena/desktop/packaged_app.py"
+      - "src/athena/desktop/packaged_worker.py"
+      - "src/athena/packaging_smoke.py"
+      - "tests/unit/test_packaging_smoke.py"
+      - "tests/unit/test_windows_packaging_contract.py"
+      - ".github/workflows/windows-package.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pathena-windows-package-${{ github.event.pull_request.head.sha || github.run_id }}
+  cancel-in-progress: false
+
+env:
+  REQUESTED_REF: ${{ inputs.source_ref || github.event.pull_request.head.sha || github.sha }}
+  PACKAGE_NAME: pATHENA-Windows-portable
+
+jobs:
+  build-and-smoke:
+    name: Build and smoke native Windows package
+    runs-on: windows-2022
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out exact requested candidate
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: ${{ env.REQUESTED_REF }}
+          persist-credentials: false
+
+      - name: Prove checked-out identity
+        shell: pwsh
+        run: |
+          $actual = (git rev-parse HEAD).Trim().ToLowerInvariant()
+          $requested = (git rev-parse "$env:REQUESTED_REF").Trim().ToLowerInvariant()
+          if ($actual -ne $requested) {
+            throw "Checked out $actual instead of requested candidate $requested."
+          }
+          "CANDIDATE_SHA=$actual" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: "3.12"
+
+      - name: Install locked desktop and test environment
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check "uv==0.11.21"
+          uv lock --check
+          if ($LASTEXITCODE -ne 0) { throw "uv.lock is not current." }
+          uv sync --locked --extra desktop --extra dev
+          if ($LASTEXITCODE -ne 0) { throw "Locked desktop/test environment sync failed." }
+
+      - name: Run packaging contracts and isolated model-state fixture
+        shell: pwsh
+        run: |
+          .\.venv\Scripts\python.exe -m pytest tests/unit/test_packaging_smoke.py tests/unit/test_windows_packaging_contract.py tests/unit/test_issue_244_model_selection.py -q
+          if ($LASTEXITCODE -ne 0) {
+            throw "Packaging contracts or isolated model-state fixture failed."
+          }
+
+      - name: Build supported two-executable portable package
+        shell: pwsh
+        run: |
+          $out = Join-Path $env:RUNNER_TEMP "pathena-portable"
+          pwsh -NoProfile -File scripts/build_windows_portable.ps1 -OutputRoot $out
+          if ($LASTEXITCODE -ne 0) { throw "Supported Windows portable build failed." }
+          $pkg = Join-Path $out "pATHENA"
+          foreach ($required in @(
+            "pATHENA.exe",
+            "pATHENA-Worker.exe",
+            "START_HERE.txt",
+            "CHECK_HARDWARE.cmd",
+            "app_runtime"
+          )) {
+            if (-not (Test-Path -LiteralPath (Join-Path $pkg $required))) {
+              throw "Missing package component: $required"
+            }
+          }
+
+      - name: Smoke worker routing and fail-closed dispatch
+        shell: pwsh
+        run: |
+          $pkg = Join-Path $env:RUNNER_TEMP "pathena-portable\pATHENA"
+          $worker = Join-Path $pkg "pATHENA-Worker.exe"
+          foreach ($arguments in @(
+            @("-m", "athena", "--help"),
+            @("-m", "athena.api.process", "--help")
+          )) {
+            $process = Start-Process -FilePath $worker -WorkingDirectory $pkg -ArgumentList $arguments -Wait -PassThru -NoNewWindow
+            if ($process.ExitCode -ne 0) {
+              throw "Worker role smoke failed with exit code $($process.ExitCode): $($arguments -join ' ')"
+            }
+          }
+          $denied = Start-Process -FilePath $worker -WorkingDirectory $pkg -ArgumentList @("-m", "not.allowed") -Wait -PassThru -NoNewWindow
+          if ($denied.ExitCode -eq 0) {
+            throw "Worker accepted an unsupported module dispatch."
+          }
+
+      - name: Verify persistent Knowledge across packaged restarts
+        shell: pwsh
+        run: |
+          $pkg = Join-Path $env:RUNNER_TEMP "pathena-portable\pATHENA"
+          $worker = Join-Path $pkg "pATHENA-Worker.exe"
+          $runtime = Join-Path $env:RUNNER_TEMP "pathena-package-runtime"
+          New-Item -ItemType Directory -Force -Path $runtime | Out-Null
+          $env:ATHENA_LOCAL_ROOT = $runtime
+          $marker = "windows-package-smoke-$env:CANDIDATE_SHA"
+
+          $created = @(& $worker -m athena chat new 2>&1)
+          if ($LASTEXITCODE -ne 0) { throw "Packaged chat creation failed: $($created -join [Environment]::NewLine)" }
+          $match = [regex]::Match(($created -join [Environment]::NewLine), "Chat created:\s+([0-9a-fA-F-]{36})")
+          if (-not $match.Success) { throw "Packaged chat creation did not return a chat id." }
+          $chatId = $match.Groups[1].Value
+
+          $added = @(& $worker -m athena chat add $chatId $marker 2>&1)
+          if ($LASTEXITCODE -ne 0) { throw "Packaged chat write failed: $($added -join [Environment]::NewLine)" }
+
+          $promoted = @(& $worker -m athena knowledge promote $chatId 1 --kind fact --title "Windows package smoke" 2>&1)
+          if ($LASTEXITCODE -ne 0) { throw "Packaged Knowledge promotion failed: $($promoted -join [Environment]::NewLine)" }
+
+          # This is a new packaged process and application lifecycle, proving disk persistence.
+          $listed = @(& $worker -m athena knowledge list --limit 10 2>&1)
+          if ($LASTEXITCODE -ne 0) { throw "Packaged Knowledge reload failed: $($listed -join [Environment]::NewLine)" }
+          if (($listed -join [Environment]::NewLine) -notmatch [regex]::Escape($marker)) {
+            throw "Persisted Knowledge marker was not recovered after packaged restart."
+          }
+
+      - name: Verify truthful provider state without a test provider
+        shell: pwsh
+        run: |
+          $pkg = Join-Path $env:RUNNER_TEMP "pathena-portable\pATHENA"
+          $worker = Join-Path $pkg "pATHENA-Worker.exe"
+          $env:ATHENA_LOCAL_ROOT = Join-Path $env:RUNNER_TEMP "pathena-package-runtime"
+          $status = @(& $worker -m athena model status 2>&1)
+          $exitCode = $LASTEXITCODE
+          $text = $status -join [Environment]::NewLine
+          Write-Host $text
+          if ($exitCode -notin @(0, 2)) {
+            throw "Packaged provider status returned unexpected exit code $exitCode."
+          }
+          if ([string]::IsNullOrWhiteSpace($text)) {
+            throw "Packaged provider status returned no truthful state."
+          }
+          if ($exitCode -eq 0) {
+            Write-Host "A real provider was reachable on the runner; this step does not claim an inference smoke."
+          } else {
+            Write-Host "No real provider was reachable; offline state was reported and no online chat is claimed."
+          }
+
+      - name: Start desktop and perform graceful process-tree shutdown
+        shell: pwsh
+        run: |
+          $pkg = Join-Path $env:RUNNER_TEMP "pathena-portable\pATHENA"
+          $exe = Join-Path $pkg "pATHENA.exe"
+          $runtime = Join-Path $env:RUNNER_TEMP "pathena-desktop-runtime"
+          New-Item -ItemType Directory -Force -Path $runtime | Out-Null
+          $env:ATHENA_LOCAL_ROOT = $runtime
+          $env:QT_QUICK_BACKEND = "software"
+          $env:QT_OPENGL = "software"
+          $desktop = $null
+          $graceful = $false
+          try {
+            $desktop = Start-Process -FilePath $exe -WorkingDirectory $pkg -PassThru
+            $discovery = Join-Path $runtime "tmp\core-api\core-api.json"
+            $deadline = (Get-Date).AddSeconds(45)
+            do {
+              Start-Sleep -Milliseconds 500
+              $desktop.Refresh()
+              if ($desktop.HasExited) {
+                throw "pATHENA desktop exited during startup with code $($desktop.ExitCode)."
+              }
+            } while (-not (Test-Path -LiteralPath $discovery) -and (Get-Date) -lt $deadline)
+            if (-not (Test-Path -LiteralPath $discovery)) {
+              throw "Core discovery file was not created within 45 seconds."
+            }
+
+            $windowDeadline = (Get-Date).AddSeconds(20)
+            do {
+              Start-Sleep -Milliseconds 500
+              $desktop.Refresh()
+            } while ($desktop.MainWindowHandle -eq 0 -and (Get-Date) -lt $windowDeadline)
+            if ($desktop.MainWindowHandle -eq 0) {
+              throw "Desktop did not expose a window for graceful shutdown."
+            }
+            if (-not $desktop.CloseMainWindow()) {
+              throw "Desktop rejected the graceful window-close request."
+            }
+            if (-not $desktop.WaitForExit(20000)) {
+              throw "Desktop did not exit within 20 seconds after graceful close."
+            }
+            $graceful = $true
+            Start-Sleep -Seconds 2
+            $remaining = @(Get-CimInstance Win32_Process | Where-Object {
+              $_.ExecutablePath -and $_.ExecutablePath.StartsWith($pkg, [System.StringComparison]::OrdinalIgnoreCase)
+            })
+            if ($remaining.Count -ne 0) {
+              $remaining | ForEach-Object { Write-Host "$($_.Name) PID=$($_.ProcessId) $($_.CommandLine)" }
+              throw "Packaged processes remained after graceful shutdown."
+            }
+          }
+          finally {
+            if (-not $graceful -and $null -ne $desktop -and -not $desktop.HasExited) {
+              taskkill /PID $desktop.Id /T /F 2>$null | Out-Null
+            }
+          }
+
+      - name: Create ZIP, SHA-256, and source manifest
+        shell: pwsh
+        run: |
+          $src = Join-Path $env:RUNNER_TEMP "pathena-portable\pATHENA"
+          $stage = Join-Path $env:RUNNER_TEMP "$env:PACKAGE_NAME-$env:CANDIDATE_SHA"
+          Copy-Item -LiteralPath $src -Destination $stage -Recurse
+          $zip = Join-Path $env:RUNNER_TEMP "$env:PACKAGE_NAME-$env:CANDIDATE_SHA.zip"
+          Compress-Archive -Path $stage -DestinationPath $zip -CompressionLevel Optimal
+          $hash = (Get-FileHash -Algorithm SHA256 $zip).Hash.ToLowerInvariant()
+          $manifest = [ordered]@{
+            source_sha = $env:CANDIDATE_SHA
+            package = [System.IO.Path]::GetFileName($zip)
+            sha256 = $hash
+            native_windows_build = $true
+            worker_routing_smoke = "pass"
+            knowledge_restart_smoke = "pass"
+            graceful_shutdown_smoke = "pass"
+            real_provider_inference = "not_claimed"
+            release_status = "candidate_pending_full_v0.1_gates"
+          }
+          $manifestPath = Join-Path $env:RUNNER_TEMP "$env:PACKAGE_NAME-$env:CANDIDATE_SHA.json"
+          $manifest | ConvertTo-Json | Set-Content -LiteralPath $manifestPath -Encoding UTF8
+          "ZIP_PATH=$zip" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "MANIFEST_PATH=$manifestPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "PACKAGE_SHA256=$hash" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          Write-Host "SOURCE_SHA=$env:CANDIDATE_SHA"
+          Write-Host "SHA256=$hash"
+
+      - name: Upload tested Windows portable bundle
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ${{ env.PACKAGE_NAME }}-${{ env.CANDIDATE_SHA }}
+          path: |
+            ${{ env.ZIP_PATH }}
+            ${{ env.MANIFEST_PATH }}
+          if-no-files-found: error
+          retention-days: 14
