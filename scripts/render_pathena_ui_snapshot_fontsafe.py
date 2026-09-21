@@ -100,6 +100,13 @@ def _write_capture_failure(argv: Sequence[str], exc: Exception) -> None:
 
 def main() -> int:
     _prepare_application()
+    # The repository-backed Knowledge fixture contains multiple valid rows.  The
+    # visual regression must select one canonical row before importing/running
+    # the sequential capture, otherwise asynchronous repository population can
+    # make the screenshot depend on whichever row becomes current first.
+    from patch_pathena_visual_knowledge_determinism import main as patch_knowledge
+
+    patch_knowledge()
     from render_pathena_ui_snapshot_sequential import main as render_main
 
     argv = sys.argv[1:]
