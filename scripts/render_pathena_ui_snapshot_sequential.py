@@ -15,7 +15,9 @@ import re
 import sys
 import threading
 import time
+import uuid
 from collections.abc import Sequence
+from unittest.mock import patch
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -53,6 +55,32 @@ _REFERENCE_KNOWLEDGE_DRAFTS = (
     ),
 )
 
+_REFERENCE_KNOWLEDGE_IDENTITIES = {
+    "Adaptive memory": (
+        "01a0b324-7509-7aac-b200-000000000001",
+        "01a0b324-7509-7aac-b200-000000000002",
+        "01a0b324-7509-7aac-b200-000000000003",
+        "01a0b324-7509-7aac-b200-000000000004",
+    ),
+    "Human-controlled forgetting": (
+        "01a0b323-7509-7aac-b200-000000000001",
+        "01a0b323-7509-7aac-b200-000000000002",
+        "01a0b323-7509-7aac-b200-000000000003",
+        "01a0b323-7509-7aac-b200-000000000004",
+    ),
+    "Local-first provenance": (
+        "01a0b322-7509-7aac-b200-000000000001",
+        "01a0b322-7509-7aac-b200-000000000002",
+        "01a0b322-7509-7aac-b200-000000000003",
+        "01a0b322-7509-7aac-b200-000000000004",
+    ),
+}
+_REFERENCE_KNOWLEDGE_CREATED_AT_US = {
+    "Local-first provenance": 1_800_000_000_000_001,
+    "Human-controlled forgetting": 1_800_000_000_000_002,
+    "Adaptive memory": 1_800_000_000_000_003,
+}
+
 
 def _seed_reference_knowledge(runtime_root: Path) -> tuple[str, ...]:
     """Create an idempotent, repository-backed Knowledge state for visual capture."""
@@ -73,24 +101,41 @@ def _seed_reference_knowledge(runtime_root: Path) -> tuple[str, ...]:
             for snapshot in core.knowledge_repository.list_current(limit=500)
             if snapshot.revision.payload.title is not None
         }
-        knowledge_ids: list[str] = []
-        for kind, title, body, status in _REFERENCE_KNOWLEDGE_DRAFTS:
-            snapshot = existing.get(title)
-            if snapshot is not None:
-                knowledge_ids.append(str(snapshot.knowledge_id))
-                continue
-            revision = core.knowledge_repository.create_knowledge_unit(
-                actor_id=actor_id,
-                draft=KnowledgeUnitDraft(
-                    knowledge_kind=KnowledgeKind(kind),
-                    title=title,
-                    body=body,
-                    epistemic_status=EpistemicStatus(status),
-                ),
-                reason="isolated native visual-regression fixture",
+        by_title: dict[str, str] = {
+            title: str(snapshot.knowledge_id)
+            for title, snapshot in existing.items()
+        }
+        missing = [
+            draft
+            for draft in reversed(_REFERENCE_KNOWLEDGE_DRAFTS)
+            if draft[1] not in by_title
+        ]
+        for kind, title, body, status in missing:
+            identities = tuple(
+                uuid.UUID(value) for value in _REFERENCE_KNOWLEDGE_IDENTITIES[title]
             )
-            knowledge_ids.append(str(revision.knowledge_id))
-        return tuple(knowledge_ids)
+            with (
+                patch(
+                    "athena.knowledge.repository.new_uuid7",
+                    side_effect=identities,
+                ),
+                patch(
+                    "athena.knowledge.repository.utc_now_us",
+                    return_value=_REFERENCE_KNOWLEDGE_CREATED_AT_US[title],
+                ),
+            ):
+                revision = core.knowledge_repository.create_knowledge_unit(
+                    actor_id=actor_id,
+                    draft=KnowledgeUnitDraft(
+                        knowledge_kind=KnowledgeKind(kind),
+                        title=title,
+                        body=body,
+                        epistemic_status=EpistemicStatus(status),
+                    ),
+                    reason="isolated native visual-regression fixture",
+                )
+            by_title[title] = str(revision.knowledge_id)
+        return tuple(by_title[title] for _, title, _, _ in _REFERENCE_KNOWLEDGE_DRAFTS)
     finally:
         core.stop()
 
@@ -149,6 +194,86 @@ class _DiagnosticComfyHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
+
+
+def _select_reference_knowledge(
+    *,
+    app: object,
+    knowledge_list: object,
+    knowledge_details: object,
+    expected_ids: tuple[str, ...],
+    timeout_seconds: float = 8.0,
+) -> dict[str, object]:
+    """Select the declared canonical fixture entry and wait for matching real detail."""
+    from PySide6.QtCore import Qt
+
+    reference_id = expected_ids[0]
+    reference_title = _REFERENCE_KNOWLEDGE_DRAFTS[0][1]
+    reference_body = _REFERENCE_KNOWLEDGE_DRAFTS[0][2]
+    expected = set(expected_ids)
+    deadline = time.monotonic() + timeout_seconds
+    observed_ids: set[str] = set()
+    detail_id = ""
+    detail_state = ""
+    selected_id = ""
+    while time.monotonic() < deadline:
+        app.processEvents()
+        observed_ids = {
+            str(knowledge_list.item(index).data(Qt.ItemDataRole.UserRole))
+            for index in range(knowledge_list.count())
+        }
+        if expected.issubset(observed_ids):
+            reference_row = next(
+                (
+                    index
+                    for index in range(knowledge_list.count())
+                    if str(
+                        knowledge_list.item(index).data(Qt.ItemDataRole.UserRole)
+                    )
+                    == reference_id
+                ),
+                -1,
+            )
+            if reference_row >= 0 and knowledge_list.currentRow() != reference_row:
+                knowledge_list.setCurrentRow(reference_row)
+                app.processEvents()
+
+        current_item = knowledge_list.currentItem()
+        selected_id = (
+            str(current_item.data(Qt.ItemDataRole.UserRole))
+            if current_item is not None
+            else ""
+        )
+        detail_id = str(
+            knowledge_details.property("pathenaKnowledgeEntityId") or ""
+        )
+        detail_state = str(
+            knowledge_details.property("pathenaKnowledgeReviewState") or ""
+        )
+        detail_text = knowledge_details.toPlainText()
+        if (
+            expected.issubset(observed_ids)
+            and selected_id == reference_id
+            and detail_id == reference_id
+            and detail_state == "ready"
+            and reference_title in detail_text
+            and reference_body in detail_text
+        ):
+            return {
+                "fixture": "isolated repository-backed canonical Knowledge",
+                "knowledge_count": knowledge_list.count(),
+                "selected_knowledge_id": reference_id,
+                "selected_knowledge_key": reference_title,
+                "selected_knowledge_state": detail_state,
+            }
+        time.sleep(0.05)
+
+    raise RuntimeError(
+        "Repository-backed Knowledge did not reach the declared capture state: "
+        f"expected={len(expected)}, observed={len(observed_ids)}, "
+        f"selected_id={selected_id!r}, detail_state={detail_state!r}, "
+        f"detail_id={detail_id!r}, reference_id={reference_id!r}."
+    )
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -241,40 +366,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         if knowledge_list is None or knowledge_details is None:
             raise RuntimeError("Real repository-backed Knowledge workbench is unavailable.")
 
-        expected_ids = set(reference_knowledge_ids)
-        deadline = time.monotonic() + 8.0
-        observed_ids: set[str] = set()
-        detail_id = ""
-        detail_state = ""
-        while time.monotonic() < deadline:
-            app.processEvents()
-            observed_ids = {
-                str(knowledge_list.item(index).data(Qt.ItemDataRole.UserRole))
-                for index in range(knowledge_list.count())
-            }
-            detail_id = str(
-                knowledge_details.property("pathenaKnowledgeEntityId") or ""
-            )
-            detail_state = str(
-                knowledge_details.property("pathenaKnowledgeReviewState") or ""
-            )
-            if (
-                expected_ids.issubset(observed_ids)
-                and detail_id in expected_ids
-                and detail_state == "ready"
-                and knowledge_details.toPlainText().strip()
-            ):
-                return {
-                    "fixture": "isolated repository-backed canonical Knowledge",
-                    "knowledge_count": knowledge_list.count(),
-                    "selected_knowledge_state": detail_state,
-                }
-            time.sleep(0.05)
-
-        raise RuntimeError(
-            "Repository-backed Knowledge did not become capture-ready: "
-            f"expected={len(expected_ids)}, observed={len(observed_ids)}, "
-            f"detail_state={detail_state!r}, detail_id={detail_id!r}."
+        return _select_reference_knowledge(
+            app=app,
+            knowledge_list=knowledge_list,
+            knowledge_details=knowledge_details,
+            expected_ids=reference_knowledge_ids,
         )
 
     def capture_workspaces() -> None:
