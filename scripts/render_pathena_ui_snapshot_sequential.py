@@ -17,9 +17,9 @@ import threading
 import time
 import uuid
 from collections.abc import Sequence
-from unittest.mock import patch
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from unittest.mock import patch
 
 WORKSPACE_SURFACE_LABELS = (
     "Chat",
@@ -311,7 +311,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         encoding="utf-8",
     )
 
-    from PySide6.QtCore import Qt, QTimer
+    from PySide6.QtCore import QTimer
     from PySide6.QtWidgets import QListWidget, QMainWindow, QPlainTextEdit, QWidget
 
     from athena.desktop.app import create_application
