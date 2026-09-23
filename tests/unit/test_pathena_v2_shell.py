@@ -89,3 +89,26 @@ def test_v2_finalize_recomposes_settings_without_replacing_real_controls() -> No
     assert controller._nav_buttons[6].property("active") is True
 
     window.close()
+
+
+
+def test_v2_pallas_has_first_class_active_navigation_state() -> None:
+    _app()
+    window = PathenaMainWindow(api_controller=None)
+    controller = install_v2_shell(window)
+
+    window.navigation.setCurrentRow(2)
+    assert controller._nav_buttons[2].property("active") is True
+
+    controller.pallas_opened()
+    assert controller._pallas_button.property("active") is True
+    assert all(
+        button.property("active") is False
+        for button in controller._nav_buttons.values()
+    )
+
+    controller.pallas_closed()
+    assert controller._pallas_button.property("active") is False
+    assert controller._nav_buttons[2].property("active") is True
+
+    window.close()
