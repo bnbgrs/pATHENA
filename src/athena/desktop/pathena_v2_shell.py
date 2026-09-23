@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from athena.desktop.pathena_v2_theme import PATHENA_V2_STYLESHEET
 from athena.desktop.pathena_window import PathenaMainWindow
 
 _PAGE_NAMES = (
@@ -70,6 +71,16 @@ class PathenaV2ShellController(QObject):
         """Bind the existing synchronized PALLAS full view."""
         self._pallas_callback = callback
         self._pallas_button.setEnabled(True)
+
+    def finalize(self) -> None:
+        """Reassert the v2 visual contract after legacy functional installers run."""
+        self._window.setStyleSheet(PATHENA_V2_STYLESHEET)
+        self._window.chat_selector.setMinimumWidth(220)
+        self._window.chat_selector.setMaximumWidth(430)
+        self._window.model_selector.setMinimumWidth(220)
+        self._window.model_selector.setMaximumWidth(360)
+        self._window.send_button.setFixedSize(36, 36)
+        self._sync_navigation(max(0, self._window.navigation.currentRow()))
 
     def _build(self) -> None:
         window = self._window
