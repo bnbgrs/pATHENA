@@ -15,6 +15,11 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from athena.desktop.pathena_v2_components import (
+    V2NavigationButton,
+    V2SectionLabel,
+    V2WorkspaceHeader,
+)
 from athena.desktop.pathena_v2_theme import PATHENA_V2_STYLESHEET
 from athena.desktop.pathena_window import PathenaMainWindow
 
@@ -47,13 +52,15 @@ class PathenaV2ShellController(QObject):
         self._window = window
         self._command_callback: Callable[[], None] | None = None
         self._pallas_callback: Callable[[], None] | None = None
-        self._nav_buttons: dict[int, QPushButton] = {}
+        self._nav_buttons: dict[int, V2NavigationButton] = {}
         self._legacy_shell: QWidget | None = None
         self._inspector: QFrame | None = None
-        self._page_title = QLabel("Chat")
-        self._page_hint = QLabel(_PAGE_HINTS[0])
+        self._header = V2WorkspaceHeader("Chat", _PAGE_HINTS[0])
         self._command_button = QPushButton("Search or run a command      Ctrl K")
-        self._pallas_button = QPushButton("PALLAS")
+        self._pallas_button = V2NavigationButton(
+            "PALLAS",
+            accessible_name="Open PALLAS",
+        )
         self._build()
         window.navigation.currentRowChanged.connect(self._sync_navigation)
         self._sync_navigation(max(0, window.navigation.currentRow()))
@@ -162,9 +169,7 @@ class PathenaV2ShellController(QObject):
 
         layout.addSpacing(12)
         self._pallas_button.setObjectName("v2PallasButton")
-        self._pallas_button.setProperty("v2Nav", True)
         self._pallas_button.setToolTip("Open the living semantic PALLAS workspace")
-        self._pallas_button.setAccessibleName("Open PALLAS")
         self._pallas_button.setEnabled(False)
         self._pallas_button.clicked.connect(self._open_pallas)
         layout.addWidget(self._pallas_button)
@@ -180,13 +185,8 @@ class PathenaV2ShellController(QObject):
         layout.addWidget(footer)
         return sidebar
 
-    def _make_nav_button(self, index: int, text: str) -> QPushButton:
-        button = QPushButton(text)
-        button.setProperty("v2Nav", True)
-        button.setProperty("active", False)
-        button.setCursor(Qt.CursorShape.PointingHandCursor)
-        button.setMinimumHeight(40)
-        button.setAccessibleName(f"Open {text}")
+    def _make_nav_button(self, index: int, text: str) -> V2NavigationButton:
+        button = V2NavigationButton(text)
         button.clicked.connect(
             lambda _checked=False, row=index: self._window.navigation.setCurrentRow(row)
         )
@@ -194,41 +194,23 @@ class PathenaV2ShellController(QObject):
         return button
 
     def _build_header(self) -> QWidget:
-        header = QFrame()
-        header.setObjectName("v2Header")
-        header.setFixedHeight(74)
-
-        layout = QHBoxLayout(header)
-        layout.setContentsMargins(28, 12, 22, 12)
-        layout.setSpacing(12)
-
-        title_stack = QVBoxLayout()
-        title_stack.setContentsMargins(0, 0, 0, 0)
-        title_stack.setSpacing(1)
-        self._page_title.setObjectName("v2PageTitle")
-        self._page_hint.setObjectName("v2PageHint")
-        title_stack.addWidget(self._page_title)
-        title_stack.addWidget(self._page_hint)
-        layout.addLayout(title_stack)
-        layout.addStretch(1)
-
         self._command_button.setObjectName("v2CommandButton")
         self._command_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self._command_button.setEnabled(False)
         self._command_button.setAccessibleName("Open command palette")
         self._command_button.clicked.connect(self._open_command_palette)
-        layout.addWidget(self._command_button)
+        self._header.action_layout.addWidget(self._command_button)
 
         dot = QLabel("●")
         dot.setObjectName("v2StatusDot")
-        layout.addWidget(dot)
+        self._header.action_layout.addWidget(dot)
 
         status = self._window.status_text
-        status.setParent(header)
+        status.setParent(self._header.action_host)
         status.setObjectName("v2StatusText")
         status.setText(status.text().replace("LOCAL / ", "").replace("CORE ", "Core "))
-        layout.addWidget(status)
-        return header
+        self._header.action_layout.addWidget(status)
+        return self._header
 
     def _build_workspace(self) -> QWidget:
         workspace = QFrame()
@@ -264,8 +246,7 @@ class PathenaV2ShellController(QObject):
         session_layout.setContentsMargins(0, 0, 0, 0)
         session_layout.setSpacing(8)
 
-        conversation_label = QLabel("CONVERSATION")
-        conversation_label.setObjectName("v2Eyebrow")
+        conversation_label = V2SectionLabel("CONVERSATION")
         session_layout.addWidget(conversation_label)
 
         window.chat_selector.setParent(session)
@@ -282,8 +263,7 @@ class PathenaV2ShellController(QObject):
         session_layout.addWidget(window.delete_chat_button)
 
         session_layout.addSpacing(12)
-        model_label = QLabel("MODEL")
-        model_label.setObjectName("v2Eyebrow")
+        model_label = V2SectionLabel("MODEL")
         session_layout.addWidget(model_label)
 
         window.model_selector.setParent(session)
@@ -354,16 +334,10 @@ class PathenaV2ShellController(QObject):
         if not 0 <= index < len(_PAGE_NAMES):
             return
 
-        self._page_title.setText(_PAGE_NAMES[index])
-        self._page_hint.setText(_PAGE_HINTS[index])
+        self._header.set_context(_PAGE_NAMES[index], _PAGE_HINTS[index])
 
         for row, button in self._nav_buttons.items():
-            active = row == index
-            if button.property("active") != active:
-                button.setProperty("active", active)
-                button.style().unpolish(button)
-                button.style().polish(button)
-                button.update()
+            button.set_active(row == index)
 
         inspector = self._inspector
         if inspector is not None and index != 0:
