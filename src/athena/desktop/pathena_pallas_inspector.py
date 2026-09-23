@@ -146,7 +146,9 @@ class PallasContextInspectorController(QObject):
         )
         self._panel.setProperty("pathenaPallasSelectionId", node_id)
         self._panel.setProperty("pathenaPallasGraphId", graph_id)
-        self._panel.setVisible(True)
+        self._panel.setVisible(
+            not bool(self._window.property("pathenaPallasShellOpen"))
+        )
         if self._details is not None:
             self._details.setVisible(True)
             self._details.setChecked(True)
