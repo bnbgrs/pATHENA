@@ -964,6 +964,16 @@ QLabel#v2Brand {
     letter-spacing: -0.8px;
 }
 
+QLabel#v2Version {
+    color: #9A6CFF;
+    background: #1C1A42;
+    border: 1px solid #3A3477;
+    border-radius: 8px;
+    padding: 3px 7px;
+    font-size: 9pt;
+    font-weight: 700;
+}
+
 QLabel#v2BrandCaption {
     color: #8177FF;
     font-size: 8pt;
