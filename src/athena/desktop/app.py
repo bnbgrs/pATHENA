@@ -90,7 +90,6 @@ from athena.desktop.pathena_research_result_presentation import (
     apply_research_result_presentation,
 )
 from athena.desktop.pathena_result_scope_clarity import apply_result_scope_clarity
-from athena.desktop.pathena_secondary_navigation import install_settings_secondary_navigation
 from athena.desktop.pathena_selection_disappearance_handoff import (
     install_selection_disappearance_handoff,
 )
@@ -196,7 +195,6 @@ def main(argv: Sequence[str] | None = None) -> int:
     window = PathenaMainWindow(api_controller=controller)
     v2_shell = install_v2_shell(window)
     settings_runtime = install_settings_runtime(window, controller)
-    install_settings_secondary_navigation(window)
     pallas_grounded_field = install_pallas_grounded_field(window, controller)
     pallas_full_view = install_pallas_full_view(window, pallas_grounded_field)
     v2_shell.bind_pallas(pallas_full_view.open_workspace)
