@@ -12,11 +12,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from PySide6.QtCore import QObject, Qt
+from PySide6.QtCore import QEvent, QObject, Qt
 from PySide6.QtWidgets import (
     QDialog,
     QFileDialog,
     QFormLayout,
+    QFrame,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -287,13 +288,45 @@ class ComfyUiController(QObject):
             "state, and explicitly request model and VRAM release."
         )
 
+        self._v2_workspace = self.window.findChild(QFrame, "v2Workspace")
+        self._v2_shell = getattr(self.window, "_pathena_v2_shell_controller", None)
+        if self._v2_workspace is not None and self._v2_shell is not None:
+            self.dialog.setParent(self._v2_workspace)
+            self.dialog.setWindowFlags(Qt.WindowType.Widget)
+            self.dialog.setProperty("pathenaShellHosted", True)
+            self.dialog.installEventFilter(self)
+            self._v2_workspace.installEventFilter(self)
+        else:
+            self._v2_workspace = None
+            self.dialog.setProperty("pathenaShellHosted", False)
+
+        self._pallas = getattr(
+            self.window,
+            "_pathena_pallas_full_view_controller",
+            None,
+        )
+        pallas_opened = getattr(self._pallas, "workspace_opened", None)
+        connect_pallas_opened = getattr(pallas_opened, "connect", None)
+        if callable(connect_pallas_opened):
+            connect_pallas_opened(self._hide_for_pallas)
+
         outer = QVBoxLayout(self.dialog)
         outer.setContentsMargins(28, 24, 28, 24)
         outer.setSpacing(12)
 
+        title_row = QHBoxLayout()
         title = QLabel("ComfyUI")
         title.setObjectName("comfyUiTitle")
-        outer.addWidget(title)
+        title_row.addWidget(title)
+        title_row.addStretch(1)
+        self.close_button = QPushButton("Close")
+        self.close_button.setObjectName("comfyUiClose")
+        self.close_button.setAccessibleName("Close ComfyUI workspace")
+        self.close_button.setToolTip("Close ComfyUI and return to the selected workspace")
+        self.close_button.clicked.connect(self.dialog.hide)
+        self.close_button.setVisible(self._v2_workspace is not None)
+        title_row.addWidget(self.close_button)
+        outer.addLayout(title_row)
 
         intro = QLabel("Local image + video workflow · loopback only")
         intro.setWordWrap(True)
@@ -400,16 +433,63 @@ class ComfyUiController(QObject):
         self.dialog.setTabOrder(self.browse_button, self.queue_button)
         self.dialog.setTabOrder(self.queue_button, self.refresh_job_button)
         self.dialog.setTabOrder(self.refresh_job_button, self.release_vram_button)
+        if self._v2_workspace is not None:
+            self.dialog.setTabOrder(self.release_vram_button, self.close_button)
 
         self.dialog.setProperty("pathenaComfyUiEndpoint", self.client.endpoint)
+        self.dialog.setProperty(
+            "pathenaComfyUiShellHosted",
+            self._v2_workspace is not None,
+        )
         self.dialog.setProperty("pathenaComfyUiLocalOnly", True)
         self.dialog.setProperty("pathenaComfyUiGlobalInterruptAvailable", False)
         self.dialog.setProperty("pathenaComfyUiVramAvailable", False)
         self.window.setProperty("pathenaComfyUiController", self)
         self.window.setProperty("pathenaComfyUiInstalled", True)
 
+    def _hide_for_pallas(self) -> None:
+        """Explicitly close an embedded ComfyUI surface before PALLAS owns the canvas."""
+        if not self.dialog.isHidden():
+            self.dialog.hide()
+
+    def _fit_v2_workspace(self) -> None:
+        workspace = self._v2_workspace
+        if workspace is None or self.dialog.parent() is not workspace:
+            return
+        self.dialog.setGeometry(workspace.rect())
+        self.dialog.raise_()
+
+    def _set_v2_header(self) -> None:
+        header = getattr(self._v2_shell, "_header", None)
+        set_context = getattr(header, "set_context", None)
+        if callable(set_context):
+            set_context(
+                "ComfyUI",
+                "Local image and video workflows · loopback only.",
+            )
+
+    def _restore_v2_header(self) -> None:
+        sync_navigation = getattr(self._v2_shell, "_sync_navigation", None)
+        if callable(sync_navigation):
+            sync_navigation(self.window.navigation.currentRow())
+
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:  # noqa: N802
+        workspace = self._v2_workspace
+        if workspace is not None:
+            if watched is workspace and event.type() == QEvent.Type.Resize:
+                if self.dialog.isVisible():
+                    self._fit_v2_workspace()
+            elif watched is self.dialog:
+                if event.type() == QEvent.Type.Show:
+                    self._fit_v2_workspace()
+                    self._set_v2_header()
+                elif event.type() in {QEvent.Type.Hide, QEvent.Type.Close}:
+                    self._restore_v2_header()
+        return super().eventFilter(watched, event)
+
     def open(self) -> None:
         self.dialog.show()
+        self._fit_v2_workspace()
         self.dialog.raise_()
         self.dialog.activateWindow()
         self.check_button.setFocus(Qt.FocusReason.OtherFocusReason)
