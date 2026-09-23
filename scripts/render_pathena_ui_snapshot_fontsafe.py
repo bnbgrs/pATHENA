@@ -52,11 +52,11 @@ def _prepare_application() -> QApplication:
     )
     mono = "Consolas" if "Consolas" in families else content
 
-    from athena.desktop.pathena_theme import PATHENA_STYLESHEET
+    from athena.desktop.pathena_v2_theme import PATHENA_V2_STYLESHEET
 
-    stylesheet = PATHENA_STYLESHEET
+    stylesheet = PATHENA_V2_STYLESHEET
     stylesheet = stylesheet.replace(
-        '"Segoe UI Variable", "Segoe UI", "Inter", sans-serif', f'"{content}"'
+        '"Segoe UI", "Inter", sans-serif', f'"{content}"'
     )
     stylesheet = stylesheet.replace(
         '"Georgia", "Times New Roman", serif', f'"{display}"'
