@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import QEvent, QObject, Qt, Signal, Slot
+from PySide6.QtCore import QEvent, QObject, QTimer, Qt, Signal, Slot
 from PySide6.QtGui import QBrush, QColor
 from PySide6.QtWidgets import (
     QApplication,
@@ -17,34 +17,41 @@ from PySide6.QtWidgets import (
 from shiboken6 import isValid
 
 import athena.desktop.pathena_pallas_field as pallas_field_module
-from athena.desktop.pathena_design_tokens import PALETTE
 from athena.desktop.pathena_pallas_field import (
     PallasGroundedFieldController,
     PallasWorkspace,
 )
 from athena.desktop.pathena_pallas_living_qt import PallasLivingQtController
+from athena.desktop.pathena_v2_theme import (
+    V2_ACCENT,
+    V2_BG,
+    V2_BORDER_STRONG,
+    V2_DANGER,
+    V2_SUCCESS,
+    V2_TEXT,
+    V2_TEXT_DIM,
+    V2_TEXT_MUTED,
+)
 
 
-def _apply_reference_renderer_palette(
+def _apply_v2_renderer_palette(
     grounded_controller: PallasGroundedFieldController,
 ) -> None:
-    """Align renderer-only colors with the opened eleven-screen reference family."""
-    pallas_field_module._CANVAS = QColor(PALETTE.canvas)
-    pallas_field_module._TEXT = QColor(PALETTE.text)
-    pallas_field_module._MUTED = QColor(PALETTE.text_muted)
-    pallas_field_module._QUIET = QColor(PALETTE.text_quiet)
-    pallas_field_module._BORDER = QColor(PALETTE.border)
-    pallas_field_module._ACCENT = QColor(PALETTE.accent)
-    pallas_field_module._SOURCE = QColor(PALETTE.accent)
-    pallas_field_module._CLAIM = QColor(PALETTE.success)
-    pallas_field_module._KNOWLEDGE = QColor(PALETTE.success)
-    pallas_field_module._QUESTION = QColor(PALETTE.question)
-    pallas_field_module._MEMORY = QColor(PALETTE.success)
-    pallas_field_module._CONFLICT = QColor(PALETTE.error)
-    pallas_field_module._UNCERTAIN = QColor(PALETTE.warning)
-    grounded_controller.field.canvas.setBackgroundBrush(
-        QBrush(QColor(PALETTE.canvas))
-    )
+    """Apply an independent semantic palette designed for the v2 workspace."""
+    pallas_field_module._CANVAS = QColor(V2_BG)
+    pallas_field_module._TEXT = QColor(V2_TEXT)
+    pallas_field_module._MUTED = QColor(V2_TEXT_MUTED)
+    pallas_field_module._QUIET = QColor(V2_TEXT_DIM)
+    pallas_field_module._BORDER = QColor(V2_BORDER_STRONG)
+    pallas_field_module._ACCENT = QColor(V2_ACCENT)
+    pallas_field_module._SOURCE = QColor("#5FA8FF")
+    pallas_field_module._CLAIM = QColor(V2_SUCCESS)
+    pallas_field_module._KNOWLEDGE = QColor("#A78BFA")
+    pallas_field_module._QUESTION = QColor("#F2C66D")
+    pallas_field_module._MEMORY = QColor("#A78BFA")
+    pallas_field_module._CONFLICT = QColor(V2_DANGER)
+    pallas_field_module._UNCERTAIN = QColor("#F2C66D")
+    grounded_controller.field.canvas.setBackgroundBrush(QBrush(QColor(V2_BG)))
 
 
 class PallasFullViewController(QObject):
@@ -86,7 +93,7 @@ class PallasFullViewController(QObject):
         self._opened_navigation_row: int | None = None
         self._viewport = grounded_controller.field.canvas.viewport()
         self._viewport.installEventFilter(self)
-        _apply_reference_renderer_palette(grounded_controller)
+        _apply_v2_renderer_palette(grounded_controller)
         self._living_controller = PallasLivingQtController(grounded_controller, self)
         self._living_controller.diagnostics_changed.connect(
             self._apply_living_diagnostics
@@ -229,7 +236,7 @@ class PallasFullViewController(QObject):
         workspace.setAccessibleName("PALLAS full living semantic workspace")
         workspace.setProperty("pathenaPallasShellHosted", True)
         workspace.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
-        workspace.field.canvas.setBackgroundBrush(QBrush(QColor(PALETTE.canvas)))
+        workspace.field.canvas.setBackgroundBrush(QBrush(QColor(V2_BG)))
         outer.addWidget(workspace, 1)
         self._body_layout.insertWidget(1, host, 1)
 
@@ -269,6 +276,7 @@ class PallasFullViewController(QObject):
         self._open = True
         self._window.setProperty("pathenaPallasShellOpen", True)
         self._claim_inspector_context()
+        QTimer.singleShot(0, self._claim_inspector_context)
         workspace.field.canvas.setFocus(Qt.FocusReason.OtherFocusReason)
         if opening:
             self.workspace_opened.emit()
