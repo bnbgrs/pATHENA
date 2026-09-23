@@ -1441,4 +1441,30 @@ QPushButton#detailsToggle {{
     border-radius: 9px;
 }}
 
+
+QFrame#v2PallasInspector {{
+    background: {V2_SURFACE};
+    border: 1px solid {V2_BORDER};
+    border-radius: 12px;
+}}
+
+QLabel#v2PallasInspectorKind {{
+    color: {V2_ACCENT};
+    font-size: 8pt;
+    font-weight: 700;
+    letter-spacing: 1px;
+}}
+
+QLabel#v2PallasInspectorTitle {{
+    color: {V2_TEXT};
+    font-size: 13pt;
+    font-weight: 650;
+}}
+
+QLabel#v2PallasInspectorBody {{
+    color: {V2_TEXT_MUTED};
+    font-size: 9pt;
+    line-height: 1.35;
+}}
+
 """
