@@ -4,6 +4,7 @@ import os
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
+from PySide6.QtCore import QObject, Signal
 from PySide6.QtWidgets import QApplication, QLabel, QWidget
 
 from athena.desktop.app import create_application
@@ -17,10 +18,16 @@ def _app() -> QApplication:
     return create_application(["pathena-v2-comfyui-test"])
 
 
+class _PallasStub(QObject):
+    workspace_opened = Signal()
+
+
 def test_v2_comfyui_is_shell_hosted_and_restores_selected_route() -> None:
     app = _app()
     window = PathenaMainWindow(api_controller=None)
     install_v2_shell(window)
+    pallas = _PallasStub(window)
+    window.__dict__["_pathena_pallas_full_view_controller"] = pallas
     palette = CommandPaletteController(window)
     controller = install_comfyui_integration(
         palette,
@@ -56,6 +63,17 @@ def test_v2_comfyui_is_shell_hosted_and_restores_selected_route() -> None:
         assert hint.text() == "Local image and video workflows · loopback only."
         assert controller.close_button.isVisible()
         assert app.focusWidget() is controller.check_button
+
+        pallas.workspace_opened.emit()
+        app.processEvents()
+
+        assert controller.dialog.isHidden()
+        assert title.text() == "Settings"
+
+        controller.open()
+        app.processEvents()
+        assert controller.dialog.isVisible()
+        assert title.text() == "ComfyUI"
 
         controller.close_button.click()
         app.processEvents()
