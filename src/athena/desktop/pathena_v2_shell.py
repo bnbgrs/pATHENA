@@ -153,20 +153,32 @@ class PathenaV2ShellController(QObject):
     def _build_sidebar(self) -> QWidget:
         sidebar = QFrame()
         sidebar.setObjectName("v2Sidebar")
-        sidebar.setFixedWidth(208)
+        sidebar.setFixedWidth(216)
 
         layout = QVBoxLayout(sidebar)
-        layout.setContentsMargins(14, 20, 14, 16)
+        layout.setContentsMargins(15, 18, 15, 16)
         layout.setSpacing(4)
 
+        brand_row = QHBoxLayout()
+        brand_row.setContentsMargins(2, 0, 0, 0)
+        brand_row.setSpacing(7)
         brand = QLabel("pATHENA")
         brand.setObjectName("v2Brand")
+        version = QLabel("v2")
+        version.setObjectName("v2Version")
+        brand_row.addWidget(brand)
+        brand_row.addWidget(version)
+        brand_row.addStretch(1)
+        layout.addLayout(brand_row)
+
         caption = QLabel("LOCAL INTELLIGENCE")
         caption.setObjectName("v2BrandCaption")
-        layout.addWidget(brand)
         layout.addWidget(caption)
-        layout.addSpacing(24)
+        layout.addSpacing(22)
 
+        workspace_label = V2SectionLabel("WORKSPACE")
+        layout.addWidget(workspace_label)
+        layout.addSpacing(4)
         for index in range(5):
             layout.addWidget(self._make_nav_button(index, _PAGE_NAMES[index]))
 
@@ -178,6 +190,9 @@ class PathenaV2ShellController(QObject):
         layout.addWidget(self._pallas_button)
 
         layout.addStretch(1)
+        system_label = V2SectionLabel("SYSTEM")
+        layout.addWidget(system_label)
+        layout.addSpacing(4)
         layout.addWidget(self._make_nav_button(5, "System"))
         layout.addWidget(self._make_nav_button(6, "Settings"))
 
@@ -219,7 +234,7 @@ class PathenaV2ShellController(QObject):
         workspace = QFrame()
         workspace.setObjectName("v2Workspace")
         layout = QVBoxLayout(workspace)
-        layout.setContentsMargins(26, 20, 26, 22)
+        layout.setContentsMargins(28, 22, 28, 24)
         layout.setSpacing(0)
 
         self._replace_chat_page()
