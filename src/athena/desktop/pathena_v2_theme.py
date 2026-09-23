@@ -907,4 +907,47 @@ QLabel#systemRecentEventsEmpty {{
     padding: 4px 0 8px 0;
 }}
 
+
+QFrame#pallasShellWorkspaceHost,
+QWidget#pallasShellWorkspace,
+QWidget#pallasWorkspace,
+QWidget#pallasSemanticField {{
+    background: {V2_BG};
+    border: none;
+}}
+
+QLabel#pallasLivingStatus,
+QLabel#pallasBreadcrumb,
+QLabel#pallasSemanticSelection {{
+    color: {V2_TEXT_MUTED};
+    font-size: 9pt;
+}}
+
+QPushButton#pallasLensSemanticButton,
+QPushButton#pallasLensAgeButton,
+QPushButton#pallasLensVitalityButton {{
+    min-height: 32px;
+    padding: 0 12px;
+    color: {V2_TEXT_MUTED};
+    background: {V2_SURFACE};
+    border: 1px solid {V2_BORDER};
+    border-radius: 8px;
+}}
+
+QPushButton#pallasLensSemanticButton:hover,
+QPushButton#pallasLensAgeButton:hover,
+QPushButton#pallasLensVitalityButton:hover {{
+    color: {V2_TEXT};
+    background: {V2_SURFACE_HOVER};
+    border-color: {V2_BORDER_STRONG};
+}}
+
+QPushButton#pallasLensSemanticButton:checked,
+QPushButton#pallasLensAgeButton:checked,
+QPushButton#pallasLensVitalityButton:checked {{
+    color: {V2_TEXT};
+    background: {V2_ACCENT_SOFT};
+    border-color: {V2_ACCENT};
+}}
+
 """
