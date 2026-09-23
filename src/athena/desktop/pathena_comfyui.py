@@ -296,6 +296,9 @@ class ComfyUiController(QObject):
             self.dialog.setProperty("pathenaShellHosted", True)
             self.dialog.installEventFilter(self)
             self._v2_workspace.installEventFilter(self)
+            self.window.navigation.currentRowChanged.connect(
+                self._hide_for_navigation
+            )
         else:
             self._v2_workspace = None
             self.dialog.setProperty("pathenaShellHosted", False)
@@ -446,6 +449,11 @@ class ComfyUiController(QObject):
         self.dialog.setProperty("pathenaComfyUiVramAvailable", False)
         self.window.setProperty("pathenaComfyUiController", self)
         self.window.setProperty("pathenaComfyUiInstalled", True)
+
+    def _hide_for_navigation(self, _row: int) -> None:
+        """Close the transient ComfyUI canvas when primary navigation takes ownership."""
+        if not self.dialog.isHidden():
+            self.dialog.hide()
 
     def _hide_for_pallas(self) -> None:
         """Explicitly close an embedded ComfyUI surface before PALLAS owns the canvas."""
