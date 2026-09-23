@@ -316,7 +316,7 @@ class CapabilityHelpController(QObject):
             return False
 
         if isinstance(event, QKeyEvent) and event.type() == QEvent.Type.KeyPress:
-            if event.key() == Qt.Key.Key_Tab:
+            if event.key() in {Qt.Key.Key_Tab, Qt.Key.Key_Backtab}:
                 controls = (
                     self.help_query,
                     self.help_sections,
@@ -331,7 +331,10 @@ class CapabilityHelpController(QObject):
                     if not event.modifiers() & disallowed:
                         step = (
                             -1
-                            if event.modifiers() & Qt.KeyboardModifier.ShiftModifier
+                            if (
+                                event.key() == Qt.Key.Key_Backtab
+                                or event.modifiers() & Qt.KeyboardModifier.ShiftModifier
+                            )
                             else 1
                         )
                         current = controls.index(watched)
