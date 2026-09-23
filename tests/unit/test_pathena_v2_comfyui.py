@@ -64,6 +64,10 @@ def test_v2_comfyui_is_shell_hosted_and_restores_selected_route() -> None:
         assert controller.close_button.isVisible()
         assert app.focusWidget() is controller.check_button
 
+        window.resize(window.width() + 180, window.height() + 120)
+        app.processEvents()
+        assert controller.dialog.geometry() == workspace.rect()
+
         pallas.workspace_opened.emit()
         app.processEvents()
 
