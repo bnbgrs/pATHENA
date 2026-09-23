@@ -537,4 +537,115 @@ QLabel#settingsModelValue {{
     font-size: 9pt;
 }}
 
+
+QWidget#v2KnowledgeWorkspace {{
+    background: {V2_BG};
+    border: none;
+}}
+
+QFrame#v2KnowledgeToolbar {{
+    background: transparent;
+    border: none;
+}}
+
+QFrame#v2KnowledgeContext {{
+    background: {V2_SURFACE};
+    border: 1px solid {V2_BORDER};
+    border-radius: 10px;
+}}
+
+QLabel#v2KnowledgeState {{
+    color: {V2_SUCCESS};
+    background: #12231D;
+    border: 1px solid #214334;
+    border-radius: 8px;
+    padding: 4px 8px;
+    font-size: 8pt;
+    font-weight: 650;
+}}
+
+QLabel#v2KnowledgeSummary {{
+    color: {V2_TEXT_MUTED};
+    font-size: 9pt;
+}}
+
+QLabel#v2KnowledgeMeta,
+QLabel#v2KnowledgeBrowserStatus {{
+    color: {V2_TEXT_DIM};
+    font-size: 8.5pt;
+}}
+
+QTabWidget#v2KnowledgeTabs::pane {{
+    background: transparent;
+    border: 0;
+    border-top: 1px solid {V2_BORDER};
+    top: -1px;
+}}
+
+QTabWidget#v2KnowledgeTabs QTabBar::tab {{
+    color: {V2_TEXT_MUTED};
+    background: transparent;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    padding: 9px 14px;
+    margin-right: 4px;
+    min-height: 24px;
+}}
+
+QTabWidget#v2KnowledgeTabs QTabBar::tab:hover {{
+    color: {V2_TEXT};
+}}
+
+QTabWidget#v2KnowledgeTabs QTabBar::tab:selected {{
+    color: {V2_TEXT};
+    border-bottom-color: {V2_ACCENT};
+}}
+
+QWidget#canonicalMemoryListPane,
+QWidget#canonicalMemoryDetailPane {{
+    background: transparent;
+    border: none;
+}}
+
+QListWidget#persistentKnowledgeList,
+QListWidget#persistentClaimList,
+QListWidget#semanticReviewList {{
+    color: {V2_TEXT};
+    background: {V2_SURFACE};
+    border: 1px solid {V2_BORDER};
+    border-radius: 10px;
+    padding: 5px;
+}}
+
+QListWidget#persistentKnowledgeList::item,
+QListWidget#persistentClaimList::item,
+QListWidget#semanticReviewList::item {{
+    border-radius: 7px;
+    padding: 8px 9px;
+    margin: 1px 0;
+}}
+
+QListWidget#persistentKnowledgeList::item:hover,
+QListWidget#persistentClaimList::item:hover,
+QListWidget#semanticReviewList::item:hover {{
+    background: {V2_SURFACE_HOVER};
+}}
+
+QListWidget#persistentKnowledgeList::item:selected,
+QListWidget#persistentClaimList::item:selected,
+QListWidget#semanticReviewList::item:selected {{
+    color: {V2_TEXT};
+    background: {V2_ACCENT_SOFT};
+}}
+
+QPlainTextEdit#persistentKnowledgeDetails,
+QPlainTextEdit#persistentClaimDetails,
+QPlainTextEdit#semanticReviewDetails {{
+    color: {V2_TEXT};
+    background: {V2_SURFACE};
+    border: 1px solid {V2_BORDER};
+    border-radius: 10px;
+    padding: 12px;
+}}
+
 """
