@@ -462,12 +462,26 @@ class PathenaV2ShellController(QObject):
 
         self._header.set_context(_PAGE_NAMES[index], _PAGE_HINTS[index])
 
+        self._pallas_button.set_active(False)
         for row, button in self._nav_buttons.items():
             button.set_active(row == index)
 
         inspector = self._inspector
         if inspector is not None and index != 0:
             inspector.hide()
+
+    @Slot()
+    def pallas_opened(self) -> None:
+        """Present PALLAS as a first-class active workspace in the v2 rail."""
+        for button in self._nav_buttons.values():
+            button.set_active(False)
+        self._pallas_button.set_active(True)
+
+    @Slot()
+    def pallas_closed(self) -> None:
+        """Restore the active primary route after the immersive workspace closes."""
+        self._pallas_button.set_active(False)
+        self._sync_navigation(max(0, self._window.navigation.currentRow()))
 
     @Slot()
     def _open_command_palette(self) -> None:
