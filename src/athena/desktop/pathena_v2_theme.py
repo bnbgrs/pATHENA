@@ -724,4 +724,62 @@ QListWidget#researchProposalList {{
     padding: 4px;
 }}
 
+
+QWidget#v2SourcesWorkspace {{
+    background: {V2_BG};
+    border: none;
+}}
+
+QFrame#v2SourcesToolbar {{
+    background: {V2_SURFACE};
+    border: 1px solid {V2_BORDER};
+    border-radius: 10px;
+}}
+
+QLabel#v2SourcesStatus {{
+    color: {V2_TEXT_MUTED};
+    font-size: 9pt;
+}}
+
+QSplitter#v2SourcesSplit {{
+    background: transparent;
+}}
+
+QSplitter#v2SourcesSplit::handle {{
+    background: {V2_BORDER};
+    width: 1px;
+    margin: 0 8px;
+}}
+
+QListWidget#sourceList {{
+    color: {V2_TEXT};
+    background: {V2_SURFACE};
+    border: 1px solid {V2_BORDER};
+    border-radius: 10px;
+    padding: 5px;
+}}
+
+QListWidget#sourceList::item {{
+    border-radius: 7px;
+    padding: 8px 9px;
+    margin: 1px 0;
+}}
+
+QListWidget#sourceList::item:hover {{
+    background: {V2_SURFACE_HOVER};
+}}
+
+QListWidget#sourceList::item:selected {{
+    color: {V2_TEXT};
+    background: {V2_ACCENT_SOFT};
+}}
+
+QPlainTextEdit#sourceDetails {{
+    color: {V2_TEXT};
+    background: {V2_SURFACE};
+    border: 1px solid {V2_BORDER};
+    border-radius: 10px;
+    padding: 12px;
+}}
+
 """
