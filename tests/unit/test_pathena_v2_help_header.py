@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from PySide6.QtCore import Qt
+from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QLabel, QWidget
 
 from athena.desktop.app import create_application
@@ -46,6 +48,23 @@ def test_v2_help_owns_visible_header_then_restores_selected_route() -> None:
         assert title.text() == "Help"
         assert title.accessibleDescription() == "Current workspace: Help."
         assert hint.text() == "Current commands, shortcuts, and available capabilities."
+        assert app.focusWidget() is controller.help_query
+
+        QTest.keyClick(controller.help_query, Qt.Key.Key_Tab)
+        app.processEvents()
+        assert app.focusWidget() is controller.help_sections
+
+        QTest.keyClick(controller.help_sections, Qt.Key.Key_Tab)
+        app.processEvents()
+        assert app.focusWidget() is controller.help_capabilities
+
+        QTest.keyClick(
+            controller.help_capabilities,
+            Qt.Key.Key_Tab,
+            Qt.KeyboardModifier.ShiftModifier,
+        )
+        app.processEvents()
+        assert app.focusWidget() is controller.help_sections
 
         palette.help_dialog.hide()
         app.processEvents()
