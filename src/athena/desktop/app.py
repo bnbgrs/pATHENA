@@ -38,7 +38,6 @@ from athena.desktop.pathena_empty_search_comprehension_7100 import (
 )
 from athena.desktop.pathena_external_workspaces import install_external_workspaces
 from athena.desktop.pathena_inspector_scanability_6700 import apply_inspector_scanability
-from athena.desktop.pathena_interaction_refinement import install_interaction_refinement
 from athena.desktop.pathena_jobs_experience_2800 import install_jobs_experience
 from athena.desktop.pathena_knowledge_acceptance_presentation import (
     apply_knowledge_acceptance_presentation,
@@ -262,7 +261,6 @@ def main(argv: Sequence[str] | None = None) -> int:
     message_action_accessibility = install_message_action_accessibility(window)
     message_action_tab_order = install_message_action_tab_order(window)
     message_action_quiet = install_message_action_quiet(window)
-    interaction_refinement = install_interaction_refinement(window)
     layout_refinement = install_layout_refinement(window)
     progressive_workspace_refinement = install_progressive_workspace_refinement(window)
     research_readability = install_research_readability(window, research_results_extension)
@@ -297,6 +295,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         research_query=research_workspace.query_input,
         research_filter=research_results_extension.job_filter,
     )
+    v2_shell.finalize()
     _schedule_initial_core_refreshes(controller, supervisor, scheduler_supervisor)
     heartbeat = _start_core_refresh_heartbeat(controller, supervisor, scheduler_supervisor)
     window.show()
@@ -310,7 +309,6 @@ def main(argv: Sequence[str] | None = None) -> int:
     research_readability.deleteLater()
     progressive_workspace_refinement.deleteLater()
     layout_refinement.deleteLater()
-    interaction_refinement.deleteLater()
     message_action_quiet.deleteLater()
     message_action_tab_order.deleteLater()
     message_action_accessibility.deleteLater()
