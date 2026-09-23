@@ -274,6 +274,46 @@ QPushButton#sendButton:disabled {{
     background: #242A35;
 }}
 
+QFrame#emptyStatePanel {{
+    background: transparent;
+    border: none;
+}}
+
+QLabel#emptyStateEyebrow {{
+    color: {V2_ACCENT};
+    font-size: 8pt;
+    font-weight: 700;
+    letter-spacing: 1.4px;
+}}
+
+QLabel#emptyStateTitle {{
+    color: {V2_TEXT};
+    font-size: 18pt;
+    font-weight: 650;
+    letter-spacing: -0.4px;
+}}
+
+QLabel#emptyStateBody {{
+    color: {V2_TEXT_MUTED};
+    font-size: 10pt;
+}}
+
+QFrame#v2EmptyState {{
+    background: transparent;
+    border: none;
+}}
+
+QLabel#v2EmptyTitle {{
+    color: {V2_TEXT};
+    font-size: 18pt;
+    font-weight: 650;
+}}
+
+QLabel#v2EmptyBody {{
+    color: {V2_TEXT_MUTED};
+    font-size: 10pt;
+}}
+
 QFrame#knowledgeReviewPanel,
 QFrame#evidenceChain,
 QFrame#evidenceRail {{
