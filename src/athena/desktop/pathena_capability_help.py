@@ -270,6 +270,36 @@ class CapabilityHelpController(QObject):
         if self.palette.help_dialog.isVisible():
             self.help_query.setFocus(Qt.FocusReason.ShortcutFocusReason)
 
+    def _set_help_workspace_header(self) -> None:
+        """Keep transient Help context visible in both v1 and v2 shells."""
+        self.window.page_title.setText("Help")
+        self.window.page_title.setAccessibleDescription("Current workspace: Help.")
+
+        v2_shell = getattr(self.window, "_pathena_v2_shell_controller", None)
+        header = getattr(v2_shell, "_header", None)
+        set_context = getattr(header, "set_context", None)
+        if callable(set_context):
+            set_context(
+                "Help",
+                "Current commands, shortcuts, and available capabilities.",
+            )
+            title_label = getattr(header, "title_label", None)
+            if isinstance(title_label, QLabel):
+                title_label.setAccessibleDescription("Current workspace: Help.")
+
+    def _restore_workspace_header(self) -> None:
+        """Restore the selected route after the transient Help surface closes."""
+        row = self.window.navigation.currentRow()
+
+        v2_shell = getattr(self.window, "_pathena_v2_shell_controller", None)
+        sync_v2 = getattr(v2_shell, "_sync_navigation", None)
+        if callable(sync_v2):
+            sync_v2(row)
+
+        sync_reference = getattr(self.window, "_sync_reference_navigation", None)
+        if callable(sync_reference):
+            sync_reference(row)
+
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:
         if self._disposed:
             return False
@@ -280,15 +310,12 @@ class CapabilityHelpController(QObject):
                     snapshot = self.snapshot()
                     self._refresh_hierarchy(snapshot)
                     self._publish_help_inspector(snapshot)
-                    self.window.page_title.setText("Help")
-                    self.window.page_title.setAccessibleDescription("Current workspace: Help.")
+                    self._set_help_workspace_header()
                     self.window.setProperty("pathenaHelpWorkspaceVisible", True)
                     QTimer.singleShot(0, self._focus_help_search)
                 elif event.type() == QEvent.Type.Hide:
                     self._restore_inspector()
-                    sync_navigation = getattr(self.window, "_sync_reference_navigation", None)
-                    if callable(sync_navigation):
-                        sync_navigation(self.window.navigation.currentRow())
+                    self._restore_workspace_header()
                     self.window.setProperty("pathenaHelpWorkspaceVisible", False)
             elif watched is self._workspace and event.type() == QEvent.Type.Resize:
                 if self.palette.help_dialog.isVisible():
