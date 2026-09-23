@@ -34,6 +34,9 @@ def test_v2_help_owns_visible_header_then_restores_selected_route() -> None:
         assert hint is not None
         assert title.text() == "Settings"
         selected_page = window.pages.currentIndex()
+        inspector = window.findChild(QWidget, "inspector")
+        assert inspector is not None
+        assert inspector.isHidden()
 
         palette.open_help()
         app.processEvents()
@@ -74,6 +77,7 @@ def test_v2_help_owns_visible_header_then_restores_selected_route() -> None:
         assert window.pages.currentIndex() == selected_page
         assert title.text() == "Settings"
         assert hint.text() != "Current commands, shortcuts, and available capabilities."
+        assert inspector.isHidden()
     finally:
         controller.dispose()
         controller.deleteLater()
