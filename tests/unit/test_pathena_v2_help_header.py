@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from PySide6.QtWidgets import QApplication, QLabel
+from PySide6.QtWidgets import QApplication, QLabel, QWidget
 
 from athena.desktop.app import create_application
 from athena.desktop.command_palette import CommandPaletteController
@@ -37,6 +37,10 @@ def test_v2_help_owns_visible_header_then_restores_selected_route() -> None:
         app.processEvents()
 
         assert palette.help_dialog.isVisible()
+        workspace = window.findChild(QWidget, "v2Workspace")
+        assert workspace is not None
+        assert palette.help_dialog.parent() is workspace
+        assert palette.help_dialog.geometry() == workspace.rect()
         assert window.navigation.currentRow() == 6
         assert window.pages.currentIndex() == selected_page
         assert title.text() == "Help"
