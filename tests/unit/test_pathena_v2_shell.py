@@ -1,0 +1,55 @@
+from __future__ import annotations
+
+import os
+
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+
+from PySide6.QtWidgets import QApplication, QFrame
+
+from athena.desktop.pathena_v2_shell import install_v2_shell
+from athena.desktop.pathena_window import PathenaMainWindow
+
+
+def _app() -> QApplication:
+    app = QApplication.instance()
+    if isinstance(app, QApplication):
+        return app
+    return QApplication([])
+
+
+def test_v2_shell_recomposes_real_window_without_changing_route_contract() -> None:
+    _app()
+    window = PathenaMainWindow(api_controller=None)
+    controller = install_v2_shell(window)
+
+    shell = window.centralWidget()
+    assert shell is not None
+    assert shell.objectName() == "v2Shell"
+    assert shell.findChild(QFrame, "referenceBody") is not None
+    assert shell.findChild(QFrame, "conversation") is not None
+    assert shell.findChild(QFrame, "legacyReferenceBody") is not None
+
+    assert window.pages.count() == 7
+    assert window.pages.widget(0).objectName() == "v2ChatPage"
+    assert window.prompt_input.parent().objectName() == "v2Composer"
+
+    window.navigation.setCurrentRow(2)
+    assert window.pages.currentIndex() == 2
+    assert controller._nav_buttons[2].property("active") is True
+    assert controller._nav_buttons[0].property("active") is False
+
+    window.close()
+
+
+def test_v2_shell_binds_existing_command_palette_contract() -> None:
+    _app()
+    window = PathenaMainWindow(api_controller=None)
+    controller = install_v2_shell(window)
+    called: list[str] = []
+
+    controller.bind_command_palette(lambda: called.append("open"))
+    assert controller._command_button.isEnabled()
+    controller._command_button.click()
+
+    assert called == ["open"]
+    window.close()
