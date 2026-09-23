@@ -99,6 +99,7 @@ from athena.desktop.pathena_startup_experience_2900 import install_startup_exper
 from athena.desktop.pathena_v2_knowledge import install_v2_knowledge_workspace
 from athena.desktop.pathena_v2_research import install_v2_research_workspace
 from athena.desktop.pathena_v2_shell import install_v2_shell
+from athena.desktop.pathena_v2_sources import install_v2_sources_workspace
 from athena.desktop.pathena_v2_theme import PATHENA_V2_STYLESHEET
 from athena.desktop.pathena_transient_dialog_shortcuts import (
     install_transient_dialog_shortcut_continuity,
@@ -300,6 +301,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         research_workspace,
         research_results_extension,
     )
+    v2_sources = install_v2_sources_workspace(files_workspace)
     v2_shell.finalize()
     _schedule_initial_core_refreshes(controller, supervisor, scheduler_supervisor)
     heartbeat = _start_core_refresh_heartbeat(controller, supervisor, scheduler_supervisor)
@@ -333,6 +335,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     knowledge_tab_refresh_handoff.deleteLater()
     knowledge_detail_ownership.deleteLater()
     knowledge_selection_continuity.deleteLater()
+    v2_sources.deleteLater()
     v2_research.deleteLater()
     v2_knowledge.deleteLater()
     knowledge_workspace.deleteLater()
