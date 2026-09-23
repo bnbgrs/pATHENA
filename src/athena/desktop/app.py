@@ -203,6 +203,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     pallas_grounded_field = install_pallas_grounded_field(window, controller)
     pallas_full_view = install_pallas_full_view(window, pallas_grounded_field)
     v2_shell.bind_pallas(pallas_full_view.open_workspace)
+    pallas_full_view.workspace_opened.connect(v2_shell.pallas_opened)
+    pallas_full_view.workspace_closed.connect(v2_shell.pallas_closed)
     pallas_context_inspector = install_pallas_context_inspector(
         window,
         pallas_grounded_field,
