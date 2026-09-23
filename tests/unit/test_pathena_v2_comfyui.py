@@ -21,8 +21,9 @@ class _PallasStub(QObject):
 def test_v2_comfyui_is_shell_hosted_and_restores_selected_route() -> None:
     app = _app()
     window = PathenaMainWindow(api_controller=None)
-    install_v2_shell(window)
+    shell = install_v2_shell(window)
     pallas = _PallasStub(window)
+    pallas.workspace_opened.connect(shell.pallas_opened)
     window.__dict__["_pathena_pallas_full_view_controller"] = pallas
     palette = CommandPaletteController(window)
     controller = install_comfyui_integration(
@@ -76,12 +77,19 @@ def test_v2_comfyui_is_shell_hosted_and_restores_selected_route() -> None:
         assert controller.dialog.isVisible()
         assert title.text() == "ComfyUI"
 
+        window.setProperty("pathenaPallasShellOpen", True)
         pallas.workspace_opened.emit()
         app.processEvents()
 
         assert controller.dialog.isHidden()
-        assert title.text() == "Settings"
+        pallas_button = window.findChild(QWidget, "v2PallasButton")
+        assert pallas_button is not None
+        assert pallas_button.property("active") is True
+        assert title.text() == "PALLAS"
+        assert hint.text() == "Living semantic workspace"
 
+        window.setProperty("pathenaPallasShellOpen", False)
+        shell.pallas_closed()
         controller.open()
         app.processEvents()
         assert controller.dialog.isVisible()
