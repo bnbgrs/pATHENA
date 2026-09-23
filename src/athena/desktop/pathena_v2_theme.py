@@ -841,4 +841,70 @@ QPlainTextEdit#jobDetails {{
     padding: 12px;
 }}
 
+
+QWidget#v2SystemWorkspace {{
+    background: {V2_BG};
+    border: none;
+}}
+
+QFrame#v2SystemMain {{
+    background: transparent;
+    border: none;
+}}
+
+QFrame#v2SystemToolbar {{
+    background: {V2_SURFACE};
+    border: 1px solid {V2_BORDER};
+    border-radius: 10px;
+}}
+
+QLabel#v2SystemDetail {{
+    color: {V2_TEXT_MUTED};
+    font-size: 9pt;
+}}
+
+QLabel#v2SectionTitle {{
+    color: {V2_TEXT};
+    font-size: 10.5pt;
+    font-weight: 650;
+    padding-top: 5px;
+}}
+
+QFrame#systemStatusRow {{
+    background: transparent;
+    border: 0;
+    border-bottom: 1px solid {V2_BORDER};
+    border-radius: 0;
+}}
+
+QLabel#systemStatusTitle {{
+    color: {V2_TEXT};
+    font-size: 10pt;
+    font-weight: 600;
+}}
+
+QLabel#systemStatusIcon {{
+    color: {V2_TEXT_DIM};
+}}
+
+QFrame#v2SecurityPosture {{
+    background: {V2_SURFACE};
+    border: 1px solid {V2_BORDER};
+    border-radius: 12px;
+    padding: 0;
+}}
+
+QFrame#v2SecurityPosture QLabel#inspectorHeading {{
+    color: {V2_TEXT};
+    font-size: 12pt;
+    font-weight: 650;
+}}
+
+QLabel#systemRecentEventsEmpty {{
+    color: {V2_TEXT_MUTED};
+    background: transparent;
+    border: none;
+    padding: 4px 0 8px 0;
+}}
+
 """
