@@ -51,6 +51,9 @@ class CapabilityHelpController(QObject):
         if self._workspace is not None:
             return self._workspace
         try:
+            v2_workspace = self.window.findChild(QFrame, "v2Workspace")
+            if v2_workspace is not None:
+                return v2_workspace
             return self.window.findChild(QFrame, "conversation")
         except RuntimeError:
             return None
