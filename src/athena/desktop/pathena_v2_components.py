@@ -158,3 +158,42 @@ class V2EmptyState(QFrame):
         row.addStretch(1)
         layout.addLayout(row)
         layout.addStretch(1)
+
+
+class V2FormRow(QFrame):
+    """Label, explanation and one real control region for admin workspaces."""
+
+    def __init__(self, title: str, description: str = "") -> None:
+        super().__init__()
+        self.setObjectName("v2FormRow")
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(0, 14, 0, 14)
+        layout.setSpacing(24)
+
+        copy = QVBoxLayout()
+        copy.setContentsMargins(0, 0, 0, 0)
+        copy.setSpacing(3)
+
+        self.title_label = QLabel(title)
+        self.title_label.setObjectName("v2FormLabel")
+        copy.addWidget(self.title_label)
+
+        self.description_label = QLabel(description)
+        self.description_label.setObjectName("v2FormDescription")
+        self.description_label.setWordWrap(True)
+        self.description_label.setVisible(bool(description))
+        copy.addWidget(self.description_label)
+
+        layout.addLayout(copy, 1)
+
+        self.control_host = QFrame()
+        self.control_host.setObjectName("v2FormControl")
+        self.control_layout = QHBoxLayout(self.control_host)
+        self.control_layout.setContentsMargins(0, 0, 0, 0)
+        self.control_layout.setSpacing(8)
+        self.control_host.setMinimumWidth(320)
+        layout.addWidget(self.control_host)
+
+    def add_control(self, widget: QWidget, stretch: int = 0) -> None:
+        widget.setParent(self.control_host)
+        self.control_layout.addWidget(widget, stretch)
