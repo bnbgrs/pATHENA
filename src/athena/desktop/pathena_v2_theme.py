@@ -1218,4 +1218,135 @@ QPushButton#pallasLensVitalityButton:checked {
     border-color: #756BFF;
 }
 
+
+QDialog#commandPalette,
+QDialog#helpDialog,
+QWidget#helpWorkspace {{
+    color: {V2_TEXT};
+    background: {V2_SURFACE};
+    border: 1px solid {V2_BORDER_STRONG};
+}}
+
+QLabel#commandPaletteTitle {{
+    color: {V2_TEXT};
+    font-size: 11pt;
+    font-weight: 650;
+}}
+
+QLabel#commandPaletteHint,
+QLabel#commandPaletteFooter {{
+    color: {V2_TEXT_DIM};
+    font-size: 8.5pt;
+}}
+
+QLineEdit#commandPaletteQuery,
+QLineEdit#helpSearch {{
+    color: {V2_TEXT};
+    background: {V2_BG};
+    border: 1px solid {V2_BORDER_STRONG};
+    border-radius: 10px;
+    padding: 8px 10px;
+    min-height: 26px;
+    selection-background-color: {V2_ACCENT};
+}}
+
+QLineEdit#commandPaletteQuery:focus,
+QLineEdit#helpSearch:focus {{
+    border-color: {V2_ACCENT};
+}}
+
+QListWidget#commandPaletteResults {{
+    color: {V2_TEXT};
+    background: {V2_BG};
+    border: 1px solid {V2_BORDER};
+    border-radius: 10px;
+    padding: 5px;
+}}
+
+QListWidget#commandPaletteResults::item {{
+    color: {V2_TEXT_MUTED};
+    border: none;
+    border-radius: 7px;
+    padding: 9px 10px;
+    margin: 1px 0;
+}}
+
+QListWidget#commandPaletteResults::item:hover {{
+    color: {V2_TEXT};
+    background: {V2_SURFACE_HOVER};
+}}
+
+QListWidget#commandPaletteResults::item:selected {{
+    color: {V2_TEXT};
+    background: {V2_ACCENT_SOFT};
+}}
+
+QFrame#helpBody,
+QFrame#helpCapabilityContent {{
+    background: {V2_BG};
+    border: none;
+}}
+
+QFrame#helpSecondaryNavigation {{
+    background: {V2_SURFACE};
+    border: none;
+    border-right: 1px solid {V2_BORDER};
+}}
+
+QLabel#helpSecondaryTitle,
+QLabel#helpHeadline {{
+    color: {V2_TEXT};
+    font-weight: 650;
+}}
+
+QListWidget#helpSections,
+QListWidget#helpCapabilities {{
+    color: {V2_TEXT};
+    background: transparent;
+    border: none;
+}}
+
+QListWidget#helpSections::item {{
+    color: {V2_TEXT_MUTED};
+    background: transparent;
+    border: none;
+    border-left: 2px solid transparent;
+    padding: 8px 10px;
+}}
+
+QListWidget#helpSections::item:hover {{
+    color: {V2_TEXT};
+    background: {V2_SURFACE_HOVER};
+}}
+
+QListWidget#helpSections::item:selected {{
+    color: {V2_TEXT};
+    background: {V2_ACCENT_SOFT};
+    border-left-color: {V2_ACCENT};
+}}
+
+QListWidget#helpCapabilities::item {{
+    border: none;
+    padding: 0;
+}}
+
+QFrame#helpCapabilityRow {{
+    background: {V2_SURFACE};
+    border: 1px solid {V2_BORDER};
+    border-radius: 10px;
+}}
+
+QLabel#helpCapabilityTitle {{
+    color: {V2_TEXT};
+}}
+
+QLabel#helpCapabilityState {{
+    color: {V2_TEXT_DIM};
+}}
+
+QLabel#helpCapabilitySummary,
+QLabel#helpSummary {{
+    color: {V2_TEXT_MUTED};
+}}
+
 """
