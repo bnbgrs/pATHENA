@@ -648,4 +648,80 @@ QPlainTextEdit#semanticReviewDetails {{
     padding: 12px;
 }}
 
+
+QWidget#v2ResearchWorkspace {{
+    background: {V2_BG};
+    border: none;
+}}
+
+QFrame#v2ResearchQueryBar {{
+    background: transparent;
+    border: none;
+}}
+
+QFrame#v2ResearchMeta {{
+    background: {V2_SURFACE};
+    border: 1px solid {V2_BORDER};
+    border-radius: 10px;
+}}
+
+QLabel#v2ResearchStatus {{
+    color: {V2_TEXT_MUTED};
+    font-size: 9pt;
+}}
+
+QSplitter#v2ResearchSplit {{
+    background: transparent;
+}}
+
+QSplitter#v2ResearchSplit::handle {{
+    background: {V2_BORDER};
+    width: 1px;
+    margin: 0 8px;
+}}
+
+QListWidget#researchJobList {{
+    color: {V2_TEXT};
+    background: {V2_SURFACE};
+    border: 1px solid {V2_BORDER};
+    border-radius: 10px;
+    padding: 5px;
+}}
+
+QListWidget#researchJobList::item {{
+    border-radius: 7px;
+    padding: 8px 9px;
+    margin: 1px 0;
+}}
+
+QListWidget#researchJobList::item:hover {{
+    background: {V2_SURFACE_HOVER};
+}}
+
+QListWidget#researchJobList::item:selected {{
+    color: {V2_TEXT};
+    background: {V2_ACCENT_SOFT};
+}}
+
+QWidget#researchResultPanel {{
+    background: transparent;
+    border: none;
+}}
+
+QPlainTextEdit#researchDetails {{
+    color: {V2_TEXT};
+    background: {V2_SURFACE};
+    border: 1px solid {V2_BORDER};
+    border-radius: 10px;
+    padding: 12px;
+}}
+
+QListWidget#researchProposalList {{
+    color: {V2_TEXT};
+    background: {V2_SURFACE};
+    border: 1px solid {V2_BORDER};
+    border-radius: 9px;
+    padding: 4px;
+}}
+
 """
