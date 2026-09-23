@@ -2,20 +2,20 @@
 
 from __future__ import annotations
 
-V2_BG = "#090B0F"
-V2_SURFACE = "#0F1319"
-V2_SURFACE_RAISED = "#151A22"
-V2_SURFACE_HOVER = "#1A202A"
-V2_BORDER = "#242B36"
-V2_BORDER_STRONG = "#343E4D"
-V2_TEXT = "#F4F6FA"
-V2_TEXT_MUTED = "#98A2B3"
-V2_TEXT_DIM = "#697386"
-V2_ACCENT = "#7C9CFF"
-V2_ACCENT_HOVER = "#91ACFF"
-V2_ACCENT_SOFT = "#18213A"
-V2_SUCCESS = "#68D6A3"
-V2_DANGER = "#F07C86"
+V2_BG = "#070A12"
+V2_SURFACE = "#0D1220"
+V2_SURFACE_RAISED = "#12192A"
+V2_SURFACE_HOVER = "#18223A"
+V2_BORDER = "#202B43"
+V2_BORDER_STRONG = "#344264"
+V2_TEXT = "#F6F7FB"
+V2_TEXT_MUTED = "#A5AFC4"
+V2_TEXT_DIM = "#68738C"
+V2_ACCENT = "#756BFF"
+V2_ACCENT_HOVER = "#8A80FF"
+V2_ACCENT_SOFT = "#1C1A42"
+V2_SUCCESS = "#63D6A7"
+V2_DANGER = "#FF727D"
 
 PATHENA_V2_STYLESHEET = f"""
 QMainWindow#athenaMainWindow {{
@@ -949,5 +949,273 @@ QPushButton#pallasLensVitalityButton:checked {{
     background: {V2_ACCENT_SOFT};
     border-color: {V2_ACCENT};
 }}
+
+
+/* Approved 2026-09-23 v2 design target: shared visual foundation. */
+QFrame#v2Sidebar {
+    background: #090D17;
+    border-right: 1px solid #182137;
+}
+
+QLabel#v2Brand {
+    color: #FFFFFF;
+    font-size: 19pt;
+    font-weight: 700;
+    letter-spacing: -0.8px;
+}
+
+QLabel#v2BrandCaption {
+    color: #8177FF;
+    font-size: 8pt;
+    font-weight: 650;
+    letter-spacing: 1.45px;
+}
+
+QPushButton[v2Nav="true"] {
+    min-height: 22px;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    padding: 9px 12px;
+}
+
+QPushButton[v2Nav="true"]:hover {
+    background: #11182A;
+    border-color: #202B43;
+}
+
+QPushButton[v2Nav="true"][active="true"] {
+    color: #FFFFFF;
+    background: #1C1A42;
+    border: 1px solid #383271;
+    padding-left: 12px;
+    font-weight: 650;
+}
+
+QFrame#v2Header {
+    background: #090D17;
+    border-bottom: 1px solid #182137;
+}
+
+QLabel#v2PageTitle {
+    font-size: 18pt;
+    font-weight: 700;
+    letter-spacing: -0.55px;
+}
+
+QLabel#v2PageHint {
+    color: #8D99B0;
+}
+
+QPushButton#v2CommandButton {
+    background: #101728;
+    border: 1px solid #26324E;
+    border-radius: 11px;
+    padding: 8px 13px;
+    min-width: 260px;
+}
+
+QPushButton#v2CommandButton:hover {
+    background: #161F35;
+    border-color: #4A4A88;
+}
+
+QFrame#v2Workspace {
+    background: #070A12;
+}
+
+QFrame#v2SessionBar,
+QFrame#v2KnowledgeToolbar,
+QFrame#v2ResearchQueryBar {
+    background: #0D1220;
+    border: 1px solid #202B43;
+    border-radius: 12px;
+}
+
+QFrame#v2Composer {
+    background: #11192B;
+    border: 1px solid #344264;
+    border-radius: 16px;
+}
+
+QPushButton#sendButton {
+    color: #FFFFFF;
+    background: #756BFF;
+    border-radius: 18px;
+}
+
+QFrame#v2EmptyState {
+    background: #0B101C;
+    border: 1px solid #1B263D;
+    border-radius: 16px;
+}
+
+QLabel#v2EmptyTitle,
+QLabel#emptyStateTitle {
+    font-size: 20pt;
+    font-weight: 700;
+}
+
+QFrame#inspector {
+    background: #0B101C;
+    border-left: 1px solid #202B43;
+}
+
+QLineEdit,
+QTextEdit,
+QPlainTextEdit,
+QSpinBox,
+QDoubleSpinBox,
+QComboBox#chatSelector,
+QComboBox#modelSelector,
+QComboBox#settingsModelSelector {
+    background: #0F1626;
+    border: 1px solid #25314C;
+    border-radius: 10px;
+}
+
+QLineEdit:hover,
+QTextEdit:hover,
+QPlainTextEdit:hover,
+QSpinBox:hover,
+QDoubleSpinBox:hover,
+QComboBox#chatSelector:hover,
+QComboBox#modelSelector:hover,
+QComboBox#settingsModelSelector:hover {
+    border-color: #3A496B;
+}
+
+QLineEdit:focus,
+QTextEdit:focus,
+QPlainTextEdit:focus,
+QSpinBox:focus,
+QDoubleSpinBox:focus,
+QComboBox:focus {
+    border-color: #756BFF;
+}
+
+QPushButton {
+    border-radius: 10px;
+}
+
+QFrame#v2SettingsStatus,
+QFrame#v2KnowledgeContext,
+QFrame#v2ResearchMeta,
+QFrame#v2SourcesToolbar,
+QFrame#v2JobsToolbar,
+QFrame#v2SecurityPosture {
+    background: #101728;
+    border: 1px solid #25314C;
+    border-radius: 13px;
+}
+
+QFrame#v2FormRow {
+    background: #0C111E;
+    border: 1px solid #1D2840;
+    border-radius: 12px;
+}
+
+QListWidget#persistentKnowledgeList,
+QListWidget#persistentClaimList,
+QListWidget#semanticReviewList,
+QListWidget#researchJobList,
+QListWidget#researchProposalList,
+QListWidget#sourceList,
+QListWidget#durableJobList {
+    background: #0C111E;
+    border: 1px solid #202B43;
+    border-radius: 13px;
+    padding: 6px;
+}
+
+QListWidget#persistentKnowledgeList::item,
+QListWidget#persistentClaimList::item,
+QListWidget#semanticReviewList::item,
+QListWidget#researchJobList::item,
+QListWidget#researchProposalList::item,
+QListWidget#sourceList::item,
+QListWidget#durableJobList::item {
+    border: 1px solid transparent;
+    border-radius: 9px;
+    padding: 9px 10px;
+    margin: 2px 0;
+}
+
+QListWidget#persistentKnowledgeList::item:selected,
+QListWidget#persistentClaimList::item:selected,
+QListWidget#semanticReviewList::item:selected,
+QListWidget#researchJobList::item:selected,
+QListWidget#researchProposalList::item:selected,
+QListWidget#sourceList::item:selected,
+QListWidget#durableJobList::item:selected {
+    color: #FFFFFF;
+    background: #201D4B;
+    border-color: #3A3477;
+}
+
+QPlainTextEdit#persistentKnowledgeDetails,
+QPlainTextEdit#persistentClaimDetails,
+QPlainTextEdit#semanticReviewDetails,
+QPlainTextEdit#researchDetails,
+QPlainTextEdit#sourceDetails,
+QPlainTextEdit#jobDetails {
+    background: #0C111E;
+    border: 1px solid #202B43;
+    border-radius: 13px;
+    padding: 14px;
+}
+
+QTabWidget#v2KnowledgeTabs QTabBar::tab {
+    border-radius: 9px;
+    border: 1px solid transparent;
+    padding: 8px 13px;
+    margin: 5px 3px 6px 0;
+}
+
+QTabWidget#v2KnowledgeTabs QTabBar::tab:hover {
+    background: #11182A;
+    border-color: #202B43;
+}
+
+QTabWidget#v2KnowledgeTabs QTabBar::tab:selected {
+    background: #1C1A42;
+    border: 1px solid #383271;
+}
+
+QFrame#systemStatusRow {
+    background: #0D1322;
+    border: 1px solid #1F2B44;
+    border-radius: 11px;
+}
+
+QSplitter#v2ResearchSplit::handle,
+QSplitter#v2SourcesSplit::handle,
+QSplitter#v2JobsSplit::handle {
+    background: transparent;
+    width: 10px;
+    margin: 0;
+}
+
+QScrollBar::handle:vertical {
+    background: #313C59;
+}
+
+QScrollBar::handle:vertical:hover {
+    background: #4A5678;
+}
+
+QPushButton#pallasLensSemanticButton,
+QPushButton#pallasLensAgeButton,
+QPushButton#pallasLensVitalityButton {
+    background: #0F1626;
+    border: 1px solid #25314C;
+    border-radius: 10px;
+}
+
+QPushButton#pallasLensSemanticButton:checked,
+QPushButton#pallasLensAgeButton:checked,
+QPushButton#pallasLensVitalityButton:checked {
+    background: #1C1A42;
+    border-color: #756BFF;
+}
 
 """
