@@ -10,12 +10,14 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QPushButton,
+    QScrollArea,
     QSizePolicy,
     QVBoxLayout,
     QWidget,
 )
 
 from athena.desktop.pathena_v2_components import (
+    V2FormRow,
     V2NavigationButton,
     V2SectionLabel,
     V2WorkspaceHeader,
@@ -80,7 +82,8 @@ class PathenaV2ShellController(QObject):
         self._pallas_button.setEnabled(True)
 
     def finalize(self) -> None:
-        """Reassert the v2 visual contract after legacy functional installers run."""
+        """Finish v2 composition after functional installers have attached real controls."""
+        self._replace_settings_page()
         self._window.setStyleSheet(PATHENA_V2_STYLESHEET)
         self._window.chat_selector.setMinimumWidth(220)
         self._window.chat_selector.setMaximumWidth(430)
@@ -328,6 +331,129 @@ class PathenaV2ShellController(QObject):
         old_chat.setObjectName("legacyChatPage")
         old_chat.setParent(self._legacy_shell)
         old_chat.hide()
+
+    def _replace_settings_page(self) -> None:
+        """Recompose real model/runtime controls into a native v2 Settings workspace."""
+        window = self._window
+        pages = window.pages
+        old_settings = pages.widget(6)
+        if old_settings is None:
+            raise RuntimeError("pATHENA v2 requires the real Settings page.")
+        if old_settings.objectName() == "v2SettingsPage":
+            return
+
+        runtime_panel = old_settings.findChild(QWidget, "settingsRuntimePanel")
+
+        settings = QWidget()
+        settings.setObjectName("v2SettingsPage")
+        page_layout = QHBoxLayout(settings)
+        page_layout.setContentsMargins(0, 0, 0, 0)
+        page_layout.setSpacing(28)
+
+        scroll = QScrollArea()
+        scroll.setObjectName("v2SettingsScroll")
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+
+        form = QWidget()
+        form.setObjectName("v2SettingsForm")
+        form_layout = QVBoxLayout(form)
+        form_layout.setContentsMargins(2, 0, 18, 28)
+        form_layout.setSpacing(0)
+
+        intro = QLabel(
+            "Inference controls are stored locally per model and apply to the real "
+            "chat request path. Availability is reported by the local Core."
+        )
+        intro.setObjectName("v2SettingsIntro")
+        intro.setWordWrap(True)
+        intro.setMaximumWidth(760)
+        form_layout.addWidget(intro)
+        form_layout.addSpacing(22)
+
+        model_row = V2FormRow(
+            "Local model",
+            "Choose the LM Studio model used for chat and inference settings.",
+        )
+        window.settings_model_selector.setMinimumWidth(240)
+        model_row.add_control(window.settings_model_selector, 1)
+        window.settings_model_value.setMinimumWidth(90)
+        model_row.add_control(window.settings_model_value)
+        form_layout.addWidget(model_row)
+
+        context_row = V2FormRow(
+            "Context window",
+            "Total token budget available to the selected model for this request.",
+        )
+        context_row.add_control(window.context_slider, 1)
+        context_row.add_control(window.context_spin)
+        form_layout.addWidget(context_row)
+
+        output_row = V2FormRow(
+            "Maximum output",
+            "Upper bound for generated tokens within the selected context budget.",
+        )
+        output_row.add_control(window.max_output_slider, 1)
+        output_row.add_control(window.max_output_spin)
+        form_layout.addWidget(output_row)
+
+        temperature_row = V2FormRow(
+            "Temperature",
+            "Higher values increase sampling variation; lower values are more deterministic.",
+        )
+        temperature_row.control_layout.addStretch(1)
+        temperature_row.add_control(window.temperature_spin)
+        form_layout.addWidget(temperature_row)
+
+        thinking_row = V2FormRow(
+            "Reasoning",
+            "Allow reasoning-capable local models to use their supported reasoning mode.",
+        )
+        thinking_row.control_layout.addStretch(1)
+        thinking_row.add_control(window.thinking_checkbox)
+        form_layout.addWidget(thinking_row)
+
+        form_layout.addStretch(1)
+        scroll.setWidget(form)
+        page_layout.addWidget(scroll, 1)
+
+        status = QFrame()
+        status.setObjectName("v2SettingsStatus")
+        status.setFixedWidth(360)
+        status_layout = QVBoxLayout(status)
+        status_layout.setContentsMargins(20, 20, 20, 20)
+        status_layout.setSpacing(12)
+
+        status_title = QLabel("Runtime")
+        status_title.setObjectName("v2PanelTitle")
+        status_layout.addWidget(status_title)
+
+        status_hint = QLabel(
+            "Live state from the local Core. pATHENA does not infer Internet or "
+            "provider readiness when the Core does not report it."
+        )
+        status_hint.setObjectName("v2PanelHint")
+        status_hint.setWordWrap(True)
+        status_layout.addWidget(status_hint)
+
+        if runtime_panel is not None:
+            runtime_panel.setParent(status)
+            runtime_panel.setObjectName("v2SettingsRuntimePanel")
+            status_layout.addWidget(runtime_panel)
+
+        status_layout.addStretch(1)
+        page_layout.addWidget(status)
+
+        current_index = pages.currentIndex()
+        pages.removeWidget(old_settings)
+        pages.insertWidget(6, settings)
+        if current_index == 6:
+            pages.setCurrentIndex(6)
+
+        old_settings.setObjectName("legacySettingsPage")
+        old_settings.setParent(self._legacy_shell)
+        old_settings.hide()
 
     @Slot(int)
     def _sync_navigation(self, index: int) -> None:
