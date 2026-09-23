@@ -96,6 +96,7 @@ from athena.desktop.pathena_selection_disappearance_handoff import (
 from athena.desktop.pathena_settings_runtime import install_settings_runtime
 from athena.desktop.pathena_shell_density import apply_shell_density
 from athena.desktop.pathena_startup_experience_2900 import install_startup_experience
+from athena.desktop.pathena_v2_jobs import install_v2_jobs_workspace
 from athena.desktop.pathena_v2_knowledge import install_v2_knowledge_workspace
 from athena.desktop.pathena_v2_research import install_v2_research_workspace
 from athena.desktop.pathena_v2_shell import install_v2_shell
@@ -301,6 +302,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         research_workspace,
         research_results_extension,
     )
+    v2_jobs = install_v2_jobs_workspace(jobs_workspace)
     v2_sources = install_v2_sources_workspace(files_workspace)
     v2_shell.finalize()
     _schedule_initial_core_refreshes(controller, supervisor, scheduler_supervisor)
@@ -336,6 +338,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     knowledge_detail_ownership.deleteLater()
     knowledge_selection_continuity.deleteLater()
     v2_sources.deleteLater()
+    v2_jobs.deleteLater()
     v2_research.deleteLater()
     v2_knowledge.deleteLater()
     knowledge_workspace.deleteLater()
