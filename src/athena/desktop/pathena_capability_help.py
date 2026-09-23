@@ -306,6 +306,7 @@ class CapabilityHelpController(QObject):
         sync_v2 = getattr(v2_shell, "_sync_navigation", None)
         if callable(sync_v2):
             sync_v2(row)
+            return
 
         sync_reference = getattr(self.window, "_sync_reference_navigation", None)
         if callable(sync_reference):
