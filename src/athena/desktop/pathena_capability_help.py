@@ -6,7 +6,7 @@ from collections import defaultdict
 from collections.abc import Callable
 
 from PySide6.QtCore import QEvent, QObject, QSize, Qt, QTimer
-from PySide6.QtGui import QFont
+from PySide6.QtGui import QFont, QKeyEvent
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -203,6 +203,14 @@ class CapabilityHelpController(QObject):
             insert_at = max(0, surface_layout.count() - 1)
         surface_layout.insertWidget(insert_at, self.help_body, 1)
 
+        for widget in (
+            self.help_query,
+            self.help_sections,
+            self.help_capabilities,
+        ):
+            widget.installEventFilter(self)
+            widget.setProperty("pathenaTransientFocusContained", True)
+
         self.help_query.textChanged.connect(self._apply_help_filter)
         self.help_sections.currentRowChanged.connect(self._apply_help_filter)
         self._refresh_hierarchy(self.snapshot())
@@ -306,6 +314,34 @@ class CapabilityHelpController(QObject):
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:
         if self._disposed:
             return False
+
+        if isinstance(event, QKeyEvent) and event.type() == QEvent.Type.KeyPress:
+            if event.key() == Qt.Key.Key_Tab:
+                controls = (
+                    self.help_query,
+                    self.help_sections,
+                    self.help_capabilities,
+                )
+                if watched in controls:
+                    disallowed = (
+                        Qt.KeyboardModifier.ControlModifier
+                        | Qt.KeyboardModifier.AltModifier
+                        | Qt.KeyboardModifier.MetaModifier
+                    )
+                    if not event.modifiers() & disallowed:
+                        step = (
+                            -1
+                            if event.modifiers() & Qt.KeyboardModifier.ShiftModifier
+                            else 1
+                        )
+                        current = controls.index(watched)
+                        target = controls[(current + step) % len(controls)]
+                        target.setFocus(
+                            Qt.FocusReason.BacktabFocusReason
+                            if step < 0
+                            else Qt.FocusReason.TabFocusReason
+                        )
+                        return True
         try:
             if watched is self.palette.help_dialog:
                 if event.type() == QEvent.Type.Show:
@@ -340,6 +376,13 @@ class CapabilityHelpController(QObject):
             self.palette.help_dialog.removeEventFilter(self)
         except RuntimeError:
             pass
+        for name in ("help_query", "help_sections", "help_capabilities"):
+            widget = getattr(self, name, None)
+            if widget is not None:
+                try:
+                    widget.removeEventFilter(self)
+                except RuntimeError:
+                    pass
         if self._workspace is not None:
             try:
                 self._workspace.removeEventFilter(self)
