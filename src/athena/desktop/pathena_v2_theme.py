@@ -443,4 +443,98 @@ QLabel#jobMeta,
 QLabel#settingsHelp {{
     color: {V2_TEXT_MUTED};
 }}
+
+QFrame#v2HeaderActions {{
+    background: transparent;
+    border: none;
+}}
+
+QWidget#v2SettingsPage,
+QWidget#v2SettingsForm,
+QScrollArea#v2SettingsScroll,
+QScrollArea#v2SettingsScroll > QWidget > QWidget {{
+    background: {V2_BG};
+    border: none;
+}}
+
+QLabel#v2SettingsIntro {{
+    color: {V2_TEXT_MUTED};
+    font-size: 10pt;
+    line-height: 1.35;
+}}
+
+QFrame#v2FormRow {{
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid {V2_BORDER};
+}}
+
+QLabel#v2FormLabel {{
+    color: {V2_TEXT};
+    font-size: 10.5pt;
+    font-weight: 620;
+}}
+
+QLabel#v2FormDescription {{
+    color: {V2_TEXT_MUTED};
+    font-size: 9pt;
+}}
+
+QFrame#v2FormControl {{
+    background: transparent;
+    border: none;
+}}
+
+QFrame#v2SettingsStatus {{
+    background: {V2_SURFACE};
+    border: 1px solid {V2_BORDER};
+    border-radius: 12px;
+}}
+
+QLabel#v2PanelTitle {{
+    color: {V2_TEXT};
+    font-size: 12pt;
+    font-weight: 650;
+}}
+
+QLabel#v2PanelHint {{
+    color: {V2_TEXT_MUTED};
+    font-size: 9pt;
+}}
+
+QWidget#v2SettingsRuntimePanel {{
+    background: transparent;
+    border: none;
+}}
+
+QWidget#v2SettingsRuntimePanel QLabel#settingsRuntimeTitle {{
+    color: {V2_TEXT};
+    font-size: 10pt;
+    font-weight: 620;
+    padding-top: 8px;
+}}
+
+QWidget#v2SettingsRuntimePanel QLabel#settingsLabel {{
+    color: {V2_TEXT_DIM};
+    font-size: 9pt;
+}}
+
+QWidget#v2SettingsRuntimePanel QLabel#settingsProviderState,
+QWidget#v2SettingsRuntimePanel QLabel#settingsNetworkState,
+QWidget#v2SettingsRuntimePanel QLabel#settingsPersistenceState {{
+    color: {V2_TEXT_MUTED};
+    font-size: 9pt;
+}}
+
+QWidget#v2SettingsRuntimePanel QLabel#settingsRuntimeDetail {{
+    color: {V2_TEXT_DIM};
+    font-size: 9pt;
+    padding-top: 6px;
+}}
+
+QLabel#settingsModelValue {{
+    color: {V2_TEXT_MUTED};
+    font-size: 9pt;
+}}
+
 """
