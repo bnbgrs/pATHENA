@@ -333,6 +333,7 @@ class PathenaV2ShellController(QObject):
 
         pages.removeWidget(old_chat)
         pages.insertWidget(0, chat)
+        pages.setCurrentIndex(max(0, window.navigation.currentRow()))
         old_chat.setObjectName("legacyChatPage")
         old_chat.setParent(self._legacy_shell)
         old_chat.hide()
