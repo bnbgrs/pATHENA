@@ -64,6 +64,18 @@ def test_v2_comfyui_is_shell_hosted_and_restores_selected_route() -> None:
         app.processEvents()
         assert controller.dialog.geometry() == workspace.rect()
 
+        window.navigation.setCurrentRow(1)
+        app.processEvents()
+        assert controller.dialog.isHidden()
+        assert window.pages.currentIndex() == 1
+        assert title.text() == "Knowledge"
+
+        window.navigation.setCurrentRow(6)
+        controller.open()
+        app.processEvents()
+        assert controller.dialog.isVisible()
+        assert title.text() == "ComfyUI"
+
         pallas.workspace_opened.emit()
         app.processEvents()
 
