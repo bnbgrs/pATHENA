@@ -782,4 +782,63 @@ QPlainTextEdit#sourceDetails {{
     padding: 12px;
 }}
 
+
+QWidget#v2JobsWorkspace {{
+    background: {V2_BG};
+    border: none;
+}}
+
+QFrame#v2JobsToolbar {{
+    background: {V2_SURFACE};
+    border: 1px solid {V2_BORDER};
+    border-radius: 10px;
+}}
+
+QLabel#v2JobsStatus,
+QLabel#v2SchedulerStatus {{
+    color: {V2_TEXT_MUTED};
+    font-size: 9pt;
+}}
+
+QSplitter#v2JobsSplit {{
+    background: transparent;
+}}
+
+QSplitter#v2JobsSplit::handle {{
+    background: {V2_BORDER};
+    width: 1px;
+    margin: 0 8px;
+}}
+
+QListWidget#durableJobList {{
+    color: {V2_TEXT};
+    background: {V2_SURFACE};
+    border: 1px solid {V2_BORDER};
+    border-radius: 10px;
+    padding: 5px;
+}}
+
+QListWidget#durableJobList::item {{
+    border-radius: 7px;
+    padding: 8px 9px;
+    margin: 1px 0;
+}}
+
+QListWidget#durableJobList::item:hover {{
+    background: {V2_SURFACE_HOVER};
+}}
+
+QListWidget#durableJobList::item:selected {{
+    color: {V2_TEXT};
+    background: {V2_ACCENT_SOFT};
+}}
+
+QPlainTextEdit#jobDetails {{
+    color: {V2_TEXT};
+    background: {V2_SURFACE};
+    border: 1px solid {V2_BORDER};
+    border-radius: 10px;
+    padding: 12px;
+}}
+
 """
