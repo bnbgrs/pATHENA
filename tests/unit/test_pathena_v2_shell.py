@@ -53,3 +53,39 @@ def test_v2_shell_binds_existing_command_palette_contract() -> None:
 
     assert called == ["open"]
     window.close()
+
+
+
+def test_v2_finalize_recomposes_settings_without_replacing_real_controls() -> None:
+    _app()
+    window = PathenaMainWindow(api_controller=None)
+    controller = install_v2_shell(window)
+
+    model_selector = window.settings_model_selector
+    context_slider = window.context_slider
+    context_spin = window.context_spin
+    output_slider = window.max_output_slider
+    output_spin = window.max_output_spin
+    temperature = window.temperature_spin
+    thinking = window.thinking_checkbox
+
+    controller.finalize()
+
+    settings = window.pages.widget(6)
+    assert settings is not None
+    assert settings.objectName() == "v2SettingsPage"
+    assert model_selector.parent() is not None
+    assert settings.isAncestorOf(model_selector)
+    assert settings.isAncestorOf(context_slider)
+    assert settings.isAncestorOf(context_spin)
+    assert settings.isAncestorOf(output_slider)
+    assert settings.isAncestorOf(output_spin)
+    assert settings.isAncestorOf(temperature)
+    assert settings.isAncestorOf(thinking)
+    assert window.pages.count() == 7
+
+    window.navigation.setCurrentRow(6)
+    assert window.pages.currentWidget() is settings
+    assert controller._nav_buttons[6].property("active") is True
+
+    window.close()
