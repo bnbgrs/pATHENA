@@ -477,6 +477,12 @@ class ComfyUiController(QObject):
             )
 
     def _restore_v2_header(self) -> None:
+        if bool(self.window.property("pathenaPallasShellOpen")):
+            header = getattr(self._v2_shell, "_header", None)
+            set_context = getattr(header, "set_context", None)
+            if callable(set_context):
+                set_context("PALLAS", "Living semantic workspace")
+            return
         sync_navigation = getattr(self._v2_shell, "_sync_navigation", None)
         if callable(sync_navigation):
             sync_navigation(self.window.navigation.currentRow())
