@@ -1417,4 +1417,28 @@ QLabel#comfyUiJobStatus {{
     color: {V2_TEXT_MUTED};
 }}
 
+
+QScrollArea#inspectorScroll,
+QScrollArea#inspectorScroll > QWidget > QWidget,
+QWidget#inspectorScrollContent {{
+    color: {V2_TEXT};
+    background: #0B101C;
+    border: none;
+}}
+
+QLabel#objectId {{
+    color: {V2_ACCENT};
+    font-size: 8pt;
+    font-weight: 650;
+    letter-spacing: 0.8px;
+}}
+
+QPushButton#inspectorCopyButton,
+QPushButton#detailsToggle {{
+    color: {V2_TEXT_MUTED};
+    background: {V2_SURFACE_RAISED};
+    border: 1px solid {V2_BORDER};
+    border-radius: 9px;
+}}
+
 """
