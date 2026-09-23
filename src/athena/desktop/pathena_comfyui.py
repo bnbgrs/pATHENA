@@ -300,6 +300,16 @@ class ComfyUiController(QObject):
             self._v2_workspace = None
             self.dialog.setProperty("pathenaShellHosted", False)
 
+        self._pallas = getattr(
+            self.window,
+            "_pathena_pallas_full_view_controller",
+            None,
+        )
+        pallas_opened = getattr(self._pallas, "workspace_opened", None)
+        connect_pallas_opened = getattr(pallas_opened, "connect", None)
+        if callable(connect_pallas_opened):
+            connect_pallas_opened(self._hide_for_pallas)
+
         outer = QVBoxLayout(self.dialog)
         outer.setContentsMargins(28, 24, 28, 24)
         outer.setSpacing(12)
@@ -436,6 +446,11 @@ class ComfyUiController(QObject):
         self.dialog.setProperty("pathenaComfyUiVramAvailable", False)
         self.window.setProperty("pathenaComfyUiController", self)
         self.window.setProperty("pathenaComfyUiInstalled", True)
+
+    def _hide_for_pallas(self) -> None:
+        """Explicitly close an embedded ComfyUI surface before PALLAS owns the canvas."""
+        if not self.dialog.isHidden():
+            self.dialog.hide()
 
     def _fit_v2_workspace(self) -> None:
         workspace = self._v2_workspace
