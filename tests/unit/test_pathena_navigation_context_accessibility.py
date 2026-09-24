@@ -171,3 +171,36 @@ def test_workspace_routes_use_truthful_contextual_inspector_overlays() -> None:
         controller.deleteLater()
         window.close()
         app.processEvents()
+
+
+def test_chat_inspector_requires_explicit_context_disclosure() -> None:
+    app = _app()
+    window = PathenaMainWindow(api_controller=None)
+    window.show()
+    app.processEvents()
+    try:
+        inspector = window.findChild(QFrame, "inspector")
+        assert inspector is not None
+        assert window.navigation.currentRow() == 0
+        assert inspector.isHidden()
+
+        window._set_context_available(True)  # noqa: SLF001 - presentation contract
+        app.processEvents()
+        assert window.context_button.isVisible()
+        assert not window.context_button.isChecked()
+        assert inspector.isHidden()
+
+        window.context_button.click()
+        app.processEvents()
+        assert window.context_button.isChecked()
+        assert window.evidence_chain.isVisible()
+        assert inspector.isVisible()
+
+        window.context_button.click()
+        app.processEvents()
+        assert not window.context_button.isChecked()
+        assert window.evidence_chain.isHidden()
+        assert inspector.isHidden()
+    finally:
+        window.close()
+        app.processEvents()
