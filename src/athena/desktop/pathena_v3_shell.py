@@ -75,7 +75,10 @@ class PathenaV3ShellController(QObject):
         self._window.chat_selector.setMaximumWidth(420)
         self._window.model_selector.setMinimumWidth(200)
         self._window.model_selector.setMaximumWidth(340)
+        self._window.prompt_input.show()
+        self._window.ground_button.show()
         self._window.send_button.setFixedSize(40, 40)
+        self._window.send_button.show()
         self._sync_navigation(max(0, self._window.navigation.currentRow()))
 
     def _build(self) -> None:
