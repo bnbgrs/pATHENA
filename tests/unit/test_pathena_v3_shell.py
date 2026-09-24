@@ -5,7 +5,7 @@ import os
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QApplication, QFrame
+from PySide6.QtWidgets import QApplication, QFrame, QPlainTextEdit
 
 from athena.desktop.pathena_v3_shell import install_v3_shell
 from athena.desktop.pathena_window import PathenaMainWindow
@@ -45,6 +45,11 @@ def test_v3_shell_is_structurally_distinct_and_keeps_route_contract() -> None:
     assert window.pages.count() == 7
     assert window.pages.widget(0).objectName() == "v3ChatPage"
     assert window.prompt_input.parent().objectName() == "v3Composer"
+    assert isinstance(window.prompt_input, QPlainTextEdit)
+    assert window.prompt_input.minimumHeight() == 44
+    assert window.prompt_input.maximumHeight() == 112
+    window.prompt_input.setText("first line\nsecond line")
+    assert window.prompt_input.text() == "first line\nsecond line"
 
     window.navigation.setCurrentRow(2)
     assert window.pages.currentIndex() == 2
