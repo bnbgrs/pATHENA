@@ -167,7 +167,10 @@ def _count_fact(count: int, freshness: str) -> RuntimeFact:
 
 
 def _display(value: str) -> str:
-    return value.replace("_", " ").strip().capitalize() or "Unavailable"
+    normalized = value.replace("_", " ").strip()
+    if normalized.lower() == "lm studio":
+        return "LM Studio"
+    return normalized.capitalize() or "Unavailable"
 
 
 def _health_state(value: str) -> str:
