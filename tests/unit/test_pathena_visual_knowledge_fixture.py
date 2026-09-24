@@ -98,6 +98,49 @@ def test_visual_knowledge_capture_waits_for_current_detail_provenance() -> None:
     assert evidence["selected_knowledge_provenance"] == "current"
 
 
+def test_visual_knowledge_capture_settles_detail_at_canonical_scroll_position() -> None:
+    app = _app()
+    knowledge_list = QListWidget()
+    knowledge_details = QPlainTextEdit()
+    knowledge_details.resize(240, 100)
+    knowledge_details.show()
+    reference_id = _REFERENCE_KNOWLEDGE_IDENTITIES[
+        _REFERENCE_KNOWLEDGE_DRAFTS[0][1]
+    ][0]
+    item = QListWidgetItem(_REFERENCE_KNOWLEDGE_DRAFTS[0][1])
+    item.setData(Qt.ItemDataRole.UserRole, reference_id)
+    knowledge_list.addItem(item)
+    knowledge_list.setCurrentItem(item)
+    knowledge_details.setPlainText(
+        "\n".join(
+            (
+                _REFERENCE_KNOWLEDGE_DRAFTS[0][1],
+                _REFERENCE_KNOWLEDGE_DRAFTS[0][2],
+                *(f"provenance line {index}" for index in range(20)),
+            )
+        )
+    )
+    knowledge_details.setProperty("pathenaKnowledgeEntityId", reference_id)
+    knowledge_details.setProperty("pathenaKnowledgeReviewState", "ready")
+    knowledge_details.setProperty("pathenaDetailContentIdentity", reference_id)
+    knowledge_details.setProperty("pathenaDetailProvenanceMode", "current")
+    app.processEvents()
+    detail_scroll = knowledge_details.verticalScrollBar()
+    assert detail_scroll.maximum() > 0
+    detail_scroll.setValue(0)
+
+    _select_reference_knowledge(
+        app=app,
+        knowledge_list=knowledge_list,
+        knowledge_details=knowledge_details,
+        expected_ids=(reference_id,),
+        timeout_seconds=1.0,
+    )
+
+    assert detail_scroll.value() == detail_scroll.maximum()
+    knowledge_details.close()
+
+
 def test_visual_knowledge_fixture_is_idempotent_and_renders_real_detail(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

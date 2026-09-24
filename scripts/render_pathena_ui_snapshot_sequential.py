@@ -269,6 +269,9 @@ def _select_reference_knowledge(
             and reference_title in detail_text
             and reference_body in detail_text
         ):
+            detail_scroll = knowledge_details.verticalScrollBar()
+            detail_scroll.setValue(detail_scroll.maximum())
+            app.processEvents()
             return {
                 "fixture": "isolated repository-backed canonical Knowledge",
                 "knowledge_count": knowledge_list.count(),
