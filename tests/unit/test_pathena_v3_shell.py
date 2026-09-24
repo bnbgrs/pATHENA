@@ -8,7 +8,11 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication, QFrame, QLabel, QPlainTextEdit
 
 from athena.desktop.pathena_v3_shell import install_v3_shell
-from athena.desktop.pathena_v3_theme import PATHENA_V3_STYLESHEET
+from athena.desktop.pathena_v3_theme import (
+    PATHENA_V3_STYLESHEET,
+    V3_SURFACE,
+    V3_TEXT_DIM,
+)
 from athena.desktop.pathena_window import PathenaMainWindow
 
 
@@ -263,3 +267,57 @@ def test_v3_evidence_inspector_is_explicit_contextual_and_chat_only() -> None:
     assert inspector.isHidden()
 
     window.close()
+
+
+
+def _relative_luminance(hex_color: str) -> float:
+    channels = [int(hex_color[index : index + 2], 16) / 255 for index in (1, 3, 5)]
+
+    def linear(channel: float) -> float:
+        if channel <= 0.04045:
+            return channel / 12.92
+        return ((channel + 0.055) / 1.055) ** 2.4
+
+    red, green, blue = (linear(channel) for channel in channels)
+    return 0.2126 * red + 0.7152 * green + 0.0722 * blue
+
+
+def _contrast_ratio(foreground: str, background: str) -> float:
+    lighter, darker = sorted(
+        (_relative_luminance(foreground), _relative_luminance(background)),
+        reverse=True,
+    )
+    return (lighter + 0.05) / (darker + 0.05)
+
+
+def test_v3_secondary_text_meets_normal_text_contrast_on_surfaces() -> None:
+    assert _contrast_ratio(V3_TEXT_DIM, V3_SURFACE) >= 4.5
+
+
+def test_v3_chat_remains_usable_at_compact_desktop_size() -> None:
+    app = _app()
+    window = PathenaMainWindow(api_controller=None)
+    controller = install_v3_shell(window)
+    controller.finalize()
+    try:
+        window.resize(1120, 720)
+        window.show()
+        app.processEvents()
+
+        composer = window.findChild(QFrame, "v3Composer")
+        assert composer is not None
+        assert composer.isVisible()
+        assert composer.width() >= 700
+        assert window.model_selector.isVisible()
+        assert window.send_button.width() == 44
+        assert window.send_button.height() == 44
+
+        window.resize(1600, 900)
+        app.processEvents()
+        assert window.width() == 1600
+        assert composer.width() >= 900
+    finally:
+        controller.dispose()
+        window.close()
+        window.deleteLater()
+        app.processEvents()
