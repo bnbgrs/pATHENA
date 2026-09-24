@@ -198,13 +198,13 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     controller = DesktopApiController(client)
     window = PathenaMainWindow(api_controller=controller)
-    v2_shell = install_v2_shell(window)
+    v3_shell = install_v3_shell(window)
     settings_runtime = install_settings_runtime(window, controller)
     pallas_grounded_field = install_pallas_grounded_field(window, controller)
     pallas_full_view = install_pallas_full_view(window, pallas_grounded_field)
-    v2_shell.bind_pallas(pallas_full_view.open_workspace)
-    pallas_full_view.workspace_opened.connect(v2_shell.pallas_opened)
-    pallas_full_view.workspace_closed.connect(v2_shell.pallas_closed)
+    v3_shell.bind_pallas(pallas_full_view.open_workspace)
+    pallas_full_view.workspace_opened.connect(v3_shell.pallas_opened)
+    pallas_full_view.workspace_closed.connect(v3_shell.pallas_closed)
     pallas_context_inspector = install_pallas_context_inspector(
         window,
         pallas_grounded_field,
@@ -235,7 +235,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     apply_workspace_presentation(window)
     install_navigation_context_accessibility(window)
     command_palette = install_command_palette(window)
-    v2_shell.bind_command_palette(command_palette.open)
+    v3_shell.bind_command_palette(command_palette.open)
     external_workspaces = install_external_workspaces(
         window,
         command_palette,
@@ -308,7 +308,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     v3_jobs = install_v3_jobs_workspace(jobs_workspace)
     v3_sources = install_v3_sources_workspace(files_workspace)
     v3_system = install_v3_system_workspace(system_workspace)
-    v2_shell.finalize()
+    v3_shell.finalize()
     _schedule_initial_core_refreshes(controller, supervisor, scheduler_supervisor)
     heartbeat = _start_core_refresh_heartbeat(controller, supervisor, scheduler_supervisor)
     window.show()
@@ -367,8 +367,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     pallas_full_view.dispose()
     pallas_full_view.deleteLater()
     pallas_grounded_field.deleteLater()
-    v2_shell.dispose()
-    v2_shell.deleteLater()
+    v3_shell.dispose()
+    v3_shell.deleteLater()
     settings_runtime.deleteLater()
     return exit_code
 
