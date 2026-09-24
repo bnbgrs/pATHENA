@@ -52,7 +52,7 @@ QFrame#v3Workspace {
 QFrame#v3Rail {
     background: #0D1112;
     border: none;
-    border-right: 1px solid #25271F;
+    border-right: 1px solid #2A3334;
 }
 
 QLabel#v3Mark {
@@ -69,19 +69,21 @@ QLabel#v3BuildMark {
     font-weight: 650;
 }
 
-QPushButton[v3Nav="true"] {
+QToolButton[v3Nav="true"] {
     color: #85818C;
     background: transparent;
     border: 0;
-    border-radius: 14px;
-    padding: 0;
+    border-radius: 12px;
+    padding: 5px 2px 4px 2px;
+    font-size: 7.2pt;
+    font-weight: 620;
 }
 
-QPushButton[v3Nav="true"]:hover {
+QToolButton[v3Nav="true"]:hover {
     background: #1A2021;
 }
 
-QPushButton[v3Nav="true"][active="true"] {
+QToolButton[v3Nav="true"][active="true"] {
     background: #17302B;
     border: 1px solid #28584D;
 }
@@ -131,9 +133,33 @@ QPushButton#v3CommandButton:hover {
     border-color: #3B4A4C;
 }
 
-QLabel#v3RuntimeDot {
-    color: #89E0CA;
-    font-size: 9pt;
+QPushButton#v3InspectorButton {
+    color: #A8A3AE;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    padding: 8px 11px;
+}
+
+QPushButton#v3InspectorButton:hover {
+    color: #F3F0F5;
+    background: #1A2021;
+    border-color: #2A3334;
+}
+
+QPushButton#v3InspectorButton:checked {
+    color: #CFF8EE;
+    background: #17302B;
+    border-color: #28584D;
+}
+
+QLabel#v3RuntimeScope {
+    color: #85818C;
+    font-family: "Cascadia Mono", "Consolas", monospace;
+    font-size: 7.7pt;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    padding: 0 2px;
 }
 
 QLabel#v3RuntimeText {
