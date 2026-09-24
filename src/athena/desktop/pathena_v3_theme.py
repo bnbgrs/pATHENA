@@ -248,7 +248,8 @@ QFrame#v3Composer:focus-within {
     border-color: #4B8D7E;
 }
 
-QLineEdit#promptInput {
+QLineEdit#promptInput,
+QPlainTextEdit#promptInput {
     color: #F3F0F5;
     background: transparent;
     border: 0;
