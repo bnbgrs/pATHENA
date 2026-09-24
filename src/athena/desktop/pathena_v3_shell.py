@@ -46,6 +46,8 @@ class PathenaV3ShellController(QObject):
         self._window = window
         self._command_callback: Callable[[], None] | None = None
         self._pallas_callback: Callable[[], None] | None = None
+        self._pallas_close_callback: Callable[[], None] | None = None
+        self._pallas_open = False
         self._nav_buttons: dict[int, V3NavigationButton] = {}
         self._legacy_shell: QWidget | None = None
         self._inspector: QFrame | None = None
@@ -65,8 +67,13 @@ class PathenaV3ShellController(QObject):
         self._command_callback = callback
         self._command_button.setEnabled(True)
 
-    def bind_pallas(self, callback: Callable[[], None]) -> None:
+    def bind_pallas(
+        self,
+        callback: Callable[[], None],
+        close_callback: Callable[[], None] | None = None,
+    ) -> None:
         self._pallas_callback = callback
+        self._pallas_close_callback = close_callback
         self._pallas_button.setEnabled(True)
 
     def finalize(self) -> None:
@@ -179,7 +186,7 @@ class PathenaV3ShellController(QObject):
     def _make_nav_button(self, index: int, label: str) -> V3NavigationButton:
         button = V3NavigationButton(label, icon_name=_PAGE_ICONS[index])
         button.clicked.connect(
-            lambda _checked=False, row=index: self._window.navigation.setCurrentRow(row)
+            lambda _checked=False, row=index: self._navigate_to(row)
         )
         self._nav_buttons[index] = button
         return button
@@ -488,6 +495,7 @@ class PathenaV3ShellController(QObject):
 
     @Slot()
     def pallas_opened(self) -> None:
+        self._pallas_open = True
         for button in self._nav_buttons.values():
             button.set_active(False)
         self._pallas_button.set_active(True)
@@ -499,6 +507,7 @@ class PathenaV3ShellController(QObject):
 
     @Slot()
     def pallas_closed(self) -> None:
+        self._pallas_open = False
         self._pallas_button.set_active(False)
         self._sync_navigation(max(0, self._window.navigation.currentRow()))
 
@@ -510,6 +519,20 @@ class PathenaV3ShellController(QObject):
         if self._inspector is not None:
             self._inspector.setVisible(open_ and self._window.navigation.currentRow() == 0)
 
+    def _navigate_to(self, row: int) -> None:
+        """Leave PALLAS before routing, including when the target row is unchanged."""
+        if self._pallas_open:
+            close_callback = self._pallas_close_callback
+            if close_callback is not None:
+                close_callback()
+            self._pallas_open = False
+            self._pallas_button.set_active(False)
+
+        previous = self._window.navigation.currentRow()
+        self._window.navigation.setCurrentRow(row)
+        if previous == row:
+            self._sync_navigation(row)
+
     @Slot()
     def _open_command_palette(self) -> None:
         if self._command_callback is not None:
@@ -517,6 +540,13 @@ class PathenaV3ShellController(QObject):
 
     @Slot()
     def _open_pallas(self) -> None:
+        if self._pallas_open:
+            if self._pallas_close_callback is not None:
+                self._pallas_close_callback()
+            self._pallas_open = False
+            self._pallas_button.set_active(False)
+            self._sync_navigation(max(0, self._window.navigation.currentRow()))
+            return
         if self._pallas_callback is not None:
             self._pallas_callback()
 
@@ -532,6 +562,8 @@ class PathenaV3ShellController(QObject):
             pass
         self._command_callback = None
         self._pallas_callback = None
+        self._pallas_close_callback = None
+        self._pallas_open = False
 
 
 def install_v3_shell(window: PathenaMainWindow) -> PathenaV3ShellController:
