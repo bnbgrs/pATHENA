@@ -47,7 +47,9 @@ def test_v3_shell_is_structurally_distinct_and_keeps_route_contract() -> None:
     assert window.pages.widget(0).objectName() == "v3ChatPage"
     assert window.prompt_input.parent().objectName() == "v3Composer"
 
-    window.navigation.setCurrentRow(2)
+    controller._nav_buttons[2].click()
+    QApplication.processEvents()
+    assert window.navigation.currentRow() == 2
     assert window.pages.currentIndex() == 2
     assert controller._nav_buttons[2].property("active") is True
     assert controller._nav_buttons[0].property("active") is False
@@ -183,10 +185,14 @@ def test_v3_context_button_owns_inspector_visibility() -> None:
     assert window.context_button.isChecked() is False
     assert inspector.isHidden()
 
-    window.context_button.setChecked(True)
+    window.context_button.click()
+    QApplication.processEvents()
+    assert window.context_button.isChecked() is True
     assert inspector.isHidden() is False
 
-    window.context_button.setChecked(False)
+    window.context_button.click()
+    QApplication.processEvents()
+    assert window.context_button.isChecked() is False
     assert inspector.isHidden()
     window.close()
 
