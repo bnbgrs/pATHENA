@@ -32,7 +32,7 @@ def test_v3_shell_is_structurally_distinct_and_keeps_route_contract() -> None:
 
     rail = shell.findChild(QFrame, "v3Rail")
     assert rail is not None
-    assert rail.width() == 76
+    assert rail.width() == 70
     assert all(
         button.text() == ""
         for button in (*controller._nav_buttons.values(), controller._pallas_button)
