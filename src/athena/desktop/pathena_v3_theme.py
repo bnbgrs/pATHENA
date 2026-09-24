@@ -752,4 +752,130 @@ QLabel#v2PallasInspectorTitle {
 QLabel#v2PallasInspectorBody {
     color: #A8A59A;
 }
+
+/* --- Commands, help and local tools ------------------------------------ */
+
+QDialog#commandPalette,
+QDialog#helpDialog,
+QDialog#comfyUiDialog {
+    background: #11120F;
+    border: 1px solid #35382E;
+    border-radius: 18px;
+}
+
+QLabel#commandPaletteTitle,
+QLabel#helpDialogTitle,
+QLabel#comfyUiTitle {
+    color: #F2F0E8;
+    font-size: 15pt;
+    font-weight: 700;
+    letter-spacing: -0.35px;
+}
+
+QLabel#commandPaletteHint {
+    color: #A8A59A;
+    background: #1D1F1A;
+    border: 1px solid #2B2D26;
+    border-radius: 8px;
+    padding: 3px 7px;
+    font-size: 8pt;
+    font-weight: 650;
+}
+
+QLineEdit#commandPaletteQuery {
+    color: #F2F0E8;
+    background: #1A1C17;
+    border: 1px solid #404434;
+    border-radius: 14px;
+    padding: 12px 14px;
+    font-size: 11pt;
+}
+
+QLineEdit#commandPaletteQuery:focus {
+    border-color: #657B46;
+}
+
+QListWidget#commandPaletteResults {
+    color: #E7E4DA;
+    background: transparent;
+    border: none;
+    padding: 4px 0;
+}
+
+QListWidget#commandPaletteResults::item {
+    border-radius: 10px;
+    padding: 10px 12px;
+    margin: 1px 0;
+}
+
+QListWidget#commandPaletteResults::item:hover {
+    background: #1D1F1A;
+}
+
+QListWidget#commandPaletteResults::item:selected {
+    color: #F2F0E8;
+    background: #28321D;
+}
+
+QLabel#commandPaletteFooter,
+QLabel#helpDialogIntro {
+    color: #747269;
+    font-size: 8.7pt;
+}
+
+QPlainTextEdit#helpText {
+    color: #D9D6CC;
+    background: #151612;
+    border: 1px solid #292B24;
+    border-radius: 14px;
+    padding: 16px;
+    font-family: "Segoe UI Variable", "Segoe UI", sans-serif;
+    font-size: 9.5pt;
+}
+
+QDialog#comfyUiDialog {
+    background: #0E0F0D;
+}
+
+QLabel#comfyUiSectionLabel {
+    color: #747269;
+    font-size: 8pt;
+    font-weight: 680;
+    letter-spacing: 1.15px;
+    padding-top: 8px;
+}
+
+QLabel#comfyUiStatus[pathenaUiState="success"],
+QLabel#comfyUiJobStatus[pathenaUiState="completed"] {
+    color: #B9F1E4;
+}
+
+QLabel#comfyUiStatus[pathenaUiState="error"],
+QLabel#comfyUiJobStatus[pathenaUiState="error"] {
+    color: #FF9A8E;
+}
+
+QLabel#comfyUiResourceStatus,
+QLabel#comfyUiQueueReceipt,
+QLabel#comfyUiJobStatus {
+    color: #A8A59A;
+}
+
+QPushButton#comfyUiQueueWorkflow {
+    color: #11120F;
+    background: #C6F277;
+    border-color: #C6F277;
+    font-weight: 700;
+}
+
+QPushButton#comfyUiQueueWorkflow:hover {
+    background: #D5FA91;
+    border-color: #D5FA91;
+}
+
+QPushButton#comfyUiReleaseVram {
+    color: #F0D790;
+    background: #292518;
+    border-color: #4D4326;
+}
 """
