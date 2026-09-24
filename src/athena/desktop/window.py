@@ -1408,14 +1408,6 @@ class AthenaMainWindow(QMainWindow):
         )
         self._send_enter_shortcut.activated.connect(self._submit_prompt)
 
-        self._send_enter_shortcut = QShortcut(
-            QKeySequence("Ctrl+Enter"),
-            self,
-        )
-        self._send_enter_shortcut.activated.connect(
-            self._submit_prompt
-        )
-
         attach = QLabel("ATTACH")
         attach.setObjectName("commandMeta")
 
