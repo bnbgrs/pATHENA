@@ -195,6 +195,7 @@ def test_v3_theme_has_explicit_keyboard_focus_for_primary_actions() -> None:
     assert "QPushButton#v3CommandButton:focus" in PATHENA_V3_STYLESHEET
     assert "QPushButton#sendButton:focus" in PATHENA_V3_STYLESHEET
     assert "QPushButton:focus" in PATHENA_V3_STYLESHEET
+    assert "border-color: #A8A3AE;" in PATHENA_V3_STYLESHEET
     assert "border-color: #89E0CA;" in PATHENA_V3_STYLESHEET
 
 
