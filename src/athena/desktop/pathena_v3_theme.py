@@ -550,6 +550,11 @@ QPushButton:hover {
     border-color: #3B4A4C;
 }
 
+QPushButton:focus {
+    color: #F3F0F5;
+    border-color: #89E0CA;
+}
+
 QPushButton:disabled {
     color: #5D6667;
     background: #101415;
@@ -559,6 +564,16 @@ QPushButton:disabled {
 QCheckBox {
     color: #F3F0F5;
     spacing: 8px;
+}
+
+QCheckBox:focus {
+    color: #CFF8EE;
+}
+
+QListWidget:focus,
+QTreeWidget:focus,
+QTableView:focus {
+    border-color: #4B8D7E;
 }
 
 QSlider::groove:horizontal {
@@ -842,6 +857,91 @@ QPlainTextEdit#helpText {
     padding: 16px;
     font-family: "Segoe UI Variable", "Segoe UI", sans-serif;
     font-size: 9.5pt;
+}
+
+/* --- System operations tabs ------------------------------------------- */
+
+QTabWidget#systemOperationsTabs::pane {
+    background: #0A0D0E;
+    border: none;
+    top: -1px;
+}
+
+QTabWidget#systemOperationsTabs QTabBar::tab {
+    color: #706D76;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid transparent;
+    padding: 8px 13px;
+    margin-right: 3px;
+}
+
+QTabWidget#systemOperationsTabs QTabBar::tab:hover {
+    color: #A8A3AE;
+    background: #14191A;
+}
+
+QTabWidget#systemOperationsTabs QTabBar::tab:selected {
+    color: #F3F0F5;
+    background: #14191A;
+    border-bottom: 2px solid #89E0CA;
+}
+
+QWidget#backupWorkspace {
+    background: #0A0D0E;
+}
+
+/* --- Hosted help workspace -------------------------------------------- */
+
+QWidget#helpWorkspace,
+QFrame#helpBody,
+QFrame#helpCapabilityContent {
+    background: #0A0D0E;
+    border: none;
+}
+
+QFrame#helpSecondaryNavigation {
+    background: transparent;
+    border: none;
+    border-right: 1px solid #2A3334;
+}
+
+QLabel#helpSecondaryTitle,
+QLabel#helpHeadline,
+QLabel#helpCapabilityTitle {
+    color: #F3F0F5;
+}
+
+QLineEdit#helpSearch {
+    color: #F3F0F5;
+    background: #14191A;
+    border: 1px solid #2A3334;
+    border-radius: 10px;
+    padding: 8px 11px;
+}
+
+QLineEdit#helpSearch:focus {
+    border-color: #4B8D7E;
+}
+
+QListWidget#helpCapabilities {
+    background: transparent;
+    border: none;
+}
+
+QFrame#helpCapabilityRow {
+    background: #14191A;
+    border: 1px solid #2A3334;
+    border-radius: 10px;
+}
+
+QLabel#helpCapabilitySummary,
+QLabel#helpCapabilityState {
+    color: #A8A3AE;
+}
+
+QLabel#helpCapabilityState[pathenaUiState="available"] {
+    color: #89E0CA;
 }
 
 QDialog#comfyUiDialog {

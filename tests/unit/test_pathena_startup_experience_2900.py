@@ -7,6 +7,7 @@ from PySide6.QtWidgets import (
     QListWidget,
     QListWidgetItem,
     QPushButton,
+    QScrollArea,
     QVBoxLayout,
     QWidget,
 )
@@ -246,6 +247,39 @@ def test_empty_state_width_tracks_available_chat_space_without_exceeding_cap() -
 
     assert panel.width() == 560
     assert body.width() == 504
+
+
+def test_empty_state_uses_scroll_viewport_when_child_geometry_is_transient() -> None:
+    app = _app()
+    window = _ReadyStartupWindow()
+    window.resize(820, 420)
+
+    scroll = QScrollArea(window)
+    scroll.setWidgetResizable(True)
+    scroll.resize(760, 320)
+
+    messages = QWidget()
+    messages.setObjectName("chatMessages")
+    layout = QVBoxLayout(messages)
+    raw = QLabel("No conversation", messages)
+    raw.setObjectName("emptyChatState")
+    layout.addWidget(raw)
+    scroll.setWidget(messages)
+
+    window.show()
+    app.processEvents()
+    controller = PathenaStartupExperience(window)
+    controller.sync()
+    app.processEvents()
+
+    panel = messages.findChild(QFrame, "emptyStatePanel")
+    body = messages.findChild(QLabel, "emptyStateBody")
+    assert panel is not None
+    assert body is not None
+    assert panel.width() == 560
+    assert body.width() == 504
+
+    window.close()
 
 
 def test_event_filter_is_safe_after_chat_messages_attribute_is_torn_down() -> None:
