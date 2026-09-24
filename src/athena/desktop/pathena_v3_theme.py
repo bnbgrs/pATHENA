@@ -86,6 +86,16 @@ QPushButton[v3Nav="true"][active="true"] {
     border: 1px solid #28584D;
 }
 
+QPushButton[v3Nav="true"]:focus {
+    background: #1A2021;
+    border: 1px solid #89E0CA;
+}
+
+QPushButton[v3Nav="true"][active="true"]:focus {
+    background: #17302B;
+    border: 1px solid #89E0CA;
+}
+
 QFrame#v3RailDivider {
     background: #2A3334;
     border: none;
@@ -129,6 +139,12 @@ QPushButton#v3CommandButton:hover {
     color: #F3F0F5;
     background: #1A2021;
     border-color: #3B4A4C;
+}
+
+QPushButton#v3CommandButton:focus {
+    color: #F3F0F5;
+    background: #1A2021;
+    border-color: #89E0CA;
 }
 
 QLabel#v3RuntimeDot {
@@ -256,6 +272,11 @@ QPushButton#sendButton {
 
 QPushButton#sendButton:hover {
     background: #A5EBD9;
+}
+
+QPushButton#sendButton:focus {
+    background: #A5EBD9;
+    border: 2px solid #F3F0F5;
 }
 
 QPushButton#sendButton:disabled {
@@ -548,6 +569,11 @@ QPushButton:hover {
     color: #F3F0F5;
     background: #1A2021;
     border-color: #3B4A4C;
+}
+
+QPushButton:focus {
+    color: #F3F0F5;
+    border-color: #89E0CA;
 }
 
 QPushButton:disabled {
