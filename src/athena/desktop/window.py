@@ -1391,6 +1391,7 @@ class AthenaMainWindow(QMainWindow):
         self.prompt_input.setObjectName("promptInput")
         self.prompt_input.setPlaceholderText("Ask ATHENA")
         self.prompt_input.setDisabled(True)
+        self.prompt_input.setTabChangesFocus(True)
         self.prompt_input.setToolTip(
             "Direct chat becomes available when ATHENA Core and a local model are ready."
         )
