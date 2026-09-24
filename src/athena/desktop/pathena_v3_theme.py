@@ -747,10 +747,82 @@ QWidget#v3SettingsRuntimePanel {
 
 QDialog#commandPalette,
 QDialog#helpDialog,
+QWidget#helpWorkspace,
 QDialog#comfyUiDialog {
+    color: #F2F0E8;
     background: #11120F;
     border: 1px solid #35382E;
     border-radius: 18px;
+}
+
+QFrame#helpBody,
+QFrame#helpCapabilityContent {
+    background: #11120F;
+    border: none;
+}
+
+QFrame#helpSecondaryNavigation {
+    background: #11120F;
+    border: none;
+    border-right: 1px solid #2B2D26;
+}
+
+QLabel#helpSecondaryTitle,
+QLabel#helpHeadline {
+    color: #F2F0E8;
+    font-weight: 680;
+}
+
+QLineEdit#helpSearch {
+    color: #F2F0E8;
+    background: #171814;
+    border: 1px solid #3A3D32;
+    border-radius: 12px;
+    padding: 10px 12px;
+    min-height: 24px;
+    selection-background-color: #566C3B;
+}
+
+QLineEdit#helpSearch:focus {
+    border-color: #657B46;
+}
+
+QListWidget#helpSections,
+QListWidget#helpCapabilities {
+    color: #F2F0E8;
+    background: transparent;
+    border: none;
+}
+
+QListWidget#helpCapabilities::item {
+    border: none;
+    padding: 0;
+}
+
+QFrame#helpCapabilityRow {
+    background: #171814;
+    border: 1px solid #2B2D26;
+    border-radius: 12px;
+}
+
+QFrame#helpCapabilityRow:hover {
+    background: #1D1F1A;
+    border-color: #3A3D32;
+}
+
+QLabel#helpCapabilityTitle {
+    color: #F2F0E8;
+}
+
+QLabel#helpCapabilityState {
+    color: #747269;
+    font-size: 8pt;
+    font-weight: 650;
+}
+
+QLabel#helpCapabilitySummary,
+QLabel#helpSummary {
+    color: #A8A59A;
 }
 
 QLabel#commandPaletteTitle,
