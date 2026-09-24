@@ -257,7 +257,9 @@ def apply_ui_refinements(window: QWidget) -> tuple[int, ...]:
     _apply(applied, 9, chat_messages, _accessible("Message history"))
     _apply(applied, 10, status_label, _accessible("Local connection status"))
 
-    prompt = _widget_attr(window, "prompt_input", QLineEdit)
+    prompt = _widget_attr(window, "prompt_input", QPlainTextEdit) or _widget_attr(
+        window, "prompt_input", QLineEdit
+    )
     ground = _widget_attr(window, "ground_button", QPushButton)
     send = _widget_attr(window, "send_button", QPushButton)
     details = _named_child(window, QPushButton, "detailsToggle")
