@@ -4,7 +4,7 @@ import os
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PySide6.QtWidgets import QApplication, QLabel, QToolButton
+from PySide6.QtWidgets import QApplication, QFrame, QLabel, QToolButton
 
 from athena.desktop.pathena_v3_shell import install_v3_shell
 from athena.desktop.pathena_v3_theme import PATHENA_V3_STYLESHEET
@@ -45,9 +45,7 @@ def test_v3_inspector_never_opens_just_because_context_becomes_available() -> No
         window.show()
         app.processEvents()
 
-        inspector = window.findChild(QLabel, "inspector")
-        if inspector is None:
-            inspector = shell._inspector
+        inspector = window.findChild(QFrame, "inspector")
         assert inspector is not None
         assert not inspector.isVisible()
 
