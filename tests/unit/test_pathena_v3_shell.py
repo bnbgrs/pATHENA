@@ -8,6 +8,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication, QFrame
 
 from athena.desktop.pathena_v3_shell import install_v3_shell
+from athena.desktop.pathena_v3_theme import PATHENA_V3_STYLESHEET
 from athena.desktop.pathena_window import PathenaMainWindow
 
 
@@ -81,6 +82,13 @@ def test_v3_chat_workspace_keeps_readable_center_width() -> None:
     assert composer.width() >= 760
 
     window.close()
+
+
+def test_v3_theme_keeps_keyboard_focus_visible() -> None:
+    assert "QPushButton:focus" in PATHENA_V3_STYLESHEET
+    assert "QComboBox:focus" in PATHENA_V3_STYLESHEET
+    assert "QListWidget:focus" in PATHENA_V3_STYLESHEET
+    assert "border-color: #89E0CA" in PATHENA_V3_STYLESHEET
 
 
 def test_v3_shell_keeps_real_command_and_pallas_entry_points() -> None:
