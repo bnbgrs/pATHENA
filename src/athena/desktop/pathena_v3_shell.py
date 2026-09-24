@@ -302,8 +302,8 @@ class PathenaV3ShellController(QObject):
         composer_layout.setSpacing(8)
 
         window.prompt_input.setParent(composer)
-        window.prompt_input.setMinimumHeight(42)
-        window.prompt_input.setMaximumHeight(42)
+        window.prompt_input.setMinimumHeight(44)
+        window.prompt_input.setMaximumHeight(112)
         window.prompt_input.setPlaceholderText("Ask, investigate, build…")
         composer_layout.addWidget(window.prompt_input, 1)
 
