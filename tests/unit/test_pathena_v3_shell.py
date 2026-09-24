@@ -45,6 +45,8 @@ def test_v3_shell_is_structurally_distinct_and_keeps_route_contract() -> None:
     assert window.pages.count() == 7
     assert window.pages.widget(0).objectName() == "v3ChatPage"
     assert window.prompt_input.parent().objectName() == "v3Composer"
+    assert window.chat_selector.currentText() == "No conversation selected"
+    assert window.model_selector.currentText() == "Waiting for local model…"
 
     window.navigation.setCurrentRow(2)
     assert window.pages.currentIndex() == 2
