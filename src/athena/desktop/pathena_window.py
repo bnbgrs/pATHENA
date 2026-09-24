@@ -637,4 +637,5 @@ class PathenaMainWindow(AthenaMainWindow):
 
     def apply_chat_busy(self, busy: bool) -> None:
         super().apply_chat_busy(busy)
-        self.send_button.setText("…" if busy else "→")
+        idle_glyph = "↑" if bool(self.property("pathenaV3Presentation")) else "→"
+        self.send_button.setText("…" if busy else idle_glyph)
