@@ -134,7 +134,7 @@ def create_application(argv: Sequence[str] | None = None) -> QApplication:
     app.setOrganizationName("ATHENA")
     app.setApplicationDisplayName("pATHENA")
     app.setFont(QFont("Segoe UI", 10))
-    app.setStyleSheet(PATHENA_V2_STYLESHEET)
+    app.setStyleSheet(PATHENA_V3_STYLESHEET)
     return app
 
 
