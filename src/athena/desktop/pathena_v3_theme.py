@@ -86,6 +86,11 @@ QPushButton[v3Nav="true"][active="true"] {
     border: 1px solid #28584D;
 }
 
+QPushButton[v3Nav="true"]:focus {
+    background: #14191A;
+    border: 1px solid #4B8D7E;
+}
+
 QFrame#v3RailDivider {
     background: #2A3334;
     border: none;
@@ -129,6 +134,11 @@ QPushButton#v3CommandButton:hover {
     color: #F3F0F5;
     background: #1A2021;
     border-color: #3B4A4C;
+}
+
+QPushButton#v3CommandButton:focus {
+    color: #F3F0F5;
+    border-color: #4B8D7E;
 }
 
 QLabel#v3RuntimeText {
