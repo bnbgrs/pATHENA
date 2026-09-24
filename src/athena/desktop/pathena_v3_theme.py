@@ -844,6 +844,38 @@ QPlainTextEdit#helpText {
     font-size: 9.5pt;
 }
 
+/* --- System operations tabs ------------------------------------------- */
+
+QTabWidget#systemOperationsTabs::pane {
+    background: #0A0D0E;
+    border: none;
+    top: -1px;
+}
+
+QTabWidget#systemOperationsTabs QTabBar::tab {
+    color: #706D76;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid transparent;
+    padding: 8px 13px;
+    margin-right: 3px;
+}
+
+QTabWidget#systemOperationsTabs QTabBar::tab:hover {
+    color: #A8A3AE;
+    background: #14191A;
+}
+
+QTabWidget#systemOperationsTabs QTabBar::tab:selected {
+    color: #F3F0F5;
+    background: #14191A;
+    border-bottom: 2px solid #89E0CA;
+}
+
+QWidget#backupWorkspace {
+    background: #0A0D0E;
+}
+
 /* --- Hosted help workspace -------------------------------------------- */
 
 QWidget#helpWorkspace,
