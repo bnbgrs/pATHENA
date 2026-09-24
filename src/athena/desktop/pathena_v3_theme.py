@@ -741,6 +741,102 @@ QWidget#v3SettingsRuntimePanel {
     border: none;
 }
 
+/* --- System operations container -------------------------------------- */
+
+QTabWidget#systemOperationsTabs {
+    background: #0A0D0E;
+    border: none;
+}
+
+QTabWidget#systemOperationsTabs::pane {
+    background: #0A0D0E;
+    border: none;
+    border-top: 1px solid #2A3334;
+    top: -1px;
+}
+
+QTabWidget#systemOperationsTabs QTabBar::tab {
+    color: #85818C;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    padding: 9px 14px;
+    margin-right: 4px;
+}
+
+QTabWidget#systemOperationsTabs QTabBar::tab:hover {
+    color: #F3F0F5;
+}
+
+QTabWidget#systemOperationsTabs QTabBar::tab:selected {
+    color: #F3F0F5;
+    border-bottom-color: #89E0CA;
+}
+
+QWidget#backupWorkspace {
+    background: #0A0D0E;
+    border: none;
+}
+
+/* --- Context inspector ------------------------------------------------- */
+
+QFrame#inspectorRouteContext {
+    background: #121718;
+    border: none;
+}
+
+/* --- Capability help --------------------------------------------------- */
+
+QDialog#helpWorkspace,
+QFrame#helpBody,
+QFrame#helpCapabilityContent,
+QFrame#helpSecondaryNavigation {
+    background: #0A0D0E;
+    border: none;
+}
+
+QLabel#helpSecondaryTitle,
+QLabel#helpHeadline {
+    color: #F3F0F5;
+}
+
+QLineEdit#helpSearch {
+    color: #F3F0F5;
+    background: #14191A;
+    border: 1px solid #2A3334;
+    border-radius: 12px;
+    padding: 10px 12px;
+}
+
+QLineEdit#helpSearch:focus {
+    border-color: #4B8D7E;
+}
+
+QListWidget#helpCapabilities {
+    background: transparent;
+    border: none;
+    padding: 0;
+}
+
+QFrame#helpCapabilityRow {
+    background: #0A0D0E;
+    border: none;
+    border-bottom: 1px solid #273031;
+    border-radius: 0;
+}
+
+QLabel#helpCapabilityTitle {
+    color: #F3F0F5;
+}
+
+QLabel#helpCapabilitySummary {
+    color: #A8A3AE;
+}
+
+QLabel#helpCapabilityState {
+    color: #85818C;
+}
+
 QFrame#v2PallasInspector {
     background: #121718;
     border: none;
