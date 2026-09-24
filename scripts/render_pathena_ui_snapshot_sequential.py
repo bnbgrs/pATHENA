@@ -511,7 +511,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         ]
         if _DiagnosticComfyHandler.posted_prompts != expected:
             raise RuntimeError("ComfyUI local server did not receive the exact API workflow.")
-        save_widget(dialog, ordinal=11, label="ComfyUI", kind="comfyui")
+        capture_target = (
+            find_window()
+            if dialog.property("pathenaComfyUiShellHosted") is True
+            else dialog
+        )
+        save_widget(capture_target, ordinal=11, label="ComfyUI", kind="comfyui")
+        captures[-1]["shell_hosted"] = capture_target is not dialog
         captures[-1]["endpoint"] = controller.endpoint.text()
         captures[-1]["prompt_id"] = prompt_id
         captures[-1]["transport"] = "loopback HTTP; proxy bypassed"
