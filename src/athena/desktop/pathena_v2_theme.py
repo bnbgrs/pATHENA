@@ -993,6 +993,12 @@ QPushButton[v2Nav="true"]:hover {{
     border-color: #202B43;
 }}
 
+QPushButton[v2Nav="true"]:focus {{
+    color: {V2_TEXT};
+    background: #11182A;
+    border-color: {V2_ACCENT};
+}}
+
 QPushButton[v2Nav="true"][active="true"] {{
     color: #FFFFFF;
     background: #1C1A42;
@@ -1027,6 +1033,12 @@ QPushButton#v2CommandButton {{
 QPushButton#v2CommandButton:hover {{
     background: #161F35;
     border-color: #4A4A88;
+}}
+
+QPushButton#v2CommandButton:focus {{
+    color: {V2_TEXT};
+    background: #161F35;
+    border-color: {V2_ACCENT};
 }}
 
 QFrame#v2Workspace {{

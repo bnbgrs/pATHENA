@@ -224,8 +224,17 @@ def main(argv: Sequence[str] | None = None) -> int:
         # stacked-page transition on native Windows.  Render the complete widget
         # tree into a fresh pixmap so unchanged shell regions cannot disappear.
         widget.ensurePolished()
-        widget.repaint()
-        app.processEvents()
+        # Inspector and embedded-workspace handoffs can post more than one
+        # native layout/update event.  Flush the complete hierarchy until its
+        # geometry and backing store have both observed the new ownership.
+        for _ in range(3):
+            layout = widget.layout()
+            if layout is not None:
+                layout.activate()
+            widget.update()
+            widget.repaint()
+            app.processEvents()
+            time.sleep(0.02)
         capture = QPixmap(widget.size())
         capture.fill(Qt.GlobalColor.black)
         widget.render(capture)
@@ -313,6 +322,12 @@ def main(argv: Sequence[str] | None = None) -> int:
                     f"requested row {row}, navigation row {navigation.currentRow()}, "
                     f"page index {pages.currentIndex()}."
                 )
+            comfy_surface = window.findChild(QWidget, "comfyUiDialog")
+            if comfy_surface is not None and comfy_surface.isVisible():
+                raise RuntimeError(
+                    "Transient ComfyUI surface covered primary workspace "
+                    f"{label!r} before capture."
+                )
             knowledge_evidence = (
                 wait_for_reference_knowledge(window) if row == 1 else {}
             )
@@ -320,6 +335,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             captures[-1]["navigation_label"] = navigation.item(row).text()
             captures[-1]["row"] = row
             captures[-1]["page_index"] = pages.currentIndex()
+            captures[-1]["transient_overlay_visible"] = False
             captures[-1].update(knowledge_evidence)
 
     def diagnostic_pallas_snapshot() -> PallasGraphSnapshot:
@@ -511,7 +527,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         ]
         if _DiagnosticComfyHandler.posted_prompts != expected:
             raise RuntimeError("ComfyUI local server did not receive the exact API workflow.")
-        save_widget(dialog, ordinal=11, label="ComfyUI", kind="comfyui")
+        capture_target = (
+            find_window()
+            if dialog.property("pathenaComfyUiShellHosted") is True
+            else dialog
+        )
+        save_widget(capture_target, ordinal=11, label="ComfyUI", kind="comfyui")
+        captures[-1]["shell_hosted"] = capture_target is not dialog
         captures[-1]["endpoint"] = controller.endpoint.text()
         captures[-1]["prompt_id"] = prompt_id
         captures[-1]["transport"] = "loopback HTTP; proxy bypassed"
