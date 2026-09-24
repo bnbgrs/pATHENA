@@ -473,9 +473,10 @@ class ComfyUiController(QObject):
             self.dialog.hide()
 
     def _hide_for_pallas(self) -> None:
-        """Explicitly close an embedded ComfyUI surface before PALLAS owns the canvas."""
+        """Explicitly close ComfyUI and hand the workbar back to PALLAS."""
         if not self.dialog.isHidden():
             self.dialog.hide()
+        self._restore_shell_header()
 
     def _fit_workspace(self) -> None:
         workspace = self._workspace
