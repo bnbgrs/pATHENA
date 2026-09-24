@@ -132,6 +132,13 @@ def test_v3_finalize_reuses_real_settings_controls() -> None:
     assert settings.objectName() == "v3SettingsPage"
     assert all(settings.isAncestorOf(control) for control in real_controls)
     assert window.pages.count() == 7
+    assert window.chat_selector.count() == 1
+    assert window.chat_selector.currentText() == "No conversation selected"
+    assert window.chat_selector.currentData() is None
+    assert window.model_selector.currentText() == "Waiting for local model…"
+    assert window.model_selector.currentData() is None
+    assert window.settings_model_selector.currentText() == "Waiting for local model…"
+    assert window.settings_model_selector.currentData() is None
 
     window.navigation.setCurrentRow(6)
     assert window.pages.currentWidget() is settings
