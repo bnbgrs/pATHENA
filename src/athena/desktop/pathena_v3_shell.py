@@ -50,7 +50,7 @@ class PathenaV3ShellController(QObject):
         self._legacy_shell: QWidget | None = None
         self._inspector: QFrame | None = None
         self._header = V3WorkspaceHeader("Chat", _PAGE_HINTS[0])
-        self._command_button = QPushButton("Search or command   Ctrl K")
+        self._command_button = QPushButton("Search pATHENA   Ctrl K")
         self._pallas_button = V3NavigationButton("PALLAS", icon_name="pallas")
         self._build()
         window.navigation.currentRowChanged.connect(self._sync_navigation)
@@ -131,10 +131,10 @@ class PathenaV3ShellController(QObject):
     def _build_rail(self) -> QWidget:
         rail = QFrame()
         rail.setObjectName("v3Rail")
-        rail.setFixedWidth(76)
+        rail.setFixedWidth(70)
 
         layout = QVBoxLayout(rail)
-        layout.setContentsMargins(14, 18, 14, 16)
+        layout.setContentsMargins(12, 18, 12, 16)
         layout.setSpacing(7)
 
         mark = QLabel("P")
@@ -210,7 +210,7 @@ class PathenaV3ShellController(QObject):
         workspace = QFrame()
         workspace.setObjectName("v3Workspace")
         layout = QVBoxLayout(workspace)
-        layout.setContentsMargins(32, 24, 32, 30)
+        layout.setContentsMargins(36, 18, 36, 30)
         layout.setSpacing(0)
 
         self._replace_chat_page()
@@ -269,7 +269,8 @@ class PathenaV3ShellController(QObject):
             context_button.setText("Context")
             meta_layout.addWidget(context_button)
 
-        outer.addWidget(meta)
+        meta.setMaximumWidth(1180)
+        outer.addWidget(meta, 0, Qt.AlignmentFlag.AlignHCenter)
 
         stage = QFrame()
         stage.setObjectName("v3ConversationStage")
@@ -293,7 +294,9 @@ class PathenaV3ShellController(QObject):
         window.evidence_chain.setParent(stage)
         stage_layout.addWidget(window.evidence_chain)
 
-        outer.addWidget(stage, 1)
+        stage.setMaximumWidth(1180)
+        stage.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        outer.addWidget(stage, 1, Qt.AlignmentFlag.AlignHCenter)
 
         composer = QFrame()
         composer.setObjectName("v3Composer")
@@ -316,7 +319,8 @@ class PathenaV3ShellController(QObject):
         window.send_button.setText("↑")
         window.send_button.setToolTip("Send message · Ctrl+Enter")
         composer_layout.addWidget(window.send_button)
-        outer.addWidget(composer)
+        composer.setMaximumWidth(1120)
+        outer.addWidget(composer, 0, Qt.AlignmentFlag.AlignHCenter)
 
         pages.removeWidget(old_chat)
         pages.insertWidget(0, chat)
