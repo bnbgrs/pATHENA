@@ -33,10 +33,20 @@ def test_v2_shell_recomposes_real_window_without_changing_route_contract() -> No
     assert window.pages.widget(0).objectName() == "v2ChatPage"
     assert window.prompt_input.parent().objectName() == "v2Composer"
 
+    sidebar = shell.findChild(QFrame, "v2Sidebar")
+    assert sidebar is not None
+    assert sidebar.width() == 204
+    assert all(
+        not button.icon().isNull()
+        for button in (*controller._nav_buttons.values(), controller._pallas_button)
+    )
+
+    inactive_icon = controller._nav_buttons[2].icon().cacheKey()
     window.navigation.setCurrentRow(2)
     assert window.pages.currentIndex() == 2
     assert controller._nav_buttons[2].property("active") is True
     assert controller._nav_buttons[0].property("active") is False
+    assert controller._nav_buttons[2].icon().cacheKey() != inactive_icon
 
     window.close()
 

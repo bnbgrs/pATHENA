@@ -6,8 +6,8 @@ They exist so every workspace shares the same interaction and visual grammar.
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QCursor
+from PySide6.QtCore import QPointF, QRectF, QSize, Qt
+from PySide6.QtGui import QColor, QCursor, QIcon, QPainter, QPen, QPixmap
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -18,14 +18,85 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+_NAV_ICON_COLORS = {
+    False: QColor("#8793AA"),
+    True: QColor("#A99FFF"),
+}
+
+
+def _navigation_icon(name: str, *, active: bool) -> QIcon:
+    """Draw one crisp, dependency-free navigation glyph for the desktop rail."""
+    pixmap = QPixmap(20, 20)
+    pixmap.fill(Qt.GlobalColor.transparent)
+    painter = QPainter(pixmap)
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+    pen = QPen(_NAV_ICON_COLORS[active], 1.7)
+    pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+    pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+    painter.setPen(pen)
+    painter.setBrush(Qt.BrushStyle.NoBrush)
+
+    if name == "chat":
+        painter.drawRoundedRect(QRectF(2.5, 3.0, 15.0, 11.5), 3.0, 3.0)
+        painter.drawLine(QPointF(6.0, 14.5), QPointF(4.5, 17.0))
+        painter.drawLine(QPointF(6.0, 14.5), QPointF(9.0, 14.5))
+    elif name == "knowledge":
+        painter.drawRoundedRect(QRectF(3.0, 2.5, 6.4, 14.5), 1.5, 1.5)
+        painter.drawRoundedRect(QRectF(10.6, 2.5, 6.4, 14.5), 1.5, 1.5)
+        painter.drawLine(QPointF(10.0, 4.0), QPointF(10.0, 16.0))
+    elif name == "research":
+        painter.drawEllipse(QRectF(3.0, 3.0, 10.5, 10.5))
+        painter.drawLine(QPointF(12.0, 12.0), QPointF(17.0, 17.0))
+        painter.drawLine(QPointF(6.0, 8.2), QPointF(10.5, 8.2))
+    elif name == "jobs":
+        painter.drawRoundedRect(QRectF(2.5, 4.5, 15.0, 12.5), 2.0, 2.0)
+        painter.drawRoundedRect(QRectF(7.0, 2.5, 6.0, 3.5), 1.2, 1.2)
+        painter.drawLine(QPointF(2.8, 9.5), QPointF(17.2, 9.5))
+        painter.drawLine(QPointF(8.5, 9.5), QPointF(11.5, 9.5))
+    elif name == "sources":
+        painter.drawRoundedRect(QRectF(4.0, 2.5, 12.0, 15.0), 1.5, 1.5)
+        painter.drawLine(QPointF(7.0, 7.0), QPointF(13.0, 7.0))
+        painter.drawLine(QPointF(7.0, 10.0), QPointF(13.0, 10.0))
+        painter.drawLine(QPointF(7.0, 13.0), QPointF(11.0, 13.0))
+    elif name == "pallas":
+        painter.drawEllipse(QRectF(2.5, 7.0, 5.0, 5.0))
+        painter.drawEllipse(QRectF(12.5, 2.5, 5.0, 5.0))
+        painter.drawEllipse(QRectF(12.5, 12.5, 5.0, 5.0))
+        painter.drawLine(QPointF(7.5, 8.5), QPointF(12.5, 6.0))
+        painter.drawLine(QPointF(7.5, 10.5), QPointF(12.5, 14.0))
+    elif name == "system":
+        painter.drawEllipse(QRectF(2.5, 2.5, 15.0, 15.0))
+        painter.drawLine(QPointF(10.0, 10.0), QPointF(14.5, 6.5))
+        painter.drawEllipse(QRectF(8.8, 8.8, 2.4, 2.4))
+        painter.drawLine(QPointF(5.0, 14.2), QPointF(15.0, 14.2))
+    elif name == "settings":
+        for y, knob_x in ((4.5, 7.0), (10.0, 13.0), (15.5, 9.0)):
+            painter.drawLine(QPointF(3.0, y), QPointF(17.0, y))
+            painter.drawEllipse(QRectF(knob_x - 1.8, y - 1.8, 3.6, 3.6))
+
+    painter.end()
+    return QIcon(pixmap)
+
 
 class V2NavigationButton(QPushButton):
     """Primary navigation action with one explicit active-state contract."""
 
-    def __init__(self, text: str, *, accessible_name: str | None = None) -> None:
+    def __init__(
+        self,
+        text: str,
+        *,
+        icon_name: str,
+        accessible_name: str | None = None,
+    ) -> None:
         super().__init__(text)
+        self._icons = {
+            False: _navigation_icon(icon_name, active=False),
+            True: _navigation_icon(icon_name, active=True),
+        }
         self.setProperty("v2Nav", True)
         self.setProperty("active", False)
+        self.setIcon(self._icons[False])
+        self.setIconSize(QSize(18, 18))
         self.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         self.setMinimumHeight(40)
         self.setAccessibleName(accessible_name or f"Open {text}")
@@ -35,6 +106,7 @@ class V2NavigationButton(QPushButton):
         if bool(self.property("active")) == active:
             return
         self.setProperty("active", active)
+        self.setIcon(self._icons[active])
         style = self.style()
         if style is not None:
             style.unpolish(self)
