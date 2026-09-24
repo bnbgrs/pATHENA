@@ -48,6 +48,7 @@ class PathenaV3ShellController(QObject):
         self._pallas_callback: Callable[[], None] | None = None
         self._pallas_close_callback: Callable[[], None] | None = None
         self._pallas_open = False
+        self._inspector_available = False
         self._nav_buttons: dict[int, V3NavigationButton] = {}
         self._legacy_shell: QWidget | None = None
         self._inspector: QFrame | None = None
@@ -75,6 +76,15 @@ class PathenaV3ShellController(QObject):
         self._pallas_callback = callback
         self._pallas_close_callback = close_callback
         self._pallas_button.setEnabled(True)
+
+    def set_inspector_available(self, available: bool) -> None:
+        self._inspector_available = bool(available)
+        is_chat = self._window.navigation.currentRow() == 0 and not self._pallas_open
+        self._inspector_button.setVisible(is_chat and self._inspector_available)
+        if not self._inspector_available:
+            self._inspector_button.setChecked(False)
+            if self._inspector is not None:
+                self._inspector.hide()
 
     def finalize(self) -> None:
         self._replace_settings_page()
@@ -484,7 +494,7 @@ class PathenaV3ShellController(QObject):
 
         inspector = self._inspector
         is_chat = index == 0
-        self._inspector_button.setVisible(is_chat)
+        self._inspector_button.setVisible(is_chat and self._inspector_available)
         if not is_chat:
             self._inspector_button.setChecked(False)
             if inspector is not None:
@@ -512,6 +522,9 @@ class PathenaV3ShellController(QObject):
 
     @Slot(bool)
     def _toggle_inspector(self, open_: bool) -> None:
+        if open_ and not self._inspector_available:
+            self._inspector_button.setChecked(False)
+            return
         details_button = getattr(self._window, "details_button", None)
         if isinstance(details_button, QPushButton):
             details_button.setChecked(open_)
