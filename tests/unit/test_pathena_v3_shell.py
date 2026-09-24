@@ -54,6 +54,27 @@ def test_v3_shell_is_structurally_distinct_and_keeps_route_contract() -> None:
     window.close()
 
 
+def test_v3_chat_workspace_keeps_readable_center_width() -> None:
+    app = _app()
+    window = PathenaMainWindow(api_controller=None)
+    install_v3_shell(window)
+
+    window.resize(1440, 900)
+    window.show()
+    app.processEvents()
+
+    stage = window.findChild(QFrame, "v3ConversationStage")
+    composer = window.findChild(QFrame, "v3Composer")
+    assert stage is not None
+    assert composer is not None
+    assert stage.width() >= 760
+    assert window.chat_scroll.width() >= 680
+    assert window.chat_messages_widget.width() >= 640
+    assert composer.width() >= 760
+
+    window.close()
+
+
 def test_v3_shell_keeps_real_command_and_pallas_entry_points() -> None:
     _app()
     window = PathenaMainWindow(api_controller=None)
