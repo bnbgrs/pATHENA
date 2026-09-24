@@ -767,29 +767,6 @@ QWidget#v3SettingsRuntimePanel {
     border: none;
 }
 
-QFrame#v2PallasInspector {
-    background: #121718;
-    border: none;
-    border-left: 1px solid #273031;
-}
-
-QLabel#v2PallasInspectorKind {
-    color: #706D76;
-    font-size: 8pt;
-    font-weight: 680;
-    letter-spacing: 1.1px;
-}
-
-QLabel#v2PallasInspectorTitle {
-    color: #F3F0F5;
-    font-size: 13pt;
-    font-weight: 660;
-}
-
-QLabel#v2PallasInspectorBody {
-    color: #A8A3AE;
-}
-
 /* --- Commands, help and local tools ------------------------------------ */
 
 QDialog#commandPalette,
