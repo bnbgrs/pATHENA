@@ -399,7 +399,8 @@ class PallasFullViewController(QObject):
         active = diagnostics.get("active", 0)
         nodes = diagnostics.get("nodes", 0)
         lens = str(diagnostics.get("lens", "semantic")).upper()
-        status.setText(f"LIVE FIELD • {fps} FPS • {active}/{nodes} ACTIVE • {lens}")
+        motion = "STILL" if fps == 0 else f"{fps} FPS"
+        status.setText(f"LIVE FIELD • {motion} • {active}/{nodes} ACTIVE • {lens}")
 
     @Slot()
     def dispose(self) -> None:
