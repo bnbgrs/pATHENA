@@ -81,6 +81,15 @@ QPushButton[v3Nav="true"]:hover {
     background: #1D1F1A;
 }
 
+QPushButton[v3Nav="true"]:focus {
+    background: #1D1F1A;
+    border: 1px solid #657B46;
+}
+
+QPushButton[v3Nav="true"][active="true"]:focus {
+    border-color: #8EAD5C;
+}
+
 QPushButton[v3Nav="true"][active="true"] {
     background: #28321D;
     border: 1px solid #3B4B29;
@@ -233,7 +242,7 @@ QFrame#v3Composer:focus-within {
     border-color: #657B46;
 }
 
-QLineEdit#promptInput {
+QPlainTextEdit#promptInput {
     color: #F2F0E8;
     background: transparent;
     border: 0;
@@ -549,6 +558,10 @@ QPushButton:hover {
     color: #F2F0E8;
     background: #1D1F1A;
     border-color: #3A3D32;
+}
+
+QPushButton:focus {
+    border-color: #657B46;
 }
 
 QPushButton:disabled {
