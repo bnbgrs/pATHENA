@@ -8,6 +8,7 @@ by the grounded Core response.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import os
 
 from PySide6.QtCore import QObject, Qt, QTimer, Signal, Slot
 from PySide6.QtGui import QBrush, QColor, QFont, QPen
@@ -70,9 +71,14 @@ class PallasLivingQtController(QObject):
         self._graph_id: str | None = None
         self._lens = "semantic"
         self._bindings: dict[int, _FieldBinding] = {}
+        self._reduced_motion = os.environ.get(
+            "PATHENA_REDUCED_MOTION", ""
+        ).casefold() in {"1", "true", "yes", "on"}
         self._timer = QTimer(self)
         self._timer.setTimerType(Qt.TimerType.PreciseTimer)
-        self._timer.setInterval(round(1000 / self._engine.config.fps))
+        self._timer.setInterval(
+            250 if self._reduced_motion else round(1000 / self._engine.config.fps)
+        )
         self._timer.timeout.connect(self._tick)
         self._timer.start()
 
@@ -130,14 +136,16 @@ class PallasLivingQtController(QObject):
         for current in fields:
             self._ensure_binding(current, snapshot)
 
-        self._engine.step()
+        if not self._reduced_motion:
+            self._engine.step()
         for binding in tuple(self._bindings.values()):
             if isValid(binding.field):
                 self._apply_binding(binding)
         diagnostics: dict[str, object] = {
             key: value for key, value in self._engine.diagnostics().items()
         }
-        diagnostics["fps_target"] = int(self._engine.config.fps)
+        diagnostics["fps_target"] = 0 if self._reduced_motion else int(self._engine.config.fps)
+        diagnostics["motion"] = "reduced" if self._reduced_motion else "living"
         diagnostics["lens"] = self._lens
         self.diagnostics_changed.emit(diagnostics)
 
@@ -264,6 +272,11 @@ class PallasLivingQtController(QObject):
                     if self._lens == "vitality"
                     else 1.0
                 )
+            item.setScale(
+                0.86 + 0.18 * state.vitality
+                if self._lens == "vitality"
+                else 1.0
+            )
             if age_item is not None:
                 age_item.setToolTip(
                     f"runtime age {state.age_seconds:.1f}s · "
