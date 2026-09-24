@@ -12,11 +12,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from PySide6.QtCore import QObject, Qt
+from PySide6.QtCore import QEvent, QObject, Qt
 from PySide6.QtWidgets import (
     QDialog,
     QFileDialog,
     QFormLayout,
+    QFrame,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -287,13 +288,58 @@ class ComfyUiController(QObject):
             "state, and explicitly request model and VRAM release."
         )
 
+        self._workspace = self.window.findChild(QFrame, "v3Workspace")
+        self._shell = getattr(self.window, "_pathena_v3_shell_controller", None)
+        self._shell_generation = "v3"
+        if self._workspace is None or self._shell is None:
+            self._workspace = self.window.findChild(QFrame, "v2Workspace")
+            self._shell = getattr(self.window, "_pathena_v2_shell_controller", None)
+            if self._shell is None:
+                self._shell = getattr(self.window, "_pathena_shell_controller", None)
+            self._shell_generation = "v2"
+
+        if self._workspace is not None and self._shell is not None:
+            self.dialog.setParent(self._workspace)
+            self.dialog.setWindowFlags(Qt.WindowType.Widget)
+            self.dialog.setProperty("pathenaShellHosted", True)
+            self.dialog.installEventFilter(self)
+            self._workspace.installEventFilter(self)
+            self.window.navigation.currentRowChanged.connect(
+                self._hide_for_navigation
+            )
+        else:
+            self._workspace = None
+            self._shell = None
+            self._shell_generation = ""
+            self.dialog.setProperty("pathenaShellHosted", False)
+
+        self._pallas = getattr(
+            self.window,
+            "_pathena_pallas_full_view_controller",
+            None,
+        )
+        pallas_opened = getattr(self._pallas, "workspace_opened", None)
+        connect_pallas_opened = getattr(pallas_opened, "connect", None)
+        if callable(connect_pallas_opened):
+            connect_pallas_opened(self._hide_for_pallas)
+
         outer = QVBoxLayout(self.dialog)
         outer.setContentsMargins(28, 24, 28, 24)
         outer.setSpacing(12)
 
+        title_row = QHBoxLayout()
         title = QLabel("ComfyUI")
         title.setObjectName("comfyUiTitle")
-        outer.addWidget(title)
+        title_row.addWidget(title)
+        title_row.addStretch(1)
+        self.close_button = QPushButton("Close")
+        self.close_button.setObjectName("comfyUiClose")
+        self.close_button.setAccessibleName("Close ComfyUI workspace")
+        self.close_button.setToolTip("Close ComfyUI and return to the selected workspace")
+        self.close_button.clicked.connect(self.dialog.hide)
+        self.close_button.setVisible(self._workspace is not None)
+        title_row.addWidget(self.close_button)
+        outer.addLayout(title_row)
 
         intro = QLabel("Local image + video workflow · loopback only")
         intro.setWordWrap(True)
@@ -400,16 +446,85 @@ class ComfyUiController(QObject):
         self.dialog.setTabOrder(self.browse_button, self.queue_button)
         self.dialog.setTabOrder(self.queue_button, self.refresh_job_button)
         self.dialog.setTabOrder(self.refresh_job_button, self.release_vram_button)
+        if self._workspace is not None:
+            self.dialog.setTabOrder(self.release_vram_button, self.close_button)
 
         self.dialog.setProperty("pathenaComfyUiEndpoint", self.client.endpoint)
+        self.dialog.setProperty(
+            "pathenaComfyUiShellHosted",
+            self._workspace is not None,
+        )
         self.dialog.setProperty("pathenaComfyUiLocalOnly", True)
+        self.dialog.setProperty(
+            "pathenaComfyUiPresentation",
+            "v3" if self.window.findChild(QFrame, "v3Workspace") is not None else "legacy",
+        )
         self.dialog.setProperty("pathenaComfyUiGlobalInterruptAvailable", False)
         self.dialog.setProperty("pathenaComfyUiVramAvailable", False)
+        # Reparenting the dialog into an as-yet hidden workspace clears Qt's
+        # explicit hidden state.  Without restoring it, showing the main window
+        # also shows ComfyUI and covers the selected primary route before the
+        # user has opened the integration.
+        self.dialog.hide()
         self.window.setProperty("pathenaComfyUiController", self)
         self.window.setProperty("pathenaComfyUiInstalled", True)
 
+    def _hide_for_navigation(self, _row: int) -> None:
+        """Close the transient ComfyUI canvas when primary navigation takes ownership."""
+        if not self.dialog.isHidden():
+            self.dialog.hide()
+
+    def _hide_for_pallas(self) -> None:
+        """Explicitly close an embedded ComfyUI surface before PALLAS owns the canvas."""
+        if not self.dialog.isHidden():
+            self.dialog.hide()
+
+    def _fit_workspace(self) -> None:
+        workspace = self._workspace
+        if workspace is None or self.dialog.parent() is not workspace:
+            return
+        self.dialog.setGeometry(workspace.rect())
+        self.dialog.raise_()
+
+    def _set_shell_header(self) -> None:
+        inspector = getattr(self._shell, "_inspector", None)
+        if isinstance(inspector, QFrame):
+            inspector.hide()
+        header = getattr(self._shell, "_header", None)
+        set_context = getattr(header, "set_context", None)
+        if callable(set_context):
+            set_context(
+                "ComfyUI",
+                "Local image and video workflows · loopback only.",
+            )
+
+    def _restore_shell_header(self) -> None:
+        if bool(self.window.property("pathenaPallasShellOpen")):
+            pallas_opened = getattr(self._shell, "pallas_opened", None)
+            if callable(pallas_opened):
+                pallas_opened()
+            return
+        sync_navigation = getattr(self._shell, "_sync_navigation", None)
+        if callable(sync_navigation):
+            sync_navigation(self.window.navigation.currentRow())
+
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:  # noqa: N802
+        workspace = self._workspace
+        if workspace is not None:
+            if watched is workspace and event.type() == QEvent.Type.Resize:
+                if self.dialog.isVisible():
+                    self._fit_workspace()
+            elif watched is self.dialog:
+                if event.type() == QEvent.Type.Show:
+                    self._fit_workspace()
+                    self._set_shell_header()
+                elif event.type() in {QEvent.Type.Hide, QEvent.Type.Close}:
+                    self._restore_shell_header()
+        return super().eventFilter(watched, event)
+
     def open(self) -> None:
         self.dialog.show()
+        self._fit_workspace()
         self.dialog.raise_()
         self.dialog.activateWindow()
         self.check_button.setFocus(Qt.FocusReason.OtherFocusReason)

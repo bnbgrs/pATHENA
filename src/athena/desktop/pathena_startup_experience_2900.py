@@ -100,7 +100,8 @@ QPushButton#groundButton:disabled {
     background: transparent;
     border-color: transparent;
 }
-QLineEdit#promptInput:disabled {
+QLineEdit#promptInput:disabled,
+QPlainTextEdit#promptInput:disabled {
     color: #666666;
     background: #090909;
     border-color: #1D1D1D;
