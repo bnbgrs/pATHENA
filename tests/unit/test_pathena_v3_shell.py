@@ -51,6 +51,12 @@ def test_v3_shell_is_structurally_distinct_and_keeps_route_contract() -> None:
     assert controller._nav_buttons[2].property("active") is True
     assert controller._nav_buttons[0].property("active") is False
 
+    inspector = shell.findChild(QFrame, "inspector")
+    assert inspector is not None
+    window._sync_inspector_visibility()
+    assert inspector.isHidden()
+    assert window.property("pathenaV3Presentation") is True
+
     window.close()
 
 
