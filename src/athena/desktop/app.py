@@ -100,12 +100,12 @@ from athena.desktop.pathena_transient_dialog_shortcuts import (
     install_transient_dialog_shortcut_continuity,
 )
 from athena.desktop.pathena_ui_refinement_integrity import apply_complete_ui_refinements
-from athena.desktop.pathena_v2_jobs import install_v2_jobs_workspace
-from athena.desktop.pathena_v2_knowledge import install_v2_knowledge_workspace
-from athena.desktop.pathena_v2_research import install_v2_research_workspace
+from athena.desktop.pathena_v3_jobs import install_v3_jobs_workspace
+from athena.desktop.pathena_v3_knowledge import install_v3_knowledge_workspace
+from athena.desktop.pathena_v3_research import install_v3_research_workspace
 from athena.desktop.pathena_v2_shell import install_v2_shell
-from athena.desktop.pathena_v2_sources import install_v2_sources_workspace
-from athena.desktop.pathena_v2_system import install_v2_system_workspace
+from athena.desktop.pathena_v3_sources import install_v3_sources_workspace
+from athena.desktop.pathena_v3_system import install_v3_system_workspace
 from athena.desktop.pathena_v2_theme import PATHENA_V2_STYLESHEET
 from athena.desktop.pathena_window import PathenaMainWindow
 from athena.desktop.pathena_workspace_presentation import apply_workspace_presentation
@@ -300,14 +300,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         research_query=research_workspace.query_input,
         research_filter=research_results_extension.job_filter,
     )
-    v2_knowledge = install_v2_knowledge_workspace(knowledge_workspace)
-    v2_research = install_v2_research_workspace(
+    v3_knowledge = install_v3_knowledge_workspace(knowledge_workspace)
+    v3_research = install_v3_research_workspace(
         research_workspace,
         research_results_extension,
     )
-    v2_jobs = install_v2_jobs_workspace(jobs_workspace)
-    v2_sources = install_v2_sources_workspace(files_workspace)
-    v2_system = install_v2_system_workspace(system_workspace)
+    v3_jobs = install_v3_jobs_workspace(jobs_workspace)
+    v3_sources = install_v3_sources_workspace(files_workspace)
+    v3_system = install_v3_system_workspace(system_workspace)
     v2_shell.finalize()
     _schedule_initial_core_refreshes(controller, supervisor, scheduler_supervisor)
     heartbeat = _start_core_refresh_heartbeat(controller, supervisor, scheduler_supervisor)
@@ -341,11 +341,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     knowledge_tab_refresh_handoff.deleteLater()
     knowledge_detail_ownership.deleteLater()
     knowledge_selection_continuity.deleteLater()
-    v2_system.deleteLater()
-    v2_sources.deleteLater()
-    v2_jobs.deleteLater()
-    v2_research.deleteLater()
-    v2_knowledge.deleteLater()
+    v3_system.deleteLater()
+    v3_sources.deleteLater()
+    v3_jobs.deleteLater()
+    v3_research.deleteLater()
+    v3_knowledge.deleteLater()
     knowledge_workspace.deleteLater()
     research_proposal_focus.deleteLater()
     research_proposal_density.deleteLater()
