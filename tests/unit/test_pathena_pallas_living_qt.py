@@ -82,6 +82,7 @@ def test_qt_bridge_updates_presentation_without_mutating_semantic_snapshot(
         assert snapshot.edges == original_edges
         assert grounded.field.property("pathenaPallasLiving") is True
         assert grounded.field.property("pathenaPallasLivingRenderer") == "force-ca-v1"
+        assert grounded.field.property("pathenaPallasTargetFps") == living.engine.config.fps
         assert grounded.field.property("pathenaPallasLens") == "semantic"
 
         living.set_lens("age")
