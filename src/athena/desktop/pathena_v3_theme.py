@@ -131,11 +131,6 @@ QPushButton#v3CommandButton:hover {
     border-color: #3B4A4C;
 }
 
-QLabel#v3RuntimeDot {
-    color: #89E0CA;
-    font-size: 9pt;
-}
-
 QLabel#v3RuntimeText {
     color: #A8A3AE;
     font-size: 8.7pt;
