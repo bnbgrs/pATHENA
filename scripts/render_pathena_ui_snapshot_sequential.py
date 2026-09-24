@@ -90,6 +90,10 @@ def _seed_reference_knowledge(runtime_root: Path) -> tuple[str, ...]:
                 reason="isolated native visual-regression fixture",
             )
             knowledge_ids.append(str(revision.knowledge_id))
+            # Windows clock granularity can otherwise give adjacent fixture
+            # revisions the same created_at_us, leaving the repository's
+            # UUID tie-break intentionally stable only within one database.
+            time.sleep(0.002)
         return tuple(knowledge_ids)
     finally:
         core.stop()
@@ -251,6 +255,29 @@ def main(argv: Sequence[str] | None = None) -> int:
             }
         )
 
+    def wait_for_runtime_settle(window: QMainWindow) -> dict[str, object]:
+        model_selector = getattr(window, "model_selector", None)
+        status_text = getattr(window, "status_text", None)
+        if model_selector is None or status_text is None:
+            raise RuntimeError("Runtime status controls are unavailable.")
+
+        deadline = time.monotonic() + 8.0
+        while time.monotonic() < deadline:
+            app.processEvents()
+            model_text = str(model_selector.currentText()).strip()
+            status_value = str(status_text.text()).strip()
+            if model_text and model_text not in {"Connecting…", "Connecting..."}:
+                return {
+                    "runtime_model_state": model_text,
+                    "runtime_status": status_value,
+                }
+            time.sleep(0.05)
+
+        raise RuntimeError(
+            "Desktop runtime did not settle before reference capture: "
+            f"model={model_selector.currentText()!r}, status={status_text.text()!r}."
+        )
+
     def wait_for_reference_knowledge(window: QMainWindow) -> dict[str, object]:
         knowledge_list = window.findChild(QListWidget, "persistentKnowledgeList")
         knowledge_details = window.findChild(
@@ -308,6 +335,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 f"found {navigation.count()} nav items and {pages.count()} pages."
             )
 
+        runtime_evidence = wait_for_runtime_settle(window)
+
         full_view = getattr(window, "_pathena_pallas_full_view_controller", None)
         if full_view is not None and getattr(full_view, "is_open", False):
             full_view.close_workspace()
@@ -336,6 +365,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             captures[-1]["row"] = row
             captures[-1]["page_index"] = pages.currentIndex()
             captures[-1]["transient_overlay_visible"] = False
+            captures[-1].update(runtime_evidence)
             captures[-1].update(knowledge_evidence)
 
     def diagnostic_pallas_snapshot() -> PallasGraphSnapshot:
