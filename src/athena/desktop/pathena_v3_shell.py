@@ -144,8 +144,8 @@ class PathenaV3ShellController(QObject):
         main_layout.addWidget(self._build_workspace(), 1)
 
         inspector.setParent(body)
-        inspector.setMinimumWidth(300)
-        inspector.setMaximumWidth(380)
+        inspector.setMinimumWidth(280)
+        inspector.setMaximumWidth(340)
         inspector.hide()
 
         body_layout.addWidget(main, 1)
@@ -245,7 +245,7 @@ class PathenaV3ShellController(QObject):
         workspace = QFrame()
         workspace.setObjectName("v3Workspace")
         layout = QVBoxLayout(workspace)
-        layout.setContentsMargins(36, 18, 36, 30)
+        layout.setContentsMargins(28, 18, 28, 26)
         layout.setSpacing(0)
 
         self._replace_chat_page()
@@ -304,7 +304,7 @@ class PathenaV3ShellController(QObject):
             context_button.setText("Context")
             meta_layout.addWidget(context_button)
 
-        meta.setMinimumWidth(760)
+        meta.setMinimumWidth(620)
         meta.setMaximumWidth(1180)
         meta.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         meta_row = QHBoxLayout()
@@ -325,8 +325,8 @@ class PathenaV3ShellController(QObject):
         conversation_row.setContentsMargins(0, 0, 0, 0)
         conversation_row.setSpacing(12)
         window.chat_scroll.setParent(stage)
-        window.chat_scroll.setMinimumWidth(680)
-        window.chat_messages_widget.setMinimumWidth(640)
+        window.chat_scroll.setMinimumWidth(500)
+        window.chat_messages_widget.setMinimumWidth(480)
         conversation_row.addWidget(window.chat_scroll, 1)
 
         window.evidence_rail.setParent(stage)
@@ -339,7 +339,7 @@ class PathenaV3ShellController(QObject):
         window.evidence_chain.setParent(stage)
         stage_layout.addWidget(window.evidence_chain)
 
-        stage.setMinimumWidth(760)
+        stage.setMinimumWidth(620)
         stage.setMaximumWidth(1180)
         stage.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         stage_row = QHBoxLayout()
@@ -371,7 +371,7 @@ class PathenaV3ShellController(QObject):
         window.send_button.setText("↑")
         window.send_button.setToolTip("Send message · Ctrl+Enter")
         composer_layout.addWidget(window.send_button)
-        composer.setMinimumWidth(760)
+        composer.setMinimumWidth(620)
         composer.setMaximumWidth(1120)
         composer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         composer_row = QHBoxLayout()
