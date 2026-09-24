@@ -4,6 +4,7 @@ import os
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication, QFrame
 
 from athena.desktop.pathena_v2_shell import install_v2_shell
@@ -59,6 +60,10 @@ def test_v2_shell_binds_existing_command_palette_contract() -> None:
 
     controller.bind_command_palette(lambda: called.append("open"))
     assert controller._command_button.isEnabled()
+    window.show()
+    controller._command_button.setFocus(Qt.FocusReason.TabFocusReason)
+    QApplication.processEvents()
+    assert controller._command_button.hasFocus()
     controller._command_button.click()
 
     assert called == ["open"]
