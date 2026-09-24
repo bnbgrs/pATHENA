@@ -8,6 +8,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication, QFrame
 
 from athena.desktop.pathena_v3_shell import install_v3_shell
+from athena.desktop.pathena_v3_theme import PATHENA_V3_STYLESHEET
 from athena.desktop.pathena_window import PathenaMainWindow
 
 
@@ -109,3 +110,25 @@ def test_v3_finalize_reuses_real_settings_controls() -> None:
     assert controller._nav_buttons[6].property("active") is True
 
     window.close()
+
+
+def test_v3_send_affordance_survives_busy_cycle() -> None:
+    _app()
+    window = PathenaMainWindow(api_controller=None)
+    window.setProperty("pathenaV3Presentation", True)
+    install_v3_shell(window)
+
+    assert window.send_button.text() == "↑"
+    window.apply_chat_busy(True)
+    assert window.send_button.text() == "…"
+    window.apply_chat_busy(False)
+    assert window.send_button.text() == "↑"
+
+    window.close()
+
+
+def test_v3_theme_exposes_keyboard_focus_and_readable_dim_text() -> None:
+    assert 'QPushButton[v3Nav="true"]:focus' in PATHENA_V3_STYLESHEET
+    assert "QPushButton#sendButton:focus" in PATHENA_V3_STYLESHEET
+    assert "QLineEdit#promptInput:focus" in PATHENA_V3_STYLESHEET
+    assert "#817D87" in PATHENA_V3_STYLESHEET
