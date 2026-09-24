@@ -224,8 +224,17 @@ def main(argv: Sequence[str] | None = None) -> int:
         # stacked-page transition on native Windows.  Render the complete widget
         # tree into a fresh pixmap so unchanged shell regions cannot disappear.
         widget.ensurePolished()
-        widget.repaint()
-        app.processEvents()
+        # Inspector and embedded-workspace handoffs can post more than one
+        # native layout/update event.  Flush the complete hierarchy until its
+        # geometry and backing store have both observed the new ownership.
+        for _ in range(3):
+            layout = widget.layout()
+            if layout is not None:
+                layout.activate()
+            widget.update()
+            widget.repaint()
+            app.processEvents()
+            time.sleep(0.02)
         capture = QPixmap(widget.size())
         capture.fill(Qt.GlobalColor.black)
         widget.render(capture)
