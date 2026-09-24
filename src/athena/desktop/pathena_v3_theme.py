@@ -224,11 +224,11 @@ QPushButton#sendButton {
     color: #0D1112;
     background: #89E0CA;
     border: 0;
-    border-radius: 20px;
-    min-width: 40px;
-    max-width: 40px;
-    min-height: 40px;
-    max-height: 40px;
+    border-radius: 22px;
+    min-width: 44px;
+    max-width: 44px;
+    min-height: 44px;
+    max-height: 44px;
     font-size: 15pt;
     font-weight: 800;
 }
@@ -1015,8 +1015,8 @@ QToolButton[v3Nav="true"]:hover {
 }
 QToolButton[v3Nav="true"]:focus {
     color: #F3F0F5;
-    background: #1A2021;
-    border-color: #89E0CA;
+    background: #14191A;
+    border-color: #647274;
 }
 QToolButton[v3Nav="true"][active="true"] {
     color: #F3F0F5;
