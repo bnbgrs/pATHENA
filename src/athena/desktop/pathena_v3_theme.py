@@ -732,6 +732,36 @@ QTabWidget#v3KnowledgeTabs QTabBar::tab:selected {
     border-bottom-color: #89E0CA;
 }
 
+QTabWidget#systemOperationsTabs,
+QWidget#backupWorkspace {
+    background: #0A0D0E;
+    border: none;
+}
+
+QTabWidget#systemOperationsTabs::pane {
+    background: #0A0D0E;
+    border: none;
+    top: -1px;
+}
+
+QTabWidget#systemOperationsTabs QTabBar::tab {
+    color: #85818C;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    padding: 9px 13px;
+    margin-right: 4px;
+}
+
+QTabWidget#systemOperationsTabs QTabBar::tab:hover {
+    color: #F3F0F5;
+}
+
+QTabWidget#systemOperationsTabs QTabBar::tab:selected {
+    color: #F3F0F5;
+    border-bottom-color: #89E0CA;
+}
+
 QSplitter#v3ResearchSplit,
 QSplitter#v3JobsSplit,
 QSplitter#v3SourcesSplit {
