@@ -606,4 +606,150 @@ QLabel#jobMeta,
 QLabel#settingsHelp {
     color: #A8A59A;
 }
+
+/* --- V3 workspace-specific composition -------------------------------- */
+
+QWidget#v3KnowledgeWorkspace,
+QWidget#v3ResearchWorkspace,
+QWidget#v3JobsWorkspace,
+QWidget#v3SourcesWorkspace,
+QWidget#v3SystemWorkspace,
+QWidget#v3SettingsPage,
+QWidget#v3SettingsForm,
+QScrollArea#v3SettingsScroll,
+QScrollArea#v3SettingsScroll > QWidget > QWidget {
+    background: #0E0F0D;
+    border: none;
+}
+
+QFrame#v3KnowledgeSearch,
+QFrame#v3KnowledgeIdentity {
+    background: transparent;
+    border: none;
+}
+
+QFrame#v3KnowledgeBrowser,
+QFrame#v3ResearchBrief,
+QFrame#v3JobsCommand,
+QFrame#v3SourcesCommand,
+QFrame#v3SystemCommand,
+QFrame#v3RuntimeCard,
+QFrame#v3SystemActivity,
+QFrame#v3SecurityPosture {
+    background: #171814;
+    border: 1px solid #2B2D26;
+    border-radius: 14px;
+}
+
+QFrame#v3ResearchBrief {
+    background: #151711;
+    border-color: #303626;
+}
+
+QLabel#v3KnowledgeState {
+    color: #DDF7A7;
+    background: #28321D;
+    border: 1px solid #3B4B29;
+    border-radius: 9px;
+    padding: 4px 8px;
+    font-size: 8pt;
+    font-weight: 680;
+}
+
+QLabel#v3KnowledgeSummary,
+QLabel#v3KnowledgeMeta,
+QLabel#v3KnowledgeBrowserStatus,
+QLabel#v3ResearchStatus,
+QLabel#v3JobsStatus,
+QLabel#v3SchedulerStatus,
+QLabel#v3SourcesStatus,
+QLabel#v3SystemDetail,
+QLabel#v3RuntimeCardHint {
+    color: #8F8C82;
+    font-size: 8.8pt;
+}
+
+QTabWidget#v3KnowledgeTabs::pane {
+    background: #151612;
+    border: 1px solid #292B24;
+    border-radius: 14px;
+    top: -1px;
+}
+
+QTabWidget#v3KnowledgeTabs QTabBar::tab {
+    color: #817F77;
+    background: transparent;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    padding: 10px 15px;
+    margin-right: 4px;
+}
+
+QTabWidget#v3KnowledgeTabs QTabBar::tab:hover {
+    color: #F2F0E8;
+}
+
+QTabWidget#v3KnowledgeTabs QTabBar::tab:selected {
+    color: #F2F0E8;
+    border-bottom-color: #C6F277;
+}
+
+QSplitter#v3ResearchSplit,
+QSplitter#v3JobsSplit,
+QSplitter#v3SourcesSplit {
+    background: transparent;
+    border: none;
+}
+
+QFrame#v3HealthGrid {
+    background: transparent;
+    border: none;
+}
+
+QFrame[v3HealthTile="true"] {
+    background: #171814;
+    border: 1px solid #2B2D26;
+    border-radius: 14px;
+    padding: 4px;
+}
+
+QLabel#v3SectionTitle,
+QLabel#v3RuntimeCardTitle {
+    color: #F2F0E8;
+    font-size: 11pt;
+    font-weight: 680;
+}
+
+QLabel#v3SettingsIntro {
+    color: #A8A59A;
+    font-size: 9.5pt;
+}
+
+QWidget#v3SettingsRuntimePanel {
+    background: transparent;
+    border: none;
+}
+
+QFrame#v2PallasInspector {
+    background: #151612;
+    border: none;
+    border-left: 1px solid #292B24;
+}
+
+QLabel#v2PallasInspectorKind {
+    color: #747269;
+    font-size: 8pt;
+    font-weight: 680;
+    letter-spacing: 1.1px;
+}
+
+QLabel#v2PallasInspectorTitle {
+    color: #F2F0E8;
+    font-size: 13pt;
+    font-weight: 660;
+}
+
+QLabel#v2PallasInspectorBody {
+    color: #A8A59A;
+}
 """
