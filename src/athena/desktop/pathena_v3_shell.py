@@ -539,6 +539,24 @@ class PathenaV3ShellController(QObject):
         elif inspector is not None:
             inspector.setVisible(self._inspector_button.isChecked())
 
+    def transient_workspace_opened(self, title: str, hint: str) -> None:
+        """Represent a shell-hosted tool without falsely selecting a primary route."""
+        for button in self._nav_buttons.values():
+            button.set_active(False)
+        self._pallas_button.set_active(False)
+        self._inspector_button.setChecked(False)
+        self._inspector_button.hide()
+        if self._inspector is not None:
+            self._inspector.hide()
+        self._header.set_context(title, hint)
+
+    def transient_workspace_closed(self) -> None:
+        """Restore whichever durable route or PALLAS mode still owns the shell."""
+        if bool(self._window.property("pathenaPallasShellOpen")):
+            self.pallas_opened()
+            return
+        self._sync_navigation(max(0, self._window.navigation.currentRow()))
+
     @Slot()
     def pallas_opened(self) -> None:
         for button in self._nav_buttons.values():
