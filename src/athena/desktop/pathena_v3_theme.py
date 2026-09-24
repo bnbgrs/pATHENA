@@ -570,6 +570,75 @@ QPushButton:disabled {
     border-color: #22231D;
 }
 
+/* Semantic workspace actions stay legible after legacy object-name refinement. */
+QPushButton#researchStartButton,
+QPushButton#fileImportButton {
+    color: #11120F;
+    background: #C6F277;
+    border: 1px solid #C6F277;
+    border-radius: 10px;
+    padding: 7px 12px;
+    font-weight: 680;
+}
+
+QPushButton#researchStartButton:hover,
+QPushButton#fileImportButton:hover {
+    color: #11120F;
+    background: #D5FA91;
+    border-color: #D5FA91;
+}
+
+QPushButton#researchStartButton:focus,
+QPushButton#fileImportButton:focus {
+    border-color: #F2F0E8;
+}
+
+QPushButton#researchRefreshButton,
+QPushButton#researchCancelButton,
+QPushButton#fileRefreshButton,
+QPushButton#fileProcessButton {
+    color: #A8A59A;
+    background: #171814;
+    border: 1px solid #2B2D26;
+    border-radius: 10px;
+    padding: 7px 10px;
+}
+
+QPushButton#researchRefreshButton:hover,
+QPushButton#researchCancelButton:hover,
+QPushButton#fileRefreshButton:hover,
+QPushButton#fileProcessButton:hover {
+    color: #F2F0E8;
+    background: #1D1F1A;
+    border-color: #3A3D32;
+}
+
+QPushButton#researchRefreshButton:focus,
+QPushButton#researchCancelButton:focus,
+QPushButton#fileRefreshButton:focus,
+QPushButton#fileProcessButton:focus {
+    border-color: #657B46;
+}
+
+QPushButton#researchCancelButton:disabled,
+QPushButton#fileProcessButton:disabled {
+    color: #686A62;
+    background: #141510;
+    border-color: #292B24;
+}
+
+QPushButton#sendButton:disabled {
+    color: #7D8075;
+    background: #24261F;
+    border: 1px solid #35382E;
+}
+
+QPushButton#groundButton:disabled {
+    color: #6F7168;
+    background: #151612;
+    border-color: #2B2D26;
+}
+
 QCheckBox {
     color: #F2F0E8;
     spacing: 8px;
