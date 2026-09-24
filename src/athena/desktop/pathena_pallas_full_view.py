@@ -91,7 +91,7 @@ class PallasFullViewController(QObject):
             "PALLAS compact living semantic field"
         )
         grounded_controller.target.setAccessibleDescription(
-            "The grounded graph self-organizes visually at 30 FPS. "
+            "The grounded graph self-organizes visually and respects reduced-motion settings. "
             "Double-click to open it in the main pATHENA workspace."
         )
         grounded_controller.target.setProperty("pathenaPallasLiving", True)
@@ -246,7 +246,7 @@ class PallasFullViewController(QObject):
         toolbar = QHBoxLayout(topbar)
         toolbar.setContentsMargins(14, 9, 10, 9)
         toolbar.setSpacing(6)
-        status = QLabel("LIVE FIELD • 30 FPS • SEMANTIC", topbar)
+        status = QLabel("LIVE FIELD • STARTING • SEMANTIC", topbar)
         status.setObjectName("pallasLivingStatus")
         status.setProperty("role", "dim")
         status.setAccessibleName("PALLAS living field status")
