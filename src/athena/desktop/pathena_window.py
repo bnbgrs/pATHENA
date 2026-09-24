@@ -336,7 +336,9 @@ class PathenaMainWindow(AthenaMainWindow):
         self.context_button.hide()
         self.evidence_chain.hide()
         self.context_button.toggled.connect(self.evidence_chain.setVisible)
-        self.context_button.toggled.connect(self._sync_inspector_visibility)
+        self.context_button.toggled.connect(
+            lambda _checked: self._sync_inspector_visibility()
+        )
 
         chat_page = self.pages.widget(0)
         if chat_page is not None:
