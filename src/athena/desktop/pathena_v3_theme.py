@@ -890,6 +890,86 @@ QPushButton#comfyUiReleaseVram {
     border-color: #554725;
 }
 
+
+/* --- V3 hosted System + Help surfaces ---------------------------------- */
+
+QTabWidget#systemOperationsTabs,
+QWidget#backupWorkspace,
+QTabWidget#systemOperationsTabs > QWidget {
+    background: #0A0D0E;
+    border: none;
+}
+
+QTabWidget#systemOperationsTabs::pane {
+    background: #0A0D0E;
+    border: 0;
+    border-top: 1px solid #2A3334;
+    top: -1px;
+}
+
+QTabWidget#systemOperationsTabs QTabBar::tab {
+    color: #85818C;
+    background: transparent;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    padding: 9px 14px;
+    margin-right: 4px;
+}
+
+QTabWidget#systemOperationsTabs QTabBar::tab:hover {
+    color: #F3F0F5;
+    background: #14191A;
+}
+
+QTabWidget#systemOperationsTabs QTabBar::tab:selected {
+    color: #F3F0F5;
+    border-bottom-color: #89E0CA;
+}
+
+QDialog#helpWorkspace,
+QFrame#helpBody,
+QFrame#helpCapabilityContent,
+QListWidget#helpCapabilities {
+    color: #F3F0F5;
+    background: #0A0D0E;
+    border: none;
+}
+
+QFrame#helpSecondaryNavigation {
+    background: #0D1112;
+    border: none;
+    border-right: 1px solid #2A3334;
+}
+
+QLabel#helpSecondaryTitle,
+QLabel#helpHeadline,
+QLabel#helpCapabilityTitle {
+    color: #F3F0F5;
+}
+
+QLabel#helpSummary,
+QLabel#helpCapabilitySummary {
+    color: #A8A3AE;
+}
+
+QFrame#helpCapabilityRow {
+    background: #121718;
+    border: 1px solid #273031;
+    border-radius: 14px;
+}
+
+QLineEdit#helpSearch {
+    color: #F3F0F5;
+    background: #14191A;
+    border: 1px solid #344244;
+    border-radius: 12px;
+    padding: 10px 12px;
+}
+
+QLineEdit#helpSearch:focus {
+    border-color: #58BCA4;
+}
+
 /* --- Keyboard focus ---------------------------------------------------- */
 
 QPushButton:focus,
