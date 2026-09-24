@@ -13,6 +13,12 @@ from athena.news.schema import (
 from athena.storage.archive_replication_migration import (
     migrate_schema_v30_to_v31_restart_safe as _migrate_schema_v30_to_v31,
 )
+from athena.storage.job_dependency_graph_schema import (
+    migrate_schema_v40_to_v41 as _migrate_schema_v40_to_v41,
+)
+from athena.storage.job_dependency_graph_schema import (
+    verify_schema_v41 as _verify_schema_v41,
+)
 from athena.storage.schema_contract import (
     ARCHIVE_REPLICATION_MIGRATION_ID as ARCHIVE_REPLICATION_MIGRATION_ID,
 )
@@ -559,6 +565,7 @@ def initialize_schema(connection: sqlite3.Connection, *, created_at_us: int) -> 
         OPERATIONAL_ERROR_SANITIZATION_SCHEMA_VERSION,
         OPERATIONAL_ERROR_PHYSICAL_CLEANUP_SCHEMA_VERSION,
         PROTECTED_SOURCE_SEMANTIC_SCHEMA_VERSION,
+        GROUNDED_RESPONSE_RECEIPT_SCHEMA_VERSION,
         SCHEMA_VERSION,
     }
     if existing_user_version not in supported_versions:
@@ -756,81 +763,13 @@ def initialize_schema(connection: sqlite3.Connection, *, created_at_us: int) -> 
         _migrate_schema_v39_to_v40(connection)
         existing_user_version = GROUNDED_RESPONSE_RECEIPT_SCHEMA_VERSION
 
+    if existing_user_version == GROUNDED_RESPONSE_RECEIPT_SCHEMA_VERSION:
+        _verify_schema_v40(connection)
+        _migrate_schema_v40_to_v41(connection)
+        existing_user_version = SCHEMA_VERSION
+
     _configure_connection(connection)
-    _verify_schema_v40(connection)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    _verify_schema_v41(connection)
 
 
 def _checkpoint_wal_truncate_for_physical_cleanup(

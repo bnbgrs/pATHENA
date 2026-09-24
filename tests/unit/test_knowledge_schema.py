@@ -10,7 +10,7 @@ from athena.storage.schema import (
     DURABLE_JOBS_SCHEMA_VERSION,
     EXHAUSTIVE_RESEARCH_SCHEMA_VERSION,
     EXTRACTION_SNAPSHOT_SCHEMA_VERSION,
-    GROUNDED_RESPONSE_RECEIPT_MIGRATION_ID,
+    JOB_DEPENDENCY_GRAPH_MIGRATION_ID,
     HIERARCHICAL_SOURCE_EXTRACTION_SCHEMA_VERSION,
     KNOWLEDGE_SCHEMA_VERSION,
     LEGACY_SCHEMA_VERSION,
@@ -68,6 +68,8 @@ EXPECTED_SEMANTIC_TABLES = {
     "archive_replication_outbox",
     "archive_replication_watermark",
     "grounded_response_receipts",
+    "job_parent_links",
+    "job_dependencies",
     "key_slots",
     "protection_scopes",
     "protection_scope_keys",
@@ -150,6 +152,9 @@ def _strip_v36_deletion_ledger_for_legacy_fixture(
 ) -> None:
     """Remove v36-only additions before declaring an older schema boundary."""
 
+    connection.execute("DROP TABLE IF EXISTS job_dependencies")
+    connection.execute("DROP TABLE IF EXISTS job_parent_links")
+
     # v39 is additive. Legacy fixtures that construct an
     # older boundary from a current database must remove
     # these child objects before removing their v32/v34
@@ -208,7 +213,7 @@ def test_fresh_database_contains_semantic_schema(tmp_path) -> None:
     ).fetchone()
     assert tuple(metadata) == (
         SCHEMA_VERSION,
-        GROUNDED_RESPONSE_RECEIPT_MIGRATION_ID,
+        JOB_DEPENDENCY_GRAPH_MIGRATION_ID,
         SCHEMA_VERSION,
     )
 
@@ -797,7 +802,7 @@ def test_v14_database_is_upgraded_additively_to_durable_jobs(tmp_path) -> None:
         "SELECT last_migration_id FROM schema_metadata WHERE singleton_id = 1"
     ).fetchone()
     assert metadata is not None
-    assert metadata["last_migration_id"] == GROUNDED_RESPONSE_RECEIPT_MIGRATION_ID
+    assert metadata["last_migration_id"] == JOB_DEPENDENCY_GRAPH_MIGRATION_ID
     database.stop()
 
 
@@ -974,7 +979,7 @@ def test_v17_database_is_upgraded_additively_to_hierarchical_source_analysis(tmp
         "SELECT last_migration_id FROM schema_metadata WHERE singleton_id = 1"
     ).fetchone()
     assert metadata is not None
-    assert metadata["last_migration_id"] == GROUNDED_RESPONSE_RECEIPT_MIGRATION_ID
+    assert metadata["last_migration_id"] == JOB_DEPENDENCY_GRAPH_MIGRATION_ID
     database.stop()
 
 
@@ -1037,7 +1042,7 @@ def test_v18_database_is_upgraded_additively_to_source_knowledge_promotion(tmp_p
         "SELECT last_migration_id FROM schema_metadata WHERE singleton_id = 1"
     ).fetchone()
     assert metadata is not None
-    assert metadata["last_migration_id"] == GROUNDED_RESPONSE_RECEIPT_MIGRATION_ID
+    assert metadata["last_migration_id"] == JOB_DEPENDENCY_GRAPH_MIGRATION_ID
     database.stop()
 
 
@@ -1107,7 +1112,7 @@ def test_v19_database_is_upgraded_additively_to_hierarchical_source_extraction(t
         "SELECT last_migration_id FROM schema_metadata WHERE singleton_id = 1"
     ).fetchone()
     assert metadata is not None
-    assert metadata["last_migration_id"] == GROUNDED_RESPONSE_RECEIPT_MIGRATION_ID
+    assert metadata["last_migration_id"] == JOB_DEPENDENCY_GRAPH_MIGRATION_ID
     database.stop()
 
 
@@ -1180,7 +1185,7 @@ def test_v20_database_is_upgraded_additively_to_personal_memory(tmp_path) -> Non
         "SELECT last_migration_id FROM schema_metadata WHERE singleton_id = 1"
     ).fetchone()
     assert metadata is not None
-    assert metadata["last_migration_id"] == GROUNDED_RESPONSE_RECEIPT_MIGRATION_ID
+    assert metadata["last_migration_id"] == JOB_DEPENDENCY_GRAPH_MIGRATION_ID
     database.stop()
 
 
@@ -1262,7 +1267,7 @@ def test_v21_database_is_upgraded_additively_to_exhaustive_research(tmp_path) ->
         "SELECT last_migration_id FROM schema_metadata WHERE singleton_id = 1"
     ).fetchone()
     assert metadata is not None
-    assert metadata["last_migration_id"] == GROUNDED_RESPONSE_RECEIPT_MIGRATION_ID
+    assert metadata["last_migration_id"] == JOB_DEPENDENCY_GRAPH_MIGRATION_ID
     database.stop()
 
 
@@ -1360,7 +1365,7 @@ def test_v22_database_is_upgraded_additively_to_research_orchestration(
         "SELECT last_migration_id FROM schema_metadata WHERE singleton_id = 1"
     ).fetchone()
     assert metadata is not None
-    assert metadata["last_migration_id"] == GROUNDED_RESPONSE_RECEIPT_MIGRATION_ID
+    assert metadata["last_migration_id"] == JOB_DEPENDENCY_GRAPH_MIGRATION_ID
     database.stop()
 
 
@@ -1449,7 +1454,7 @@ def test_v23_database_is_upgraded_additively_to_research_synthesis(tmp_path) -> 
         "FROM schema_metadata WHERE singleton_id = 1"
     ).fetchone()
     assert metadata is not None
-    assert metadata["last_migration_id"] == GROUNDED_RESPONSE_RECEIPT_MIGRATION_ID
+    assert metadata["last_migration_id"] == JOB_DEPENDENCY_GRAPH_MIGRATION_ID
     assert metadata["minimum_reader_version"] == SCHEMA_VERSION
     assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
     database.stop()
@@ -1708,7 +1713,7 @@ def test_v28_database_is_upgraded_additively_to_precise_research_provenance(
 
     assert tuple(metadata) == (
         SCHEMA_VERSION,
-        GROUNDED_RESPONSE_RECEIPT_MIGRATION_ID,
+        JOB_DEPENDENCY_GRAPH_MIGRATION_ID,
         SCHEMA_VERSION,
     )
 
@@ -1911,7 +1916,7 @@ def test_v29_database_is_upgraded_additively_to_news_event_eligibility(
 
     assert tuple(metadata) == (
         SCHEMA_VERSION,
-        GROUNDED_RESPONSE_RECEIPT_MIGRATION_ID,
+        JOB_DEPENDENCY_GRAPH_MIGRATION_ID,
         SCHEMA_VERSION,
     )
 
@@ -2145,9 +2150,11 @@ def test_v36_operational_error_text_is_sanitized_without_changing_resume_state(
         ),
     )
 
-    # Remove additive v39 objects before declaring
+    # Remove additive post-v36 objects before declaring
     # this current database to be an older schema.
     # The production migration remains fail-closed.
+    legacy.execute("DROP TABLE IF EXISTS job_dependencies")
+    legacy.execute("DROP TABLE IF EXISTS job_parent_links")
     legacy.execute(
         "DROP TABLE IF EXISTS "
         "grounded_response_receipts"
@@ -2214,7 +2221,7 @@ def test_v36_operational_error_text_is_sanitized_without_changing_resume_state(
         metadata
     ) == (
         SCHEMA_VERSION,
-        GROUNDED_RESPONSE_RECEIPT_MIGRATION_ID,
+        JOB_DEPENDENCY_GRAPH_MIGRATION_ID,
         SCHEMA_VERSION,
     )
 
