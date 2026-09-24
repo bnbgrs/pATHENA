@@ -147,11 +147,6 @@ QPushButton#v3CommandButton:focus {
     border-color: #89E0CA;
 }
 
-QLabel#v3RuntimeDot {
-    color: #89E0CA;
-    font-size: 9pt;
-}
-
 QLabel#v3RuntimeText {
     color: #A8A3AE;
     font-size: 8.7pt;
@@ -586,6 +581,29 @@ QPushButton:disabled {
 QCheckBox {
     color: #F3F0F5;
     spacing: 8px;
+}
+
+QCheckBox::indicator {
+    width: 14px;
+    height: 14px;
+    background: #14191A;
+    border: 1px solid #3B4A4C;
+    border-radius: 4px;
+}
+
+QCheckBox::indicator:hover,
+QCheckBox::indicator:focus {
+    border-color: #89E0CA;
+}
+
+QCheckBox::indicator:checked {
+    background: #89E0CA;
+    border-color: #89E0CA;
+}
+
+QCheckBox::indicator:disabled {
+    background: #101415;
+    border-color: #202829;
 }
 
 QSlider::groove:horizontal {
