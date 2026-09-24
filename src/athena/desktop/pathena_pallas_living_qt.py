@@ -173,7 +173,10 @@ class PallasLivingQtController(QObject):
         self._bindings[id(field)] = self._bind_field(field, snapshot, token)
         field.setProperty("pathenaPallasLiving", True)
         field.setProperty("pathenaPallasLivingRenderer", "force-ca-v1")
-        field.setProperty("pathenaPallasTargetFps", int(self._engine.config.fps))
+        field.setProperty(
+            "pathenaPallasTargetFps",
+            0 if self._reduced_motion else int(self._engine.config.fps),
+        )
         field.setProperty("pathenaPallasLens", self._lens)
 
     def _bind_field(
