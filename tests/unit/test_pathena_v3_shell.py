@@ -193,3 +193,23 @@ def test_v3_chat_composer_is_multiline_and_preserves_text_contract() -> None:
     assert window.prompt_input.toPlainText() == "compatibility"
 
     window.close()
+
+
+def test_v3_non_chat_routes_cannot_reopen_stale_global_inspector() -> None:
+    _app()
+    window = PathenaMainWindow(api_controller=None)
+    controller = install_v3_shell(window)
+    inspector = window.findChild(QFrame, "inspector")
+    assert inspector is not None
+
+    window.navigation.setCurrentRow(5)
+    controller._sync_navigation(5)
+    assert not inspector.isVisible()
+
+    # Simulate a later legacy/Core state sync. V3 ownership must keep this
+    # Chat-specific inspector out of System and other non-Chat workspaces.
+    window._sync_progressive_chat_actions()
+    window._sync_inspector_visibility()
+    assert not inspector.isVisible()
+
+    window.close()
