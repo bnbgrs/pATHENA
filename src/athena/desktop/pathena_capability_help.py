@@ -59,6 +59,9 @@ class CapabilityHelpController(QObject):
         if self._workspace is not None:
             return self._workspace
         try:
+            v3_workspace = self.window.findChild(QFrame, "v3Workspace")
+            if v3_workspace is not None:
+                return v3_workspace
             return self.window.findChild(QFrame, "conversation")
         except RuntimeError:
             return None
@@ -288,13 +291,22 @@ class CapabilityHelpController(QObject):
                     snapshot = self.snapshot()
                     self._refresh_hierarchy(snapshot)
                     self._publish_help_inspector(snapshot)
-                    self.window.page_title.setText("Help")
-                    self.window.page_title.setAccessibleDescription("Current workspace: Help.")
+                    shell = getattr(self.window, "_pathena_v3_shell_controller", None)
+                    header = getattr(shell, "_header", None)
+                    set_context = getattr(header, "set_context", None)
+                    if callable(set_context):
+                        set_context("Help", "Live capabilities, shortcuts and workspace entry points.")
+                    else:
+                        self.window.page_title.setText("Help")
+                        self.window.page_title.setAccessibleDescription("Current workspace: Help.")
                     self.window.setProperty("pathenaHelpWorkspaceVisible", True)
                     QTimer.singleShot(0, self._focus_help_search)
                 elif event.type() == QEvent.Type.Hide:
                     self._restore_inspector()
-                    sync_navigation = getattr(self.window, "_sync_reference_navigation", None)
+                    shell = getattr(self.window, "_pathena_v3_shell_controller", None)
+                    sync_navigation = getattr(shell, "_sync_navigation", None)
+                    if not callable(sync_navigation):
+                        sync_navigation = getattr(self.window, "_sync_reference_navigation", None)
                     if callable(sync_navigation):
                         sync_navigation(self.window.navigation.currentRow())
                     self.window.setProperty("pathenaHelpWorkspaceVisible", False)
