@@ -49,10 +49,10 @@ class PallasFullViewController(QObject):
         self._host: QFrame | None = None
         self._living_status: QLabel | None = None
         self._lens_buttons: dict[str, QPushButton] = {}
-        self._v2_inspector: QFrame | None = None
-        self._v2_inspector_kind: QLabel | None = None
-        self._v2_inspector_title: QLabel | None = None
-        self._v2_inspector_body: QLabel | None = None
+        self._v3_inspector: QFrame | None = None
+        self._v3_inspector_kind: QLabel | None = None
+        self._v3_inspector_title: QLabel | None = None
+        self._v3_inspector_body: QLabel | None = None
         center = window.findChild(QFrame, "conversation")
         reference_body = window.findChild(QFrame, "referenceBody")
         body_layout = reference_body.layout() if reference_body is not None else None
@@ -79,7 +79,7 @@ class PallasFullViewController(QObject):
         self._living_controller.diagnostics_changed.connect(
             self._apply_living_diagnostics
         )
-        grounded_controller.selection_changed.connect(self._sync_v2_inspector)
+        grounded_controller.selection_changed.connect(self._sync_v3_inspector)
 
         if isinstance(self._navigation, QListWidget):
             self._navigation.currentRowChanged.connect(self._on_navigation_changed)
@@ -170,11 +170,11 @@ class PallasFullViewController(QObject):
         return panel if isinstance(panel, QFrame) else None
 
     @Slot(object)
-    def _sync_v2_inspector(self, selection: object | None) -> None:
-        """Render the selected semantic object in the dedicated v2 PALLAS inspector."""
-        kind_label = self._v2_inspector_kind
-        title_label = self._v2_inspector_title
-        body_label = self._v2_inspector_body
+    def _sync_v3_inspector(self, selection: object | None) -> None:
+        """Render the selected semantic object in the dedicated V3 PALLAS inspector."""
+        kind_label = self._v3_inspector_kind
+        title_label = self._v3_inspector_title
+        body_label = self._v3_inspector_body
         if kind_label is None or title_label is None or body_label is None:
             return
 
@@ -281,7 +281,7 @@ class PallasFullViewController(QObject):
         content.addWidget(workspace, 1)
 
         inspector = QFrame(host)
-        inspector.setObjectName("v2PallasInspector")
+        inspector.setObjectName("v3PallasInspector")
         inspector.setFixedWidth(328)
         inspector.setAccessibleName("PALLAS selection inspector")
         inspector_layout = QVBoxLayout(inspector)
@@ -289,11 +289,11 @@ class PallasFullViewController(QObject):
         inspector_layout.setSpacing(10)
 
         inspector_kind = QLabel("SELECTION", inspector)
-        inspector_kind.setObjectName("v2PallasInspectorKind")
+        inspector_kind.setObjectName("v3PallasInspectorKind")
         inspector_layout.addWidget(inspector_kind)
 
         inspector_title = QLabel("Nothing selected", inspector)
-        inspector_title.setObjectName("v2PallasInspectorTitle")
+        inspector_title.setObjectName("v3PallasInspectorTitle")
         inspector_title.setWordWrap(True)
         inspector_layout.addWidget(inspector_title)
 
@@ -301,7 +301,7 @@ class PallasFullViewController(QObject):
             "Select a node to inspect its grounded identity, revision and epistemic state.",
             inspector,
         )
-        inspector_body.setObjectName("v2PallasInspectorBody")
+        inspector_body.setObjectName("v3PallasInspectorBody")
         inspector_body.setWordWrap(True)
         inspector_body.setTextInteractionFlags(
             Qt.TextInteractionFlag.TextSelectableByMouse
@@ -318,11 +318,11 @@ class PallasFullViewController(QObject):
         self._workspace = workspace
         self._living_status = status
         self._lens_buttons = buttons
-        self._v2_inspector = inspector
-        self._v2_inspector_kind = inspector_kind
-        self._v2_inspector_title = inspector_title
-        self._v2_inspector_body = inspector_body
-        self._sync_v2_inspector(getattr(self._grounded_controller, "_selection", None))
+        self._v3_inspector = inspector
+        self._v3_inspector_kind = inspector_kind
+        self._v3_inspector_title = inspector_title
+        self._v3_inspector_body = inspector_body
+        self._sync_v3_inspector(getattr(self._grounded_controller, "_selection", None))
         return workspace
 
     def _set_lens(self, lens: str) -> None:
@@ -358,7 +358,7 @@ class PallasFullViewController(QObject):
         legacy_inspector = self._legacy_inspector_panel()
         if legacy_inspector is not None:
             legacy_inspector.hide()
-        self._sync_v2_inspector(getattr(self._grounded_controller, "_selection", None))
+        self._sync_v3_inspector(getattr(self._grounded_controller, "_selection", None))
         workspace.field.canvas.setFocus(Qt.FocusReason.OtherFocusReason)
         if opening:
             self.workspace_opened.emit()
@@ -404,7 +404,7 @@ class PallasFullViewController(QObject):
     def dispose(self) -> None:
         self._living_controller.stop()
         try:
-            self._grounded_controller.selection_changed.disconnect(self._sync_v2_inspector)
+            self._grounded_controller.selection_changed.disconnect(self._sync_v3_inspector)
         except (RuntimeError, TypeError):
             pass
         viewport = self._viewport
@@ -424,10 +424,10 @@ class PallasFullViewController(QObject):
         self._host = None
         self._living_status = None
         self._lens_buttons.clear()
-        self._v2_inspector = None
-        self._v2_inspector_kind = None
-        self._v2_inspector_title = None
-        self._v2_inspector_body = None
+        self._v3_inspector = None
+        self._v3_inspector_kind = None
+        self._v3_inspector_title = None
+        self._v3_inspector_body = None
 
 
 def install_pallas_full_view(
