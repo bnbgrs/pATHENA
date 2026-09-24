@@ -181,12 +181,12 @@ class PallasFullViewController(QObject):
         node = getattr(selection, "node", None)
         graph_id = str(getattr(selection, "graph_id", "") or "")
         if node is None:
-            kind_label.setText("SELECTION")
-            title_label.setText("Nothing selected")
-            body_label.setText(
-                "Select a node to inspect its grounded identity, revision and epistemic state."
-            )
+            if self._v2_inspector is not None and isValid(self._v2_inspector):
+                self._v2_inspector.hide()
             return
+
+        if self._v2_inspector is not None and isValid(self._v2_inspector):
+            self._v2_inspector.show()
 
         raw_kind = getattr(getattr(node, "kind", None), "value", getattr(node, "kind", ""))
         kind = str(raw_kind or "object").upper()
@@ -246,7 +246,7 @@ class PallasFullViewController(QObject):
         toolbar = QHBoxLayout(topbar)
         toolbar.setContentsMargins(14, 9, 10, 9)
         toolbar.setSpacing(6)
-        status = QLabel("LIVING • 30 FPS • SEMANTIC", topbar)
+        status = QLabel("LIVE FIELD • 30 FPS • SEMANTIC", topbar)
         status.setObjectName("pallasLivingStatus")
         status.setProperty("role", "dim")
         status.setAccessibleName("PALLAS living field status")
@@ -281,7 +281,7 @@ class PallasFullViewController(QObject):
         content.addWidget(workspace, 1)
 
         inspector = QFrame(host)
-        inspector.setObjectName("v2PallasInspector")
+        inspector.setObjectName("v3PallasInspector")
         inspector.setFixedWidth(328)
         inspector.setAccessibleName("PALLAS selection inspector")
         inspector_layout = QVBoxLayout(inspector)
@@ -289,11 +289,11 @@ class PallasFullViewController(QObject):
         inspector_layout.setSpacing(10)
 
         inspector_kind = QLabel("SELECTION", inspector)
-        inspector_kind.setObjectName("v2PallasInspectorKind")
+        inspector_kind.setObjectName("v3PallasInspectorKind")
         inspector_layout.addWidget(inspector_kind)
 
         inspector_title = QLabel("Nothing selected", inspector)
-        inspector_title.setObjectName("v2PallasInspectorTitle")
+        inspector_title.setObjectName("v3PallasInspectorTitle")
         inspector_title.setWordWrap(True)
         inspector_layout.addWidget(inspector_title)
 
@@ -301,7 +301,7 @@ class PallasFullViewController(QObject):
             "Select a node to inspect its grounded identity, revision and epistemic state.",
             inspector,
         )
-        inspector_body.setObjectName("v2PallasInspectorBody")
+        inspector_body.setObjectName("v3PallasInspectorBody")
         inspector_body.setWordWrap(True)
         inspector_body.setTextInteractionFlags(
             Qt.TextInteractionFlag.TextSelectableByMouse
@@ -310,6 +310,7 @@ class PallasFullViewController(QObject):
         inspector_layout.addWidget(inspector_body)
         inspector_layout.addStretch(1)
 
+        inspector.hide()
         content.addWidget(inspector)
         outer.addLayout(content, 1)
         self._body_layout.insertWidget(1, host, 1)
@@ -398,7 +399,7 @@ class PallasFullViewController(QObject):
         active = diagnostics.get("active", 0)
         nodes = diagnostics.get("nodes", 0)
         lens = str(diagnostics.get("lens", "semantic")).upper()
-        status.setText(f"LIVING • {fps} FPS • {active}/{nodes} ACTIVE • {lens}")
+        status.setText(f"LIVE FIELD • {fps} FPS • {active}/{nodes} ACTIVE • {lens}")
 
     @Slot()
     def dispose(self) -> None:
