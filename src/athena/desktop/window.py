@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from PySide6.QtCore import QPoint, QSize, Qt, QTimer, Slot
+from PySide6.QtCore import QPoint, QSize, Qt, QTimer, Signal, Slot
 from PySide6.QtGui import (
     QColor,
     QKeySequence,
@@ -29,6 +29,7 @@ from PySide6.QtWidgets import (
     QListWidgetItem,
     QMainWindow,
     QMessageBox,
+    QPlainTextEdit,
     QPushButton,
     QScrollArea,
     QSizePolicy,
@@ -56,6 +57,20 @@ from athena.desktop.theme import BORDER, ORANGE, TEXT_DIM, TEXT_MUTED
 
 _NAVIGATION = ("CHAT", "KNOWLEDGE", "RESEARCH", "JOBS", "FILES", "SYSTEM", "SETTINGS")
 _REFRESH_INTERVAL_MS = 5_000
+
+
+class MultilinePromptInput(QPlainTextEdit):
+    """Multiline chat composer preserving the legacy prompt input contract."""
+
+    returnPressed = Signal()
+
+    def text(self) -> str:
+        """Compatibility with the former QLineEdit-backed composer."""
+        return self.toPlainText()
+
+    def setText(self, text: str) -> None:  # noqa: N802
+        """Compatibility setter for extensions written against QLineEdit."""
+        self.setPlainText(text)
 
 
 class MetricRow(QWidget):
@@ -288,7 +303,7 @@ class AthenaMainWindow(QMainWindow):
         self.pallas_visual = PallasVisualPlaceholder()
         self.page_title = QLabel("CHAT")
         self.status_text = QLabel("LOCAL / CORE DISCONNECTED")
-        self.prompt_input = QLineEdit()
+        self.prompt_input = MultilinePromptInput()
         self.ground_button = QPushButton("GROUND")
         self.send_button = QPushButton("CTRL+ENTER")
         self.chat_selector = QComboBox()
@@ -1385,9 +1400,12 @@ class AthenaMainWindow(QMainWindow):
             QKeySequence("Ctrl+Return"),
             self,
         )
-        self._send_return_shortcut.activated.connect(
-            self._submit_prompt
+        self._send_return_shortcut.activated.connect(self._submit_prompt)
+        self._send_enter_shortcut = QShortcut(
+            QKeySequence("Ctrl+Enter"),
+            self,
         )
+        self._send_enter_shortcut.activated.connect(self._submit_prompt)
 
         self._send_enter_shortcut = QShortcut(
             QKeySequence("Ctrl+Enter"),
