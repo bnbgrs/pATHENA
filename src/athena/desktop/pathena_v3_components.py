@@ -18,9 +18,9 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-_INK = QColor("#F2F0E8")
-_MUTED = QColor("#817F77")
-_ACTIVE = QColor("#C6F277")
+_INK = QColor("#F3F0F5")
+_MUTED = QColor("#85818C")
+_ACTIVE = QColor("#89E0CA")
 
 
 def _glyph_icon(name: str, *, active: bool) -> QIcon:
@@ -92,7 +92,7 @@ class V3NavigationButton(QPushButton):
         self.setProperty("active", False)
         self.setIcon(self._icons[False])
         self.setIconSize(QSize(22, 22))
-        self.setFixedSize(48, 48)
+        self.setFixedSize(46, 46)
         self.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         self.setToolTip(label)
         self.setAccessibleName(f"Open {label}")
@@ -115,10 +115,10 @@ class V3WorkspaceHeader(QFrame):
     def __init__(self, title: str, hint: str) -> None:
         super().__init__()
         self.setObjectName("v3Workbar")
-        self.setFixedHeight(68)
+        self.setFixedHeight(74)
 
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(32, 10, 24, 10)
+        layout.setContentsMargins(36, 12, 30, 10)
         layout.setSpacing(14)
 
         copy = QVBoxLayout()
