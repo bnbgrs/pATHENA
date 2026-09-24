@@ -35,7 +35,7 @@ def test_system_runtime_projects_only_snapshot_backed_security_facts() -> None:
 
     assert overview.core.value == "Ok"
     assert overview.network.value == "Provider reachable"
-    assert overview.local_processing.value == "Lm studio"
+    assert overview.local_processing.value == "LM Studio"
     assert overview.local_processing.state == "success"
     assert overview.storage.value == "Unavailable"
     assert overview.background.value == "Unavailable"

@@ -183,7 +183,7 @@ class _SecurityPosture(QFrame):
         self.loopback = _PostureRow("Loopback only")
         self.local_processing = _PostureRow("Local processing")
         self.encrypted = _PostureRow("Encrypted at rest")
-        self.tor = _PostureRow("Tor status")
+        self.tor = _PostureRow("TOR status")
         for row in (self.loopback, self.local_processing, self.encrypted, self.tor):
             layout.addWidget(row)
 
@@ -313,7 +313,9 @@ class SystemWorkspace(QWidget):
 
     def hideEvent(self, event: QHideEvent) -> None:  # noqa: N802
         if self._shell_inspector is not None:
-            self._shell_inspector.show()
+            owner = self.window()
+            if not bool(owner.property("pathenaV3Presentation")):
+                self._shell_inspector.show()
             self._shell_inspector = None
         super().hideEvent(event)
 

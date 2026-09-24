@@ -82,6 +82,13 @@ def _boolean(value: object) -> bool | None:
     return None
 
 
+def _provider_display_name(value: str) -> str:
+    normalized = value.strip()
+    if normalized.lower().replace(" ", "_") == "lm_studio":
+        return "LM Studio"
+    return normalized.replace("_", " ").title() or "Model provider"
+
+
 def _default_settings() -> QSettings:
     return QSettings(
         QSettings.Format.IniFormat,
@@ -241,10 +248,12 @@ class SettingsRuntimeController(QObject):
             provider_text = "Model provider · unavailable"
             provider_state = "error"
         elif freshness == "fresh":
-            provider_text = f"{provider.provider} · {provider.status}"
+            provider_text = f"{_provider_display_name(provider.provider)} · {provider.status}"
             provider_state = "success" if provider.status == "ready" else "error"
         else:
-            provider_text = f"{provider.provider} · last known {provider.status}"
+            provider_text = (
+                f"{_provider_display_name(provider.provider)} · last known {provider.status}"
+            )
             provider_state = "idle"
         self._set_state(
             self.provider_value,
