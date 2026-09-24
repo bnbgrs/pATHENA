@@ -37,7 +37,6 @@ from PySide6.QtWidgets import (
 
 from athena.api.contracts import GroundedChatResponse
 from athena.desktop.api_controller import DesktopApiController
-from athena.desktop.pathena_design_tokens import PALETTE
 from athena.desktop.pathena_pallas_semantic import (
     PallasGraphSnapshot,
     PallasNodeKind,
@@ -45,20 +44,30 @@ from athena.desktop.pathena_pallas_semantic import (
     deterministic_layout,
     graph_from_grounded_response,
 )
+from athena.desktop.pathena_v2_theme import (
+    V2_ACCENT,
+    V2_BG,
+    V2_BORDER_STRONG,
+    V2_DANGER,
+    V2_SUCCESS,
+    V2_TEXT,
+    V2_TEXT_DIM,
+    V2_TEXT_MUTED,
+)
 
-_CANVAS = QColor(PALETTE.canvas)
-_TEXT = QColor(PALETTE.text)
-_MUTED = QColor(PALETTE.text_muted)
-_QUIET = QColor(PALETTE.text_quiet)
-_BORDER = QColor(PALETTE.border)
-_ACCENT = QColor(PALETTE.accent)
-_SOURCE = QColor(PALETTE.accent)
-_CLAIM = QColor(PALETTE.success)
-_KNOWLEDGE = QColor(PALETTE.success)
-_QUESTION = QColor(PALETTE.question)
-_MEMORY = QColor(PALETTE.success)
-_CONFLICT = QColor(PALETTE.error)
-_UNCERTAIN = QColor(PALETTE.warning)
+_CANVAS = QColor(V2_BG)
+_TEXT = QColor(V2_TEXT)
+_MUTED = QColor(V2_TEXT_MUTED)
+_QUIET = QColor(V2_TEXT_DIM)
+_BORDER = QColor(V2_BORDER_STRONG)
+_ACCENT = QColor(V2_ACCENT)
+_SOURCE = QColor("#5FA8FF")
+_CLAIM = QColor(V2_SUCCESS)
+_KNOWLEDGE = QColor("#A78BFA")
+_QUESTION = QColor("#F2C66D")
+_MEMORY = QColor("#A78BFA")
+_CONFLICT = QColor(V2_DANGER)
+_UNCERTAIN = QColor("#F2C66D")
 
 
 @dataclass(frozen=True, slots=True)

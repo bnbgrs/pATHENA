@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from athena.desktop.pathena_design_tokens import PALETTE
 from athena.desktop.pathena_pallas_field import _CANVAS, _node_color
 from athena.desktop.pathena_pallas_semantic import PallasNodeKind, PallasSemanticNode
+from athena.desktop.pathena_v2_theme import V2_ACCENT, V2_BG, V2_DANGER, V2_SUCCESS
 
 
 def _node(kind: PallasNodeKind) -> PallasSemanticNode:
@@ -23,16 +23,16 @@ def _hex(kind: PallasNodeKind) -> str:
     return _node_color(_node(kind)).name().casefold()
 
 
-def test_pallas_canvas_uses_canonical_reference_canvas() -> None:
-    assert _CANVAS.name().casefold() == PALETTE.canvas.casefold()
+def test_pallas_canvas_uses_v2_canvas() -> None:
+    assert _CANVAS.name().casefold() == V2_BG.casefold()
 
 
-def test_pallas_reference_semantics_keep_distinct_reference_colors() -> None:
-    assert _hex(PallasNodeKind.FOCUS) == PALETTE.accent.casefold()
-    assert _hex(PallasNodeKind.SOURCE) == PALETTE.accent.casefold()
-    assert _hex(PallasNodeKind.CLAIM) == PALETTE.success.casefold()
-    assert _hex(PallasNodeKind.KNOWLEDGE) == PALETTE.success.casefold()
-    assert _hex(PallasNodeKind.MEMORY) == PALETTE.success.casefold()
-    assert _hex(PallasNodeKind.HYPOTHESIS) == PALETTE.question.casefold()
-    assert _hex(PallasNodeKind.CONFLICT) == PALETTE.error.casefold()
-    assert _hex(PallasNodeKind.UNCERTAIN) == PALETTE.warning.casefold()
+def test_pallas_v2_semantics_keep_distinct_workspace_colors() -> None:
+    assert _hex(PallasNodeKind.FOCUS) == V2_ACCENT.casefold()
+    assert _hex(PallasNodeKind.SOURCE) == "#5fa8ff"
+    assert _hex(PallasNodeKind.CLAIM) == V2_SUCCESS.casefold()
+    assert _hex(PallasNodeKind.KNOWLEDGE) == "#a78bfa"
+    assert _hex(PallasNodeKind.MEMORY) == "#a78bfa"
+    assert _hex(PallasNodeKind.HYPOTHESIS) == "#f2c66d"
+    assert _hex(PallasNodeKind.CONFLICT) == V2_DANGER.casefold()
+    assert _hex(PallasNodeKind.UNCERTAIN) == "#f2c66d"

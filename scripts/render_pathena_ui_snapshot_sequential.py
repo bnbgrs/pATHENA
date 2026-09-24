@@ -187,6 +187,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
 
     from PySide6.QtCore import Qt, QTimer
+    from PySide6.QtGui import QPixmap
     from PySide6.QtWidgets import QListWidget, QMainWindow, QPlainTextEdit, QWidget
 
     from athena.desktop.app import create_application
@@ -219,7 +220,16 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     def save_widget(widget: QWidget, *, ordinal: int, label: str, kind: str) -> None:
         output = screenshot_directory / f"{ordinal:02d}-{_safe_name(label)}.png"
-        if not widget.grab().save(str(output), "PNG"):
+        # QWidget.grab() can copy an incompletely flushed backing store after a
+        # stacked-page transition on native Windows.  Render the complete widget
+        # tree into a fresh pixmap so unchanged shell regions cannot disappear.
+        widget.ensurePolished()
+        widget.repaint()
+        app.processEvents()
+        capture = QPixmap(widget.size())
+        capture.fill(Qt.GlobalColor.black)
+        widget.render(capture)
+        if not capture.save(str(output), "PNG"):
             raise RuntimeError(f"Qt failed to save {output.name}.")
         captures.append(
             {

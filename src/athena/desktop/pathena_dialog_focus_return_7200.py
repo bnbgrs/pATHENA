@@ -30,6 +30,13 @@ class DialogFocusReturnController(QObject):
         window.setProperty("pathenaDialogFocusReturnManaged", True)
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:  # noqa: N802
+        # PySide can route layout-item show events through an application-wide
+        # filter even though ``QObject.eventFilter`` only accepts QObject
+        # instances.  Those events are unrelated to dialog focus ownership and
+        # must not be forwarded to the C++ base implementation.
+        candidate: object = watched
+        if not isinstance(candidate, QObject):
+            return False
         if isinstance(watched, QDialog) and self._belongs_to_window(watched):
             if event.type() == QEvent.Type.Show:
                 self._capture(watched)

@@ -197,3 +197,39 @@ def test_full_view_reclaims_stale_inspector_and_restores_previous_context() -> N
     inspector.dispose()
     full_view.dispose()
     window.close()
+
+
+
+def test_full_view_uses_dedicated_v2_inspector_without_exposing_legacy_panel() -> None:
+    app, window, grounded, full_view = _surface()
+    inspector = install_pallas_context_inspector(window, grounded)
+    grounded.apply_snapshot(_snapshot())
+
+    full_view.open_workspace()
+    app.processEvents()
+
+    legacy_panel = window.findChild(QFrame, "inspector")
+    v2_panel = window.findChild(QFrame, "v2PallasInspector")
+    v2_title = window.findChild(QLabel, "v2PallasInspectorTitle")
+    v2_body = window.findChild(QLabel, "v2PallasInspectorBody")
+    assert legacy_panel is not None
+    assert v2_panel is not None and v2_panel.isVisible()
+    assert not legacy_panel.isVisible()
+    assert v2_title is not None and v2_title.text().endswith("Grounded response")
+    assert v2_body is not None and "Graph  grounded-run:run-2" in v2_body.text()
+
+    workspace = full_view.workspace
+    assert workspace is not None
+    assert workspace.field.focus_node("canonical_claim:claim-2")
+    app.processEvents()
+
+    assert v2_title.text().endswith("Supported claim")
+    assert "Confidence  0.91" in v2_body.text()
+    assert legacy_panel.property("pathenaPallasSelectionId") == "canonical_claim:claim-2"
+    assert not legacy_panel.isVisible()
+
+    full_view.close_workspace()
+    app.processEvents()
+    inspector.dispose()
+    full_view.dispose()
+    window.close()

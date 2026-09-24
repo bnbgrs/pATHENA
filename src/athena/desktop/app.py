@@ -38,7 +38,6 @@ from athena.desktop.pathena_empty_search_comprehension_7100 import (
 )
 from athena.desktop.pathena_external_workspaces import install_external_workspaces
 from athena.desktop.pathena_inspector_scanability_6700 import apply_inspector_scanability
-from athena.desktop.pathena_interaction_refinement import install_interaction_refinement
 from athena.desktop.pathena_jobs_experience_2800 import install_jobs_experience
 from athena.desktop.pathena_knowledge_acceptance_presentation import (
     apply_knowledge_acceptance_presentation,
@@ -73,7 +72,6 @@ from athena.desktop.pathena_progressive_workspace_2300 import (
     install_progressive_workspace_refinement,
 )
 from athena.desktop.pathena_quiet_success_decay_6400 import apply_quiet_success_decay
-from athena.desktop.pathena_reference_parity import install_reference_parity
 from athena.desktop.pathena_research_experience_2500 import install_research_experience
 from athena.desktop.pathena_research_knowledge_transition_2700 import (
     install_research_knowledge_transition,
@@ -92,18 +90,23 @@ from athena.desktop.pathena_research_result_presentation import (
     apply_research_result_presentation,
 )
 from athena.desktop.pathena_result_scope_clarity import apply_result_scope_clarity
-from athena.desktop.pathena_secondary_navigation import install_settings_secondary_navigation
 from athena.desktop.pathena_selection_disappearance_handoff import (
     install_selection_disappearance_handoff,
 )
 from athena.desktop.pathena_settings_runtime import install_settings_runtime
 from athena.desktop.pathena_shell_density import apply_shell_density
 from athena.desktop.pathena_startup_experience_2900 import install_startup_experience
-from athena.desktop.pathena_theme import PATHENA_STYLESHEET
 from athena.desktop.pathena_transient_dialog_shortcuts import (
     install_transient_dialog_shortcut_continuity,
 )
 from athena.desktop.pathena_ui_refinement_integrity import apply_complete_ui_refinements
+from athena.desktop.pathena_v2_jobs import install_v2_jobs_workspace
+from athena.desktop.pathena_v2_knowledge import install_v2_knowledge_workspace
+from athena.desktop.pathena_v2_research import install_v2_research_workspace
+from athena.desktop.pathena_v2_shell import install_v2_shell
+from athena.desktop.pathena_v2_sources import install_v2_sources_workspace
+from athena.desktop.pathena_v2_system import install_v2_system_workspace
+from athena.desktop.pathena_v2_theme import PATHENA_V2_STYLESHEET
 from athena.desktop.pathena_window import PathenaMainWindow
 from athena.desktop.pathena_workspace_presentation import apply_workspace_presentation
 from athena.desktop.research_results_extension import install_research_results_extension
@@ -131,7 +134,7 @@ def create_application(argv: Sequence[str] | None = None) -> QApplication:
     app.setOrganizationName("ATHENA")
     app.setApplicationDisplayName("pATHENA")
     app.setFont(QFont("Segoe UI", 10))
-    app.setStyleSheet(PATHENA_STYLESHEET)
+    app.setStyleSheet(PATHENA_V2_STYLESHEET)
     return app
 
 
@@ -195,10 +198,13 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     controller = DesktopApiController(client)
     window = PathenaMainWindow(api_controller=controller)
+    v2_shell = install_v2_shell(window)
     settings_runtime = install_settings_runtime(window, controller)
-    install_settings_secondary_navigation(window)
     pallas_grounded_field = install_pallas_grounded_field(window, controller)
     pallas_full_view = install_pallas_full_view(window, pallas_grounded_field)
+    v2_shell.bind_pallas(pallas_full_view.open_workspace)
+    pallas_full_view.workspace_opened.connect(v2_shell.pallas_opened)
+    pallas_full_view.workspace_closed.connect(v2_shell.pallas_closed)
     pallas_context_inspector = install_pallas_context_inspector(
         window,
         pallas_grounded_field,
@@ -229,6 +235,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     apply_workspace_presentation(window)
     install_navigation_context_accessibility(window)
     command_palette = install_command_palette(window)
+    v2_shell.bind_command_palette(command_palette.open)
     external_workspaces = install_external_workspaces(
         window,
         command_palette,
@@ -259,7 +266,6 @@ def main(argv: Sequence[str] | None = None) -> int:
     message_action_accessibility = install_message_action_accessibility(window)
     message_action_tab_order = install_message_action_tab_order(window)
     message_action_quiet = install_message_action_quiet(window)
-    interaction_refinement = install_interaction_refinement(window)
     layout_refinement = install_layout_refinement(window)
     progressive_workspace_refinement = install_progressive_workspace_refinement(window)
     research_readability = install_research_readability(window, research_results_extension)
@@ -287,7 +293,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         system_backup.backup,
         research_results_extension,
     )
-    reference_parity = install_reference_parity(window, command_palette.open)
     install_primary_input_accessibility(
         window,
         chat_prompt=window.prompt_input,
@@ -295,13 +300,20 @@ def main(argv: Sequence[str] | None = None) -> int:
         research_query=research_workspace.query_input,
         research_filter=research_results_extension.job_filter,
     )
+    v2_knowledge = install_v2_knowledge_workspace(knowledge_workspace)
+    v2_research = install_v2_research_workspace(
+        research_workspace,
+        research_results_extension,
+    )
+    v2_jobs = install_v2_jobs_workspace(jobs_workspace)
+    v2_sources = install_v2_sources_workspace(files_workspace)
+    v2_system = install_v2_system_workspace(system_workspace)
+    v2_shell.finalize()
     _schedule_initial_core_refreshes(controller, supervisor, scheduler_supervisor)
     heartbeat = _start_core_refresh_heartbeat(controller, supervisor, scheduler_supervisor)
     window.show()
     exit_code = app.exec()
     heartbeat.stop()
-    reference_parity.dispose()
-    reference_parity.deleteLater()
     selection_disappearance_handoff.deleteLater()
     background_completion_accessibility.deleteLater()
     research_knowledge_transition.deleteLater()
@@ -310,7 +322,6 @@ def main(argv: Sequence[str] | None = None) -> int:
     research_readability.deleteLater()
     progressive_workspace_refinement.deleteLater()
     layout_refinement.deleteLater()
-    interaction_refinement.deleteLater()
     message_action_quiet.deleteLater()
     message_action_tab_order.deleteLater()
     message_action_accessibility.deleteLater()
@@ -330,6 +341,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     knowledge_tab_refresh_handoff.deleteLater()
     knowledge_detail_ownership.deleteLater()
     knowledge_selection_continuity.deleteLater()
+    v2_system.deleteLater()
+    v2_sources.deleteLater()
+    v2_jobs.deleteLater()
+    v2_research.deleteLater()
+    v2_knowledge.deleteLater()
     knowledge_workspace.deleteLater()
     research_proposal_focus.deleteLater()
     research_proposal_density.deleteLater()
@@ -351,6 +367,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     pallas_full_view.dispose()
     pallas_full_view.deleteLater()
     pallas_grounded_field.deleteLater()
+    v2_shell.dispose()
+    v2_shell.deleteLater()
     settings_runtime.deleteLater()
     return exit_code
 
