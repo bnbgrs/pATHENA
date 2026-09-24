@@ -358,6 +358,42 @@ def main(argv: Sequence[str] | None = None) -> int:
                         ),
                     }
                 captures[-1]["chat_controls"] = controls
+            if row == 2:
+                research = pages.widget(2)
+                controls = {}
+                for control_name in ("query_input", "start_button", "cancel_button", "refresh_button"):
+                    control = getattr(research, control_name, None)
+                    parent = control.parentWidget() if control is not None else None
+                    geometry = control.geometry() if control is not None else None
+                    controls[control_name] = {
+                        "visible": bool(control is not None and control.isVisible()),
+                        "enabled": bool(control is not None and control.isEnabled()),
+                        "parent": parent.objectName() if parent is not None else None,
+                        "geometry": (
+                            [geometry.x(), geometry.y(), geometry.width(), geometry.height()]
+                            if geometry is not None
+                            else None
+                        ),
+                    }
+                captures[-1]["research_controls"] = controls
+            if row == 4:
+                sources = pages.widget(4)
+                controls = {}
+                for control_name in ("refresh_button", "process_button", "import_button"):
+                    control = getattr(sources, control_name, None)
+                    parent = control.parentWidget() if control is not None else None
+                    geometry = control.geometry() if control is not None else None
+                    controls[control_name] = {
+                        "visible": bool(control is not None and control.isVisible()),
+                        "enabled": bool(control is not None and control.isEnabled()),
+                        "parent": parent.objectName() if parent is not None else None,
+                        "geometry": (
+                            [geometry.x(), geometry.y(), geometry.width(), geometry.height()]
+                            if geometry is not None
+                            else None
+                        ),
+                    }
+                captures[-1]["source_controls"] = controls
             captures[-1].update(knowledge_evidence)
 
     def diagnostic_pallas_snapshot() -> PallasGraphSnapshot:
