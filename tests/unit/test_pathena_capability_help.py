@@ -9,7 +9,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 pytest.importorskip("PySide6")
 
-from PySide6.QtWidgets import QApplication, QFrame
+from PySide6.QtWidgets import QApplication, QFrame, QLabel
 
 from athena.desktop.app import create_application
 from athena.desktop.command_palette import CommandPaletteController
@@ -21,6 +21,7 @@ from athena.desktop.pathena_capability_catalog import (
 )
 from athena.desktop.pathena_capability_help import install_capability_help
 from athena.desktop.pathena_v3_theme import V3_ACCENT, V3_ACCENT_SOFT, V3_BORDER
+from athena.desktop.pathena_v3_shell import install_v3_shell
 from athena.desktop.pathena_window import PathenaMainWindow
 
 
@@ -177,6 +178,38 @@ def test_help_secondary_navigation_uses_v3_selection_language() -> None:
         assert f"border-left: 2px solid {V3_ACCENT}" in sections_style
         assert "outline: none" in sections_style
     finally:
+        palette.deleteLater()
+        window.close()
+        app.processEvents()
+
+
+def test_help_is_hosted_inside_v3_workspace_and_restores_workbar_context() -> None:
+    app = _app()
+    window = PathenaMainWindow(api_controller=None)
+    install_v3_shell(window)
+    palette = CommandPaletteController(window)
+    controller = install_capability_help(palette)
+    window.show()
+    app.processEvents()
+    try:
+        title = window.findChild(QLabel, "v3PageTitle")
+        assert title is not None
+        assert title.text() == "Chat"
+
+        palette.open_help()
+        app.processEvents()
+
+        workspace = window.findChild(QFrame, "v3Workspace")
+        assert workspace is not None
+        assert palette.help_dialog.parent() is workspace
+        assert palette.help_dialog.geometry() == workspace.rect()
+        assert title.text() == "Help"
+
+        palette.help_dialog.hide()
+        app.processEvents()
+        assert title.text() == "Chat"
+    finally:
+        controller.dispose()
         palette.deleteLater()
         window.close()
         app.processEvents()
