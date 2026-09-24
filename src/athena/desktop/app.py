@@ -193,7 +193,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     settings_runtime = install_settings_runtime(window, controller)
     pallas_grounded_field = install_pallas_grounded_field(window, controller)
     pallas_full_view = install_pallas_full_view(window, pallas_grounded_field)
-    v3_shell.bind_pallas(pallas_full_view.open_workspace)
+    v3_shell.bind_pallas(
+        pallas_full_view.open_workspace,
+        pallas_full_view.close_workspace,
+    )
     pallas_full_view.workspace_opened.connect(v3_shell.pallas_opened)
     pallas_full_view.workspace_closed.connect(v3_shell.pallas_closed)
     pallas_context_inspector = install_pallas_context_inspector(
