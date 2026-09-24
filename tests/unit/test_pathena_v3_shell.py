@@ -93,7 +93,13 @@ def test_v3_shell_keeps_real_command_and_pallas_entry_points() -> None:
     window.show()
     controller._command_button.setFocus(Qt.FocusReason.TabFocusReason)
     QApplication.processEvents()
+    assert controller._command_button.hasFocus()
     controller._command_button.click()
+
+    controller._nav_buttons[1].setFocus(Qt.FocusReason.TabFocusReason)
+    QApplication.processEvents()
+    assert controller._nav_buttons[1].hasFocus()
+
     controller._pallas_button.click()
 
     assert calls == ["command", "pallas"]
@@ -165,6 +171,8 @@ def test_v3_styles_close_system_and_context_surface_drift() -> None:
     assert "QWidget#backupWorkspace" in PATHENA_V3_STYLESHEET
     assert "QFrame#inspectorRouteContext" in PATHENA_V3_STYLESHEET
     assert "QDialog#helpWorkspace" in PATHENA_V3_STYLESHEET
+    assert 'QPushButton[v3Nav="true"]:focus' in PATHENA_V3_STYLESHEET
+    assert "QPushButton#v3CommandButton:focus" in PATHENA_V3_STYLESHEET
 
 
 def test_v3_system_transition_never_restores_legacy_inspector() -> None:
