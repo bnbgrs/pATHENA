@@ -46,6 +46,7 @@ class PathenaV3ShellController(QObject):
         self._window = window
         self._command_callback: Callable[[], None] | None = None
         self._pallas_callback: Callable[[], None] | None = None
+        self._pallas_close_callback: Callable[[], None] | None = None
         self._nav_buttons: dict[int, V3NavigationButton] = {}
         self._legacy_shell: QWidget | None = None
         self._inspector: QFrame | None = None
@@ -64,8 +65,14 @@ class PathenaV3ShellController(QObject):
         self._command_callback = callback
         self._command_button.setEnabled(True)
 
-    def bind_pallas(self, callback: Callable[[], None]) -> None:
+    def bind_pallas(
+        self,
+        callback: Callable[[], None],
+        close_callback: Callable[[], None] | None = None,
+    ) -> None:
+        """Bind the living PALLAS surface as an explicit shell-owned mode."""
         self._pallas_callback = callback
+        self._pallas_close_callback = close_callback
         self._pallas_button.setEnabled(True)
 
     def finalize(self) -> None:
@@ -182,7 +189,7 @@ class PathenaV3ShellController(QObject):
     def _make_nav_button(self, index: int, label: str) -> V3NavigationButton:
         button = V3NavigationButton(label, icon_name=_PAGE_ICONS[index])
         button.clicked.connect(
-            lambda _checked=False, row=index: self._window.navigation.setCurrentRow(row)
+            lambda _checked=False, row=index: self._activate_route(row)
         )
         self._nav_buttons[index] = button
         return button
@@ -497,6 +504,26 @@ class PathenaV3ShellController(QObject):
         self._pallas_button.set_active(False)
         self._sync_navigation(max(0, self._window.navigation.currentRow()))
 
+    def _activate_route(self, index: int) -> None:
+        """Return PALLAS ownership before activating a primary workspace.
+
+        Setting an already-selected row emits no route-change signal. Closing
+        PALLAS here keeps every visible rail button functional even when the
+        requested primary route is already selected underneath PALLAS.
+        """
+        if bool(self._window.property("pathenaPallasShellOpen")):
+            if self._pallas_close_callback is not None:
+                self._pallas_close_callback()
+            else:
+                self._window.setProperty("pathenaPallasShellOpen", False)
+                self.pallas_closed()
+
+        if self._window.navigation.currentRow() == index:
+            self._window.pages.setCurrentIndex(index)
+            self._sync_navigation(index)
+            return
+        self._window.navigation.setCurrentRow(index)
+
     @Slot()
     def _open_command_palette(self) -> None:
         if self._command_callback is not None:
@@ -504,6 +531,10 @@ class PathenaV3ShellController(QObject):
 
     @Slot()
     def _open_pallas(self) -> None:
+        if bool(self._window.property("pathenaPallasShellOpen")):
+            if self._pallas_close_callback is not None:
+                self._pallas_close_callback()
+            return
         if self._pallas_callback is not None:
             self._pallas_callback()
 
@@ -515,6 +546,7 @@ class PathenaV3ShellController(QObject):
             pass
         self._command_callback = None
         self._pallas_callback = None
+        self._pallas_close_callback = None
 
 
 def install_v3_shell(window: PathenaMainWindow) -> PathenaV3ShellController:
