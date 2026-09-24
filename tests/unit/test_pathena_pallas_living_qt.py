@@ -153,6 +153,7 @@ def test_qt_bridge_reduced_motion_keeps_semantic_field_still(
         assert living._reduced_motion is True  # noqa: SLF001
         assert living.engine.tick == 0
         assert grounded.field.property("pathenaPallasLiving") is True
+        assert grounded.field.property("pathenaPallasTargetFps") == 0
         assert grounded.field.snapshot is not None
     finally:
         living.stop()
