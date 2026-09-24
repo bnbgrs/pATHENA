@@ -48,6 +48,7 @@ class PathenaV3ShellController(QObject):
         self._command_callback: Callable[[], None] | None = None
         self._pallas_callback: Callable[[], None] | None = None
         self._pallas_close_callback: Callable[[], None] | None = None
+        self._transient_close_callback: Callable[[], None] | None = None
         self._inspector_available = False
         self._nav_buttons: dict[int, V3NavigationButton] = {}
         self._legacy_shell: QWidget | None = None
@@ -539,8 +540,14 @@ class PathenaV3ShellController(QObject):
         elif inspector is not None:
             inspector.setVisible(self._inspector_button.isChecked())
 
-    def transient_workspace_opened(self, title: str, hint: str) -> None:
+    def transient_workspace_opened(
+        self,
+        title: str,
+        hint: str,
+        close_callback: Callable[[], None] | None = None,
+    ) -> None:
         """Represent a shell-hosted tool without falsely selecting a primary route."""
+        self._transient_close_callback = close_callback
         for button in self._nav_buttons.values():
             button.set_active(False)
         self._pallas_button.set_active(False)
@@ -552,6 +559,7 @@ class PathenaV3ShellController(QObject):
 
     def transient_workspace_closed(self) -> None:
         """Restore whichever durable route or PALLAS mode still owns the shell."""
+        self._transient_close_callback = None
         if bool(self._window.property("pathenaPallasShellOpen")):
             self.pallas_opened()
             return
@@ -574,12 +582,17 @@ class PathenaV3ShellController(QObject):
         self._sync_navigation(max(0, self._window.navigation.currentRow()))
 
     def _activate_route(self, index: int) -> None:
-        """Return PALLAS ownership before activating a primary workspace.
+        """Return transient/PALLAS ownership before activating a primary workspace.
 
-        Setting an already-selected row emits no route-change signal. Closing
-        PALLAS here keeps every visible rail button functional even when the
-        requested primary route is already selected underneath PALLAS.
+        Setting an already-selected row emits no route-change signal. Explicitly
+        closing shell-owned overlays here keeps every visible rail button
+        functional even when the requested route is already selected underneath.
         """
+        transient_close = self._transient_close_callback
+        if transient_close is not None:
+            self._transient_close_callback = None
+            transient_close()
+
         if bool(self._window.property("pathenaPallasShellOpen")):
             if self._pallas_close_callback is not None:
                 self._pallas_close_callback()
@@ -631,6 +644,7 @@ class PathenaV3ShellController(QObject):
         self._command_callback = None
         self._pallas_callback = None
         self._pallas_close_callback = None
+        self._transient_close_callback = None
 
 
 def install_v3_shell(window: PathenaMainWindow) -> PathenaV3ShellController:
