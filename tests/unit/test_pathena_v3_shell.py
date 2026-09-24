@@ -71,6 +71,7 @@ def test_v3_shell_keeps_real_command_and_pallas_entry_points() -> None:
     window.show()
     controller._command_button.setFocus(Qt.FocusReason.TabFocusReason)
     QApplication.processEvents()
+    assert controller._command_button.hasFocus()
     controller._command_button.click()
     controller._pallas_button.click()
 
@@ -114,3 +115,32 @@ def test_v3_finalize_reuses_real_settings_controls() -> None:
     assert controller._nav_buttons[6].property("active") is True
 
     window.close()
+
+
+def test_v3_shell_keeps_core_chat_controls_visible_at_minimum_desktop_size() -> None:
+    app = _app()
+    window = PathenaMainWindow(api_controller=None)
+    controller = install_v3_shell(window)
+    controller.finalize()
+
+    window.resize(1120, 720)
+    window.show()
+    app.processEvents()
+
+    try:
+        assert window.size().width() >= 1120
+        assert window.size().height() >= 720
+        assert window.model_selector.isVisible()
+        assert window.chat_selector.isVisible()
+        assert window.prompt_input.isVisible()
+        assert window.ground_button.isVisible()
+        assert window.send_button.isVisible()
+        assert controller._nav_buttons[0].isVisible()
+        assert controller._nav_buttons[6].isVisible()
+
+        window.prompt_input.setFocus(Qt.FocusReason.TabFocusReason)
+        app.processEvents()
+        assert window.prompt_input.hasFocus()
+    finally:
+        window.close()
+        app.processEvents()
