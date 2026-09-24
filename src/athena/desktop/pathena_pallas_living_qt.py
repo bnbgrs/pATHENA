@@ -72,7 +72,9 @@ class PallasLivingQtController(QObject):
         self._bindings: dict[int, _FieldBinding] = {}
         self._timer = QTimer(self)
         self._timer.setTimerType(Qt.TimerType.PreciseTimer)
-        self._timer.setInterval(round(1000 / self._engine.config.fps))
+        self._active_interval_ms = round(1000 / self._engine.config.fps)
+        self._idle_interval_ms = 250
+        self._timer.setInterval(self._active_interval_ms)
         self._timer.timeout.connect(self._tick)
         self._timer.start()
 
@@ -111,6 +113,8 @@ class PallasLivingQtController(QObject):
             self._bindings.clear()
             self._engine.clear()
             self._graph_id = None
+            if self._timer.interval() != self._idle_interval_ms:
+                self._timer.setInterval(self._idle_interval_ms)
             return
 
         if snapshot.graph_id != self._graph_id:
@@ -123,6 +127,13 @@ class PallasLivingQtController(QObject):
             self._bindings.clear()
 
         fields = self._live_fields()
+        target_interval = (
+            self._active_interval_ms
+            if any(current.isVisible() for current in fields)
+            else self._idle_interval_ms
+        )
+        if self._timer.interval() != target_interval:
+            self._timer.setInterval(target_interval)
         live_ids = {id(current) for current in fields}
         for stale_id in tuple(self._bindings):
             if stale_id not in live_ids:
