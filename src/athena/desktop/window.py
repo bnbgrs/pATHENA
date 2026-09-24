@@ -292,8 +292,11 @@ class AthenaMainWindow(QMainWindow):
         self.ground_button = QPushButton("GROUND")
         self.send_button = QPushButton("CTRL+ENTER")
         self.chat_selector = QComboBox()
+        self.chat_selector.addItem("CONNECTING…", None)
         self.model_selector = QComboBox()
         self.settings_model_selector = QComboBox()
+        for selector in (self.model_selector, self.settings_model_selector):
+            selector.addItem("CONNECTING…", None)
         self.context_slider = QSlider(Qt.Orientation.Horizontal)
         self.context_value_label = QLabel("—")
         self.delete_chat_button = QPushButton("DELETE")
