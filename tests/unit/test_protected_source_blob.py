@@ -181,6 +181,42 @@ def test_protected_multichunk_file_is_ciphertext_only_and_roundtrips(
             assert password not in data, path
 
 
+def test_protected_media_type_comes_from_encrypted_plaintext_not_reopened_source(
+    tmp_path: Path, monkeypatch
+) -> None:
+    original = tmp_path / "mutable-protected-signature.bin"
+    captured_payload = b"%PDF-1.7\nprotected-original"
+    replacement_payload = b"\x89PNG\r\n\x1a\n" + b"R" * (len(captured_payload) - 8)
+    original.write_bytes(captured_payload)
+    app = _app(tmp_path / "runtime")
+    try:
+        scope = _new_scope(app, password=b"protected-media-type-password")
+        commit_encrypted_staging = app.blob_store.commit_encrypted_staging
+
+        def commit_then_replace_source(*args, **kwargs):
+            committed = commit_encrypted_staging(*args, **kwargs)
+            original.write_bytes(replacement_payload)
+            return committed
+
+        monkeypatch.setattr(
+            app.blob_store,
+            "commit_encrypted_staging",
+            commit_then_replace_source,
+        )
+
+        captured = app.sources.capture_protected_file(
+            original,
+            protection_scope_id=scope.protection_scope_id,
+        )
+
+        assert original.read_bytes() == replacement_payload
+        metadata = app.sources.load_protected_metadata(captured.source.source_id)
+        assert metadata.mime_type == "application/pdf"
+        assert app.sources.read_protected_bytes(captured.source.source_id) == captured_payload
+    finally:
+        app.stop()
+
+
 def test_protected_duplicates_do_not_deduplicate_and_restart_is_locked(
     tmp_path: Path,
 ) -> None:
