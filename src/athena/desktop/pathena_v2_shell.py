@@ -504,7 +504,7 @@ class PathenaV2ShellController(QObject):
         self._pallas_button.set_active(True)
         self._header.set_context(
             "PALLAS",
-            "A living semantic field grounded in real local state.",
+            "Living semantic workspace",
         )
 
     @Slot()
