@@ -353,6 +353,9 @@ class PathenaMainWindow(AthenaMainWindow):
         context_available = (
             isinstance(context_button, QPushButton) and not context_button.isHidden()
         )
+        if bool(self.property("pathenaV3Presentation")):
+            inspector.setVisible(self.navigation.currentRow() == 0 and context_available)
+            return
         inspector.setVisible(self.navigation.currentRow() != 0 or context_available)
 
     def _set_context_available(self, available: bool) -> None:
