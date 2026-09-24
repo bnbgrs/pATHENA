@@ -44,6 +44,7 @@ class PathenaV3ShellController(QObject):
     def __init__(self, window: PathenaMainWindow) -> None:
         super().__init__(window)
         self._window = window
+        window.setProperty("pathenaV3Presentation", True)
         self._command_callback: Callable[[], None] | None = None
         self._pallas_callback: Callable[[], None] | None = None
         self._pallas_close_callback: Callable[[], None] | None = None
