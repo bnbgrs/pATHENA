@@ -39,6 +39,10 @@ class PathenaV3ResearchController(QObject):
                 child.hide()
 
         workspace.setObjectName("v3ResearchWorkspace")
+        # V3 owns presentation at the application level. Drop presentation-only
+        # local QSS installed by legacy experience controllers while preserving
+        # their behavior, accessibility metadata, shortcuts and state wiring.
+        workspace.setStyleSheet("")
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(14)
 
