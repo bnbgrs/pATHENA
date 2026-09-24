@@ -33,11 +33,18 @@ def test_v3_shell_is_structurally_distinct_and_keeps_route_contract() -> None:
 
     rail = shell.findChild(QFrame, "v3Rail")
     assert rail is not None
-    assert rail.width() == 70
-    assert all(
-        button.text() == ""
-        for button in (*controller._nav_buttons.values(), controller._pallas_button)
-    )
+    assert rail.width() == 88
+    assert shell.findChild(QFrame, "v3BuildMark") is None
+    assert [button.text() for button in controller._nav_buttons.values()] == [
+        "Chat",
+        "Knowledge",
+        "Research",
+        "Jobs",
+        "Sources",
+        "System",
+        "Settings",
+    ]
+    assert controller._pallas_button.text() == "PALLAS"
     assert all(
         not button.icon().isNull()
         for button in (*controller._nav_buttons.values(), controller._pallas_button)
@@ -172,8 +179,8 @@ def test_v3_primary_route_can_reclaim_workspace_from_pallas_without_row_change()
 
 
 def test_v3_theme_has_explicit_keyboard_focus_for_primary_actions() -> None:
-    assert 'QPushButton[v3Nav="true"]:focus' in PATHENA_V3_STYLESHEET
-    assert 'QPushButton[v3Nav="true"][active="true"]:focus' in PATHENA_V3_STYLESHEET
+    assert 'QToolButton[v3Nav="true"]:focus' in PATHENA_V3_STYLESHEET
+    assert 'QToolButton[v3Nav="true"][active="true"]:focus' in PATHENA_V3_STYLESHEET
     assert "QPushButton#v3CommandButton:focus" in PATHENA_V3_STYLESHEET
     assert "QPushButton#sendButton:focus" in PATHENA_V3_STYLESHEET
     assert "QPushButton:focus" in PATHENA_V3_STYLESHEET
@@ -211,5 +218,41 @@ def test_v3_non_chat_routes_cannot_reopen_stale_global_inspector() -> None:
     window._sync_progressive_chat_actions()
     window._sync_inspector_visibility()
     assert not inspector.isVisible()
+
+    window.close()
+
+
+
+def test_v3_evidence_inspector_is_explicit_contextual_and_chat_only() -> None:
+    app = _app()
+    window = PathenaMainWindow(api_controller=None)
+    controller = install_v3_shell(window)
+    inspector = window.findChild(QFrame, "inspector")
+    assert inspector is not None
+
+    window.show()
+    app.processEvents()
+
+    assert controller._inspector_button.isHidden()
+    assert inspector.isHidden()
+
+    window._set_context_available(True)
+    app.processEvents()
+    assert controller._inspector_button.isVisible()
+    assert inspector.isHidden()
+
+    controller._inspector_button.click()
+    app.processEvents()
+    assert inspector.isVisible()
+
+    window.navigation.setCurrentRow(1)
+    app.processEvents()
+    assert inspector.isHidden()
+    assert controller._inspector_button.isHidden()
+
+    window.navigation.setCurrentRow(0)
+    app.processEvents()
+    assert controller._inspector_button.isVisible()
+    assert inspector.isHidden()
 
     window.close()
