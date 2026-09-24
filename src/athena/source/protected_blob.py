@@ -241,6 +241,7 @@ class ProtectedBlobStore:
             digest = hashlib.sha256()
             ciphertext_length = 0
             plaintext_length = 0
+            media_type_prefix = bytearray()
             chunk_index = 0
 
             try:
@@ -256,6 +257,10 @@ class ProtectedBlobStore:
                         if chunk_index > 0xFFFFFFFF:
                             raise ValueError(
                                 "Protected Blob exceeds the v1 chunk-index range."
+                            )
+                        if len(media_type_prefix) < 16:
+                            media_type_prefix.extend(
+                                chunk[: 16 - len(media_type_prefix)]
                             )
                         nonce = nonce_prefix + chunk_index.to_bytes(4, "big")
                         encrypted = self.protected_content.crypto.encrypt_with_nonce(
@@ -306,7 +311,10 @@ class ProtectedBlobStore:
                 integrity_sha256=integrity_sha256,
                 byte_length=ciphertext_length,
             )
-            exact_media_type = self.blob_store.detect_media_type(source_path)
+            exact_media_type = self.blob_store.detect_captured_media_type(
+                prefix=bytes(media_type_prefix),
+                filename=source_path.name,
+            )
             metadata = ProtectedSourceMetadata(
                 source_type=source_type,
                 original_name=source_path.name,

@@ -197,3 +197,34 @@ def test_source_change_during_streaming_fails_before_source_commit(
         assert app.database.connection.execute("SELECT COUNT(*) FROM sources").fetchone()[0] == 0
     finally:
         app.stop()
+
+
+def test_capture_media_type_comes_from_captured_bytes_not_reopened_source(
+    tmp_path: Path, monkeypatch
+) -> None:
+    original = tmp_path / "mutable-signature.bin"
+    captured_payload = b"%PDF-1.7\ncaptured-original"
+    replacement_payload = b"\x89PNG\r\n\x1a\n" + b"R" * (len(captured_payload) - 8)
+    original.write_bytes(captured_payload)
+
+    app = _started_app(tmp_path)
+    commit_staged_blob = app.blob_store._commit_staged_blob
+
+    def commit_then_replace_source(*args, **kwargs):
+        committed = commit_staged_blob(*args, **kwargs)
+        original.write_bytes(replacement_payload)
+        return committed
+
+    monkeypatch.setattr(
+        app.blob_store,
+        "_commit_staged_blob",
+        commit_then_replace_source,
+    )
+
+    try:
+        captured = app.sources.capture_file(original)
+        assert original.read_bytes() == replacement_payload
+        assert captured.source.mime_type == "application/pdf"
+        assert app.sources.verify(captured.source.source_id).read_bytes() == captured_payload
+    finally:
+        app.stop()
