@@ -502,10 +502,7 @@ class PathenaV2ShellController(QObject):
         for button in self._nav_buttons.values():
             button.set_active(False)
         self._pallas_button.set_active(True)
-        self._header.set_context(
-            "PALLAS",
-            "A living semantic field grounded in real local state.",
-        )
+        self._header.set_context("PALLAS", "Living semantic workspace")
 
     @Slot()
     def pallas_closed(self) -> None:
