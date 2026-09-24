@@ -54,6 +54,9 @@ def test_v2_comfyui_is_shell_hosted_and_restores_selected_route() -> None:
         assert controller.dialog.property("pathenaShellHosted") is True
         assert controller.dialog.property("pathenaComfyUiShellHosted") is True
         assert controller.dialog.geometry() == workspace.rect()
+        inspector = window.findChild(QWidget, "inspector")
+        assert inspector is not None
+        assert inspector.isHidden()
         assert window.navigation.currentRow() == 6
         assert window.pages.currentIndex() == selected_page
         assert title.text() == "ComfyUI"

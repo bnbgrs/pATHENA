@@ -468,6 +468,9 @@ class ComfyUiController(QObject):
         self.dialog.raise_()
 
     def _set_v2_header(self) -> None:
+        inspector = getattr(self._v2_shell, "_inspector", None)
+        if isinstance(inspector, QFrame):
+            inspector.hide()
         header = getattr(self._v2_shell, "_header", None)
         set_context = getattr(header, "set_context", None)
         if callable(set_context):
