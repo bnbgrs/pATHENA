@@ -278,6 +278,13 @@ class AsciiPanel(QPlainTextEdit):
             items.append(clipped)
             total_chars += len(clipped)
 
+        for plain_text in root.findChildren(QPlainTextEdit):
+            if len(items) >= _MAX_SEMANTIC_ITEMS:
+                break
+            if not plain_text.isVisible() or plain_text.isReadOnly():
+                continue
+            append(plain_text.toPlainText())
+
         for line_edit in root.findChildren(QLineEdit):
             if len(items) >= _MAX_SEMANTIC_ITEMS:
                 break
