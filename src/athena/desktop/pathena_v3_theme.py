@@ -541,6 +541,17 @@ QComboBox:focus {
     border-color: #4B8D7E;
 }
 
+QLineEdit:disabled,
+QTextEdit:disabled,
+QPlainTextEdit:disabled,
+QSpinBox:disabled,
+QDoubleSpinBox:disabled,
+QComboBox:disabled {
+    color: #5D6667;
+    background: #101415;
+    border-color: #202829;
+}
+
 QPushButton {
     color: #A8A3AE;
     background: #14191A;
@@ -577,6 +588,18 @@ QSlider::handle:horizontal {
     margin: -5px 0;
     background: #89E0CA;
     border-radius: 7px;
+}
+
+QSlider:disabled::groove:horizontal {
+    background: #202829;
+}
+
+QSlider:disabled::handle:horizontal {
+    background: #465052;
+}
+
+QCheckBox:disabled {
+    color: #5D6667;
 }
 
 QScrollBar:vertical {
