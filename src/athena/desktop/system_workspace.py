@@ -183,7 +183,7 @@ class _SecurityPosture(QFrame):
         self.loopback = _PostureRow("Loopback only")
         self.local_processing = _PostureRow("Local processing")
         self.encrypted = _PostureRow("Encrypted at rest")
-        self.tor = _PostureRow("Tor status")
+        self.tor = _PostureRow("TOR status")
         for row in (self.loopback, self.local_processing, self.encrypted, self.tor):
             layout.addWidget(row)
 
