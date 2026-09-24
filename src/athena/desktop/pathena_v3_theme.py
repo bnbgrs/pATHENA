@@ -550,6 +550,11 @@ QPushButton:hover {
     border-color: #3B4A4C;
 }
 
+QPushButton:focus {
+    color: #F3F0F5;
+    border-color: #89E0CA;
+}
+
 QPushButton:disabled {
     color: #5D6667;
     background: #101415;
@@ -559,6 +564,16 @@ QPushButton:disabled {
 QCheckBox {
     color: #F3F0F5;
     spacing: 8px;
+}
+
+QCheckBox:focus {
+    color: #CFF8EE;
+}
+
+QListWidget:focus,
+QTreeWidget:focus,
+QTableView:focus {
+    border-color: #4B8D7E;
 }
 
 QSlider::groove:horizontal {
