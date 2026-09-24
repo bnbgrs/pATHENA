@@ -296,8 +296,30 @@ def main(argv: Sequence[str] | None = None) -> int:
             f"detail_state={detail_state!r}, detail_id={detail_id!r}."
         )
 
+    def wait_for_desktop_settle(window: QMainWindow) -> dict[str, object]:
+        """Wait for the real local Core handshake instead of photographing startup races."""
+        status = getattr(window, "status_text", None)
+        deadline = time.monotonic() + 10.0
+        last_status = ""
+        while time.monotonic() < deadline:
+            app.processEvents()
+            last_status = str(status.text()) if status is not None else ""
+            core_ready = bool(getattr(window, "_core_ready", False))
+            if core_ready and last_status not in {"Connecting…", "Connecting..."}:
+                return {
+                    "core_ready": True,
+                    "desktop_status": last_status,
+                }
+            time.sleep(0.05)
+        raise RuntimeError(
+            "Desktop did not leave startup state before reference capture: "
+            f"core_ready={bool(getattr(window, '_core_ready', False))}, "
+            f"status={last_status!r}."
+        )
+
     def capture_workspaces() -> None:
         window = find_window()
+        startup_evidence = wait_for_desktop_settle(window)
         navigation = getattr(window, "navigation", None)
         pages = getattr(window, "pages", None)
         if navigation is None or pages is None:
@@ -336,6 +358,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             captures[-1]["row"] = row
             captures[-1]["page_index"] = pages.currentIndex()
             captures[-1]["transient_overlay_visible"] = False
+            if row == 0:
+                captures[-1].update(startup_evidence)
             captures[-1].update(knowledge_evidence)
 
     def diagnostic_pallas_snapshot() -> PallasGraphSnapshot:
