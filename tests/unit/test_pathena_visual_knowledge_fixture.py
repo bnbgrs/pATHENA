@@ -16,7 +16,9 @@ from PySide6.QtWidgets import QApplication, QSplitter, QWidget
 from athena.desktop.knowledge_workspace import KnowledgeWorkspace
 from scripts.render_pathena_ui_snapshot_sequential import (
     _REFERENCE_KNOWLEDGE_DRAFTS,
+    _REFERENCE_KNOWLEDGE_IDENTITIES,
     _seed_reference_knowledge,
+    _select_reference_knowledge,
 )
 
 _FRESH_PROCESS_ENV = "PATHENA_VISUAL_KNOWLEDGE_FRESH_PROCESS"
@@ -95,22 +97,35 @@ def test_visual_knowledge_fixture_is_idempotent_and_renders_real_detail(
             timeout_seconds=10.0,
         )
 
-        listed_ids = {
+        listed_ids = tuple(
             str(
                 workspace.knowledge_list.item(index).data(
                     Qt.ItemDataRole.UserRole
                 )
             )
             for index in range(workspace.knowledge_list.count())
-        }
-        assert listed_ids == set(first_ids)
-        assert str(
-            workspace.knowledge_details.property("pathenaKnowledgeEntityId")
-        ) in set(first_ids)
-        assert "PERSISTED DETAIL UNAVAILABLE" not in (
-            workspace.knowledge_details.toPlainText()
         )
-        assert "PROVENANCE" in workspace.knowledge_details.toPlainText()
+        assert set(listed_ids) == set(first_ids)
+        assert listed_ids == first_ids
+        assert first_ids[0] == _REFERENCE_KNOWLEDGE_IDENTITIES[
+            _REFERENCE_KNOWLEDGE_DRAFTS[0][1]
+        ][0]
+
+        evidence = _select_reference_knowledge(
+            app=app,
+            knowledge_list=workspace.knowledge_list,
+            knowledge_details=workspace.knowledge_details,
+            expected_ids=first_ids,
+        )
+
+        assert evidence["selected_knowledge_id"] == first_ids[0]
+        assert evidence["selected_knowledge_key"] == _REFERENCE_KNOWLEDGE_DRAFTS[0][1]
+        assert evidence["selected_knowledge_state"] == "ready"
+        detail_text = workspace.knowledge_details.toPlainText()
+        assert _REFERENCE_KNOWLEDGE_DRAFTS[0][1] in detail_text
+        assert _REFERENCE_KNOWLEDGE_DRAFTS[0][2] in detail_text
+        assert "PERSISTED DETAIL UNAVAILABLE" not in detail_text
+        assert "PROVENANCE" in detail_text
     finally:
         _stop_workspace_processes(workspace)
         workspace.close()
