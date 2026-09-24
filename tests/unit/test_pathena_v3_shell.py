@@ -5,7 +5,7 @@ import os
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QApplication, QFrame
+from PySide6.QtWidgets import QApplication, QFrame, QScrollArea
 
 from athena.desktop.pathena_v3_shell import install_v3_shell
 from athena.desktop.pathena_v3_theme import PATHENA_V3_STYLESHEET
@@ -89,6 +89,39 @@ def test_v3_theme_keeps_keyboard_focus_visible() -> None:
     assert "QComboBox:focus" in PATHENA_V3_STYLESHEET
     assert "QListWidget:focus" in PATHENA_V3_STYLESHEET
     assert "border-color: #89E0CA" in PATHENA_V3_STYLESHEET
+
+
+def test_v3_minimum_desktop_size_keeps_core_surfaces_readable() -> None:
+    app = _app()
+    window = PathenaMainWindow(api_controller=None)
+    controller = install_v3_shell(window)
+    controller.finalize()
+
+    window.resize(1120, 720)
+    window.show()
+    app.processEvents()
+
+    stage = window.findChild(QFrame, "v3ConversationStage")
+    composer = window.findChild(QFrame, "v3Composer")
+    assert stage is not None
+    assert composer is not None
+    assert stage.width() >= 760
+    assert composer.width() >= 760
+
+    window.navigation.setCurrentRow(6)
+    app.processEvents()
+
+    settings = window.pages.currentWidget()
+    scroll = window.findChild(QScrollArea, "v3SettingsScroll")
+    runtime = window.findChild(QFrame, "v3RuntimeCard")
+    assert settings is not None
+    assert settings.objectName() == "v3SettingsPage"
+    assert scroll is not None
+    assert runtime is not None
+    assert 300 <= runtime.width() <= 350
+    assert scroll.horizontalScrollBar().maximum() == 0
+
+    window.close()
 
 
 def test_v3_shell_keeps_real_command_and_pallas_entry_points() -> None:
