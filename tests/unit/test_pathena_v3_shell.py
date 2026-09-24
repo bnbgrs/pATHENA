@@ -8,6 +8,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication, QFrame
 
 from athena.desktop.pathena_v3_shell import install_v3_shell
+from athena.desktop.pathena_v3_theme import PATHENA_V3_STYLESHEET
 from athena.desktop.pathena_window import PathenaMainWindow
 
 
@@ -130,3 +131,32 @@ def test_v3_finalize_reuses_real_settings_controls() -> None:
     assert controller._nav_buttons[6].property("active") is True
 
     window.close()
+
+
+def test_v3_legacy_inspector_cannot_reopen_on_non_chat_route() -> None:
+    app = _app()
+    window = PathenaMainWindow(api_controller=None)
+    window.setProperty("pathenaV3Presentation", True)
+    install_v3_shell(window)
+
+    window.show()
+    window.navigation.setCurrentRow(6)
+    app.processEvents()
+
+    inspector = window.findChild(QFrame, "inspector")
+    assert inspector is not None
+
+    # Exercise the legacy visibility path explicitly: V3 owns contextual
+    # visibility and must not regain the old always-on side panel.
+    window._sync_inspector_visibility()
+    app.processEvents()
+    assert inspector.isHidden()
+
+    window.close()
+
+
+def test_v3_styles_close_system_and_context_surface_drift() -> None:
+    assert "QTabWidget#systemOperationsTabs::pane" in PATHENA_V3_STYLESHEET
+    assert "QWidget#backupWorkspace" in PATHENA_V3_STYLESHEET
+    assert "QFrame#inspectorRouteContext" in PATHENA_V3_STYLESHEET
+    assert "QDialog#helpWorkspace" in PATHENA_V3_STYLESHEET
