@@ -34,7 +34,8 @@ class DialogFocusReturnController(QObject):
         # filter even though ``QObject.eventFilter`` only accepts QObject
         # instances.  Those events are unrelated to dialog focus ownership and
         # must not be forwarded to the C++ base implementation.
-        if not isinstance(watched, QObject):
+        candidate: object = watched
+        if not isinstance(candidate, QObject):
             return False
         if isinstance(watched, QDialog) and self._belongs_to_window(watched):
             if event.type() == QEvent.Type.Show:

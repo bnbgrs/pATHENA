@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from PySide6.QtCore import QObject
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QSplitter, QVBoxLayout, QWidget
+from shiboken6 import isValid
 
+from athena.desktop.pathena_v2_components import V2EmptyState
 from athena.desktop.research_results_extension import ResearchResultsExtension
 from athena.desktop.research_workspace import ResearchWorkspace
 
@@ -104,6 +106,19 @@ class PathenaV2ResearchController(QObject):
         splitter.show()
         root.addWidget(splitter, 1)
 
+        self.empty_state = V2EmptyState(
+            "Ready for a research question",
+            "Enter a question above to create a durable research run. Its result, "
+            "evidence and review decisions will stay together here.",
+        )
+        self.empty_state.setAccessibleName("Research empty state")
+        root.addWidget(self.empty_state, 1)
+        model = workspace.jobs.model()
+        model.rowsInserted.connect(self._sync_empty_state)
+        model.rowsRemoved.connect(self._sync_empty_state)
+        model.modelReset.connect(self._sync_empty_state)
+        self._sync_empty_state()
+
         # The result extension remains the source of truth for completed-result,
         # proposal and promotion controls; v2 only updates their human-facing copy.
         self.results.result_button.setText("Load result")
@@ -114,6 +129,15 @@ class PathenaV2ResearchController(QObject):
         self.results.reject_button.setText("Reject")
 
         workspace.setProperty("pathenaV2Composed", True)
+
+    def _sync_empty_state(self, *_args: object) -> None:
+        if not isValid(self.workspace) or not isValid(self.workspace.jobs):
+            return
+        is_empty = self.workspace.jobs.count() == 0
+        self.empty_state.setVisible(is_empty)
+        splitter = self.workspace.jobs.parentWidget()
+        if isinstance(splitter, QSplitter):
+            splitter.setVisible(not is_empty)
 
 
 def install_v2_research_workspace(

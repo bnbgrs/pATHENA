@@ -4,7 +4,7 @@ import os
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PySide6.QtWidgets import QApplication, QSplitter
+from PySide6.QtWidgets import QApplication, QListWidgetItem, QSplitter
 
 from athena.desktop.jobs_workspace import JobsWorkspace
 from athena.desktop.pathena_v2_jobs import install_v2_jobs_workspace
@@ -41,6 +41,12 @@ def test_v2_jobs_preserves_real_scheduler_and_lifecycle_controls() -> None:
     assert workspace.cancel_button is cancel
     assert isinstance(workspace.jobs.parentWidget(), QSplitter)
     assert workspace.jobs.parentWidget().objectName() == "v2JobsSplit"
+    assert controller.empty_state.isHidden() is False
+    assert workspace.jobs.parentWidget().isHidden() is True
+
+    workspace.jobs.addItem(QListWidgetItem("Real durable job"))
+    assert controller.empty_state.isHidden() is True
+    assert workspace.jobs.parentWidget().isHidden() is False
 
     workspace._refresh_timer.stop()
     workspace._scheduler_status_timer.stop()

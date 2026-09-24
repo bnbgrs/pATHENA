@@ -4,8 +4,10 @@ from __future__ import annotations
 
 from PySide6.QtCore import QObject
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QSplitter, QVBoxLayout, QWidget
+from shiboken6 import isValid
 
 from athena.desktop.jobs_workspace import JobsWorkspace
+from athena.desktop.pathena_v2_components import V2EmptyState
 
 
 class PathenaV2JobsController(QObject):
@@ -97,7 +99,29 @@ class PathenaV2JobsController(QObject):
         splitter.show()
         root.addWidget(splitter, 1)
 
+        self.empty_state = V2EmptyState(
+            "No background work yet",
+            "Research and source operations will appear here when they are queued. "
+            "Lifecycle controls remain available for every durable job.",
+        )
+        self.empty_state.setAccessibleName("Jobs empty state")
+        root.addWidget(self.empty_state, 1)
+        model = workspace.jobs.model()
+        model.rowsInserted.connect(self._sync_empty_state)
+        model.rowsRemoved.connect(self._sync_empty_state)
+        model.modelReset.connect(self._sync_empty_state)
+        self._sync_empty_state()
+
         workspace.setProperty("pathenaV2Composed", True)
+
+    def _sync_empty_state(self, *_args: object) -> None:
+        if not isValid(self.workspace) or not isValid(self.workspace.jobs):
+            return
+        is_empty = self.workspace.jobs.count() == 0
+        self.empty_state.setVisible(is_empty)
+        splitter = self.workspace.jobs.parentWidget()
+        if isinstance(splitter, QSplitter):
+            splitter.setVisible(not is_empty)
 
 
 def install_v2_jobs_workspace(workspace: JobsWorkspace) -> PathenaV2JobsController:

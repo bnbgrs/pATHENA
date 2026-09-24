@@ -4,7 +4,7 @@ import os
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PySide6.QtWidgets import QApplication, QSplitter
+from PySide6.QtWidgets import QApplication, QListWidgetItem, QSplitter
 
 from athena.desktop.files_workspace import FilesWorkspace
 from athena.desktop.pathena_v2_sources import install_v2_sources_workspace
@@ -37,6 +37,12 @@ def test_v2_sources_preserves_real_capture_and_processing_controls() -> None:
     assert workspace.process_button is process_button
     assert isinstance(workspace.sources.parentWidget(), QSplitter)
     assert workspace.sources.parentWidget().objectName() == "v2SourcesSplit"
+    assert controller.empty_state.isHidden() is False
+    assert workspace.sources.parentWidget().isHidden() is True
+
+    workspace.sources.addItem(QListWidgetItem("Real local source"))
+    assert controller.empty_state.isHidden() is True
+    assert workspace.sources.parentWidget().isHidden() is False
 
     workspace._refresh_timer.stop()
     workspace.close()
