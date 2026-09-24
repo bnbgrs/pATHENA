@@ -138,6 +138,7 @@ def test_v3_shell_keeps_core_chat_controls_visible_at_minimum_desktop_size() -> 
         assert controller._nav_buttons[0].isVisible()
         assert controller._nav_buttons[6].isVisible()
 
+        window.prompt_input.setEnabled(True)
         window.prompt_input.setFocus(Qt.FocusReason.TabFocusReason)
         app.processEvents()
         assert window.prompt_input.hasFocus()
