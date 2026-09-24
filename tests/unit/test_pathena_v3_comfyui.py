@@ -68,6 +68,11 @@ def test_v3_comfyui_is_shell_hosted_and_restores_selected_route() -> None:
         assert window.pages.currentIndex() == selected_page
         assert title.text() == "ComfyUI"
         assert hint.text() == "Local image and video workflows · loopback only."
+        assert all(
+            button.property("active") is not True
+            for button in shell._nav_buttons.values()
+        )
+        assert shell._pallas_button.property("active") is not True
         assert controller.close_button.isVisible()
         assert app.focusWidget() is controller.check_button
 
@@ -111,6 +116,7 @@ def test_v3_comfyui_is_shell_hosted_and_restores_selected_route() -> None:
         assert window.pages.currentIndex() == selected_page
         assert title.text() == "Settings"
         assert hint.text() != "Local image and video workflows · loopback only."
+        assert shell._nav_buttons[6].property("active") is True
     finally:
         controller.dialog.hide()
         controller.deleteLater()
