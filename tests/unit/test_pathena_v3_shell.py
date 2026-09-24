@@ -5,7 +5,7 @@ import os
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QApplication, QFrame
+from PySide6.QtWidgets import QApplication, QFrame, QPlainTextEdit
 
 from athena.desktop.pathena_v3_shell import install_v3_shell
 from athena.desktop.pathena_v3_theme import PATHENA_V3_STYLESHEET
@@ -178,3 +178,18 @@ def test_v3_theme_has_explicit_keyboard_focus_for_primary_actions() -> None:
     assert "QPushButton#sendButton:focus" in PATHENA_V3_STYLESHEET
     assert "QPushButton:focus" in PATHENA_V3_STYLESHEET
     assert "border-color: #89E0CA;" in PATHENA_V3_STYLESHEET
+
+
+def test_v3_chat_composer_is_multiline_and_preserves_text_contract() -> None:
+    _app()
+    window = PathenaMainWindow(api_controller=None)
+    install_v3_shell(window)
+
+    assert isinstance(window.prompt_input, QPlainTextEdit)
+    assert window.prompt_input.tabChangesFocus() is True
+    window.prompt_input.setPlainText("first line\nsecond line")
+    assert window.prompt_input.text() == "first line\nsecond line"
+    window.prompt_input.setText("compatibility")
+    assert window.prompt_input.toPlainText() == "compatibility"
+
+    window.close()
