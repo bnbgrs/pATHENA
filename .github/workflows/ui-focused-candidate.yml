@@ -89,5 +89,7 @@ jobs:
           $tests = @($tests | Sort-Object -Unique)
           Write-Host "Exact UI candidate tests:"
           $tests | ForEach-Object { Write-Host "  $_" }
-          uv run --locked --extra dev --extra desktop --no-sync pytest -q @tests
-          if ($LASTEXITCODE -ne 0) { throw "Exact changed UI candidate contract failed." }
+          uv run --locked --extra dev --extra desktop --no-sync python -X faulthandler -m pytest -q @tests
+          $testExit = $LASTEXITCODE
+          Write-Host "Exact UI candidate native pytest exit code: $testExit"
+          if ($testExit -ne 0) { throw "Exact changed UI candidate contract failed (exit $testExit)." }

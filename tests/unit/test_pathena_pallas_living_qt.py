@@ -82,6 +82,7 @@ def test_qt_bridge_updates_presentation_without_mutating_semantic_snapshot(
         assert snapshot.edges == original_edges
         assert grounded.field.property("pathenaPallasLiving") is True
         assert grounded.field.property("pathenaPallasLivingRenderer") == "force-ca-v1"
+        assert grounded.field.property("pathenaPallasTargetFps") == living.engine.config.fps
         assert grounded.field.property("pathenaPallasLens") == "semantic"
 
         living.set_lens("age")
@@ -132,6 +133,29 @@ def test_qt_bridge_moves_real_edge_with_living_node_positions(
         assert source_item.y() == pytest.approx(source[1])
         assert target_item.x() == pytest.approx(target[0])
         assert target_item.y() == pytest.approx(target[1])
+    finally:
+        living.stop()
+        delete(window)
+
+
+def test_qt_bridge_reduced_motion_keeps_semantic_field_still(
+    qapp: QApplication,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("PATHENA_REDUCED_MOTION", "1")
+    window = QWidget()
+    grounded = _grounded_controller(window)
+    living = PallasLivingQtController(grounded)
+    living._timer.stop()  # noqa: SLF001 - deterministic reduced-motion regression
+    try:
+        living._tick()  # noqa: SLF001 - reconcile one stable frame
+        qapp.processEvents()
+
+        assert living._reduced_motion is True  # noqa: SLF001
+        assert living.engine.tick == 0
+        assert grounded.field.property("pathenaPallasLiving") is True
+        assert grounded.field.property("pathenaPallasTargetFps") == 0
+        assert grounded.field.snapshot is not None
     finally:
         living.stop()
         delete(window)

@@ -130,6 +130,9 @@ def test_double_click_on_compact_canvas_opens_full_pallas() -> None:
     assert host is not None and host.isVisible()
     assert window.property("pathenaPallasShellOpen") is True
     assert "double-click" in grounded.target.toolTip().casefold()
+    description = grounded.target.accessibleDescription().casefold()
+    assert "reduced-motion" in description
+    assert "30 fps" not in description
     full_view.dispose()
     window.close()
 

@@ -21,16 +21,14 @@ from athena.desktop.pathena_pallas_field import (
     PallasWorkspace,
 )
 from athena.desktop.pathena_pallas_living_qt import PallasLivingQtController
-from athena.desktop.pathena_v2_theme import (
-    V2_BG,
-)
+from athena.desktop.pathena_v3_theme import V3_BG
 
 
-def _apply_v2_renderer_palette(
+def _apply_v3_renderer_palette(
     grounded_controller: PallasGroundedFieldController,
 ) -> None:
     """Refresh the canvas brush without mutating process-global renderer colors."""
-    grounded_controller.field.canvas.setBackgroundBrush(QBrush(QColor(V2_BG)))
+    grounded_controller.field.canvas.setBackgroundBrush(QBrush(QColor(V3_BG)))
 
 
 class PallasFullViewController(QObject):
@@ -76,7 +74,7 @@ class PallasFullViewController(QObject):
         self._opened_navigation_row: int | None = None
         self._viewport = grounded_controller.field.canvas.viewport()
         self._viewport.installEventFilter(self)
-        _apply_v2_renderer_palette(grounded_controller)
+        _apply_v3_renderer_palette(grounded_controller)
         self._living_controller = PallasLivingQtController(grounded_controller, self)
         self._living_controller.diagnostics_changed.connect(
             self._apply_living_diagnostics
@@ -93,7 +91,7 @@ class PallasFullViewController(QObject):
             "PALLAS compact living semantic field"
         )
         grounded_controller.target.setAccessibleDescription(
-            "The grounded graph self-organizes visually at 30 FPS. "
+            "The grounded graph self-organizes visually and respects reduced-motion settings. "
             "Double-click to open it in the main pATHENA workspace."
         )
         grounded_controller.target.setProperty("pathenaPallasLiving", True)
@@ -183,12 +181,12 @@ class PallasFullViewController(QObject):
         node = getattr(selection, "node", None)
         graph_id = str(getattr(selection, "graph_id", "") or "")
         if node is None:
-            kind_label.setText("SELECTION")
-            title_label.setText("Nothing selected")
-            body_label.setText(
-                "Select a node to inspect its grounded identity, revision and epistemic state."
-            )
+            if self._v2_inspector is not None and isValid(self._v2_inspector):
+                self._v2_inspector.hide()
             return
+
+        if self._v2_inspector is not None and isValid(self._v2_inspector):
+            self._v2_inspector.show()
 
         raw_kind = getattr(getattr(node, "kind", None), "value", getattr(node, "kind", ""))
         kind = str(raw_kind or "object").upper()
@@ -243,10 +241,12 @@ class PallasFullViewController(QObject):
         outer.setContentsMargins(0, 0, 0, 0)
         outer.setSpacing(0)
 
-        toolbar = QHBoxLayout()
-        toolbar.setContentsMargins(18, 10, 18, 8)
+        topbar = QFrame(host)
+        topbar.setObjectName("v3PallasTopbar")
+        toolbar = QHBoxLayout(topbar)
+        toolbar.setContentsMargins(14, 9, 10, 9)
         toolbar.setSpacing(6)
-        status = QLabel("LIVING • 30 FPS • SEMANTIC", host)
+        status = QLabel("LIVE FIELD • STARTING • SEMANTIC", topbar)
         status.setObjectName("pallasLivingStatus")
         status.setProperty("role", "dim")
         status.setAccessibleName("PALLAS living field status")
@@ -254,7 +254,7 @@ class PallasFullViewController(QObject):
 
         buttons: dict[str, QPushButton] = {}
         for lens in ("semantic", "age", "vitality"):
-            button = QPushButton(lens.upper(), host)
+            button = QPushButton(lens.upper(), topbar)
             button.setObjectName(f"pallasLens{lens.title()}Button")
             button.setAccessibleName(f"PALLAS {lens} lens")
             button.setCheckable(True)
@@ -264,14 +264,16 @@ class PallasFullViewController(QObject):
             )
             toolbar.addWidget(button)
             buttons[lens] = button
-        outer.addLayout(toolbar)
+        outer.setContentsMargins(20, 18, 20, 20)
+        outer.setSpacing(12)
+        outer.addWidget(topbar)
 
         workspace = self._grounded_controller.create_workspace(host)
         workspace.setObjectName("pallasShellWorkspace")
         workspace.setAccessibleName("PALLAS full living semantic workspace")
         workspace.setProperty("pathenaPallasShellHosted", True)
         workspace.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
-        workspace.field.canvas.setBackgroundBrush(QBrush(QColor(V2_BG)))
+        workspace.field.canvas.setBackgroundBrush(QBrush(QColor(V3_BG)))
 
         content = QHBoxLayout()
         content.setContentsMargins(0, 0, 0, 0)
@@ -308,6 +310,7 @@ class PallasFullViewController(QObject):
         inspector_layout.addWidget(inspector_body)
         inspector_layout.addStretch(1)
 
+        inspector.hide()
         content.addWidget(inspector)
         outer.addLayout(content, 1)
         self._body_layout.insertWidget(1, host, 1)
@@ -396,7 +399,8 @@ class PallasFullViewController(QObject):
         active = diagnostics.get("active", 0)
         nodes = diagnostics.get("nodes", 0)
         lens = str(diagnostics.get("lens", "semantic")).upper()
-        status.setText(f"LIVING • {fps} FPS • {active}/{nodes} ACTIVE • {lens}")
+        motion = "STILL" if fps == 0 else f"{fps} FPS"
+        status.setText(f"LIVE FIELD • {motion} • {active}/{nodes} ACTIVE • {lens}")
 
     @Slot()
     def dispose(self) -> None:

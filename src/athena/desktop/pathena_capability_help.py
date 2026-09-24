@@ -25,15 +25,6 @@ from athena.desktop.pathena_capability_catalog import (
     resolve_capability_catalog,
 )
 from athena.desktop.pathena_design_tokens import SHELL, TYPE
-from athena.desktop.pathena_v2_theme import (
-    V2_ACCENT,
-    V2_ACCENT_SOFT,
-    V2_BORDER,
-    V2_SURFACE_HOVER,
-    V2_TEXT,
-    V2_TEXT_MUTED,
-)
-
 
 class CapabilityHelpController(QObject):
     """Render F1 HELP from live commands and host it inside the pATHENA shell."""
@@ -103,10 +94,6 @@ class CapabilityHelpController(QObject):
         navigation = QFrame(self.help_body)
         navigation.setObjectName("helpSecondaryNavigation")
         navigation.setFixedWidth(SHELL.secondary_nav_width)
-        navigation.setStyleSheet(
-            f"QFrame#helpSecondaryNavigation {{ background: transparent; "
-            f"border: none; border-right: 1px solid {V2_BORDER}; }}"
-        )
         navigation_layout = QVBoxLayout(navigation)
         navigation_layout.setContentsMargins(0, 0, 10, 0)
         navigation_layout.setSpacing(14)
@@ -128,31 +115,6 @@ class CapabilityHelpController(QObject):
             Qt.ScrollBarPolicy.ScrollBarAlwaysOff
         )
         self.help_sections.setSpacing(3)
-        self.help_sections.setStyleSheet(
-            f"""
-            QListWidget#helpSections {{
-                background: transparent;
-                border: none;
-                outline: none;
-            }}
-            QListWidget#helpSections::item {{
-                color: {V2_TEXT_MUTED};
-                background: transparent;
-                border: none;
-                border-left: 2px solid transparent;
-                padding: 7px 10px;
-            }}
-            QListWidget#helpSections::item:hover {{
-                color: {V2_TEXT};
-                background: {V2_SURFACE_HOVER};
-            }}
-            QListWidget#helpSections::item:selected {{
-                color: {V2_TEXT};
-                background: {V2_ACCENT_SOFT};
-                border-left: 2px solid {V2_ACCENT};
-            }}
-            """
-        )
         navigation_layout.addWidget(self.help_sections, 1)
 
         content = QFrame(self.help_body)
