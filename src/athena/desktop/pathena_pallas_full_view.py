@@ -21,16 +21,14 @@ from athena.desktop.pathena_pallas_field import (
     PallasWorkspace,
 )
 from athena.desktop.pathena_pallas_living_qt import PallasLivingQtController
-from athena.desktop.pathena_v2_theme import (
-    V2_BG,
-)
+from athena.desktop.pathena_v3_theme import V3_BG
 
 
-def _apply_v2_renderer_palette(
+def _apply_v3_renderer_palette(
     grounded_controller: PallasGroundedFieldController,
 ) -> None:
     """Refresh the canvas brush without mutating process-global renderer colors."""
-    grounded_controller.field.canvas.setBackgroundBrush(QBrush(QColor(V2_BG)))
+    grounded_controller.field.canvas.setBackgroundBrush(QBrush(QColor(V3_BG)))
 
 
 class PallasFullViewController(QObject):
@@ -76,7 +74,7 @@ class PallasFullViewController(QObject):
         self._opened_navigation_row: int | None = None
         self._viewport = grounded_controller.field.canvas.viewport()
         self._viewport.installEventFilter(self)
-        _apply_v2_renderer_palette(grounded_controller)
+        _apply_v3_renderer_palette(grounded_controller)
         self._living_controller = PallasLivingQtController(grounded_controller, self)
         self._living_controller.diagnostics_changed.connect(
             self._apply_living_diagnostics
@@ -243,10 +241,12 @@ class PallasFullViewController(QObject):
         outer.setContentsMargins(0, 0, 0, 0)
         outer.setSpacing(0)
 
-        toolbar = QHBoxLayout()
-        toolbar.setContentsMargins(18, 10, 18, 8)
+        topbar = QFrame(host)
+        topbar.setObjectName("v3PallasTopbar")
+        toolbar = QHBoxLayout(topbar)
+        toolbar.setContentsMargins(14, 9, 10, 9)
         toolbar.setSpacing(6)
-        status = QLabel("LIVING • 30 FPS • SEMANTIC", host)
+        status = QLabel("LIVING • 30 FPS • SEMANTIC", topbar)
         status.setObjectName("pallasLivingStatus")
         status.setProperty("role", "dim")
         status.setAccessibleName("PALLAS living field status")
@@ -254,7 +254,7 @@ class PallasFullViewController(QObject):
 
         buttons: dict[str, QPushButton] = {}
         for lens in ("semantic", "age", "vitality"):
-            button = QPushButton(lens.upper(), host)
+            button = QPushButton(lens.upper(), topbar)
             button.setObjectName(f"pallasLens{lens.title()}Button")
             button.setAccessibleName(f"PALLAS {lens} lens")
             button.setCheckable(True)
@@ -264,14 +264,16 @@ class PallasFullViewController(QObject):
             )
             toolbar.addWidget(button)
             buttons[lens] = button
-        outer.addLayout(toolbar)
+        outer.setContentsMargins(20, 18, 20, 20)
+        outer.setSpacing(12)
+        outer.addWidget(topbar)
 
         workspace = self._grounded_controller.create_workspace(host)
         workspace.setObjectName("pallasShellWorkspace")
         workspace.setAccessibleName("PALLAS full living semantic workspace")
         workspace.setProperty("pathenaPallasShellHosted", True)
         workspace.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
-        workspace.field.canvas.setBackgroundBrush(QBrush(QColor(V2_BG)))
+        workspace.field.canvas.setBackgroundBrush(QBrush(QColor(V3_BG)))
 
         content = QHBoxLayout()
         content.setContentsMargins(0, 0, 0, 0)
