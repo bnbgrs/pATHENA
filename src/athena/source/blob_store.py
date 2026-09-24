@@ -15,6 +15,7 @@ from athena.storage.durable_fs import durable_mkdir, durable_replace
 from athena.storage.paths import RuntimePaths
 
 _COPY_BUFFER_SIZE = 1024 * 1024
+_MEDIA_TYPE_PREFIX_SIZE = 16
 ORPHAN_BLOB_SAFETY_HORIZON_US = 24 * 60 * 60 * 1_000_000
 _HEX_DIGITS = frozenset("0123456789abcdef")
 
@@ -94,12 +95,16 @@ class BlobStore:
 
         digest = hashlib.sha256()
         byte_length = 0
+        media_type_prefix = bytearray()
         try:
             with source_path.open("rb") as source, staging_path.open("xb") as target:
                 while True:
                     chunk = source.read(_COPY_BUFFER_SIZE)
                     if not chunk:
                         break
+                    if len(media_type_prefix) < _MEDIA_TYPE_PREFIX_SIZE:
+                        remaining = _MEDIA_TYPE_PREFIX_SIZE - len(media_type_prefix)
+                        media_type_prefix.extend(chunk[:remaining])
                     target.write(chunk)
                     digest.update(chunk)
                     byte_length += len(chunk)
@@ -131,7 +136,10 @@ class BlobStore:
         finally:
             staging_path.unlink(missing_ok=True)
 
-        media_type = _detect_media_type(source_path)
+        media_type = _detect_media_type(
+            prefix=bytes(media_type_prefix),
+            filename=source_path.name,
+        )
         modified_at_us = before.st_mtime_ns // 1_000
         return PreparedBlob(
             byte_length=byte_length,
@@ -146,7 +154,26 @@ class BlobStore:
         self,
         path: Path,
     ) -> str | None:
-        return _detect_media_type(path)
+        try:
+            with path.open("rb") as handle:
+                prefix = handle.read(_MEDIA_TYPE_PREFIX_SIZE)
+        except OSError:
+            return None
+        return self.detect_captured_media_type(
+            prefix=prefix,
+            filename=path.name,
+        )
+
+    @staticmethod
+    def detect_captured_media_type(
+        *,
+        prefix: bytes,
+        filename: str,
+    ) -> str | None:
+        return _detect_media_type(
+            prefix=prefix,
+            filename=filename,
+        )
 
     def commit_encrypted_staging(
         self,
@@ -964,13 +991,7 @@ def _hash_file(
     )
 
 
-def _detect_media_type(path: Path) -> str | None:
-    try:
-        with path.open("rb") as handle:
-            prefix = handle.read(16)
-    except OSError:
-        return None
-
+def _detect_media_type(*, prefix: bytes, filename: str) -> str | None:
     signatures: tuple[tuple[bytes, str], ...] = (
         (b"%PDF-", "application/pdf"),
         (b"\x89PNG\r\n\x1a\n", "image/png"),
@@ -981,11 +1002,11 @@ def _detect_media_type(path: Path) -> str | None:
     )
     for signature, media_type in signatures:
         if prefix.startswith(signature):
-            if signature == b"PK\x03\x04" and path.suffix.lower() == ".docx":
+            if signature == b"PK\x03\x04" and Path(filename).suffix.lower() == ".docx":
                 return "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
             return media_type
 
-    guessed, _ = mimetypes.guess_type(path.name, strict=False)
+    guessed, _ = mimetypes.guess_type(filename, strict=False)
     if guessed is not None:
         return guessed
 
