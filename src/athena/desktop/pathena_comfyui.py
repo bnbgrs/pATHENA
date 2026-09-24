@@ -453,6 +453,10 @@ class ComfyUiController(QObject):
             self._workspace is not None,
         )
         self.dialog.setProperty("pathenaComfyUiLocalOnly", True)
+        self.dialog.setProperty(
+            "pathenaComfyUiPresentation",
+            "v3" if self.window.findChild(QFrame, "v3Workspace") is not None else "legacy",
+        )
         self.dialog.setProperty("pathenaComfyUiGlobalInterruptAvailable", False)
         self.dialog.setProperty("pathenaComfyUiVramAvailable", False)
         # Reparenting the dialog into an as-yet hidden workspace clears Qt's
