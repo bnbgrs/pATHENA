@@ -197,7 +197,7 @@ class CapabilityHelpController(QObject):
         self.help_capabilities.setHorizontalScrollBarPolicy(
             Qt.ScrollBarPolicy.ScrollBarAlwaysOff
         )
-        self.help_capabilities.setSpacing(0)
+        self.help_capabilities.setSpacing(8)
         content_layout.addWidget(self.help_capabilities, 1)
 
         body_layout.addWidget(navigation)
