@@ -502,6 +502,11 @@ class ComfyUiController(QObject):
             pallas_opened = getattr(self._shell, "pallas_opened", None)
             if callable(pallas_opened):
                 pallas_opened()
+            if self._shell_generation == "v2":
+                header = getattr(self._shell, "_header", None)
+                set_context = getattr(header, "set_context", None)
+                if callable(set_context):
+                    set_context("PALLAS", "Living semantic workspace")
             return
         sync_navigation = getattr(self._shell, "_sync_navigation", None)
         if callable(sync_navigation):
