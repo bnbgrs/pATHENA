@@ -63,39 +63,6 @@ QLabel#v3Mark {
     font-weight: 800;
 }
 
-QLabel#v3BuildMark {
-    color: #706D76;
-    font-size: 7.5pt;
-    font-weight: 650;
-}
-
-QPushButton[v3Nav="true"] {
-    color: #85818C;
-    background: transparent;
-    border: 0;
-    border-radius: 14px;
-    padding: 0;
-}
-
-QPushButton[v3Nav="true"]:hover {
-    background: #1A2021;
-}
-
-QPushButton[v3Nav="true"][active="true"] {
-    background: #17302B;
-    border: 1px solid #28584D;
-}
-
-QPushButton[v3Nav="true"]:focus {
-    background: #1A2021;
-    border: 1px solid #89E0CA;
-}
-
-QPushButton[v3Nav="true"][active="true"]:focus {
-    background: #17302B;
-    border: 1px solid #89E0CA;
-}
-
 QFrame#v3RailDivider {
     background: #2A3334;
     border: none;
