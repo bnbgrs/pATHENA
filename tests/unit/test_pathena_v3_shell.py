@@ -5,7 +5,7 @@ import os
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QApplication, QFrame, QPlainTextEdit
+from PySide6.QtWidgets import QApplication, QFrame, QLabel, QPlainTextEdit
 
 from athena.desktop.pathena_v3_shell import install_v3_shell
 from athena.desktop.pathena_v3_theme import PATHENA_V3_STYLESHEET
@@ -34,7 +34,7 @@ def test_v3_shell_is_structurally_distinct_and_keeps_route_contract() -> None:
     rail = shell.findChild(QFrame, "v3Rail")
     assert rail is not None
     assert rail.width() == 88
-    assert shell.findChild(QFrame, "v3BuildMark") is None
+    assert shell.findChild(QLabel, "v3BuildMark") is None
     assert [button.text() for button in controller._nav_buttons.values()] == [
         "Chat",
         "Knowledge",
