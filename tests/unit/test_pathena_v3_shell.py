@@ -32,11 +32,11 @@ def test_v3_shell_is_structurally_distinct_and_keeps_route_contract() -> None:
 
     rail = shell.findChild(QFrame, "v3Rail")
     assert rail is not None
-    assert rail.width() == 70
-    assert all(
-        button.text() == ""
+    assert rail.width() == 88
+    assert {
+        button.text()
         for button in (*controller._nav_buttons.values(), controller._pallas_button)
-    )
+    } == {"Chat", "Knowledge", "Research", "Jobs", "Sources", "PALLAS", "System", "Settings"}
     assert all(
         not button.icon().isNull()
         for button in (*controller._nav_buttons.values(), controller._pallas_button)
@@ -61,7 +61,10 @@ def test_v3_shell_keeps_real_command_and_pallas_entry_points() -> None:
     calls: list[str] = []
 
     controller.bind_command_palette(lambda: calls.append("command"))
-    controller.bind_pallas(lambda: calls.append("pallas"))
+    controller.bind_pallas(
+        lambda: calls.append("pallas-open"),
+        lambda: calls.append("pallas-close"),
+    )
 
     window.show()
     controller._command_button.setFocus(Qt.FocusReason.TabFocusReason)
@@ -69,15 +72,25 @@ def test_v3_shell_keeps_real_command_and_pallas_entry_points() -> None:
     controller._command_button.click()
     controller._pallas_button.click()
 
-    assert calls == ["command", "pallas"]
+    assert calls == ["command", "pallas-open"]
     controller.pallas_opened()
     assert controller._pallas_button.property("active") is True
     assert all(
         button.property("active") is False
         for button in controller._nav_buttons.values()
     )
-    controller.pallas_closed()
+    controller._pallas_button.click()
+    assert calls[-1] == "pallas-close"
+    assert controller._pallas_button.property("active") is False
 
+    controller.pallas_opened()
+    current = window.navigation.currentRow()
+    controller._nav_buttons[current].click()
+    assert calls[-1] == "pallas-close"
+    assert controller._pallas_button.property("active") is False
+    assert controller._nav_buttons[current].property("active") is True
+
+    controller.pallas_closed()
     window.close()
 
 
