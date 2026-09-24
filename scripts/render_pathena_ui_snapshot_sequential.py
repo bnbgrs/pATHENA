@@ -351,6 +351,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                         "visible": bool(control is not None and control.isVisible()),
                         "enabled": bool(control is not None and control.isEnabled()),
                         "parent": parent.objectName() if parent is not None else None,
+                        "object_name": control.objectName() if control is not None else None,
+                        "local_stylesheet": control.styleSheet() if control is not None else None,
                         "geometry": (
                             [geometry.x(), geometry.y(), geometry.width(), geometry.height()]
                             if geometry is not None
@@ -369,6 +371,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                         "visible": bool(control is not None and control.isVisible()),
                         "enabled": bool(control is not None and control.isEnabled()),
                         "parent": parent.objectName() if parent is not None else None,
+                        "object_name": control.objectName() if control is not None else None,
+                        "local_stylesheet": control.styleSheet() if control is not None else None,
                         "geometry": (
                             [geometry.x(), geometry.y(), geometry.width(), geometry.height()]
                             if geometry is not None
@@ -387,6 +391,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                         "visible": bool(control is not None and control.isVisible()),
                         "enabled": bool(control is not None and control.isEnabled()),
                         "parent": parent.objectName() if parent is not None else None,
+                        "object_name": control.objectName() if control is not None else None,
+                        "local_stylesheet": control.styleSheet() if control is not None else None,
                         "geometry": (
                             [geometry.x(), geometry.y(), geometry.width(), geometry.height()]
                             if geometry is not None
