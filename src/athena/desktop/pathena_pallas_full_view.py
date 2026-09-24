@@ -16,41 +16,20 @@ from PySide6.QtWidgets import (
 )
 from shiboken6 import isValid
 
-import athena.desktop.pathena_pallas_field as pallas_field_module
 from athena.desktop.pathena_pallas_field import (
     PallasGroundedFieldController,
     PallasWorkspace,
 )
 from athena.desktop.pathena_pallas_living_qt import PallasLivingQtController
 from athena.desktop.pathena_v2_theme import (
-    V2_ACCENT,
     V2_BG,
-    V2_BORDER_STRONG,
-    V2_DANGER,
-    V2_SUCCESS,
-    V2_TEXT,
-    V2_TEXT_DIM,
-    V2_TEXT_MUTED,
 )
 
 
 def _apply_v2_renderer_palette(
     grounded_controller: PallasGroundedFieldController,
 ) -> None:
-    """Apply an independent semantic palette designed for the v2 workspace."""
-    pallas_field_module._CANVAS = QColor(V2_BG)
-    pallas_field_module._TEXT = QColor(V2_TEXT)
-    pallas_field_module._MUTED = QColor(V2_TEXT_MUTED)
-    pallas_field_module._QUIET = QColor(V2_TEXT_DIM)
-    pallas_field_module._BORDER = QColor(V2_BORDER_STRONG)
-    pallas_field_module._ACCENT = QColor(V2_ACCENT)
-    pallas_field_module._SOURCE = QColor("#5FA8FF")
-    pallas_field_module._CLAIM = QColor(V2_SUCCESS)
-    pallas_field_module._KNOWLEDGE = QColor("#A78BFA")
-    pallas_field_module._QUESTION = QColor("#F2C66D")
-    pallas_field_module._MEMORY = QColor("#A78BFA")
-    pallas_field_module._CONFLICT = QColor(V2_DANGER)
-    pallas_field_module._UNCERTAIN = QColor("#F2C66D")
+    """Refresh the canvas brush without mutating process-global renderer colors."""
     grounded_controller.field.canvas.setBackgroundBrush(QBrush(QColor(V2_BG)))
 
 
