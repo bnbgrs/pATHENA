@@ -305,16 +305,20 @@ class PathenaV3ShellController(QObject):
         window.prompt_input.setMinimumHeight(44)
         window.prompt_input.setMaximumHeight(112)
         window.prompt_input.setPlaceholderText("Ask, investigate, build…")
+        window.prompt_input.show()
         composer_layout.addWidget(window.prompt_input, 1)
 
         window.ground_button.setParent(composer)
         window.ground_button.setText("Ground")
         window.ground_button.setToolTip("Ground this turn in local knowledge and source evidence")
+        window.ground_button.setAccessibleName("Ground message in local evidence")
+        window.ground_button.show()
         composer_layout.addWidget(window.ground_button)
 
         window.send_button.setParent(composer)
         window.send_button.setText("↑")
         window.send_button.setToolTip("Send message · Ctrl+Enter")
+        window.send_button.show()
         composer_layout.addWidget(window.send_button)
         outer.addWidget(composer)
 
