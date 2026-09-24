@@ -169,3 +169,41 @@ def test_v3_theme_covers_system_operations_and_hosted_help() -> None:
     assert "QTabWidget#systemOperationsTabs::pane" in PATHENA_V3_STYLESHEET
     assert "QDialog#helpWorkspace" in PATHENA_V3_STYLESHEET
     assert "QFrame#helpCapabilityRow" in PATHENA_V3_STYLESHEET
+
+
+def test_v3_context_button_owns_inspector_visibility() -> None:
+    _app()
+    window = PathenaMainWindow(api_controller=None)
+    window.setProperty("pathenaV3Presentation", True)
+    install_v3_shell(window)
+    inspector = window.findChild(QFrame, "inspector")
+    assert inspector is not None
+
+    window._set_context_available(True)
+    assert window.context_button.isChecked() is False
+    assert inspector.isHidden()
+
+    window.context_button.setChecked(True)
+    assert inspector.isHidden() is False
+
+    window.context_button.setChecked(False)
+    assert inspector.isHidden()
+    window.close()
+
+
+def test_v3_finalize_exposes_legible_initial_selector_states() -> None:
+    _app()
+    window = PathenaMainWindow(api_controller=None)
+    window.setProperty("pathenaV3Presentation", True)
+    controller = install_v3_shell(window)
+    controller.finalize()
+
+    assert window.chat_selector.currentText() == "New chat"
+    assert window.model_selector.currentText() == "Connecting…"
+    assert window.settings_model_selector.currentText() == "Connecting…"
+    window.close()
+
+
+def test_v3_theme_styles_horizontal_scrollbars() -> None:
+    assert "QScrollBar:horizontal" in PATHENA_V3_STYLESHEET
+    assert "QScrollBar::handle:horizontal" in PATHENA_V3_STYLESHEET
