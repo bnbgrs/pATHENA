@@ -8,8 +8,11 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication, QFrame
 
 from athena.desktop.pathena_v3_shell import install_v3_shell
+from athena.desktop.pathena_v3_system import install_v3_system_workspace
 from athena.desktop.pathena_v3_theme import PATHENA_V3_STYLESHEET
 from athena.desktop.pathena_window import PathenaMainWindow
+from athena.desktop.system_backup import install_system_backup
+from athena.desktop.system_workspace import install_system_workspace
 
 
 def _app() -> QApplication:
@@ -160,3 +163,29 @@ def test_v3_styles_close_system_and_context_surface_drift() -> None:
     assert "QWidget#backupWorkspace" in PATHENA_V3_STYLESHEET
     assert "QFrame#inspectorRouteContext" in PATHENA_V3_STYLESHEET
     assert "QDialog#helpWorkspace" in PATHENA_V3_STYLESHEET
+
+
+def test_v3_system_transition_never_restores_legacy_inspector() -> None:
+    app = _app()
+    window = PathenaMainWindow(api_controller=None)
+    window.setProperty("pathenaV3Presentation", True)
+    install_v3_shell(window)
+    system = install_system_workspace(window, None)
+    install_system_backup(window, system)
+    install_v3_system_workspace(system)
+
+    window.show()
+    window.navigation.setCurrentRow(5)
+    app.processEvents()
+
+    inspector = window.findChild(QFrame, "inspector")
+    assert inspector is not None
+    assert inspector.isHidden()
+
+    # Leaving Runtime fires SystemWorkspace.hideEvent(). V3 must not inherit
+    # the legacy behavior that reopened the global Evidence & Activity panel.
+    window.navigation.setCurrentRow(6)
+    app.processEvents()
+    assert inspector.isHidden()
+
+    window.close()
