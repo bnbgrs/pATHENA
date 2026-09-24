@@ -30,6 +30,7 @@ from PySide6.QtWidgets import (
     QMainWindow,
     QMessageBox,
     QPushButton,
+    QPlainTextEdit,
     QScrollArea,
     QSizePolicy,
     QSlider,
@@ -271,6 +272,20 @@ class _AutoHeightMessageLabel(QLabel):
             self.updateGeometry()
 
 
+class PromptInput(QPlainTextEdit):
+    """Multiline composer input with the legacy text access contract."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.setTabChangesFocus(True)
+
+    def text(self) -> str:
+        return self.toPlainText()
+
+    def setText(self, text: str) -> None:  # noqa: N802 - compatibility with QLineEdit
+        self.setPlainText(text)
+
+
 class AthenaMainWindow(QMainWindow):
     """Three-zone evidence workbench over ATHENA's local Core API boundary."""
 
@@ -288,7 +303,7 @@ class AthenaMainWindow(QMainWindow):
         self.pallas_visual = PallasVisualPlaceholder()
         self.page_title = QLabel("CHAT")
         self.status_text = QLabel("LOCAL / CORE DISCONNECTED")
-        self.prompt_input = QLineEdit()
+        self.prompt_input = PromptInput()
         self.ground_button = QPushButton("GROUND")
         self.send_button = QPushButton("CTRL+ENTER")
         self.chat_selector = QComboBox()
@@ -1379,7 +1394,6 @@ class AthenaMainWindow(QMainWindow):
         self.prompt_input.setToolTip(
             "Direct chat becomes available when ATHENA Core and a local model are ready."
         )
-        self.prompt_input.returnPressed.connect(self._submit_prompt)
 
         self._send_return_shortcut = QShortcut(
             QKeySequence("Ctrl+Return"),
