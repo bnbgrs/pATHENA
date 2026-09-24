@@ -105,3 +105,32 @@ def _contrast_ratio(foreground: str, background: str) -> float:
 
 def test_v3_secondary_text_remains_readable_on_raised_surfaces() -> None:
     assert _contrast_ratio(V3_TEXT_DIM, V3_SURFACE) >= 4.5
+
+
+def test_v3_chat_layout_uses_small_and_large_desktop_widths() -> None:
+    app = _app()
+    window = PathenaMainWindow()
+    try:
+        shell = install_v3_shell(window)
+        shell.finalize()
+        window.show()
+
+        window.resize(1120, 720)
+        app.processEvents()
+        composer = window.findChild(QFrame, "v3Composer")
+        assert composer is not None
+        assert composer.isVisible()
+        compact_width = composer.width()
+        assert compact_width >= 700
+        assert window.send_button.size().width() == 44
+        assert window.send_button.size().height() == 44
+        assert window.model_selector.isVisible()
+
+        window.resize(1600, 900)
+        app.processEvents()
+        expanded_width = composer.width()
+        assert expanded_width > compact_width
+        assert expanded_width > 1120
+        assert shell.shell.width() == 1600
+    finally:
+        window.close()
