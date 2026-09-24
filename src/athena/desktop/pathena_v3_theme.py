@@ -541,6 +541,13 @@ QComboBox:focus {
     border-color: #4B8D7E;
 }
 
+QPushButton:focus,
+QCheckBox:focus,
+QListWidget:focus,
+QWidget[pathenaKeyboardFocus="true"] {
+    border: 1px solid #4B8D7E;
+}
+
 QLineEdit:disabled,
 QTextEdit:disabled,
 QPlainTextEdit:disabled,
