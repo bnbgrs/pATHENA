@@ -50,6 +50,8 @@ class PathenaV3JobsController(QObject):
 
         workspace.status.setParent(command)
         workspace.status.setObjectName("v3JobsStatus")
+        workspace.status.setWordWrap(False)
+        workspace.status.setMinimumWidth(150)
         workspace.status.show()
         layout.addWidget(workspace.status)
 
