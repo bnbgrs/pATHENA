@@ -492,6 +492,7 @@ class ComfyUiController(QObject):
             transient_opened(
                 "ComfyUI",
                 "Local image and video workflows · loopback only.",
+                self.dialog.hide,
             )
             return
         inspector = getattr(self._shell, "_inspector", None)
