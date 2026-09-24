@@ -51,6 +51,7 @@ class PathenaV3ShellController(QObject):
         self._inspector: QFrame | None = None
         self._header = V3WorkspaceHeader("Chat", _PAGE_HINTS[0])
         self._command_button = QPushButton("Search pATHENA   Ctrl K")
+        self._inspector_button = QPushButton("Evidence")
         self._pallas_button = V3NavigationButton("PALLAS", icon_name="pallas")
         self._build()
         window.navigation.currentRowChanged.connect(self._sync_navigation)
@@ -131,11 +132,11 @@ class PathenaV3ShellController(QObject):
     def _build_rail(self) -> QWidget:
         rail = QFrame()
         rail.setObjectName("v3Rail")
-        rail.setFixedWidth(70)
+        rail.setFixedWidth(88)
 
         layout = QVBoxLayout(rail)
-        layout.setContentsMargins(12, 18, 12, 16)
-        layout.setSpacing(7)
+        layout.setContentsMargins(10, 18, 10, 16)
+        layout.setSpacing(5)
 
         mark = QLabel("P")
         mark.setObjectName("v3Mark")
@@ -144,11 +145,7 @@ class PathenaV3ShellController(QObject):
         mark.setToolTip("pATHENA")
         layout.addWidget(mark, 0, Qt.AlignmentFlag.AlignHCenter)
 
-        build = QLabel("V3")
-        build.setObjectName("v3BuildMark")
-        build.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(build)
-        layout.addSpacing(15)
+        layout.addSpacing(14)
 
         for index in range(5):
             layout.addWidget(
@@ -188,6 +185,14 @@ class PathenaV3ShellController(QObject):
         return button
 
     def _build_header(self) -> QWidget:
+        self._inspector_button.setObjectName("v3InspectorButton")
+        self._inspector_button.setCheckable(True)
+        self._inspector_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._inspector_button.setAccessibleName("Toggle Evidence and Activity inspector")
+        self._inspector_button.setToolTip("Show or hide Evidence and Activity")
+        self._inspector_button.toggled.connect(self._toggle_inspector)
+        self._header.action_layout.addWidget(self._inspector_button)
+
         self._command_button.setObjectName("v3CommandButton")
         self._command_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self._command_button.setEnabled(False)
@@ -195,9 +200,10 @@ class PathenaV3ShellController(QObject):
         self._command_button.clicked.connect(self._open_command_palette)
         self._header.action_layout.addWidget(self._command_button)
 
-        dot = QLabel("●")
-        dot.setObjectName("v3RuntimeDot")
-        self._header.action_layout.addWidget(dot)
+        scope = QLabel("LOCAL")
+        scope.setObjectName("v3RuntimeScope")
+        scope.setToolTip("This desktop workspace is operating against the local pATHENA Core.")
+        self._header.action_layout.addWidget(scope)
 
         status = self._window.status_text
         status.setParent(self._header.action_host)
@@ -471,20 +477,38 @@ class PathenaV3ShellController(QObject):
             button.set_active(row == index)
 
         inspector = self._inspector
-        if inspector is not None and index != 0:
-            inspector.hide()
+        is_chat = index == 0
+        self._inspector_button.setVisible(is_chat)
+        if not is_chat:
+            self._inspector_button.setChecked(False)
+            if inspector is not None:
+                inspector.hide()
+        elif inspector is not None:
+            inspector.setVisible(self._inspector_button.isChecked())
 
     @Slot()
     def pallas_opened(self) -> None:
         for button in self._nav_buttons.values():
             button.set_active(False)
         self._pallas_button.set_active(True)
+        self._inspector_button.setChecked(False)
+        self._inspector_button.hide()
+        if self._inspector is not None:
+            self._inspector.hide()
         self._header.set_context("PALLAS", "A living semantic field grounded in real local state.")
 
     @Slot()
     def pallas_closed(self) -> None:
         self._pallas_button.set_active(False)
         self._sync_navigation(max(0, self._window.navigation.currentRow()))
+
+    @Slot(bool)
+    def _toggle_inspector(self, open_: bool) -> None:
+        details_button = getattr(self._window, "details_button", None)
+        if isinstance(details_button, QPushButton):
+            details_button.setChecked(open_)
+        if self._inspector is not None:
+            self._inspector.setVisible(open_ and self._window.navigation.currentRow() == 0)
 
     @Slot()
     def _open_command_palette(self) -> None:
@@ -500,6 +524,10 @@ class PathenaV3ShellController(QObject):
     def dispose(self) -> None:
         try:
             self._window.navigation.currentRowChanged.disconnect(self._sync_navigation)
+        except (RuntimeError, TypeError):
+            pass
+        try:
+            self._inspector_button.toggled.disconnect(self._toggle_inspector)
         except (RuntimeError, TypeError):
             pass
         self._command_callback = None
