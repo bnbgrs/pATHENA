@@ -76,6 +76,15 @@ class PathenaV3ShellController(QObject):
         self._window.model_selector.setMinimumWidth(200)
         self._window.model_selector.setMaximumWidth(340)
         self._window.send_button.setFixedSize(40, 40)
+        if self._window.chat_selector.count() == 0:
+            self._window.chat_selector.addItem("New chat", None)
+        if self._window.model_selector.count() == 0:
+            self._window.model_selector.addItem("Connecting…", None)
+            self._window.model_selector.setToolTip(
+                "Waiting for local model discovery from the local Core."
+            )
+        if self._window.settings_model_selector.count() == 0:
+            self._window.settings_model_selector.addItem("Connecting…", None)
         self._sync_navigation(max(0, self._window.navigation.currentRow()))
 
     def _build(self) -> None:
