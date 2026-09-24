@@ -281,7 +281,7 @@ class PallasFullViewController(QObject):
         content.addWidget(workspace, 1)
 
         inspector = QFrame(host)
-        inspector.setObjectName("v3PallasInspector")
+        inspector.setObjectName("v2PallasInspector")
         inspector.setFixedWidth(328)
         inspector.setAccessibleName("PALLAS selection inspector")
         inspector_layout = QVBoxLayout(inspector)
@@ -289,11 +289,11 @@ class PallasFullViewController(QObject):
         inspector_layout.setSpacing(10)
 
         inspector_kind = QLabel("SELECTION", inspector)
-        inspector_kind.setObjectName("v3PallasInspectorKind")
+        inspector_kind.setObjectName("v2PallasInspectorKind")
         inspector_layout.addWidget(inspector_kind)
 
         inspector_title = QLabel("Nothing selected", inspector)
-        inspector_title.setObjectName("v3PallasInspectorTitle")
+        inspector_title.setObjectName("v2PallasInspectorTitle")
         inspector_title.setWordWrap(True)
         inspector_layout.addWidget(inspector_title)
 
@@ -301,7 +301,7 @@ class PallasFullViewController(QObject):
             "Select a node to inspect its grounded identity, revision and epistemic state.",
             inspector,
         )
-        inspector_body.setObjectName("v3PallasInspectorBody")
+        inspector_body.setObjectName("v2PallasInspectorBody")
         inspector_body.setWordWrap(True)
         inspector_body.setTextInteractionFlags(
             Qt.TextInteractionFlag.TextSelectableByMouse
