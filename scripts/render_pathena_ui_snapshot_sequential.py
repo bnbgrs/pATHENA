@@ -322,6 +322,12 @@ def main(argv: Sequence[str] | None = None) -> int:
                     f"requested row {row}, navigation row {navigation.currentRow()}, "
                     f"page index {pages.currentIndex()}."
                 )
+            comfy_surface = window.findChild(QWidget, "comfyUiDialog")
+            if comfy_surface is not None and comfy_surface.isVisible():
+                raise RuntimeError(
+                    "Transient ComfyUI surface covered primary workspace "
+                    f"{label!r} before capture."
+                )
             knowledge_evidence = (
                 wait_for_reference_knowledge(window) if row == 1 else {}
             )
@@ -329,6 +335,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             captures[-1]["navigation_label"] = navigation.item(row).text()
             captures[-1]["row"] = row
             captures[-1]["page_index"] = pages.currentIndex()
+            captures[-1]["transient_overlay_visible"] = False
             captures[-1].update(knowledge_evidence)
 
     def diagnostic_pallas_snapshot() -> PallasGraphSnapshot:

@@ -34,11 +34,17 @@ def test_v2_comfyui_is_shell_hosted_and_restores_selected_route() -> None:
     app.processEvents()
 
     try:
+        assert controller.dialog.isHidden()
+        assert window.navigation.currentRow() == 0
+        assert window.pages.currentIndex() == 0
+        title = window.findChild(QLabel, "v2PageTitle")
+        assert title is not None
+        assert title.text() == "Chat"
+
         window.navigation.setCurrentRow(6)
         app.processEvents()
 
         workspace = window.findChild(QWidget, "v2Workspace")
-        title = window.findChild(QLabel, "v2PageTitle")
         hint = window.findChild(QLabel, "v2PageHint")
         assert workspace is not None
         assert title is not None

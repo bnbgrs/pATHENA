@@ -447,6 +447,11 @@ class ComfyUiController(QObject):
         self.dialog.setProperty("pathenaComfyUiLocalOnly", True)
         self.dialog.setProperty("pathenaComfyUiGlobalInterruptAvailable", False)
         self.dialog.setProperty("pathenaComfyUiVramAvailable", False)
+        # Reparenting the dialog into an as-yet hidden workspace clears Qt's
+        # explicit hidden state.  Without restoring it, showing the main window
+        # also shows ComfyUI and covers the selected primary route before the
+        # user has opened the integration.
+        self.dialog.hide()
         self.window.setProperty("pathenaComfyUiController", self)
         self.window.setProperty("pathenaComfyUiInstalled", True)
 
