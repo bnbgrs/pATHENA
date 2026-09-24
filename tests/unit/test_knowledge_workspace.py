@@ -4,10 +4,12 @@ import os
 from collections.abc import Iterator
 
 import pytest
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication
 
 import athena.desktop.knowledge_workspace as knowledge_workspace_module
 from athena.desktop.knowledge_workspace import KnowledgeWorkspace
+from athena.desktop.pathena_v3_knowledge import install_v3_knowledge_workspace
 
 
 @pytest.fixture(scope="module")
@@ -169,5 +171,26 @@ def test_preview_cancel_never_starts_export(
         assert calls == []
         assert "CANCELLED" in workspace.obsidian_status.text()
         assert "No files were changed" in workspace.obsidian_status.text()
+    finally:
+        workspace.deleteLater()
+
+
+def test_v3_knowledge_lists_elide_instead_of_scrolling_horizontally(
+    qapp: QApplication,
+) -> None:
+    workspace = KnowledgeWorkspace(_FakeWindow(), None)
+    workspace._knowledge_refresh_timer.stop()
+    try:
+        install_v3_knowledge_workspace(workspace)
+        for list_widget in (
+            workspace.knowledge_list,
+            workspace.claim_list,
+            workspace.review_list,
+        ):
+            assert (
+                list_widget.horizontalScrollBarPolicy()
+                == Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+            )
+            assert list_widget.textElideMode() == Qt.TextElideMode.ElideRight
     finally:
         workspace.deleteLater()
