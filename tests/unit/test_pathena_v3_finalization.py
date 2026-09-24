@@ -48,10 +48,12 @@ def test_v3_inspector_never_opens_just_because_context_becomes_available() -> No
         inspector = window.findChild(QFrame, "inspector")
         assert inspector is not None
         assert not inspector.isVisible()
+        assert shell._inspector_button.isHidden()
 
         window._set_context_available(True)
         app.processEvents()
         assert not inspector.isVisible()
+        assert shell._inspector_button.isVisible()
 
         shell._inspector_button.click()
         app.processEvents()
@@ -71,6 +73,12 @@ def test_v3_stylesheet_has_explicit_navigation_and_inspector_states() -> None:
     stylesheet = PATHENA_V3_STYLESHEET
     assert 'QToolButton[v3Nav="true"]' in stylesheet
     assert "QPushButton#v3InspectorButton:checked" in stylesheet
+    assert "QToolButton[v3Nav=\"true\"]:focus" in stylesheet
+    assert "QPushButton#sendButton:focus" in stylesheet
+    assert "QWidget#v3SystemWorkspace" in stylesheet
+    assert "QTabWidget#systemOperationsTabs::pane" in stylesheet
+    assert "QDialog#helpWorkspace" in stylesheet
+    assert "QFrame#helpCapabilityRow" in stylesheet
     assert "QLabel#v3RuntimeScope" in stylesheet
     assert "QLabel#v3RuntimeDot" not in stylesheet
 
