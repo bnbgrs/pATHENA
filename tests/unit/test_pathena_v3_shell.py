@@ -8,6 +8,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication, QFrame
 
 from athena.desktop.pathena_v3_shell import install_v3_shell
+from athena.desktop.pathena_v3_theme import PATHENA_V3_STYLESHEET
 from athena.desktop.pathena_window import PathenaMainWindow
 
 
@@ -130,3 +131,50 @@ def test_v3_finalize_reuses_real_settings_controls() -> None:
     assert controller._nav_buttons[6].property("active") is True
 
     window.close()
+
+
+def test_v3_primary_route_can_reclaim_workspace_from_pallas_without_row_change() -> None:
+    _app()
+    window = PathenaMainWindow(api_controller=None)
+    controller = install_v3_shell(window)
+    calls: list[str] = []
+
+    def open_pallas() -> None:
+        calls.append("open")
+        window.setProperty("pathenaPallasShellOpen", True)
+        controller.pallas_opened()
+
+    def close_pallas() -> None:
+        calls.append("close")
+        window.setProperty("pathenaPallasShellOpen", False)
+        controller.pallas_closed()
+
+    controller.bind_pallas(open_pallas, close_pallas)
+    assert window.navigation.currentRow() == 0
+
+    controller._pallas_button.click()
+    assert calls == ["open"]
+    assert controller._pallas_button.property("active") is True
+
+    # Chat is already the selected hidden route. The visible Chat button must
+    # still close PALLAS even though QListWidget emits no row-change signal.
+    controller._nav_buttons[0].click()
+    assert calls == ["open", "close"]
+    assert window.pages.currentIndex() == 0
+    assert controller._nav_buttons[0].property("active") is True
+    assert controller._pallas_button.property("active") is False
+
+    controller._pallas_button.click()
+    controller._pallas_button.click()
+    assert calls == ["open", "close", "open", "close"]
+
+    window.close()
+
+
+def test_v3_theme_has_explicit_keyboard_focus_for_primary_actions() -> None:
+    assert 'QPushButton[v3Nav="true"]:focus' in PATHENA_V3_STYLESHEET
+    assert 'QPushButton[v3Nav="true"][active="true"]:focus' in PATHENA_V3_STYLESHEET
+    assert "QPushButton#v3CommandButton:focus" in PATHENA_V3_STYLESHEET
+    assert "QPushButton#sendButton:focus" in PATHENA_V3_STYLESHEET
+    assert "QPushButton:focus" in PATHENA_V3_STYLESHEET
+    assert "border-color: #89E0CA;" in PATHENA_V3_STYLESHEET
