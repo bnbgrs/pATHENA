@@ -11,7 +11,7 @@ V3_BORDER = "#2A3334"
 V3_BORDER_STRONG = "#3B4A4C"
 V3_TEXT = "#F3F0F5"
 V3_TEXT_MUTED = "#A8A3AE"
-V3_TEXT_DIM = "#706D76"
+V3_TEXT_DIM = "#85818C"
 V3_ACCENT = "#89E0CA"
 V3_ACCENT_SOFT = "#17302B"
 V3_MINT = "#89E0CA"
@@ -64,7 +64,7 @@ QLabel#v3Mark {
 }
 
 QLabel#v3BuildMark {
-    color: #706D76;
+    color: #85818C;
     font-size: 7.5pt;
     font-weight: 650;
 }
@@ -108,7 +108,7 @@ QLabel#v3PageTitle {
 }
 
 QLabel#v3PageHint {
-    color: #706D76;
+    color: #85818C;
     font-size: 8.7pt;
 }
 
@@ -202,7 +202,7 @@ QFrame#v3ChatMeta {
 
 QLabel#v3MetaLabel,
 QLabel#v3Kicker {
-    color: #706D76;
+    color: #85818C;
     font-size: 8pt;
     font-weight: 680;
     letter-spacing: 1.1px;
@@ -470,7 +470,7 @@ QFrame#v3PallasInspector {
 
 QLabel#inspectorTitle,
 QLabel#v3PallasInspectorKind {
-    color: #706D76;
+    color: #85818C;
     font-size: 8pt;
     font-weight: 680;
     letter-spacing: 1.1px;
@@ -774,7 +774,7 @@ QFrame#v2PallasInspector {
 }
 
 QLabel#v2PallasInspectorKind {
-    color: #706D76;
+    color: #85818C;
     font-size: 8pt;
     font-weight: 680;
     letter-spacing: 1.1px;
@@ -856,7 +856,7 @@ QListWidget#commandPaletteResults::item:selected {
 
 QLabel#commandPaletteFooter,
 QLabel#helpDialogIntro {
-    color: #706D76;
+    color: #85818C;
     font-size: 8.7pt;
 }
 
@@ -875,7 +875,7 @@ QDialog#comfyUiDialog {
 }
 
 QLabel#comfyUiSectionLabel {
-    color: #706D76;
+    color: #85818C;
     font-size: 8pt;
     font-weight: 680;
     letter-spacing: 1.15px;
