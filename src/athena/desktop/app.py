@@ -96,6 +96,10 @@ from athena.desktop.pathena_selection_disappearance_handoff import (
 from athena.desktop.pathena_settings_runtime import install_settings_runtime
 from athena.desktop.pathena_shell_density import apply_shell_density
 from athena.desktop.pathena_startup_experience_2900 import install_startup_experience
+from athena.desktop.pathena_transient_dialog_shortcuts import (
+    install_transient_dialog_shortcut_continuity,
+)
+from athena.desktop.pathena_ui_refinement_integrity import apply_complete_ui_refinements
 from athena.desktop.pathena_v2_jobs import install_v2_jobs_workspace
 from athena.desktop.pathena_v2_knowledge import install_v2_knowledge_workspace
 from athena.desktop.pathena_v2_research import install_v2_research_workspace
@@ -103,10 +107,6 @@ from athena.desktop.pathena_v2_shell import install_v2_shell
 from athena.desktop.pathena_v2_sources import install_v2_sources_workspace
 from athena.desktop.pathena_v2_system import install_v2_system_workspace
 from athena.desktop.pathena_v2_theme import PATHENA_V2_STYLESHEET
-from athena.desktop.pathena_transient_dialog_shortcuts import (
-    install_transient_dialog_shortcut_continuity,
-)
-from athena.desktop.pathena_ui_refinement_integrity import apply_complete_ui_refinements
 from athena.desktop.pathena_window import PathenaMainWindow
 from athena.desktop.pathena_workspace_presentation import apply_workspace_presentation
 from athena.desktop.research_results_extension import install_research_results_extension

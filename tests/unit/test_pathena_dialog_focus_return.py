@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from typing import cast
 
 import pytest
 
@@ -8,8 +9,15 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 pytest.importorskip("PySide6")
 
-from PySide6.QtCore import QCoreApplication, QEvent, Qt
-from PySide6.QtWidgets import QApplication, QDialog, QLineEdit, QPushButton, QWidget
+from PySide6.QtCore import QCoreApplication, QEvent, QObject, Qt
+from PySide6.QtWidgets import (
+    QApplication,
+    QDialog,
+    QLineEdit,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
+)
 from shiboken6 import isValid
 
 from athena.desktop.pathena_dialog_focus_return_7200 import DialogFocusReturnController
@@ -137,5 +145,26 @@ def test_deferred_delete_removes_application_event_filter_safely() -> None:
     dialog.show()
     dialog.hide()
     app.processEvents()
+    window.close()
+    app.processEvents()
+
+
+def test_application_filter_ignores_non_qobject_layout_items() -> None:
+    app, window, _previous, _newer, _dialog = _surface()
+    controller = DialogFocusReturnController(window)
+    layout_host = QWidget(window)
+    layout = QVBoxLayout(layout_host)
+    layout.addWidget(QWidget(layout_host))
+    item = layout.itemAt(0)
+    assert item is not None
+    assert not isinstance(item, QObject)
+
+    handled = controller.eventFilter(
+        cast(QObject, item),
+        QEvent(QEvent.Type.Show),
+    )
+
+    assert handled is False
+    controller.dispose()
     window.close()
     app.processEvents()

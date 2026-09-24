@@ -1,7 +1,7 @@
 # pATHENA UI v2 — Product Architecture
 
-Status: ACTIVE IMPLEMENTATION  
-Branch: `ui/v2-rebuild`  
+Status: ACTIVE IMPLEMENTATION
+Branch: `ui/v2-rebuild`
 Scope: native PySide6 desktop UI only. Backend, persistence, repositories, providers, scheduler and domain contracts remain unchanged.
 
 ## 1. Product intent
