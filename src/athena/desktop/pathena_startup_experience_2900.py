@@ -57,7 +57,7 @@ _STARTUP_REFINEMENTS: tuple[str, ...] = (
     "clarify first-run hierarchy",
     "preserve local-state truth",
     "tighten spatial rhythm",
-    "reserve orange for actionable intent",
+    "reserve the V3 accent for actionable intent",
 )
 
 UI_REFINEMENT_TASKS_2801_2900: tuple[str, ...] = tuple(
@@ -72,18 +72,18 @@ QFrame#composer {
     border: none;
 }
 QLabel#emptyStateEyebrow {
-    color: #F26A21;
+    color: #89E0CA;
     font-size: 9px;
     font-weight: 600;
     letter-spacing: 1px;
 }
 QLabel#emptyStateTitle {
-    color: #F2F2F2;
+    color: #F3F0F5;
     font-size: 20px;
     font-weight: 600;
 }
 QLabel#emptyStateBody {
-    color: #858585;
+    color: #A8A3AE;
     font-size: 12px;
 }
 QFrame#emptyStatePanel {
@@ -91,32 +91,33 @@ QFrame#emptyStatePanel {
     border: none;
 }
 QPushButton#sendButton:disabled {
-    color: #555555;
-    background: #121212;
-    border: 1px solid #202020;
+    color: #5D6667;
+    background: #101415;
+    border: 1px solid #202829;
 }
 QPushButton#groundButton:disabled {
-    color: #555555;
+    color: #5D6667;
     background: transparent;
     border-color: transparent;
 }
-QLineEdit#promptInput:disabled {
-    color: #666666;
-    background: #090909;
-    border-color: #1D1D1D;
+QLineEdit#promptInput:disabled,
+QPlainTextEdit#promptInput:disabled {
+    color: #5D6667;
+    background: #101415;
+    border-color: #202829;
 }
 QComboBox#chatSelector:disabled,
 QComboBox#modelSelector:disabled {
-    color: #5E5E5E;
-    background: #090909;
-    border-color: #1B1B1B;
+    color: #5D6667;
+    background: #101415;
+    border-color: #202829;
 }
 QLabel#localStatus {
-    color: #777777;
+    color: #85818C;
     font-size: 9px;
 }
 QLabel#keyboardHint {
-    color: #626262;
+    color: #706D76;
     font-size: 9px;
 }
 """
@@ -236,8 +237,7 @@ class PathenaStartupExperience(QObject):
 
         send = self.window.findChild(QPushButton, "sendButton")
         if send is not None:
-            send.setMinimumWidth(66)
-            send.setMaximumWidth(78)
+            send.setFixedSize(44, 44)
 
         chat_page = self.window.findChild(QWidget, "pageChat")
         if chat_page is not None:
@@ -338,29 +338,29 @@ class PathenaStartupExperience(QObject):
 
         panel = QFrame(messages)
         panel.setObjectName("emptyStatePanel")
-        panel.setMinimumHeight(174)
+        panel.setMinimumHeight(142)
         panel.setSizePolicy(
             QSizePolicy.Policy.Fixed,
             QSizePolicy.Policy.Minimum,
         )
         panel_layout = QVBoxLayout(panel)
-        panel_layout.setContentsMargins(28, 26, 28, 26)
-        panel_layout.setSpacing(10)
+        panel_layout.setContentsMargins(12, 24, 12, 18)
+        panel_layout.setSpacing(8)
 
         eyebrow = QLabel("LOCAL-FIRST WORKSPACE", panel)
         eyebrow.setObjectName("emptyStateEyebrow")
-        eyebrow.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+        eyebrow.setAlignment(Qt.AlignmentFlag.AlignLeft)
         eyebrow.setMinimumHeight(16)
 
         title = QLabel(panel)
         title.setObjectName("emptyStateTitle")
-        title.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+        title.setAlignment(Qt.AlignmentFlag.AlignLeft)
         title.setMinimumHeight(34)
         title.setWordWrap(False)
 
         body = QLabel(panel)
         body.setObjectName("emptyStateBody")
-        body.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
+        body.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
         body.setWordWrap(True)
         body.setMinimumHeight(50)
 
@@ -374,13 +374,17 @@ class PathenaStartupExperience(QObject):
 
         panel_layout.addWidget(eyebrow)
         panel_layout.addWidget(title)
-        panel_layout.addWidget(body, 0, Qt.AlignmentFlag.AlignHCenter)
+        panel_layout.addWidget(body, 0, Qt.AlignmentFlag.AlignLeft)
 
         layout = messages.layout()
         if not isinstance(layout, QVBoxLayout):
             return
-        layout.insertStretch(0, 1)
-        layout.insertWidget(1, panel, 0, Qt.AlignmentFlag.AlignHCenter)
+        layout.insertWidget(
+            0,
+            panel,
+            0,
+            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop,
+        )
 
 
 def install_startup_experience(window: QWidget) -> PathenaStartupExperience:
