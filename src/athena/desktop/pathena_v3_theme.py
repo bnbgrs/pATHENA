@@ -844,6 +844,59 @@ QPlainTextEdit#helpText {
     font-size: 9.5pt;
 }
 
+/* --- Hosted help workspace -------------------------------------------- */
+
+QWidget#helpWorkspace,
+QFrame#helpBody,
+QFrame#helpCapabilityContent {
+    background: #0A0D0E;
+    border: none;
+}
+
+QFrame#helpSecondaryNavigation {
+    background: transparent;
+    border: none;
+    border-right: 1px solid #2A3334;
+}
+
+QLabel#helpSecondaryTitle,
+QLabel#helpHeadline,
+QLabel#helpCapabilityTitle {
+    color: #F3F0F5;
+}
+
+QLineEdit#helpSearch {
+    color: #F3F0F5;
+    background: #14191A;
+    border: 1px solid #2A3334;
+    border-radius: 10px;
+    padding: 8px 11px;
+}
+
+QLineEdit#helpSearch:focus {
+    border-color: #4B8D7E;
+}
+
+QListWidget#helpCapabilities {
+    background: transparent;
+    border: none;
+}
+
+QFrame#helpCapabilityRow {
+    background: #14191A;
+    border: 1px solid #2A3334;
+    border-radius: 10px;
+}
+
+QLabel#helpCapabilitySummary,
+QLabel#helpCapabilityState {
+    color: #A8A3AE;
+}
+
+QLabel#helpCapabilityState[pathenaUiState="available"] {
+    color: #89E0CA;
+}
+
 QDialog#comfyUiDialog {
     background: #0A0D0E;
 }
