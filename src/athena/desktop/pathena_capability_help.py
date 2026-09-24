@@ -25,13 +25,13 @@ from athena.desktop.pathena_capability_catalog import (
     resolve_capability_catalog,
 )
 from athena.desktop.pathena_design_tokens import SHELL, TYPE
-from athena.desktop.pathena_v2_theme import (
-    V2_ACCENT,
-    V2_ACCENT_SOFT,
-    V2_BORDER,
-    V2_SURFACE_HOVER,
-    V2_TEXT,
-    V2_TEXT_MUTED,
+from athena.desktop.pathena_v3_theme import (
+    V3_ACCENT,
+    V3_ACCENT_SOFT,
+    V3_BORDER,
+    V3_SURFACE_HOVER,
+    V3_TEXT,
+    V3_TEXT_MUTED,
 )
 
 
@@ -98,14 +98,14 @@ class CapabilityHelpController(QObject):
         self.help_body.setObjectName("helpBody")
         body_layout = QHBoxLayout(self.help_body)
         body_layout.setContentsMargins(4, 6, 4, 6)
-        body_layout.setSpacing(32)
+        body_layout.setSpacing(24)
 
         navigation = QFrame(self.help_body)
         navigation.setObjectName("helpSecondaryNavigation")
         navigation.setFixedWidth(SHELL.secondary_nav_width)
         navigation.setStyleSheet(
             f"QFrame#helpSecondaryNavigation {{ background: transparent; "
-            f"border: none; border-right: 1px solid {V2_BORDER}; }}"
+            f"border: none; border-right: 1px solid {V3_BORDER}; }}"
         )
         navigation_layout = QVBoxLayout(navigation)
         navigation_layout.setContentsMargins(0, 0, 10, 0)
@@ -136,20 +136,20 @@ class CapabilityHelpController(QObject):
                 outline: none;
             }}
             QListWidget#helpSections::item {{
-                color: {V2_TEXT_MUTED};
+                color: {V3_TEXT_MUTED};
                 background: transparent;
                 border: none;
                 border-left: 2px solid transparent;
                 padding: 7px 10px;
             }}
             QListWidget#helpSections::item:hover {{
-                color: {V2_TEXT};
-                background: {V2_SURFACE_HOVER};
+                color: {V3_TEXT};
+                background: {V3_SURFACE_HOVER};
             }}
             QListWidget#helpSections::item:selected {{
-                color: {V2_TEXT};
-                background: {V2_ACCENT_SOFT};
-                border-left: 2px solid {V2_ACCENT};
+                color: {V3_TEXT};
+                background: {V3_ACCENT_SOFT};
+                border-left: 2px solid {V3_ACCENT};
             }}
             """
         )
@@ -197,7 +197,7 @@ class CapabilityHelpController(QObject):
         self.help_capabilities.setHorizontalScrollBarPolicy(
             Qt.ScrollBarPolicy.ScrollBarAlwaysOff
         )
-        self.help_capabilities.setSpacing(8)
+        self.help_capabilities.setSpacing(0)
         content_layout.addWidget(self.help_capabilities, 1)
 
         body_layout.addWidget(navigation)
@@ -218,14 +218,14 @@ class CapabilityHelpController(QObject):
         row = QFrame(self.help_capabilities)
         row.setObjectName("helpCapabilityRow")
         row.setProperty("pathenaCapabilityAvailability", state)
-        row.setMinimumHeight(88)
+        row.setMinimumHeight(72)
         row.setAccessibleName(capability.label)
         row.setAccessibleDescription(
             f"{capability.summary} Availability: {state.replace('_', ' ')}."
         )
 
         row_layout = QVBoxLayout(row)
-        row_layout.setContentsMargins(18, 12, 18, 12)
+        row_layout.setContentsMargins(14, 10, 14, 10)
         row_layout.setSpacing(7)
 
         title_line = QHBoxLayout()
@@ -375,7 +375,7 @@ class CapabilityHelpController(QObject):
             )
             self.help_capabilities.addItem(item)
             row = self._build_capability_row(capability)
-            item.setSizeHint(QSize(0, max(88, row.sizeHint().height())))
+            item.setSizeHint(QSize(0, max(72, row.sizeHint().height())))
             self.help_capabilities.setItemWidget(item, row)
 
         self.help_summary.setText(
