@@ -297,23 +297,23 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
 
     def wait_for_desktop_settle(window: QMainWindow) -> dict[str, object]:
-        """Wait for the real local Core handshake instead of photographing startup races."""
+        """Wait for the local Core transport handshake, not for a loaded model."""
         status = getattr(window, "status_text", None)
         deadline = time.monotonic() + 10.0
         last_status = ""
         while time.monotonic() < deadline:
             app.processEvents()
             last_status = str(status.text()) if status is not None else ""
-            core_ready = bool(getattr(window, "_core_ready", False))
-            if core_ready and last_status not in {"Connecting…", "Connecting..."}:
+            transport_ready = bool(getattr(window, "_core_transport_ready", False))
+            if transport_ready and last_status not in {"Connecting…", "Connecting..."}:
                 return {
-                    "core_ready": True,
+                    "core_transport_ready": True,
                     "desktop_status": last_status,
                 }
             time.sleep(0.05)
         raise RuntimeError(
-            "Desktop did not leave startup state before reference capture: "
-            f"core_ready={bool(getattr(window, '_core_ready', False))}, "
+            "Desktop did not finish the Core transport handshake before reference capture: "
+            f"core_transport_ready={bool(getattr(window, '_core_transport_ready', False))}, "
             f"status={last_status!r}."
         )
 
