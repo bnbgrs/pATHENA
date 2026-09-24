@@ -195,10 +195,6 @@ class PathenaV3ShellController(QObject):
         self._command_button.clicked.connect(self._open_command_palette)
         self._header.action_layout.addWidget(self._command_button)
 
-        dot = QLabel("●")
-        dot.setObjectName("v3RuntimeDot")
-        self._header.action_layout.addWidget(dot)
-
         status = self._window.status_text
         status.setParent(self._header.action_host)
         status.setObjectName("v3RuntimeText")
