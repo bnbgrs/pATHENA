@@ -100,8 +100,7 @@ QPushButton#groundButton:disabled {
     background: transparent;
     border-color: transparent;
 }
-QLineEdit#promptInput:disabled,
-QPlainTextEdit#promptInput:disabled {
+QLineEdit#promptInput:disabled {
     color: #666666;
     background: #090909;
     border-color: #1D1D1D;
@@ -299,7 +298,15 @@ class PathenaStartupExperience(QObject):
 
     @staticmethod
     def _sync_empty_state_width(*, messages: QWidget, panel: QFrame, body: QLabel) -> None:
-        panel_width = max(1, min(560, messages.width() - 32))
+        # QScrollArea can briefly report a narrow child width while the viewport
+        # already owns the real available geometry. Basing a fixed child width on
+        # that transient value creates a self-reinforcing collapsed empty state.
+        available_width = messages.width()
+        parent = messages.parentWidget()
+        if parent is not None and parent.objectName() == "qt_scrollarea_viewport":
+            available_width = max(available_width, parent.width())
+
+        panel_width = max(1, min(560, available_width - 32))
         panel.setFixedWidth(panel_width)
         body.setFixedWidth(max(1, panel_width - 56))
 
