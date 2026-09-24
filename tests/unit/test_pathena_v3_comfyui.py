@@ -80,6 +80,17 @@ def test_v3_comfyui_is_shell_hosted_and_restores_selected_route() -> None:
         app.processEvents()
         assert controller.dialog.geometry() == workspace.rect()
 
+        shell._nav_buttons[6].click()
+        app.processEvents()
+        assert controller.dialog.isHidden()
+        assert title.text() == "Settings"
+        assert shell._nav_buttons[6].property("active") is True
+
+        controller.open()
+        app.processEvents()
+        assert controller.dialog.isVisible()
+        assert title.text() == "ComfyUI"
+
         window.navigation.setCurrentRow(1)
         app.processEvents()
         assert controller.dialog.isHidden()
