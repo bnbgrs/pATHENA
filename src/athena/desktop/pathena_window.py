@@ -346,15 +346,24 @@ class PathenaMainWindow(AthenaMainWindow):
                     chat_layout.insertWidget(evidence_index, self.context_button)
 
     def _sync_inspector_visibility(self) -> None:
-        """Keep the contextual inspector closed until the user explicitly opens it."""
+        """Keep V3 contextual detail explicit without breaking legacy route context."""
         inspector = self.findChild(QFrame, "inspector")
         if inspector is None:
             return
-        details_button = getattr(self, "details_button", None)
-        explicitly_open = (
-            isinstance(details_button, QPushButton) and details_button.isChecked()
+
+        if bool(self.property("pathenaV3Presentation")):
+            details_button = getattr(self, "details_button", None)
+            explicitly_open = (
+                isinstance(details_button, QPushButton) and details_button.isChecked()
+            )
+            inspector.setVisible(self.navigation.currentRow() == 0 and explicitly_open)
+            return
+
+        context_button = getattr(self, "context_button", None)
+        context_available = (
+            isinstance(context_button, QPushButton) and not context_button.isHidden()
         )
-        inspector.setVisible(self.navigation.currentRow() == 0 and explicitly_open)
+        inspector.setVisible(self.navigation.currentRow() != 0 or context_available)
 
     def _set_context_available(self, available: bool) -> None:
         button = getattr(self, "context_button", None)
