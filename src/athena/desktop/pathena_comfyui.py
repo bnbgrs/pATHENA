@@ -293,7 +293,7 @@ class ComfyUiController(QObject):
         self._shell_generation = "v3"
         if self._workspace is None or self._shell is None:
             self._workspace = self.window.findChild(QFrame, "v2Workspace")
-            self._shell = getattr(self.window, "_pathena_shell_controller", None)
+            self._shell = getattr(self.window, "_pathena_v2_shell_controller", None)
             self._shell_generation = "v2"
 
         if self._workspace is not None and self._shell is not None:
