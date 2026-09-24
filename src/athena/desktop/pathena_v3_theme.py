@@ -621,10 +621,23 @@ QScrollArea#v3SettingsScroll > QWidget > QWidget {
     border: none;
 }
 
-QFrame#v3KnowledgeSearch,
-QFrame#v3KnowledgeIdentity {
+QFrame#v3KnowledgeHeader,
+QFrame#v3KnowledgeMetaStrip {
     background: transparent;
     border: none;
+}
+
+QFrame#v3KnowledgeCommand {
+    background: #121718;
+    border: none;
+    border-radius: 16px;
+}
+
+QLabel#v3LibraryTitle {
+    color: #F3F0F5;
+    font-size: 18pt;
+    font-weight: 690;
+    letter-spacing: -0.55px;
 }
 
 QFrame#v3KnowledgeBrowser,
@@ -669,8 +682,8 @@ QLabel#v3RuntimeCardHint {
 
 QTabWidget#v3KnowledgeTabs::pane {
     background: #121718;
-    border: 1px solid #273031;
-    border-radius: 14px;
+    border: none;
+    border-radius: 16px;
     top: -1px;
 }
 
