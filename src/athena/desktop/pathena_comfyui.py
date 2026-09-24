@@ -487,6 +487,13 @@ class ComfyUiController(QObject):
         self.dialog.raise_()
 
     def _set_shell_header(self) -> None:
+        transient_opened = getattr(self._shell, "transient_workspace_opened", None)
+        if callable(transient_opened):
+            transient_opened(
+                "ComfyUI",
+                "Local image and video workflows · loopback only.",
+            )
+            return
         inspector = getattr(self._shell, "_inspector", None)
         if isinstance(inspector, QFrame):
             inspector.hide()
@@ -499,6 +506,10 @@ class ComfyUiController(QObject):
             )
 
     def _restore_shell_header(self) -> None:
+        transient_closed = getattr(self._shell, "transient_workspace_closed", None)
+        if callable(transient_closed):
+            transient_closed()
+            return
         if bool(self.window.property("pathenaPallasShellOpen")):
             pallas_opened = getattr(self._shell, "pallas_opened", None)
             if callable(pallas_opened):
