@@ -132,3 +132,40 @@ def test_v3_theme_exposes_keyboard_focus_and_readable_dim_text() -> None:
     assert "QPushButton#sendButton:focus" in PATHENA_V3_STYLESHEET
     assert "QLineEdit#promptInput:focus" in PATHENA_V3_STYLESHEET
     assert "#817D87" in PATHENA_V3_STYLESHEET
+
+
+def test_v3_chat_surfaces_are_not_center_alignment_shrink_wrapped() -> None:
+    _app()
+    window = PathenaMainWindow(api_controller=None)
+    window.setProperty("pathenaV3Presentation", True)
+    install_v3_shell(window)
+
+    chat = window.pages.widget(0)
+    assert chat is not None
+    stage = chat.findChild(QFrame, "v3ConversationStage")
+    composer = chat.findChild(QFrame, "v3Composer")
+    assert stage is not None
+    assert composer is not None
+    assert stage.maximumWidth() >= 16_000
+    assert composer.maximumWidth() >= 16_000
+    window.close()
+
+
+def test_v3_non_chat_routes_keep_legacy_inspector_closed() -> None:
+    _app()
+    window = PathenaMainWindow(api_controller=None)
+    window.setProperty("pathenaV3Presentation", True)
+    install_v3_shell(window)
+    inspector = window.findChild(QFrame, "inspector")
+    assert inspector is not None
+
+    window.navigation.setCurrentRow(6)
+    window._sync_inspector_visibility()
+    assert inspector.isHidden()
+    window.close()
+
+
+def test_v3_theme_covers_system_operations_and_hosted_help() -> None:
+    assert "QTabWidget#systemOperationsTabs::pane" in PATHENA_V3_STYLESHEET
+    assert "QDialog#helpWorkspace" in PATHENA_V3_STYLESHEET
+    assert "QFrame#helpCapabilityRow" in PATHENA_V3_STYLESHEET
