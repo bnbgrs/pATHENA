@@ -103,10 +103,10 @@ from athena.desktop.pathena_ui_refinement_integrity import apply_complete_ui_ref
 from athena.desktop.pathena_v3_jobs import install_v3_jobs_workspace
 from athena.desktop.pathena_v3_knowledge import install_v3_knowledge_workspace
 from athena.desktop.pathena_v3_research import install_v3_research_workspace
-from athena.desktop.pathena_v2_shell import install_v2_shell
+from athena.desktop.pathena_v3_shell import install_v3_shell
 from athena.desktop.pathena_v3_sources import install_v3_sources_workspace
 from athena.desktop.pathena_v3_system import install_v3_system_workspace
-from athena.desktop.pathena_v2_theme import PATHENA_V2_STYLESHEET
+from athena.desktop.pathena_v3_theme import PATHENA_V3_STYLESHEET
 from athena.desktop.pathena_window import PathenaMainWindow
 from athena.desktop.pathena_workspace_presentation import apply_workspace_presentation
 from athena.desktop.research_results_extension import install_research_results_extension
