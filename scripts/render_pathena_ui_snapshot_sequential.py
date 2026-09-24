@@ -215,6 +215,8 @@ def _select_reference_knowledge(
     observed_ids: set[str] = set()
     detail_id = ""
     detail_state = ""
+    detail_content_id = ""
+    detail_provenance_mode = ""
     selected_id = ""
     while time.monotonic() < deadline:
         app.processEvents()
@@ -250,12 +252,20 @@ def _select_reference_knowledge(
         detail_state = str(
             knowledge_details.property("pathenaKnowledgeReviewState") or ""
         )
+        detail_content_id = str(
+            knowledge_details.property("pathenaDetailContentIdentity") or ""
+        )
+        detail_provenance_mode = str(
+            knowledge_details.property("pathenaDetailProvenanceMode") or ""
+        )
         detail_text = knowledge_details.toPlainText()
         if (
             expected.issubset(observed_ids)
             and selected_id == reference_id
             and detail_id == reference_id
             and detail_state == "ready"
+            and detail_content_id == reference_id
+            and detail_provenance_mode == "current"
             and reference_title in detail_text
             and reference_body in detail_text
         ):
@@ -265,6 +275,7 @@ def _select_reference_knowledge(
                 "selected_knowledge_id": reference_id,
                 "selected_knowledge_key": reference_title,
                 "selected_knowledge_state": detail_state,
+                "selected_knowledge_provenance": detail_provenance_mode,
             }
         time.sleep(0.05)
 
@@ -272,7 +283,9 @@ def _select_reference_knowledge(
         "Repository-backed Knowledge did not reach the declared capture state: "
         f"expected={len(expected)}, observed={len(observed_ids)}, "
         f"selected_id={selected_id!r}, detail_state={detail_state!r}, "
-        f"detail_id={detail_id!r}, reference_id={reference_id!r}."
+        f"detail_id={detail_id!r}, detail_content_id={detail_content_id!r}, "
+        f"detail_provenance_mode={detail_provenance_mode!r}, "
+        f"reference_id={reference_id!r}."
     )
 
 
