@@ -364,6 +364,10 @@ class PathenaMainWindow(AthenaMainWindow):
         if not available:
             button.setChecked(False)
             self.evidence_chain.hide()
+        shell = getattr(self, "_pathena_v3_shell_controller", None)
+        set_available = getattr(shell, "set_inspector_available", None)
+        if callable(set_available):
+            set_available(available)
         self._sync_inspector_visibility()
 
     def _sync_progressive_chat_actions(self, _index: int | None = None) -> None:
