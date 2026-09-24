@@ -7,6 +7,8 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication, QFrame
 
+from athena.desktop.knowledge_workspace import KnowledgeWorkspace
+from athena.desktop.pathena_v3_knowledge import install_v3_knowledge_workspace
 from athena.desktop.pathena_v3_shell import install_v3_shell
 from athena.desktop.pathena_v3_theme import PATHENA_V3_STYLESHEET
 from athena.desktop.pathena_window import PathenaMainWindow
@@ -213,3 +215,27 @@ def test_v3_finalize_exposes_legible_initial_selector_states() -> None:
 def test_v3_theme_styles_horizontal_scrollbars() -> None:
     assert "QScrollBar:horizontal" in PATHENA_V3_STYLESHEET
     assert "QScrollBar::handle:horizontal" in PATHENA_V3_STYLESHEET
+
+
+class _KnowledgeWindowStub:
+    navigation = None
+
+
+def test_v3_knowledge_lists_elide_instead_of_scrolling_horizontally() -> None:
+    _app()
+    workspace = KnowledgeWorkspace(_KnowledgeWindowStub(), None)
+    workspace._knowledge_refresh_timer.stop()
+    try:
+        install_v3_knowledge_workspace(workspace)
+        for list_widget in (
+            workspace.knowledge_list,
+            workspace.claim_list,
+            workspace.review_list,
+        ):
+            assert (
+                list_widget.horizontalScrollBarPolicy()
+                == Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+            )
+            assert list_widget.textElideMode() == Qt.TextElideMode.ElideRight
+    finally:
+        workspace.deleteLater()
