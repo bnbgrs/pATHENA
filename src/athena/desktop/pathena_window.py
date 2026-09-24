@@ -336,6 +336,9 @@ class PathenaMainWindow(AthenaMainWindow):
         self.context_button.hide()
         self.evidence_chain.hide()
         self.context_button.toggled.connect(self.evidence_chain.setVisible)
+        self.context_button.toggled.connect(
+            lambda _checked=False: self._sync_inspector_visibility()
+        )
 
         chat_page = self.pages.widget(0)
         if chat_page is not None:
@@ -353,6 +356,14 @@ class PathenaMainWindow(AthenaMainWindow):
         context_available = (
             isinstance(context_button, QPushButton) and not context_button.isHidden()
         )
+        if bool(self.property("pathenaV3Presentation")):
+            context_open = (
+                context_available
+                and isinstance(context_button, QPushButton)
+                and context_button.isChecked()
+            )
+            inspector.setVisible(self.navigation.currentRow() == 0 and context_open)
+            return
         inspector.setVisible(self.navigation.currentRow() != 0 or context_available)
 
     def _set_context_available(self, available: bool) -> None:
@@ -637,4 +648,5 @@ class PathenaMainWindow(AthenaMainWindow):
 
     def apply_chat_busy(self, busy: bool) -> None:
         super().apply_chat_busy(busy)
-        self.send_button.setText("…" if busy else "→")
+        idle_glyph = "↑" if bool(self.property("pathenaV3Presentation")) else "→"
+        self.send_button.setText("…" if busy else idle_glyph)

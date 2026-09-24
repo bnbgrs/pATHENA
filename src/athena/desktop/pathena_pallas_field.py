@@ -44,30 +44,35 @@ from athena.desktop.pathena_pallas_semantic import (
     deterministic_layout,
     graph_from_grounded_response,
 )
-from athena.desktop.pathena_v2_theme import (
-    V2_ACCENT,
-    V2_BG,
-    V2_BORDER_STRONG,
-    V2_DANGER,
-    V2_SUCCESS,
-    V2_TEXT,
-    V2_TEXT_DIM,
-    V2_TEXT_MUTED,
+from athena.desktop.pathena_v3_theme import (
+    V3_ACCENT,
+    V3_ACCENT_SOFT,
+    V3_BG,
+    V3_BORDER_STRONG,
+    V3_DANGER,
+    V3_MINT,
+    V3_SURFACE_RAISED,
+    V3_TEXT,
+    V3_TEXT_DIM,
+    V3_TEXT_MUTED,
+    V3_WARNING,
 )
 
-_CANVAS = QColor(V2_BG)
-_TEXT = QColor(V2_TEXT)
-_MUTED = QColor(V2_TEXT_MUTED)
-_QUIET = QColor(V2_TEXT_DIM)
-_BORDER = QColor(V2_BORDER_STRONG)
-_ACCENT = QColor(V2_ACCENT)
-_SOURCE = QColor("#5FA8FF")
-_CLAIM = QColor(V2_SUCCESS)
-_KNOWLEDGE = QColor("#A78BFA")
-_QUESTION = QColor("#F2C66D")
-_MEMORY = QColor("#A78BFA")
-_CONFLICT = QColor(V2_DANGER)
-_UNCERTAIN = QColor("#F2C66D")
+_CANVAS = QColor(V3_BG)
+_NODE_FILL = QColor(V3_SURFACE_RAISED)
+_NODE_FOCUS = QColor(V3_ACCENT_SOFT)
+_TEXT = QColor(V3_TEXT)
+_MUTED = QColor(V3_TEXT_MUTED)
+_QUIET = QColor(V3_TEXT_DIM)
+_BORDER = QColor(V3_BORDER_STRONG)
+_ACCENT = QColor(V3_ACCENT)
+_SOURCE = QColor(V3_MINT)
+_CLAIM = QColor(V3_ACCENT)
+_KNOWLEDGE = QColor("#E6E0C8")
+_QUESTION = QColor(V3_WARNING)
+_MEMORY = QColor("#AFC7A0")
+_CONFLICT = QColor(V3_DANGER)
+_UNCERTAIN = QColor(V3_WARNING)
 
 
 @dataclass(frozen=True, slots=True)
@@ -161,7 +166,7 @@ class _PallasNodeItem(QGraphicsEllipseItem):
         self.setPos(position)
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, True)
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsFocusable, True)
-        self.setBrush(QBrush(_CANVAS))
+        self.setBrush(QBrush(_NODE_FILL))
         self.setPen(QPen(_node_color(node), 1.4))
         self.setToolTip(_node_tooltip(node))
 
@@ -201,13 +206,16 @@ class _PallasNodeItem(QGraphicsEllipseItem):
 
     def _refresh_outline(self) -> None:
         if self.isSelected():
+            self.setBrush(QBrush(_NODE_FOCUS))
             self.setPen(QPen(_ACCENT, 2.0))
             self.setZValue(2.0)
             return
         if self.hasFocus():
+            self.setBrush(QBrush(_NODE_FILL))
             self.setPen(QPen(_ACCENT, 1.7))
             self.setZValue(1.5)
             return
+        self.setBrush(QBrush(_NODE_FILL))
         self.setPen(QPen(_node_color(self.node), 1.4))
         self.setZValue(1.0)
 

@@ -33,6 +33,14 @@ from athena.desktop.pathena_v2_theme import (
     V2_TEXT,
     V2_TEXT_MUTED,
 )
+from athena.desktop.pathena_v3_theme import (
+    V3_ACCENT,
+    V3_ACCENT_SOFT,
+    V3_BORDER,
+    V3_SURFACE_HOVER,
+    V3_TEXT,
+    V3_TEXT_MUTED,
+)
 
 
 class CapabilityHelpController(QObject):
@@ -103,9 +111,16 @@ class CapabilityHelpController(QObject):
         navigation = QFrame(self.help_body)
         navigation.setObjectName("helpSecondaryNavigation")
         navigation.setFixedWidth(SHELL.secondary_nav_width)
+        is_v3 = bool(self.window.property("pathenaV3Presentation"))
+        border = V3_BORDER if is_v3 else V2_BORDER
+        text = V3_TEXT if is_v3 else V2_TEXT
+        muted = V3_TEXT_MUTED if is_v3 else V2_TEXT_MUTED
+        hover = V3_SURFACE_HOVER if is_v3 else V2_SURFACE_HOVER
+        accent_soft = V3_ACCENT_SOFT if is_v3 else V2_ACCENT_SOFT
+        accent = V3_ACCENT if is_v3 else V2_ACCENT
         navigation.setStyleSheet(
             f"QFrame#helpSecondaryNavigation {{ background: transparent; "
-            f"border: none; border-right: 1px solid {V2_BORDER}; }}"
+            f"border: none; border-right: 1px solid {border}; }}"
         )
         navigation_layout = QVBoxLayout(navigation)
         navigation_layout.setContentsMargins(0, 0, 10, 0)
@@ -136,20 +151,20 @@ class CapabilityHelpController(QObject):
                 outline: none;
             }}
             QListWidget#helpSections::item {{
-                color: {V2_TEXT_MUTED};
+                color: {muted};
                 background: transparent;
                 border: none;
                 border-left: 2px solid transparent;
                 padding: 7px 10px;
             }}
             QListWidget#helpSections::item:hover {{
-                color: {V2_TEXT};
-                background: {V2_SURFACE_HOVER};
+                color: {text};
+                background: {hover};
             }}
             QListWidget#helpSections::item:selected {{
-                color: {V2_TEXT};
-                background: {V2_ACCENT_SOFT};
-                border-left: 2px solid {V2_ACCENT};
+                color: {text};
+                background: {accent_soft};
+                border-left: 2px solid {accent};
             }}
             """
         )

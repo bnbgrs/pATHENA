@@ -137,6 +137,28 @@ def test_qt_bridge_moves_real_edge_with_living_node_positions(
         delete(window)
 
 
+def test_qt_bridge_reduced_motion_keeps_semantic_field_still(
+    qapp: QApplication,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("PATHENA_REDUCED_MOTION", "1")
+    window = QWidget()
+    grounded = _grounded_controller(window)
+    living = PallasLivingQtController(grounded)
+    living._timer.stop()  # noqa: SLF001 - deterministic reduced-motion regression
+    try:
+        living._tick()  # noqa: SLF001 - reconcile one stable frame
+        qapp.processEvents()
+
+        assert living._reduced_motion is True  # noqa: SLF001
+        assert living.engine.tick == 0
+        assert grounded.field.property("pathenaPallasLiving") is True
+        assert grounded.field.snapshot is not None
+    finally:
+        living.stop()
+        delete(window)
+
+
 def test_qt_bridge_rejects_unknown_lens(qapp: QApplication) -> None:
     del qapp
     window = QWidget()
