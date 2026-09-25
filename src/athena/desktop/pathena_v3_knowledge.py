@@ -65,7 +65,11 @@ class PathenaV3KnowledgeController(QObject):
         workspace.state.setParent(header)
         workspace.state.setObjectName("v3KnowledgeState")
         workspace.state.show()
-        header_layout.addWidget(workspace.state)
+        header_layout.addWidget(
+            workspace.state,
+            0,
+            Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignRight,
+        )
         root.addWidget(header)
 
         command = QFrame()
