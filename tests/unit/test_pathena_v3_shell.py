@@ -5,6 +5,7 @@ import os
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import QApplication, QFrame, QLabel, QPlainTextEdit
 
 from athena.desktop.pathena_v3_shell import install_v3_shell
@@ -62,6 +63,21 @@ def test_v3_shell_is_structurally_distinct_and_keeps_route_contract() -> None:
     assert window.pages.currentIndex() == 2
     assert controller._nav_buttons[2].property("active") is True
     assert controller._nav_buttons[0].property("active") is False
+
+    window.close()
+
+
+def test_chat_send_shortcuts_are_unique() -> None:
+    _app()
+    window = PathenaMainWindow(api_controller=None)
+
+    enter = QKeySequence("Ctrl+Enter")
+    return_key = QKeySequence("Ctrl+Return")
+    shortcuts = window.findChildren(QShortcut)
+
+    assert sum(shortcut.key() == enter for shortcut in shortcuts) == 1
+    assert sum(shortcut.key() == return_key for shortcut in shortcuts) == 1
+    assert window._send_enter_shortcut is not window._send_return_shortcut
 
     window.close()
 
