@@ -53,6 +53,9 @@ class PathenaV3ShellController(QObject):
         self._nav_buttons: dict[int, V3NavigationButton] = {}
         self._legacy_shell: QWidget | None = None
         self._inspector: QFrame | None = None
+        self._chat_meta: QFrame | None = None
+        self._chat_stage: QFrame | None = None
+        self._composer: QFrame | None = None
         self._header = V3WorkspaceHeader("Chat", _PAGE_HINTS[0])
         self._command_button = QPushButton("Search pATHENA   Ctrl K")
         self._inspector_button = QPushButton("Evidence")
@@ -307,6 +310,7 @@ class PathenaV3ShellController(QObject):
         meta.setMinimumWidth(760)
         meta.setMaximumWidth(1180)
         meta.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self._chat_meta = meta
         meta_row = QHBoxLayout()
         meta_row.setContentsMargins(0, 0, 0, 0)
         meta_row.setSpacing(0)
@@ -342,6 +346,7 @@ class PathenaV3ShellController(QObject):
         stage.setMinimumWidth(760)
         stage.setMaximumWidth(1180)
         stage.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self._chat_stage = stage
         stage_row = QHBoxLayout()
         stage_row.setContentsMargins(0, 0, 0, 0)
         stage_row.setSpacing(0)
@@ -374,6 +379,7 @@ class PathenaV3ShellController(QObject):
         composer.setMinimumWidth(760)
         composer.setMaximumWidth(1120)
         composer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        self._composer = composer
         composer_row = QHBoxLayout()
         composer_row.setContentsMargins(0, 0, 0, 0)
         composer_row.setSpacing(0)
@@ -614,8 +620,26 @@ class PathenaV3ShellController(QObject):
         details_button = getattr(self._window, "details_button", None)
         if isinstance(details_button, QPushButton):
             details_button.setChecked(open_)
+        inspector_visible = open_ and self._window.navigation.currentRow() == 0
         if self._inspector is not None:
-            self._inspector.setVisible(open_ and self._window.navigation.currentRow() == 0)
+            self._inspector.setVisible(inspector_visible)
+        self._sync_chat_width_constraints(inspector_visible)
+
+    def _sync_chat_width_constraints(self, inspector_open: bool) -> None:
+        """Keep Chat usable when its contextual inspector shares a narrow window."""
+        minimum = 620 if inspector_open else 760
+        scroll_minimum = 520 if inspector_open else 680
+        messages_minimum = 480 if inspector_open else 640
+        selector_minimum = 160 if inspector_open else 210
+        model_minimum = 160 if inspector_open else 200
+
+        for surface in (self._chat_meta, self._chat_stage, self._composer):
+            if surface is not None:
+                surface.setMinimumWidth(minimum)
+        self._window.chat_scroll.setMinimumWidth(scroll_minimum)
+        self._window.chat_messages_widget.setMinimumWidth(messages_minimum)
+        self._window.chat_selector.setMinimumWidth(selector_minimum)
+        self._window.model_selector.setMinimumWidth(model_minimum)
 
     @Slot()
     def _open_command_palette(self) -> None:
