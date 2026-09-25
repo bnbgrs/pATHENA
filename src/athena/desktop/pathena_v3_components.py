@@ -194,7 +194,7 @@ class V3EmptyState(QFrame):
         body_label.setObjectName("v3EmptyBody")
         body_label.setWordWrap(True)
         body_label.setMaximumWidth(560)
-        body_label.setMinimumHeight(44)
+        body_label.setMinimumHeight(64)
         body_label.setSizePolicy(
             QSizePolicy.Policy.Expanding,
             QSizePolicy.Policy.Minimum,
