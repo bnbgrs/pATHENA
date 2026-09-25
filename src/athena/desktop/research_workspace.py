@@ -26,6 +26,16 @@ _JOB_QUEUED_RE = re.compile(r"^JOB_QUEUED\s+([0-9a-fA-F-]{36})$", re.MULTILINE)
 _TERMINAL_STATES = frozenset({"cancelled", "failed", "completed"})
 
 
+def _humanize_research_stage(stage: str) -> str:
+    """Expose the persisted research stage without leaking scheduler-style tokens."""
+    value = stage.strip()
+    if not value or value == "-":
+        return "Stage unavailable"
+    if value.startswith("research_"):
+        value = value.removeprefix("research_")
+    return value.replace("_", " ").strip().capitalize()
+
+
 class ResearchWorkspace(QWidget):
     """Queue, inspect and cancel durable exhaustive research without blocking Qt."""
 
@@ -284,14 +294,25 @@ class ResearchWorkspace(QWidget):
                 continue
             job_id, state, stage, coverage, query = parts
             coverage_label = "—" if coverage == "-" else f"{float(coverage) * 100:.1f}%"
-            item = QListWidgetItem(
-                f"{state.upper():<16} {coverage_label:>7}  {query or '<no query>'}"
+            state_label = state.replace("_", " ").strip().capitalize()
+            stage_label = _humanize_research_stage(stage)
+            query_label = query or "<no query>"
+            visible_label = (
+                f"{state_label} · {stage_label} · {coverage_label} · {query_label}"
             )
+            item = QListWidgetItem(visible_label)
             item.setToolTip(
                 f"{job_id}\nstate={state}\nstage={stage}\ncoverage={coverage_label}"
             )
             item.setData(Qt.ItemDataRole.UserRole, job_id)
             item.setData(Qt.ItemDataRole.UserRole + 1, state)
+            item.setData(Qt.ItemDataRole.UserRole + 2, stage)
+            item.setData(Qt.ItemDataRole.AccessibleTextRole, visible_label)
+            item.setData(
+                Qt.ItemDataRole.AccessibleDescriptionRole,
+                f"Research run {state_label}. Current stage {stage_label}. "
+                f"Coverage {coverage_label}. Query: {query_label}.",
+            )
             self.jobs.addItem(item)
             if selected == job_id:
                 item_to_select = item

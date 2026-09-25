@@ -4,6 +4,7 @@ import os
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication, QFrame
 
 from athena.desktop.pathena_v2_shell import install_v2_shell
@@ -33,10 +34,20 @@ def test_v2_shell_recomposes_real_window_without_changing_route_contract() -> No
     assert window.pages.widget(0).objectName() == "v2ChatPage"
     assert window.prompt_input.parent().objectName() == "v2Composer"
 
+    sidebar = shell.findChild(QFrame, "v2Sidebar")
+    assert sidebar is not None
+    assert sidebar.width() == 204
+    assert all(
+        not button.icon().isNull()
+        for button in (*controller._nav_buttons.values(), controller._pallas_button)
+    )
+
+    inactive_icon = controller._nav_buttons[2].icon().cacheKey()
     window.navigation.setCurrentRow(2)
     assert window.pages.currentIndex() == 2
     assert controller._nav_buttons[2].property("active") is True
     assert controller._nav_buttons[0].property("active") is False
+    assert controller._nav_buttons[2].icon().cacheKey() != inactive_icon
 
     window.close()
 
@@ -49,6 +60,10 @@ def test_v2_shell_binds_existing_command_palette_contract() -> None:
 
     controller.bind_command_palette(lambda: called.append("open"))
     assert controller._command_button.isEnabled()
+    window.show()
+    controller._command_button.setFocus(Qt.FocusReason.TabFocusReason)
+    QApplication.processEvents()
+    assert controller._command_button.hasFocus()
     controller._command_button.click()
 
     assert called == ["open"]
