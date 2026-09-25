@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QPushButton,
     QSizePolicy,
+    QToolButton,
     QVBoxLayout,
     QWidget,
 )
@@ -77,11 +78,12 @@ def _glyph_icon(name: str, *, active: bool) -> QIcon:
     return QIcon(pixmap)
 
 
-class V3NavigationButton(QPushButton):
-    """Compact icon-led navigation button."""
+class V3NavigationButton(QToolButton):
+    """Compact icon-and-label navigation with immediate workspace recognition."""
 
     def __init__(self, label: str, *, icon_name: str) -> None:
-        super().__init__("")
+        super().__init__()
+        self.setText(label)
         self._icons = {
             False: _glyph_icon(icon_name, active=False),
             True: _glyph_icon(icon_name, active=True),
@@ -91,8 +93,9 @@ class V3NavigationButton(QPushButton):
         self.setProperty("v3Nav", True)
         self.setProperty("active", False)
         self.setIcon(self._icons[False])
-        self.setIconSize(QSize(22, 22))
-        self.setFixedSize(48, 48)
+        self.setIconSize(QSize(20, 20))
+        self.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextUnderIcon)
+        self.setFixedSize(68, 58)
         self.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         self.setToolTip(label)
         self.setAccessibleName(f"Open {label}")
