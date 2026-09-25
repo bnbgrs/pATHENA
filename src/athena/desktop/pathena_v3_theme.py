@@ -1016,7 +1016,7 @@ QToolButton[v3Nav="true"]:hover {
 QToolButton[v3Nav="true"]:focus {
     color: #F3F0F5;
     background: #1A2021;
-    border-color: #89E0CA;
+    border: 1px dashed #89E0CA;
 }
 QToolButton[v3Nav="true"][active="true"] {
     color: #F3F0F5;
@@ -1024,7 +1024,7 @@ QToolButton[v3Nav="true"][active="true"] {
     border-color: #28584D;
 }
 QToolButton[v3Nav="true"][active="true"]:focus {
-    border-color: #89E0CA;
+    border: 1px solid #89E0CA;
 }
 
 QPushButton#v3InspectorButton {
