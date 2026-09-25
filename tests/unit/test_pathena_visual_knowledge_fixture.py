@@ -95,18 +95,19 @@ def test_visual_knowledge_fixture_is_idempotent_and_renders_real_detail(
             timeout_seconds=10.0,
         )
 
-        listed_ids = {
+        listed_ids = [
             str(
                 workspace.knowledge_list.item(index).data(
                     Qt.ItemDataRole.UserRole
                 )
             )
             for index in range(workspace.knowledge_list.count())
-        }
-        assert listed_ids == set(first_ids)
+        ]
+        assert set(listed_ids) == set(first_ids)
+        assert listed_ids == list(reversed(first_ids))
         assert str(
             workspace.knowledge_details.property("pathenaKnowledgeEntityId")
-        ) in set(first_ids)
+        ) == first_ids[-1]
         assert "PERSISTED DETAIL UNAVAILABLE" not in (
             workspace.knowledge_details.toPlainText()
         )
