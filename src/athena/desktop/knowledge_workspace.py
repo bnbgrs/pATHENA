@@ -902,11 +902,18 @@ class KnowledgeWorkspace(QWidget):
         self.knowledge_list.clear()
         item_to_select: QListWidgetItem | None = None
 
+        rows: list[tuple[str, str, str, str, str, str]] = []
         for raw_line in output.splitlines():
             parts = raw_line.split("\t", 5)
-            if len(parts) != 6:
-                continue
-            knowledge_id, revision_no, kind, status, lifecycle, summary = parts
+            if len(parts) == 6:
+                rows.append(tuple(parts))
+
+        # The repository does not promise ordering for equally recent canonical
+        # entities. Give the workbench a stable semantic order so refreshes do not
+        # reshuffle row zero or silently change the initially inspected entity.
+        rows.sort(key=lambda row: (row[2].casefold(), row[5].casefold(), row[0]))
+
+        for knowledge_id, revision_no, kind, status, lifecycle, summary in rows:
             item = QListWidgetItem(
                 f"{kind.upper():<18} R{revision_no:<3} {status.upper():<13}  {summary}"
             )
