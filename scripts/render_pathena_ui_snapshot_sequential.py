@@ -15,7 +15,9 @@ import re
 import sys
 import threading
 import time
+import uuid
 from collections.abc import Sequence
+from unittest.mock import patch
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -52,6 +54,20 @@ _REFERENCE_KNOWLEDGE_DRAFTS = (
         "supported",
     ),
 )
+_REFERENCE_KNOWLEDGE_NAMESPACE = uuid.UUID("3a006a0e-61cb-4c66-b727-3761c690c24f")
+_REFERENCE_KNOWLEDGE_CREATED_AT_US = 1_800_000_000_000_000
+_REFERENCE_KNOWLEDGE_ID_ROLES = ("knowledge", "revision", "provenance", "commit")
+
+
+def _reference_knowledge_write_ids(kind: str, title: str) -> tuple[uuid.UUID, ...]:
+    """Return stable IDs used only by the isolated visual-regression fixture."""
+    return tuple(
+        uuid.uuid5(
+            _REFERENCE_KNOWLEDGE_NAMESPACE,
+            f"{kind}:{title}:{role}",
+        )
+        for role in _REFERENCE_KNOWLEDGE_ID_ROLES
+    )
 
 
 def _seed_reference_knowledge(runtime_root: Path) -> tuple[str, ...]:
@@ -74,25 +90,42 @@ def _seed_reference_knowledge(runtime_root: Path) -> tuple[str, ...]:
             if snapshot.revision.payload.title is not None
         }
         knowledge_ids: list[str] = []
-        for kind, title, body, status in _REFERENCE_KNOWLEDGE_DRAFTS:
+        from athena.knowledge import repository as knowledge_repository_module
+
+        for index, (kind, title, body, status) in enumerate(_REFERENCE_KNOWLEDGE_DRAFTS):
             snapshot = existing.get(title)
             if snapshot is not None:
                 knowledge_ids.append(str(snapshot.knowledge_id))
                 continue
-            revision = core.knowledge_repository.create_knowledge_unit(
-                actor_id=actor_id,
-                draft=KnowledgeUnitDraft(
-                    knowledge_kind=KnowledgeKind(kind),
-                    title=title,
-                    body=body,
-                    epistemic_status=EpistemicStatus(status),
+
+            write_ids = _reference_knowledge_write_ids(kind, title)
+            created_at_us = _REFERENCE_KNOWLEDGE_CREATED_AT_US + (index * 1_000)
+            # A strict pixel baseline must not depend on Windows clock resolution
+            # or fresh UUID generation. Patch only the isolated fixture write;
+            # production Knowledge IDs and timestamps keep their normal factories.
+            with (
+                patch.object(
+                    knowledge_repository_module,
+                    "new_uuid7",
+                    side_effect=write_ids,
                 ),
-                reason="isolated native visual-regression fixture",
-            )
+                patch.object(
+                    knowledge_repository_module,
+                    "utc_now_us",
+                    return_value=created_at_us,
+                ),
+            ):
+                revision = core.knowledge_repository.create_knowledge_unit(
+                    actor_id=actor_id,
+                    draft=KnowledgeUnitDraft(
+                        knowledge_kind=KnowledgeKind(kind),
+                        title=title,
+                        body=body,
+                        epistemic_status=EpistemicStatus(status),
+                    ),
+                    reason="isolated native visual-regression fixture",
+                )
             knowledge_ids.append(str(revision.knowledge_id))
-            # Keep repository recency ordering deterministic across native CI runs.
-            # The production list remains newest-first; only fixture creation is paced.
-            time.sleep(0.02)
         return tuple(knowledge_ids)
     finally:
         core.stop()
