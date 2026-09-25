@@ -61,6 +61,12 @@ def test_v3_comfyui_is_shell_hosted_and_restores_selected_route() -> None:
         assert controller.dialog.property("pathenaShellHosted") is True
         assert controller.dialog.property("pathenaComfyUiShellHosted") is True
         assert controller.dialog.geometry() == workspace.rect()
+        inner_title = controller.dialog.findChild(QLabel, "comfyUiTitle")
+        inner_intro = controller.dialog.findChild(QLabel, "comfyUiIntro")
+        assert inner_title is not None
+        assert inner_intro is not None
+        assert inner_title.isHidden()
+        assert inner_intro.isHidden()
         inspector = window.findChild(QWidget, "inspector")
         assert inspector is not None
         assert inspector.isHidden()
