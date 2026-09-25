@@ -66,6 +66,7 @@ class PathenaV3ResearchController(QObject):
 
         workspace.start_button.setParent(brief)
         workspace.start_button.setText("Research")
+        workspace.start_button.setProperty("v3PrimaryAction", True)
         workspace.start_button.show()
         query_row.addWidget(workspace.start_button)
 
