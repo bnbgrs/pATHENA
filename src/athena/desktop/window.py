@@ -56,7 +56,6 @@ from athena.desktop.pathena_v3_theme import (
     V3_ACCENT,
     V3_BG,
     V3_BORDER,
-    V3_BORDER_STRONG,
     V3_TEXT,
     V3_TEXT_DIM,
     V3_TEXT_MUTED,
