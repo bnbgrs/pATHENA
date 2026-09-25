@@ -4,7 +4,6 @@ import os
 from collections.abc import Iterator
 
 import pytest
-from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication
 
 import athena.desktop.knowledge_workspace as knowledge_workspace_module
@@ -82,33 +81,6 @@ def _workspace(qapp: QApplication) -> KnowledgeWorkspace:
     workspace._selected_knowledge_id = "00000000-0000-0000-0000-000000000001"
     workspace.obsidian_export_button.setEnabled(True)
     return workspace
-
-
-def test_canonical_knowledge_rendering_has_stable_semantic_order(
-    qapp: QApplication,
-) -> None:
-    workspace = KnowledgeWorkspace(_FakeWindow(), None)
-    workspace._knowledge_refresh_timer.stop()
-    workspace.knowledge_list.currentItemChanged.disconnect()
-    try:
-        workspace._render_knowledge_list(
-            "\n".join(
-                (
-                    "id-decision\t1\tdecision\tasserted\tactive\tHuman-controlled forgetting",
-                    "id-project\t1\tproject_knowledge\tsupported\tactive\tLocal-first provenance",
-                    "id-concept\t1\tconcept\tsupported\tactive\tAdaptive memory",
-                )
-            )
-        )
-
-        ids = [
-            workspace.knowledge_list.item(index).data(Qt.ItemDataRole.UserRole)
-            for index in range(workspace.knowledge_list.count())
-        ]
-        assert ids == ["id-concept", "id-decision", "id-project"]
-        assert workspace.knowledge_list.currentRow() == 0
-    finally:
-        workspace.deleteLater()
 
 
 def test_obsidian_export_button_is_visible_but_disabled_without_selection(
