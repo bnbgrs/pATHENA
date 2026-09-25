@@ -30,6 +30,8 @@ from PySide6.QtWidgets import (
     QGraphicsSimpleTextItem,
     QGraphicsView,
     QHBoxLayout,
+    QStyle,
+    QStyleOptionGraphicsItem,
     QLabel,
     QVBoxLayout,
     QWidget,
@@ -185,6 +187,19 @@ class _PallasNodeItem(QGraphicsEllipseItem):
             title_font.setPixelSize(11)
             title.setFont(title_font)
             title.setPos(radius + 7, -title.boundingRect().height() / 2)
+
+    def paint(
+        self,
+        painter: QPainter,
+        option: QStyleOptionGraphicsItem,
+        widget: QWidget | None = None,
+    ) -> None:
+        """Paint semantic focus through the circular node, not Qt debug-like chrome."""
+        clean_option = QStyleOptionGraphicsItem(option)
+        clean_option.state &= ~(
+            QStyle.StateFlag.State_Selected | QStyle.StateFlag.State_HasFocus
+        )
+        super().paint(painter, clean_option, widget)
 
     def itemChange(
         self,
