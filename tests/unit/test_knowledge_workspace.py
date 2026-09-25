@@ -7,6 +7,8 @@ import pytest
 from PySide6.QtWidgets import QApplication
 
 import athena.desktop.knowledge_workspace as knowledge_workspace_module
+from athena.api.contracts import HealthResponse
+from athena.desktop.api_controller import DesktopApiSnapshot
 from athena.desktop.knowledge_workspace import KnowledgeWorkspace
 
 
@@ -81,6 +83,31 @@ def _workspace(qapp: QApplication) -> KnowledgeWorkspace:
     workspace._selected_knowledge_id = "00000000-0000-0000-0000-000000000001"
     workspace.obsidian_export_button.setEnabled(True)
     return workspace
+
+
+def test_successful_snapshot_clears_stale_core_unavailable_state(
+    qapp: QApplication,
+) -> None:
+    workspace = KnowledgeWorkspace(_FakeWindow(), None)
+    workspace._knowledge_refresh_timer.stop()
+    try:
+        workspace.apply_failure("temporary startup failure")
+        assert workspace.state.text() == "CORE UNAVAILABLE"
+
+        workspace.apply_snapshot(
+            DesktopApiSnapshot(
+                health=HealthResponse(api_version="v1", core_status="ok", detail=None),
+                provider=None,
+                models=(),
+                chats=(),
+            )
+        )
+
+        assert workspace.state.text() == "CORE OK"
+        assert workspace.runtime.text() == "CORE  OK  /  CHATS  0"
+        assert "temporary startup failure" not in workspace.summary.text()
+    finally:
+        workspace.deleteLater()
 
 
 def test_obsidian_export_button_is_visible_but_disabled_without_selection(

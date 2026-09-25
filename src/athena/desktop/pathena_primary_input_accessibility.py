@@ -5,22 +5,25 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from PySide6.QtCore import QObject
-from PySide6.QtWidgets import QLineEdit, QWidget
+from PySide6.QtWidgets import QLineEdit, QPlainTextEdit, QWidget
 
 from athena.desktop.pathena_design_tokens import PALETTE, RADII
 
 _REFERENCE_WORKSPACE_STYLESHEET = f"""
-QLineEdit[pathenaPrimaryInput="true"] {{
+QLineEdit[pathenaPrimaryInput="true"],
+QPlainTextEdit[pathenaPrimaryInput="true"] {{
     background: {PALETTE.surface_raised};
     border: 1px solid {PALETTE.border};
     border-radius: {RADII.control}px;
     color: {PALETTE.text};
     selection-background-color: {PALETTE.accent};
 }}
-QLineEdit[pathenaPrimaryInput="true"]:hover {{
+QLineEdit[pathenaPrimaryInput="true"]:hover,
+QPlainTextEdit[pathenaPrimaryInput="true"]:hover {{
     border-color: {PALETTE.border_strong};
 }}
-QLineEdit[pathenaPrimaryInput="true"]:focus {{
+QLineEdit[pathenaPrimaryInput="true"]:focus,
+QPlainTextEdit[pathenaPrimaryInput="true"]:focus {{
     background: {PALETTE.surface_raised};
     border: 1px solid {PALETTE.accent};
 }}
@@ -107,7 +110,7 @@ QPlainTextEdit#sourceDetails:focus {{
 
 @dataclass(frozen=True)
 class PrimaryInputTarget:
-    control: QLineEdit
+    control: QLineEdit | QPlainTextEdit
     accessible_name: str
     purpose: str
     keyboard_context: str
@@ -145,7 +148,7 @@ class PrimaryInputAccessibility(QObject):
 def install_primary_input_accessibility(
     window: QWidget,
     *,
-    chat_prompt: QLineEdit,
+    chat_prompt: QLineEdit | QPlainTextEdit,
     knowledge_filter: QLineEdit,
     research_query: QLineEdit,
     research_filter: QLineEdit,
@@ -156,7 +159,7 @@ def install_primary_input_accessibility(
             chat_prompt,
             "Chat message",
             "Compose the next message for the selected local conversation and model.",
-            "Enter or Ctrl+Enter sends using the existing chat behavior.",
+            "Enter inserts a line break. Ctrl+Enter or Ctrl+Return sends.",
         ),
         PrimaryInputTarget(
             knowledge_filter,

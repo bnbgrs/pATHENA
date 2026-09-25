@@ -356,9 +356,16 @@ class KnowledgeWorkspace(QWidget):
     def apply_snapshot(self, payload: object) -> None:
         if not isinstance(payload, DesktopApiSnapshot):
             return
+        was_unavailable = self.state.text() == "CORE UNAVAILABLE"
         self.runtime.setText(
             f"CORE  {payload.health.core_status.upper()}  /  CHATS  {len(payload.chats)}"
         )
+        if was_unavailable:
+            self.state.setText("CORE OK")
+            self.summary.setText(
+                "Canonical memory is available below. Session proposals remain isolated until "
+                "explicit review and acceptance."
+            )
 
     def apply_failure(self, message: str) -> None:
         self.runtime.setText("CORE  DISCONNECTED  /  CHATS  —")

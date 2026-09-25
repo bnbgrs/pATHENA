@@ -278,6 +278,16 @@ class AsciiPanel(QPlainTextEdit):
             items.append(clipped)
             total_chars += len(clipped)
 
+        # The production composer is multiline. Sample editable document text before
+        # compact line edits so the user's active prompt remains a first-class semantic
+        # input for PALLAS while staying scoped to this explicit top-level window.
+        for text_edit in root.findChildren(QPlainTextEdit):
+            if len(items) >= _MAX_SEMANTIC_ITEMS:
+                break
+            if text_edit is self or not text_edit.isVisible():
+                continue
+            append(text_edit.toPlainText())
+
         for line_edit in root.findChildren(QLineEdit):
             if len(items) >= _MAX_SEMANTIC_ITEMS:
                 break
