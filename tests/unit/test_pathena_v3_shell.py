@@ -205,6 +205,37 @@ def test_v3_primary_route_can_reclaim_workspace_from_pallas_without_row_change()
     window.close()
 
 
+def test_v3_evidence_inspector_fits_compact_desktop_without_forcing_resize() -> None:
+    app = _app()
+    window = PathenaMainWindow(api_controller=None)
+    controller = install_v3_shell(window)
+    controller.finalize()
+    try:
+        window.resize(1120, 720)
+        window.show()
+        app.processEvents()
+
+        window._set_context_available(True)
+        controller._inspector_button.click()
+        app.processEvents()
+
+        inspector = window.findChild(QFrame, "inspector")
+        composer = window.findChild(QFrame, "v3Composer")
+        assert inspector is not None
+        assert composer is not None
+        assert window.width() == 1120
+        assert inspector.isVisible()
+        assert inspector.width() >= 280
+        assert composer.isVisible()
+        assert composer.width() >= 620
+        assert window.model_selector.isVisible()
+    finally:
+        controller.dispose()
+        window.close()
+        window.deleteLater()
+        app.processEvents()
+
+
 def test_v3_theme_has_explicit_keyboard_focus_for_primary_actions() -> None:
     assert 'QToolButton[v3Nav="true"]:focus' in PATHENA_V3_STYLESHEET
     assert 'QToolButton[v3Nav="true"][active="true"]:focus' in PATHENA_V3_STYLESHEET

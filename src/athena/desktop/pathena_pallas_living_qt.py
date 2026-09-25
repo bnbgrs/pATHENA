@@ -41,6 +41,7 @@ _MUTED = QColor(V3_TEXT_DIM)
 _CONFLICT = QColor(V3_DANGER)
 _BORDER = QColor(V3_BORDER)
 _LENSES = frozenset({"semantic", "age", "vitality"})
+_IDLE_INTERVAL_MS = 250
 _CONFLICT_REL = frozenset(
     {"conflict", "conflicts", "contradicts", "contradiction", "opposes"}
 )
@@ -76,9 +77,7 @@ class PallasLivingQtController(QObject):
         ).casefold() in {"1", "true", "yes", "on"}
         self._timer = QTimer(self)
         self._timer.setTimerType(Qt.TimerType.PreciseTimer)
-        self._timer.setInterval(
-            250 if self._reduced_motion else round(1000 / self._engine.config.fps)
-        )
+        self._timer.setInterval(_IDLE_INTERVAL_MS)
         self._timer.timeout.connect(self._tick)
         self._timer.start()
 
@@ -106,6 +105,13 @@ class PallasLivingQtController(QObject):
         self._engine.clear()
         self._graph_id = None
 
+    def _set_timer_activity(self, active: bool) -> None:
+        target = _IDLE_INTERVAL_MS
+        if active and not self._reduced_motion:
+            target = round(1000 / self._engine.config.fps)
+        if self._timer.interval() != target:
+            self._timer.setInterval(target)
+
     @Slot()
     def _tick(self) -> None:
         field = self._grounded_controller.field
@@ -114,11 +120,13 @@ class PallasLivingQtController(QObject):
             return
         snapshot = field.snapshot
         if snapshot is None or snapshot.status != "ready" or not snapshot.nodes:
+            self._set_timer_activity(False)
             self._bindings.clear()
             self._engine.clear()
             self._graph_id = None
             return
 
+        self._set_timer_activity(True)
         if snapshot.graph_id != self._graph_id:
             seeds = {
                 item.node_id: (item.x, item.y)

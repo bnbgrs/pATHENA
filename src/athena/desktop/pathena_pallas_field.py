@@ -31,6 +31,8 @@ from PySide6.QtWidgets import (
     QGraphicsView,
     QHBoxLayout,
     QLabel,
+    QStyle,
+    QStyleOptionGraphicsItem,
     QVBoxLayout,
     QWidget,
 )
@@ -185,6 +187,24 @@ class _PallasNodeItem(QGraphicsEllipseItem):
             title_font.setPixelSize(11)
             title.setFont(title_font)
             title.setPos(radius + 7, -title.boundingRect().height() / 2)
+
+    def paint(
+        self,
+        painter: QPainter,
+        option: QStyleOptionGraphicsItem,
+        widget: QWidget | None = None,
+    ) -> None:
+        """Draw only the semantic circular selection treatment.
+
+        Qt's stock graphics-item painter adds a dotted rectangular selection/focus
+        frame around selected items. PALLAS already expresses both states through
+        the node fill and circular outline, so the extra rectangle reads as editor
+        chrome rather than semantic state.
+        """
+        clean_option = QStyleOptionGraphicsItem(option)
+        clean_option.state &= ~QStyle.StateFlag.State_Selected
+        clean_option.state &= ~QStyle.StateFlag.State_HasFocus
+        super().paint(painter, clean_option, widget)
 
     def itemChange(
         self,

@@ -200,6 +200,29 @@ QWidget#chatMessages {
     border: none;
 }
 
+QFrame#emptyStatePanel {
+    background: transparent;
+    border: none;
+}
+
+QLabel#emptyStateEyebrow {
+    color: #85818C;
+    font-size: 8pt;
+    font-weight: 680;
+    letter-spacing: 0.9px;
+}
+
+QLabel#emptyStateTitle {
+    color: #F3F0F5;
+    font-size: 12.5pt;
+    font-weight: 660;
+}
+
+QLabel#emptyStateBody {
+    color: #A8A3AE;
+    font-size: 9.2pt;
+}
+
 QFrame#v3Composer {
     background: #171D1E;
     border: 1px solid #344244;
@@ -693,6 +716,22 @@ QFrame#v3ResearchBrief {
     background: #121718;
 }
 
+QFrame#v3EmptyState {
+    background: transparent;
+    border: none;
+}
+
+QLabel#v3EmptyTitle {
+    color: #F3F0F5;
+    font-size: 12.5pt;
+    font-weight: 660;
+}
+
+QLabel#v3EmptyBody {
+    color: #A8A3AE;
+    font-size: 9.2pt;
+}
+
 QLabel#v3KnowledgeState {
     color: #CFF8EE;
     background: #17302B;
@@ -1006,7 +1045,7 @@ QToolButton[v3Nav="true"] {
     border: 1px solid transparent;
     border-radius: 12px;
     padding: 5px 2px 4px 2px;
-    font-size: 7.4pt;
+    font-size: 8pt;
     font-weight: 620;
 }
 QToolButton[v3Nav="true"]:hover {

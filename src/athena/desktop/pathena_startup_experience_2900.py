@@ -338,29 +338,29 @@ class PathenaStartupExperience(QObject):
 
         panel = QFrame(messages)
         panel.setObjectName("emptyStatePanel")
-        panel.setMinimumHeight(174)
+        panel.setMinimumHeight(116)
         panel.setSizePolicy(
             QSizePolicy.Policy.Fixed,
             QSizePolicy.Policy.Minimum,
         )
         panel_layout = QVBoxLayout(panel)
-        panel_layout.setContentsMargins(28, 26, 28, 26)
-        panel_layout.setSpacing(10)
+        panel_layout.setContentsMargins(18, 16, 18, 16)
+        panel_layout.setSpacing(7)
 
         eyebrow = QLabel("LOCAL-FIRST WORKSPACE", panel)
         eyebrow.setObjectName("emptyStateEyebrow")
-        eyebrow.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+        eyebrow.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         eyebrow.setMinimumHeight(16)
 
         title = QLabel(panel)
         title.setObjectName("emptyStateTitle")
-        title.setAlignment(Qt.AlignmentFlag.AlignHCenter)
-        title.setMinimumHeight(34)
+        title.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        title.setMinimumHeight(26)
         title.setWordWrap(False)
 
         body = QLabel(panel)
         body.setObjectName("emptyStateBody")
-        body.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
+        body.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
         body.setWordWrap(True)
         body.setMinimumHeight(50)
 
@@ -374,13 +374,18 @@ class PathenaStartupExperience(QObject):
 
         panel_layout.addWidget(eyebrow)
         panel_layout.addWidget(title)
-        panel_layout.addWidget(body, 0, Qt.AlignmentFlag.AlignHCenter)
+        panel_layout.addWidget(body, 0, Qt.AlignmentFlag.AlignLeft)
 
         layout = messages.layout()
         if not isinstance(layout, QVBoxLayout):
             return
-        layout.insertStretch(0, 1)
-        layout.insertWidget(1, panel, 0, Qt.AlignmentFlag.AlignHCenter)
+        layout.insertWidget(
+            0,
+            panel,
+            0,
+            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop,
+        )
+        layout.addStretch(1)
 
 
 def install_startup_experience(window: QWidget) -> PathenaStartupExperience:
