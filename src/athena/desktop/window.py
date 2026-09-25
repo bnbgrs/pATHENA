@@ -52,7 +52,15 @@ from athena.api.contracts import (
 )
 from athena.desktop.api_controller import DesktopApiController, DesktopApiSnapshot
 from athena.desktop.ascii_panel import AsciiPanel
-from athena.desktop.theme import BORDER, ORANGE, TEXT_DIM, TEXT_MUTED
+from athena.desktop.pathena_v3_theme import (
+    V3_ACCENT,
+    V3_BG,
+    V3_BORDER,
+    V3_BORDER_STRONG,
+    V3_TEXT,
+    V3_TEXT_DIM,
+    V3_TEXT_MUTED,
+)
 
 _NAVIGATION = ("CHAT", "KNOWLEDGE", "RESEARCH", "JOBS", "FILES", "SYSTEM", "SETTINGS")
 _REFRESH_INTERVAL_MS = 5_000
@@ -97,107 +105,47 @@ class MetricRow(QWidget):
 
 
 class PallasVisualPlaceholder(QWidget):
-    """Native 9:16 slot reserved for the future reactive ASCII renderer."""
+    """Calm fallback surface shown only while the local PALLAS field initializes."""
 
     def __init__(self) -> None:
         super().__init__()
         self.setObjectName("pallasVisualPlaceholder")
         self.setFixedSize(207, 368)
-        self.setToolTip(
-            "Native 9:16 placeholder for the future reactive PALLAS ASCII renderer"
-        )
+        self.setToolTip("PALLAS local semantic field is initializing")
 
     def paintEvent(self, event: QPaintEvent) -> None:  # noqa: N802
         super().paintEvent(event)
 
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
-
         width = self.width()
         height = self.height()
 
-        painter.fillRect(self.rect(), QColor("#070707"))
-        painter.setPen(QPen(QColor("#242424"), 1))
+        painter.fillRect(self.rect(), QColor(V3_BG))
+        painter.setPen(QPen(QColor(V3_BORDER), 1))
         painter.drawRect(0, 0, width - 1, height - 1)
 
-        corner = 13
-        inset = 8
-        painter.setPen(QPen(QColor("#555551"), 1))
-        painter.drawLine(inset, inset, inset + corner, inset)
-        painter.drawLine(inset, inset, inset, inset + corner)
-        painter.drawLine(width - inset, inset, width - inset - corner, inset)
-        painter.drawLine(width - inset, inset, width - inset, inset + corner)
-        painter.drawLine(inset, height - inset, inset + corner, height - inset)
-        painter.drawLine(inset, height - inset, inset, height - inset - corner)
-        painter.drawLine(
-            width - inset,
-            height - inset,
-            width - inset - corner,
-            height - inset,
-        )
-        painter.drawLine(
-            width - inset,
-            height - inset,
-            width - inset,
-            height - inset - corner,
-        )
-
         font = painter.font()
-        font.setFamily("Cascadia Mono")
+        font.setFamily("Segoe UI")
         font.setPixelSize(11)
-        font.setBold(False)
+        font.setBold(True)
         painter.setFont(font)
+        painter.setPen(QColor(V3_TEXT))
+        painter.drawText(15, 27, "PALLAS")
 
-        painter.setPen(QColor("#AAA9A4"))
-        painter.drawText(15, 27, "REACTIVE ASCII")
+        font.setBold(False)
+        font.setPixelSize(10)
+        painter.setFont(font)
+        painter.setPen(QColor(V3_TEXT_MUTED))
+        painter.drawText(15, 49, "Local semantic field")
 
-        ratio = "9:16"
-        ratio_width = painter.fontMetrics().horizontalAdvance(ratio)
-        painter.drawText(width - 15 - ratio_width, 27, ratio)
+        status_y = max(82, height // 2)
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(QColor(V3_ACCENT))
+        painter.drawEllipse(15, status_y - 5, 7, 7)
 
-        center_x = width // 2
-        center_y = height // 2
-        painter.setPen(QPen(QColor("#30302E"), 1))
-        painter.drawLine(center_x, 58, center_x, height - 58)
-        painter.drawLine(30, center_y, width - 30, center_y)
-
-        box_size = 62
-        half = box_size // 2
-        painter.setPen(QPen(QColor("#777772"), 1))
-        painter.drawRect(
-            center_x - half,
-            center_y - half,
-            box_size,
-            box_size,
-        )
-
-        painter.setPen(QColor("#F2F1ED"))
-        label = "PALLAS"
-        label_width = painter.fontMetrics().horizontalAdvance(label)
-        painter.drawText(
-            center_x - (label_width // 2),
-            center_y - 5,
-            label,
-        )
-
-        painter.setPen(QColor("#F26A21"))
-        marker = "■"
-        marker_width = painter.fontMetrics().horizontalAdvance(marker)
-        painter.drawText(
-            center_x - (marker_width // 2),
-            center_y + 17,
-            marker,
-        )
-
-        painter.setPen(QColor("#6F6F6B"))
-        footer = "RENDERER PENDING"
-        footer_width = painter.fontMetrics().horizontalAdvance(footer)
-        painter.drawText(
-            center_x - (footer_width // 2),
-            height - 28,
-            footer,
-        )
-
+        painter.setPen(QColor(V3_TEXT_DIM))
+        painter.drawText(32, status_y + 2, "Initializing local context…")
         painter.end()
 
 
@@ -221,8 +169,8 @@ class EvidenceRail(QWidget):
         y_sources = (70, 118, 166)
         y_claim = 238
         y_knowledge = 294
-        muted_pen = QPen(QColor(BORDER), 1)
-        active_pen = QPen(QColor(ORANGE), 1)
+        muted_pen = QPen(QColor(V3_BORDER), 1)
+        active_pen = QPen(QColor(V3_ACCENT), 1)
 
         painter.setPen(muted_pen)
         for y in y_sources:
@@ -238,17 +186,17 @@ class EvidenceRail(QWidget):
 
         painter.setPen(Qt.PenStyle.NoPen)
         for index, y in enumerate(y_sources):
-            painter.setBrush(QColor(ORANGE if index == 0 else TEXT_DIM))
+            painter.setBrush(QColor(V3_ACCENT if index == 0 else V3_TEXT_DIM))
             painter.drawRect(x_trunk - 2, y - 2, 4, 4)
-        painter.setBrush(QColor(ORANGE))
+        painter.setBrush(QColor(V3_ACCENT))
         painter.drawRect(x_trunk - 3, y_claim - 3, 6, 6)
         painter.drawRect(x_trunk - 3, y_knowledge - 3, 6, 6)
 
-        painter.setPen(QColor(ORANGE))
+        painter.setPen(QColor(V3_ACCENT))
         painter.drawText(x_label, y_sources[0] + 5, "S03")
         painter.drawText(x_label, y_claim + 5, "C04")
         painter.drawText(x_label, y_knowledge + 5, "K17")
-        painter.setPen(QColor(TEXT_MUTED))
+        painter.setPen(QColor(V3_TEXT_MUTED))
         painter.drawText(x_label, y_sources[1] + 5, "S07")
         painter.drawText(x_label, y_sources[2] + 5, "S11")
         painter.end()
@@ -618,7 +566,7 @@ class AthenaMainWindow(QMainWindow):
                     selector.addItem(empty_label, None)
                     selector.setItemData(
                         0,
-                        QColor(TEXT_MUTED),
+                        QColor(V3_TEXT_MUTED),
                         Qt.ItemDataRole.ForegroundRole,
                     )
                     selector.setItemData(
@@ -647,7 +595,7 @@ class AthenaMainWindow(QMainWindow):
                         QColor(
                             "#63D98B"
                             if model.loaded and model_freshness == "fresh"
-                            else TEXT_DIM
+                            else V3_TEXT_DIM
                         ),
                         Qt.ItemDataRole.ForegroundRole,
                     )
@@ -717,7 +665,7 @@ class AthenaMainWindow(QMainWindow):
             if selected is not None
             and selected.loaded
             and model_freshness == "fresh"
-            else f"color: {TEXT_MUTED};"
+            else f"color: {V3_TEXT_MUTED};"
             if selected is not None
             else ""
         )
@@ -893,7 +841,7 @@ class AthenaMainWindow(QMainWindow):
             self.settings_model_value.setStyleSheet(
                 "color: #63D98B;"
                 if model.loaded and self._model_freshness == "fresh"
-                else f"color: {TEXT_MUTED};"
+                else f"color: {V3_TEXT_MUTED};"
             )
 
             runtime_limit = model.loaded_context_length or model.context_capacity
@@ -993,7 +941,7 @@ class AthenaMainWindow(QMainWindow):
             selector_style = (
                 "color: #63D98B;"
                 if model.loaded and self._model_freshness == "fresh"
-                else f"color: {TEXT_MUTED};"
+                else f"color: {V3_TEXT_MUTED};"
             )
             for selector in (self.model_selector, self.settings_model_selector):
                 selector.setStyleSheet(selector_style)
@@ -1739,7 +1687,7 @@ class AthenaMainWindow(QMainWindow):
                 selector.addItem("CORE UNAVAILABLE", None)
                 selector.setItemData(
                     0,
-                    QColor(TEXT_MUTED),
+                    QColor(V3_TEXT_MUTED),
                     Qt.ItemDataRole.ForegroundRole,
                 )
                 selector.setItemData(
@@ -2154,10 +2102,10 @@ class AthenaMainWindow(QMainWindow):
         copy_button.setFixedSize(26, 22)
         copy_button.setStyleSheet(
             "QPushButton { border: none; background: transparent; color: "
-            + TEXT_MUTED
+            + V3_TEXT_MUTED
             + "; padding: 0; } "
             "QPushButton:hover { color: "
-            + ORANGE
+            + V3_ACCENT
             + "; }"
         )
         copy_button.clicked.connect(
@@ -2396,10 +2344,10 @@ class AthenaMainWindow(QMainWindow):
         copy_button.setFixedSize(26, 22)
         copy_button.setStyleSheet(
             "QPushButton { border: none; background: transparent; color: "
-            + TEXT_MUTED
+            + V3_TEXT_MUTED
             + "; padding: 0; } "
             "QPushButton:hover { color: "
-            + ORANGE
+            + V3_ACCENT
             + "; }"
         )
         copy_text = content or ""
