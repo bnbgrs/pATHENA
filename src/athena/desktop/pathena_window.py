@@ -381,6 +381,10 @@ class PathenaMainWindow(AthenaMainWindow):
     def _sync_progressive_chat_actions(self, _index: int | None = None) -> None:
         has_selected_chat = self.chat_selector.currentData() is not None
         self.delete_chat_button.setVisible(has_selected_chat)
+        if bool(self.property("pathenaV3Presentation")):
+            self.new_chat_button.setVisible(has_selected_chat)
+        else:
+            self.new_chat_button.show()
         details_button = getattr(self, "details_button", None)
         if isinstance(details_button, QPushButton):
             details_button.hide()
