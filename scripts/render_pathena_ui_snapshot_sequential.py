@@ -17,9 +17,9 @@ import threading
 import time
 import uuid
 from collections.abc import Sequence
-from unittest.mock import patch
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from unittest.mock import patch
 
 WORKSPACE_SURFACE_LABELS = (
     "Chat",
