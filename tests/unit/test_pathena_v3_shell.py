@@ -192,6 +192,8 @@ def test_v3_primary_route_can_reclaim_workspace_from_pallas_without_row_change()
 def test_v3_theme_has_explicit_keyboard_focus_for_primary_actions() -> None:
     assert 'QToolButton[v3Nav="true"]:focus' in PATHENA_V3_STYLESHEET
     assert 'QToolButton[v3Nav="true"][active="true"]:focus' in PATHENA_V3_STYLESHEET
+    assert "border: 1px dashed #89E0CA;" in PATHENA_V3_STYLESHEET
+    assert "border: 1px solid #89E0CA;" in PATHENA_V3_STYLESHEET
     assert "QPushButton#v3CommandButton:focus" in PATHENA_V3_STYLESHEET
     assert "QPushButton#sendButton:focus" in PATHENA_V3_STYLESHEET
     assert "QPushButton:focus" in PATHENA_V3_STYLESHEET
