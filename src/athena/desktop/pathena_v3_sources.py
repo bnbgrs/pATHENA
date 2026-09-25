@@ -66,6 +66,7 @@ class PathenaV3SourcesController(QObject):
 
         workspace.import_button.setParent(command)
         workspace.import_button.setText("Import")
+        workspace.import_button.setProperty("v3PrimaryAction", True)
         workspace.import_button.show()
         layout.addWidget(workspace.import_button)
         root.addWidget(command)
