@@ -177,32 +177,32 @@ class V3EmptyState(QFrame):
         super().__init__()
         self.setObjectName("v3EmptyState")
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(36, 36, 36, 36)
-        layout.setSpacing(10)
-        layout.addStretch(2)
+        layout.setContentsMargins(16, 18, 16, 18)
+        layout.setSpacing(8)
 
         kicker_label = QLabel(kicker.upper())
         kicker_label.setObjectName("v3Kicker")
-        kicker_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        kicker_label.setAlignment(
+            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
+        )
         layout.addWidget(kicker_label)
 
         title_label = QLabel(title)
         title_label.setObjectName("v3EmptyTitle")
-        title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        title_label.setAlignment(
+            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
+        )
         layout.addWidget(title_label)
 
         body_label = QLabel(body)
         body_label.setObjectName("v3EmptyBody")
         body_label.setWordWrap(True)
         body_label.setMaximumWidth(560)
-        body_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
-        row = QHBoxLayout()
-        row.addStretch(1)
-        row.addWidget(body_label)
-        row.addStretch(1)
-        layout.addLayout(row)
-        layout.addStretch(3)
+        body_label.setAlignment(
+            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop
+        )
+        layout.addWidget(body_label)
+        layout.addStretch(1)
 
 
 class V3ControlRow(QFrame):
