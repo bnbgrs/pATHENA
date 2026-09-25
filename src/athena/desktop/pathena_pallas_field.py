@@ -30,9 +30,9 @@ from PySide6.QtWidgets import (
     QGraphicsSimpleTextItem,
     QGraphicsView,
     QHBoxLayout,
+    QLabel,
     QStyle,
     QStyleOptionGraphicsItem,
-    QLabel,
     QVBoxLayout,
     QWidget,
 )
