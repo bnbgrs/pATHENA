@@ -137,6 +137,32 @@ def test_qt_bridge_moves_real_edge_with_living_node_positions(
         delete(window)
 
 
+def test_qt_bridge_uses_quiet_idle_timer_and_restores_living_rate(
+    qapp: QApplication,
+) -> None:
+    window = QWidget()
+    placeholder = QWidget(window)
+    placeholder.setObjectName("pallasVisualPlaceholder")
+    grounded = PallasGroundedFieldController(window, None)
+    living = PallasLivingQtController(grounded)
+    living._timer.stop()  # noqa: SLF001 - deterministic timer policy regression
+    try:
+        living._tick()  # noqa: SLF001 - no grounded graph yet
+        assert living._timer.interval() == 250  # noqa: SLF001
+
+        grounded.apply_snapshot(_snapshot())
+        living._tick()  # noqa: SLF001 - switch to live graph cadence
+        qapp.processEvents()
+
+        assert living._timer.interval() == round(  # noqa: SLF001
+            1000 / living.engine.config.fps
+        )
+        assert living._timer.interval() < 250  # noqa: SLF001
+    finally:
+        living.stop()
+        delete(window)
+
+
 def test_qt_bridge_reduced_motion_keeps_semantic_field_still(
     qapp: QApplication,
     monkeypatch: pytest.MonkeyPatch,
