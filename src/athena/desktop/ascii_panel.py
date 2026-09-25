@@ -11,7 +11,14 @@ from PySide6.QtGui import QColor, QFont, QPainter, QPen, QTextCharFormat, QTextC
 from PySide6.QtWidgets import QLabel, QLineEdit, QPlainTextEdit, QWidget
 from shiboken6 import isValid
 
-from athena.desktop.theme import ORANGE
+from athena.desktop.pathena_v3_theme import (
+    V3_ACCENT,
+    V3_BG,
+    V3_BORDER,
+    V3_TEXT,
+    V3_TEXT_DIM,
+    V3_TEXT_MUTED,
+)
 
 _COLS = 25
 _ROWS = 42
@@ -278,6 +285,13 @@ class AsciiPanel(QPlainTextEdit):
             items.append(clipped)
             total_chars += len(clipped)
 
+        for plain_text_edit in root.findChildren(QPlainTextEdit):
+            if len(items) >= _MAX_SEMANTIC_ITEMS:
+                break
+            if not plain_text_edit.isVisible():
+                continue
+            append(plain_text_edit.toPlainText())
+
         for line_edit in root.findChildren(QLineEdit):
             if len(items) >= _MAX_SEMANTIC_ITEMS:
                 break
@@ -355,8 +369,8 @@ class AsciiPanel(QPlainTextEdit):
         width = target.width()
         height = target.height()
 
-        painter.fillRect(target.rect(), QColor("#070707"))
-        painter.setPen(QPen(QColor("#242424"), 1))
+        painter.fillRect(target.rect(), QColor(V3_BG))
+        painter.setPen(QPen(QColor(V3_BORDER), 1))
         painter.drawRect(0, 0, width - 1, height - 1)
 
         font = QFont("Cascadia Mono")
@@ -364,9 +378,9 @@ class AsciiPanel(QPlainTextEdit):
         font.setStyleHint(QFont.StyleHint.Monospace)
         painter.setFont(font)
 
-        painter.setPen(QColor("#F2F1ED"))
+        painter.setPen(QColor(V3_TEXT))
         painter.drawText(13, 21, "PALLAS")
-        painter.setPen(QColor("#6F6F6B"))
+        painter.setPen(QColor(V3_TEXT_DIM))
         context_label = self._context.title()[:12]
         metrics = painter.fontMetrics()
         painter.drawText(width - 13 - metrics.horizontalAdvance(context_label), 21, context_label)
@@ -396,11 +410,11 @@ class AsciiPanel(QPlainTextEdit):
                     continue
                 glyph = _GLYPHS[min(age, len(_GLYPHS)) - 1]
                 if age >= 7:
-                    painter.setPen(QColor(ORANGE))
+                    painter.setPen(QColor(V3_ACCENT))
                 elif age >= 4:
-                    painter.setPen(QColor("#B7B6B0"))
+                    painter.setPen(QColor(V3_TEXT_MUTED))
                 else:
-                    painter.setPen(QColor("#62625E"))
+                    painter.setPen(QColor(V3_TEXT_DIM))
                 x = int(left + visible_col * cell_width)
                 y = int(top + (visible_row + 1) * cell_height)
                 painter.drawText(x, y, glyph)
@@ -423,5 +437,5 @@ class AsciiPanel(QPlainTextEdit):
         cursor.setPosition(center)
         cursor.movePosition(QTextCursor.MoveOperation.Right, QTextCursor.MoveMode.KeepAnchor, 1)
         char_format = QTextCharFormat()
-        char_format.setForeground(QColor(ORANGE))
+        char_format.setForeground(QColor(V3_ACCENT))
         cursor.mergeCharFormat(char_format)
