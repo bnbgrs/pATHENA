@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import QObject
+from PySide6.QtCore import QObject, Qt
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
 from athena.desktop.knowledge_workspace import KnowledgeWorkspace
@@ -94,6 +94,15 @@ class PathenaV3KnowledgeController(QObject):
         workspace.source.show()
         identity_layout.addWidget(workspace.source)
         root.addWidget(identity)
+
+        for list_view in (
+            workspace.knowledge_list,
+            workspace.claim_list,
+            workspace.review_list,
+        ):
+            list_view.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+            list_view.setTextElideMode(Qt.TextElideMode.ElideRight)
+            list_view.setUniformItemSizes(True)
 
         workspace.browser_status.setParent(workspace)
         workspace.browser_status.setObjectName("v3KnowledgeBrowserStatus")
