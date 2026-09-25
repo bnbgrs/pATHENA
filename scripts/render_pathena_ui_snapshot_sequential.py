@@ -564,23 +564,39 @@ def main(argv: Sequence[str] | None = None) -> int:
         dialog.hide()
         app.processEvents()
 
-    def capture_all() -> None:
-        stages = (
-            ("workspaces", capture_workspaces),
-            ("PALLAS", capture_pallas),
-            ("Command Palette", capture_commands),
-            ("Help", capture_help),
-            ("ComfyUI", capture_comfyui),
-        )
-        for label, stage in stages:
-            try:
-                stage()
-            except Exception as exc:  # noqa: BLE001
-                errors.append(f"{label}: {type(exc).__name__}: {exc}")
-                break
-        QTimer.singleShot(100, app.quit)
+    stages = (
+        ("workspaces", capture_workspaces),
+        ("PALLAS", capture_pallas),
+        ("Command Palette", capture_commands),
+        ("Help", capture_help),
+        ("ComfyUI", capture_comfyui),
+    )
+    stage_index = 0
 
-    QTimer.singleShot(args.initial_delay_seconds * 1_000, capture_all)
+    def capture_next_stage() -> None:
+        nonlocal stage_index
+        if stage_index >= len(stages):
+            QTimer.singleShot(100, app.quit)
+            return
+
+        label, stage = stages[stage_index]
+        try:
+            stage()
+        except Exception as exc:  # noqa: BLE001
+            errors.append(f"{label}: {type(exc).__name__}: {exc}")
+            QTimer.singleShot(100, app.quit)
+            return
+
+        stage_index += 1
+        # Return to the native Qt event loop between transient surfaces. Showing,
+        # rendering and hiding several top-level/hosted widgets in one Python
+        # callback can leave Windows backing-store teardown on the same native
+        # stack and has produced intermittent 0xC0000005 exits after a successful
+        # Command Palette capture. A fresh event-loop turn gives hide/focus/layout
+        # events a deterministic completion boundary before the next surface opens.
+        QTimer.singleShot(150, capture_next_stage)
+
+    QTimer.singleShot(args.initial_delay_seconds * 1_000, capture_next_stage)
 
     try:
         exit_code = desktop_main(["pathena-ui-reference-capture"])
