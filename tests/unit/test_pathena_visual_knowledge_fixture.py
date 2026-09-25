@@ -72,8 +72,12 @@ def test_visual_knowledge_fixture_is_idempotent_and_renders_real_detail(
 
     first_ids = _seed_reference_knowledge(runtime_root)
     second_ids = _seed_reference_knowledge(runtime_root)
+    independent_ids = _seed_reference_knowledge(
+        tmp_path / "independent-visual-runtime"
+    )
 
     assert second_ids == first_ids
+    assert independent_ids == first_ids
     assert len(first_ids) == len(_REFERENCE_KNOWLEDGE_DRAFTS)
     assert len(set(first_ids)) == len(first_ids)
 
