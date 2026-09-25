@@ -31,6 +31,8 @@ from PySide6.QtWidgets import (
     QGraphicsView,
     QHBoxLayout,
     QLabel,
+    QStyle,
+    QStyleOptionGraphicsItem,
     QVBoxLayout,
     QWidget,
 )
@@ -185,6 +187,21 @@ class _PallasNodeItem(QGraphicsEllipseItem):
             title_font.setPixelSize(11)
             title.setFont(title_font)
             title.setPos(radius + 7, -title.boundingRect().height() / 2)
+
+    def paint(
+        self,
+        painter: QPainter,
+        option: QStyleOptionGraphicsItem,
+        widget: QWidget | None = None,
+    ) -> None:
+        # Preserve selection and keyboard semantics while suppressing Qt's
+        # rectangular default focus chrome. V3 renders semantic focus as the
+        # deliberate circular ring owned by the node itself.
+        clean_option = QStyleOptionGraphicsItem(option)
+        clean_option.state &= ~(
+            QStyle.StateFlag.State_Selected | QStyle.StateFlag.State_HasFocus
+        )
+        super().paint(painter, clean_option, widget)
 
     def itemChange(
         self,
