@@ -90,7 +90,6 @@ def test_canonical_knowledge_rendering_has_stable_semantic_order(
     workspace = KnowledgeWorkspace(_FakeWindow(), None)
     workspace._knowledge_refresh_timer.stop()
     workspace.knowledge_list.currentItemChanged.disconnect()
-    workspace._knowledge_selection_changed = lambda *_args: None
     try:
         workspace._render_knowledge_list(
             "\n".join(
