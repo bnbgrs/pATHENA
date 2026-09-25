@@ -109,6 +109,7 @@ class PathenaV3ShellController(QObject):
         if self._window.settings_model_selector.count() == 0:
             self._window.settings_model_selector.addItem("Waiting for local model…", None)
         self._window.send_button.setFixedSize(44, 44)
+        self._window._sync_progressive_chat_actions()
         self._sync_navigation(max(0, self._window.navigation.currentRow()))
 
     def _build(self) -> None:
