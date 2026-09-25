@@ -196,6 +196,8 @@ def test_v3_theme_has_explicit_keyboard_focus_for_primary_actions() -> None:
     assert "QPushButton#sendButton:focus" in PATHENA_V3_STYLESHEET
     assert "QPushButton:focus" in PATHENA_V3_STYLESHEET
     assert "border-color: #89E0CA;" in PATHENA_V3_STYLESHEET
+    assert "QSlider::groove:horizontal:disabled" in PATHENA_V3_STYLESHEET
+    assert "QSlider::handle:horizontal:disabled" in PATHENA_V3_STYLESHEET
 
 
 def test_v3_chat_composer_is_multiline_and_preserves_text_contract() -> None:
