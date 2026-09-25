@@ -445,7 +445,6 @@ class PathenaV3ShellController(QObject):
         )
         window.settings_model_selector.setMinimumWidth(250)
         model_row.add_control(window.settings_model_selector, 1)
-        model_row.add_control(window.settings_model_value)
         form_layout.addWidget(model_row)
 
         context_row = V3ControlRow(
