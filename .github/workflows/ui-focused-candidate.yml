@@ -89,5 +89,19 @@ jobs:
           $tests = @($tests | Sort-Object -Unique)
           Write-Host "Exact UI candidate tests:"
           $tests | ForEach-Object { Write-Host "  $_" }
-          uv run --locked --extra dev --extra desktop --no-sync pytest -q @tests
-          if ($LASTEXITCODE -ne 0) { throw "Exact changed UI candidate contract failed." }
+
+          # PySide owns process-global native state. Run each changed UI module in
+          # its own interpreter so a module's Qt teardown cannot poison a later
+          # contract or turn an otherwise passing suite into a native shutdown
+          # failure on Windows.
+          $failed = @()
+          foreach ($test in $tests) {
+            Write-Host "===== $test ====="
+            uv run --locked --extra dev --extra desktop --no-sync pytest -q $test
+            if ($LASTEXITCODE -ne 0) {
+              $failed += $test
+            }
+          }
+          if ($failed.Count -ne 0) {
+            throw ("Exact changed UI candidate contract failed: " + ($failed -join ", "))
+          }
