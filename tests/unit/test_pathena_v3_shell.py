@@ -294,6 +294,49 @@ def test_v3_secondary_text_meets_normal_text_contrast_on_surfaces() -> None:
     assert _contrast_ratio(V3_TEXT_DIM, V3_SURFACE) >= 4.5
 
 
+def test_v3_chat_with_evidence_inspector_remains_usable_at_compact_size() -> None:
+    app = _app()
+    window = PathenaMainWindow(api_controller=None)
+    controller = install_v3_shell(window)
+    controller.finalize()
+    try:
+        window.resize(1120, 720)
+        window.show()
+        app.processEvents()
+
+        window._set_context_available(True)
+        app.processEvents()
+        assert controller._inspector_button.isVisible()
+
+        controller._inspector_button.click()
+        app.processEvents()
+
+        inspector = window.findChild(QFrame, "inspector")
+        stage = window.findChild(QFrame, "v3ConversationStage")
+        composer = window.findChild(QFrame, "v3Composer")
+        assert inspector is not None and inspector.isVisible()
+        assert stage is not None and stage.isVisible()
+        assert composer is not None and composer.isVisible()
+        assert window.width() == 1120
+        assert stage.minimumWidth() == 620
+        assert composer.minimumWidth() == 620
+        assert window.chat_scroll.minimumWidth() == 520
+        assert window.model_selector.isVisible()
+        assert window.send_button.isVisible()
+
+        controller._inspector_button.click()
+        app.processEvents()
+        assert not inspector.isVisible()
+        assert stage.minimumWidth() == 760
+        assert composer.minimumWidth() == 760
+        assert window.chat_scroll.minimumWidth() == 680
+    finally:
+        controller.dispose()
+        window.close()
+        window.deleteLater()
+        app.processEvents()
+
+
 def test_v3_chat_remains_usable_at_compact_desktop_size() -> None:
     app = _app()
     window = PathenaMainWindow(api_controller=None)
