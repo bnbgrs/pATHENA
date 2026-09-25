@@ -954,6 +954,10 @@ QLabel#helpCapabilityState[pathenaUiState="available"] {
 QDialog#comfyUiDialog {
     background: #0A0D0E;
 }
+QDialog#comfyUiDialog[pathenaShellHosted="true"] {
+    border: none;
+    border-radius: 0;
+}
 
 QLabel#comfyUiSectionLabel {
     color: #706D76;
