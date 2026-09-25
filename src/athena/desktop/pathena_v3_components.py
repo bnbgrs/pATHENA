@@ -194,7 +194,14 @@ class V3EmptyState(QFrame):
         body_label.setObjectName("v3EmptyBody")
         body_label.setWordWrap(True)
         body_label.setMaximumWidth(560)
-        body_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        body_label.setMinimumHeight(44)
+        body_label.setSizePolicy(
+            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Minimum,
+        )
+        body_label.setAlignment(
+            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop
+        )
         layout.addWidget(body_label, 0, Qt.AlignmentFlag.AlignLeft)
         layout.addStretch(1)
 
