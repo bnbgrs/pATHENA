@@ -906,7 +906,10 @@ class KnowledgeWorkspace(QWidget):
         for raw_line in output.splitlines():
             parts = raw_line.split("\t", 5)
             if len(parts) == 6:
-                rows.append(tuple(parts))
+                knowledge_id, revision_no, kind, status, lifecycle, summary = parts
+                rows.append(
+                    (knowledge_id, revision_no, kind, status, lifecycle, summary)
+                )
 
         # The repository does not promise ordering for equally recent canonical
         # entities. Give the workbench a stable semantic order so refreshes do not
