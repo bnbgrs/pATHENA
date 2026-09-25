@@ -57,7 +57,7 @@ _STARTUP_REFINEMENTS: tuple[str, ...] = (
     "clarify first-run hierarchy",
     "preserve local-state truth",
     "tighten spatial rhythm",
-    "reserve orange for actionable intent",
+    "reserve accent color for actionable intent",
 )
 
 UI_REFINEMENT_TASKS_2801_2900: tuple[str, ...] = tuple(
