@@ -90,6 +90,9 @@ def _seed_reference_knowledge(runtime_root: Path) -> tuple[str, ...]:
                 reason="isolated native visual-regression fixture",
             )
             knowledge_ids.append(str(revision.knowledge_id))
+            # Keep repository recency ordering deterministic across native CI runs.
+            # The production list remains newest-first; only fixture creation is paced.
+            time.sleep(0.02)
         return tuple(knowledge_ids)
     finally:
         core.stop()
@@ -261,6 +264,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             raise RuntimeError("Real repository-backed Knowledge workbench is unavailable.")
 
         expected_ids = set(reference_knowledge_ids)
+        target_id = reference_knowledge_ids[-1]
         deadline = time.monotonic() + 8.0
         observed_ids: set[str] = set()
         detail_id = ""
@@ -277,17 +281,41 @@ def main(argv: Sequence[str] | None = None) -> int:
             detail_state = str(
                 knowledge_details.property("pathenaKnowledgeReviewState") or ""
             )
-            if (
-                expected_ids.issubset(observed_ids)
-                and detail_id in expected_ids
-                and detail_state == "ready"
-                and knowledge_details.toPlainText().strip()
-            ):
-                return {
-                    "fixture": "isolated repository-backed canonical Knowledge",
-                    "knowledge_count": knowledge_list.count(),
-                    "selected_knowledge_state": detail_state,
-                }
+            target_item = next(
+                (
+                    knowledge_list.item(index)
+                    for index in range(knowledge_list.count())
+                    if str(
+                        knowledge_list.item(index).data(Qt.ItemDataRole.UserRole)
+                    )
+                    == target_id
+                ),
+                None,
+            )
+            current_item = knowledge_list.currentItem()
+            current_id = (
+                str(current_item.data(Qt.ItemDataRole.UserRole))
+                if current_item is not None
+                else ""
+            )
+            if expected_ids.issubset(observed_ids) and target_item is not None:
+                if current_id != target_id and detail_state == "ready":
+                    knowledge_list.setCurrentItem(target_item)
+                    app.processEvents()
+                    time.sleep(0.05)
+                    continue
+                if (
+                    current_id == target_id
+                    and detail_id == target_id
+                    and detail_state == "ready"
+                    and knowledge_details.toPlainText().strip()
+                ):
+                    return {
+                        "fixture": "isolated repository-backed canonical Knowledge",
+                        "knowledge_count": knowledge_list.count(),
+                        "selected_knowledge_state": detail_state,
+                        "selected_knowledge_fixture": _REFERENCE_KNOWLEDGE_DRAFTS[-1][1],
+                    }
             time.sleep(0.05)
 
         raise RuntimeError(
