@@ -15,9 +15,11 @@ import re
 import sys
 import threading
 import time
+import uuid
 from collections.abc import Sequence
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from unittest.mock import patch
 
 WORKSPACE_SURFACE_LABELS = (
     "Chat",
@@ -52,6 +54,20 @@ _REFERENCE_KNOWLEDGE_DRAFTS = (
         "supported",
     ),
 )
+_REFERENCE_KNOWLEDGE_NAMESPACE = uuid.UUID("3a006a0e-61cb-4c66-b727-3761c690c24f")
+_REFERENCE_KNOWLEDGE_CREATED_AT_US = 1_800_000_000_000_000
+_REFERENCE_KNOWLEDGE_ID_ROLES = ("knowledge", "revision", "provenance", "commit")
+
+
+def _reference_knowledge_write_ids(kind: str, title: str) -> tuple[uuid.UUID, ...]:
+    """Return stable IDs used only by the isolated visual-regression fixture."""
+    return tuple(
+        uuid.uuid5(
+            _REFERENCE_KNOWLEDGE_NAMESPACE,
+            f"{kind}:{title}:{role}",
+        )
+        for role in _REFERENCE_KNOWLEDGE_ID_ROLES
+    )
 
 
 def _seed_reference_knowledge(runtime_root: Path) -> tuple[str, ...]:
@@ -74,21 +90,41 @@ def _seed_reference_knowledge(runtime_root: Path) -> tuple[str, ...]:
             if snapshot.revision.payload.title is not None
         }
         knowledge_ids: list[str] = []
-        for kind, title, body, status in _REFERENCE_KNOWLEDGE_DRAFTS:
+        from athena.knowledge import repository as knowledge_repository_module
+
+        for index, (kind, title, body, status) in enumerate(_REFERENCE_KNOWLEDGE_DRAFTS):
             snapshot = existing.get(title)
             if snapshot is not None:
                 knowledge_ids.append(str(snapshot.knowledge_id))
                 continue
-            revision = core.knowledge_repository.create_knowledge_unit(
-                actor_id=actor_id,
-                draft=KnowledgeUnitDraft(
-                    knowledge_kind=KnowledgeKind(kind),
-                    title=title,
-                    body=body,
-                    epistemic_status=EpistemicStatus(status),
+
+            write_ids = _reference_knowledge_write_ids(kind, title)
+            created_at_us = _REFERENCE_KNOWLEDGE_CREATED_AT_US + (index * 1_000)
+            # A strict pixel baseline must not depend on Windows clock resolution
+            # or fresh UUID generation. Patch only the isolated fixture write;
+            # production Knowledge IDs and timestamps keep their normal factories.
+            with (
+                patch.object(
+                    knowledge_repository_module,
+                    "new_uuid7",
+                    side_effect=write_ids,
                 ),
-                reason="isolated native visual-regression fixture",
-            )
+                patch.object(
+                    knowledge_repository_module,
+                    "utc_now_us",
+                    return_value=created_at_us,
+                ),
+            ):
+                revision = core.knowledge_repository.create_knowledge_unit(
+                    actor_id=actor_id,
+                    draft=KnowledgeUnitDraft(
+                        knowledge_kind=KnowledgeKind(kind),
+                        title=title,
+                        body=body,
+                        epistemic_status=EpistemicStatus(status),
+                    ),
+                    reason="isolated native visual-regression fixture",
+                )
             knowledge_ids.append(str(revision.knowledge_id))
         return tuple(knowledge_ids)
     finally:
@@ -224,8 +260,17 @@ def main(argv: Sequence[str] | None = None) -> int:
         # stacked-page transition on native Windows.  Render the complete widget
         # tree into a fresh pixmap so unchanged shell regions cannot disappear.
         widget.ensurePolished()
-        widget.repaint()
-        app.processEvents()
+        # Inspector and embedded-workspace handoffs can post more than one
+        # native layout/update event.  Flush the complete hierarchy until its
+        # geometry and backing store have both observed the new ownership.
+        for _ in range(3):
+            layout = widget.layout()
+            if layout is not None:
+                layout.activate()
+            widget.update()
+            widget.repaint()
+            app.processEvents()
+            time.sleep(0.02)
         capture = QPixmap(widget.size())
         capture.fill(Qt.GlobalColor.black)
         widget.render(capture)
@@ -252,6 +297,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             raise RuntimeError("Real repository-backed Knowledge workbench is unavailable.")
 
         expected_ids = set(reference_knowledge_ids)
+        target_id = reference_knowledge_ids[-1]
         deadline = time.monotonic() + 8.0
         observed_ids: set[str] = set()
         detail_id = ""
@@ -268,17 +314,41 @@ def main(argv: Sequence[str] | None = None) -> int:
             detail_state = str(
                 knowledge_details.property("pathenaKnowledgeReviewState") or ""
             )
-            if (
-                expected_ids.issubset(observed_ids)
-                and detail_id in expected_ids
-                and detail_state == "ready"
-                and knowledge_details.toPlainText().strip()
-            ):
-                return {
-                    "fixture": "isolated repository-backed canonical Knowledge",
-                    "knowledge_count": knowledge_list.count(),
-                    "selected_knowledge_state": detail_state,
-                }
+            target_item = next(
+                (
+                    knowledge_list.item(index)
+                    for index in range(knowledge_list.count())
+                    if str(
+                        knowledge_list.item(index).data(Qt.ItemDataRole.UserRole)
+                    )
+                    == target_id
+                ),
+                None,
+            )
+            current_item = knowledge_list.currentItem()
+            current_id = (
+                str(current_item.data(Qt.ItemDataRole.UserRole))
+                if current_item is not None
+                else ""
+            )
+            if expected_ids.issubset(observed_ids) and target_item is not None:
+                if current_id != target_id and detail_state == "ready":
+                    knowledge_list.setCurrentItem(target_item)
+                    app.processEvents()
+                    time.sleep(0.05)
+                    continue
+                if (
+                    current_id == target_id
+                    and detail_id == target_id
+                    and detail_state == "ready"
+                    and knowledge_details.toPlainText().strip()
+                ):
+                    return {
+                        "fixture": "isolated repository-backed canonical Knowledge",
+                        "knowledge_count": knowledge_list.count(),
+                        "selected_knowledge_state": detail_state,
+                        "selected_knowledge_fixture": _REFERENCE_KNOWLEDGE_DRAFTS[-1][1],
+                    }
             time.sleep(0.05)
 
         raise RuntimeError(
@@ -287,8 +357,30 @@ def main(argv: Sequence[str] | None = None) -> int:
             f"detail_state={detail_state!r}, detail_id={detail_id!r}."
         )
 
+    def wait_for_desktop_settle(window: QMainWindow) -> dict[str, object]:
+        """Wait for the local Core transport handshake, not for a loaded model."""
+        status = getattr(window, "status_text", None)
+        deadline = time.monotonic() + 10.0
+        last_status = ""
+        while time.monotonic() < deadline:
+            app.processEvents()
+            last_status = str(status.text()) if status is not None else ""
+            transport_ready = bool(getattr(window, "_core_transport_ready", False))
+            if transport_ready and last_status not in {"Connecting…", "Connecting..."}:
+                return {
+                    "core_transport_ready": True,
+                    "desktop_status": last_status,
+                }
+            time.sleep(0.05)
+        raise RuntimeError(
+            "Desktop did not finish the Core transport handshake before reference capture: "
+            f"core_transport_ready={bool(getattr(window, '_core_transport_ready', False))}, "
+            f"status={last_status!r}."
+        )
+
     def capture_workspaces() -> None:
         window = find_window()
+        startup_evidence = wait_for_desktop_settle(window)
         navigation = getattr(window, "navigation", None)
         pages = getattr(window, "pages", None)
         if navigation is None or pages is None:
@@ -313,6 +405,12 @@ def main(argv: Sequence[str] | None = None) -> int:
                     f"requested row {row}, navigation row {navigation.currentRow()}, "
                     f"page index {pages.currentIndex()}."
                 )
+            comfy_surface = window.findChild(QWidget, "comfyUiDialog")
+            if comfy_surface is not None and comfy_surface.isVisible():
+                raise RuntimeError(
+                    "Transient ComfyUI surface covered primary workspace "
+                    f"{label!r} before capture."
+                )
             knowledge_evidence = (
                 wait_for_reference_knowledge(window) if row == 1 else {}
             )
@@ -320,6 +418,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             captures[-1]["navigation_label"] = navigation.item(row).text()
             captures[-1]["row"] = row
             captures[-1]["page_index"] = pages.currentIndex()
+            captures[-1]["transient_overlay_visible"] = False
+            if row == 0:
+                captures[-1].update(startup_evidence)
             captures[-1].update(knowledge_evidence)
 
     def diagnostic_pallas_snapshot() -> PallasGraphSnapshot:
@@ -511,7 +612,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         ]
         if _DiagnosticComfyHandler.posted_prompts != expected:
             raise RuntimeError("ComfyUI local server did not receive the exact API workflow.")
-        save_widget(dialog, ordinal=11, label="ComfyUI", kind="comfyui")
+        capture_target = (
+            find_window()
+            if dialog.property("pathenaComfyUiShellHosted") is True
+            else dialog
+        )
+        save_widget(capture_target, ordinal=11, label="ComfyUI", kind="comfyui")
+        captures[-1]["shell_hosted"] = capture_target is not dialog
         captures[-1]["endpoint"] = controller.endpoint.text()
         captures[-1]["prompt_id"] = prompt_id
         captures[-1]["transport"] = "loopback HTTP; proxy bypassed"

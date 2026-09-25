@@ -285,6 +285,16 @@ class AsciiPanel(QPlainTextEdit):
                 continue
             append(line_edit.text())
 
+        # Chat uses a QPlainTextEdit-backed multiline composer. Sample visible
+        # plain-text inputs as first-class workspace semantics without feeding
+        # this PALLAS controller's own rendered text back into itself.
+        for text_edit in root.findChildren(QPlainTextEdit):
+            if len(items) >= _MAX_SEMANTIC_ITEMS:
+                break
+            if text_edit is self or not text_edit.isVisible():
+                continue
+            append(text_edit.toPlainText())
+
         for label in root.findChildren(QLabel):
             if len(items) >= _MAX_SEMANTIC_ITEMS or total_chars >= _MAX_SEMANTIC_CHARS:
                 break
