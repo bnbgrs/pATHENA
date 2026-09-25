@@ -30,6 +30,8 @@ from PySide6.QtWidgets import (
     QGraphicsSimpleTextItem,
     QGraphicsView,
     QHBoxLayout,
+    QStyle,
+    QStyleOptionGraphicsItem,
     QLabel,
     QVBoxLayout,
     QWidget,
@@ -185,6 +187,22 @@ class _PallasNodeItem(QGraphicsEllipseItem):
             title_font.setPixelSize(11)
             title.setFont(title_font)
             title.setPos(radius + 7, -title.boundingRect().height() / 2)
+
+    def paint(
+        self,
+        painter: QPainter,
+        option: QStyleOptionGraphicsItem,
+        widget: QWidget | None = None,
+    ) -> None:
+        # QGraphicsEllipseItem paints an additional dashed rectangular focus /
+        # selection decoration. PALLAS already communicates both states through
+        # the node's own accent outline; suppress the native rectangle so the
+        # semantic field keeps a clean spatial vocabulary without losing focus
+        # visibility.
+        clean_option = QStyleOptionGraphicsItem(option)
+        clean_option.state &= ~QStyle.StateFlag.State_Selected
+        clean_option.state &= ~QStyle.StateFlag.State_HasFocus
+        super().paint(painter, clean_option, widget)
 
     def itemChange(
         self,
