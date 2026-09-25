@@ -80,6 +80,7 @@ class PathenaV3ResearchController(QObject):
         state_row.setSpacing(10)
         workspace.status.setParent(brief)
         workspace.status.setObjectName("v3ResearchStatus")
+        workspace.status.setWordWrap(False)
         workspace.status.show()
         state_row.addWidget(workspace.status)
         state_row.addStretch(1)
