@@ -1098,10 +1098,10 @@ QTreeWidget:focus,
 QTableView:focus {
     border-color: #4B8D7E;
 }
-QSlider:disabled::groove:horizontal {
+QSlider::groove:horizontal:disabled {
     background: #202829;
 }
-QSlider:disabled::handle:horizontal {
+QSlider::handle:horizontal:disabled {
     background: #465052;
 }
 QCheckBox:disabled {
