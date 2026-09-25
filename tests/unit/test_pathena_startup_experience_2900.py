@@ -87,7 +87,8 @@ def test_disabled_composer_no_longer_looks_primary() -> None:
 
 def test_quiet_workspace_contract_remains_effect_free() -> None:
     lowered = _STARTUP_STYLESHEET.lower()
-    assert "#f26a21" in lowered
+    assert "#89e0ca" in lowered
+    assert "#f26a21" not in lowered
     assert "glow" not in lowered
     assert "shadow" not in lowered
     assert "gradient" not in lowered
@@ -246,6 +247,12 @@ def test_empty_state_width_tracks_available_chat_space_without_exceeding_cap() -
 
     assert panel.width() == 560
     assert body.width() == 504
+
+    first_item = layout.itemAt(0)
+    assert first_item is not None
+    assert first_item.widget() is panel
+    assert first_item.alignment() & Qt.AlignmentFlag.AlignLeft
+    assert first_item.alignment() & Qt.AlignmentFlag.AlignTop
 
 
 def test_event_filter_is_safe_after_chat_messages_attribute_is_torn_down() -> None:
