@@ -81,8 +81,9 @@ def test_icon_navigation_exposes_human_page_names_to_accessibility() -> None:
 
 def test_disabled_composer_no_longer_looks_primary() -> None:
     assert "QPushButton#sendButton:disabled" in _STARTUP_STYLESHEET
-    assert "background: #121212" in _STARTUP_STYLESHEET
+    assert "background: #14191A" in _STARTUP_STYLESHEET
     assert "QLineEdit#promptInput:disabled" in _STARTUP_STYLESHEET
+    assert "QPlainTextEdit#promptInput:disabled" in _STARTUP_STYLESHEET
 
 
 def test_quiet_workspace_contract_remains_effect_free() -> None:
