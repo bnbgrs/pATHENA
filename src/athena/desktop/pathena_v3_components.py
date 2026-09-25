@@ -12,16 +12,15 @@ from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
-    QPushButton,
     QSizePolicy,
     QToolButton,
     QVBoxLayout,
     QWidget,
 )
 
-_INK = QColor("#F2F0E8")
-_MUTED = QColor("#817F77")
-_ACTIVE = QColor("#C6F277")
+_INK = QColor("#F3F0F5")
+_MUTED = QColor("#85818C")
+_ACTIVE = QColor("#89E0CA")
 
 
 def _glyph_icon(name: str, *, active: bool) -> QIcon:

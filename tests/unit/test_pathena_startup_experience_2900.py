@@ -217,6 +217,11 @@ def test_empty_state_copy_refreshes_after_disconnected_to_ready_transition() -> 
     assert title.text() == "Start a conversation"
     assert "reconnect" not in body.text().casefold()
     assert "local knowledge" in body.text().casefold()
+    assert title.alignment() & Qt.AlignmentFlag.AlignLeft
+    assert body.alignment() & Qt.AlignmentFlag.AlignLeft
+    panel = messages.findChild(QFrame, "emptyStatePanel")
+    assert panel is not None
+    assert panel.minimumHeight() == 116
 
 
 def test_empty_state_width_tracks_available_chat_space_without_exceeding_cap() -> None:

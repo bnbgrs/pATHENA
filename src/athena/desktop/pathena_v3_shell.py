@@ -134,11 +134,11 @@ class PathenaV3ShellController(QObject):
     def _build_rail(self) -> QWidget:
         rail = QFrame()
         rail.setObjectName("v3Rail")
-        rail.setFixedWidth(76)
+        rail.setFixedWidth(88)
 
         layout = QVBoxLayout(rail)
-        layout.setContentsMargins(14, 18, 14, 16)
-        layout.setSpacing(7)
+        layout.setContentsMargins(10, 18, 10, 16)
+        layout.setSpacing(5)
 
         mark = QLabel("P")
         mark.setObjectName("v3Mark")
@@ -147,11 +147,7 @@ class PathenaV3ShellController(QObject):
         mark.setToolTip("pATHENA")
         layout.addWidget(mark, 0, Qt.AlignmentFlag.AlignHCenter)
 
-        build = QLabel("V3")
-        build.setObjectName("v3BuildMark")
-        build.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(build)
-        layout.addSpacing(15)
+        layout.addSpacing(14)
 
         for index in range(5):
             layout.addWidget(
@@ -272,7 +268,16 @@ class PathenaV3ShellController(QObject):
             context_button.setText("Context")
             meta_layout.addWidget(context_button)
 
-        outer.addWidget(meta)
+        meta.setMinimumWidth(620)
+        meta.setMaximumWidth(1180)
+        meta.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        meta_row = QHBoxLayout()
+        meta_row.setContentsMargins(0, 0, 0, 0)
+        meta_row.setSpacing(0)
+        meta_row.addStretch(1)
+        meta_row.addWidget(meta, 8)
+        meta_row.addStretch(1)
+        outer.addLayout(meta_row)
 
         stage = QFrame()
         stage.setObjectName("v3ConversationStage")
@@ -284,6 +289,8 @@ class PathenaV3ShellController(QObject):
         conversation_row.setContentsMargins(0, 0, 0, 0)
         conversation_row.setSpacing(12)
         window.chat_scroll.setParent(stage)
+        window.chat_scroll.setMinimumWidth(500)
+        window.chat_messages_widget.setMinimumWidth(480)
         conversation_row.addWidget(window.chat_scroll, 1)
 
         window.evidence_rail.setParent(stage)
@@ -296,7 +303,16 @@ class PathenaV3ShellController(QObject):
         window.evidence_chain.setParent(stage)
         stage_layout.addWidget(window.evidence_chain)
 
-        outer.addWidget(stage, 1)
+        stage.setMinimumWidth(620)
+        stage.setMaximumWidth(1180)
+        stage.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        stage_row = QHBoxLayout()
+        stage_row.setContentsMargins(0, 0, 0, 0)
+        stage_row.setSpacing(0)
+        stage_row.addStretch(1)
+        stage_row.addWidget(stage, 8)
+        stage_row.addStretch(1)
+        outer.addLayout(stage_row, 1)
 
         composer = QFrame()
         composer.setObjectName("v3Composer")
@@ -305,8 +321,8 @@ class PathenaV3ShellController(QObject):
         composer_layout.setSpacing(8)
 
         window.prompt_input.setParent(composer)
-        window.prompt_input.setMinimumHeight(44)
-        window.prompt_input.setMaximumHeight(112)
+        window.prompt_input.setMinimumHeight(48)
+        window.prompt_input.setMaximumHeight(84)
         window.prompt_input.setPlaceholderText("Ask, investigate, build…")
         window.prompt_input.show()
         composer_layout.addWidget(window.prompt_input, 1)
@@ -323,7 +339,16 @@ class PathenaV3ShellController(QObject):
         window.send_button.setToolTip("Send message · Ctrl+Enter")
         window.send_button.show()
         composer_layout.addWidget(window.send_button)
-        outer.addWidget(composer)
+        composer.setMinimumWidth(620)
+        composer.setMaximumWidth(1120)
+        composer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        composer_row = QHBoxLayout()
+        composer_row.setContentsMargins(0, 0, 0, 0)
+        composer_row.setSpacing(0)
+        composer_row.addStretch(1)
+        composer_row.addWidget(composer, 8)
+        composer_row.addStretch(1)
+        outer.addLayout(composer_row)
 
         pages.removeWidget(old_chat)
         pages.insertWidget(0, chat)

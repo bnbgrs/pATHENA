@@ -5,7 +5,7 @@ import os
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QApplication, QFrame, QPlainTextEdit
+from PySide6.QtWidgets import QApplication, QFrame, QPlainTextEdit, QToolButton
 
 from athena.desktop.pathena_v3_shell import install_v3_shell
 from athena.desktop.pathena_window import PathenaMainWindow
@@ -32,11 +32,26 @@ def test_v3_shell_is_structurally_distinct_and_keeps_route_contract() -> None:
 
     rail = shell.findChild(QFrame, "v3Rail")
     assert rail is not None
-    assert rail.width() == 76
-    assert all(
-        button.text() == ""
-        for button in (*controller._nav_buttons.values(), controller._pallas_button)
-    )
+    assert rail.width() == 88
+
+    nav_buttons = shell.findChildren(QToolButton, "v3NavButton")
+    assert [button.text() for button in nav_buttons[:5]] == [
+        "Chat",
+        "Knowledge",
+        "Research",
+        "Jobs",
+        "Sources",
+    ]
+    assert [button.text() for button in controller._nav_buttons.values()] == [
+        "Chat",
+        "Knowledge",
+        "Research",
+        "Jobs",
+        "Sources",
+        "System",
+        "Settings",
+    ]
+    assert controller._pallas_button.text() == "PALLAS"
     assert all(
         not button.icon().isNull()
         for button in (*controller._nav_buttons.values(), controller._pallas_button)
@@ -46,8 +61,8 @@ def test_v3_shell_is_structurally_distinct_and_keeps_route_contract() -> None:
     assert window.pages.widget(0).objectName() == "v3ChatPage"
     assert window.prompt_input.parent().objectName() == "v3Composer"
     assert isinstance(window.prompt_input, QPlainTextEdit)
-    assert window.prompt_input.minimumHeight() == 44
-    assert window.prompt_input.maximumHeight() == 112
+    assert window.prompt_input.minimumHeight() == 48
+    assert window.prompt_input.maximumHeight() == 84
     window.prompt_input.setText("first line\nsecond line")
     assert window.prompt_input.text() == "first line\nsecond line"
 
@@ -133,10 +148,15 @@ def test_v3_shell_keeps_core_chat_controls_visible_at_minimum_desktop_size() -> 
         assert window.model_selector.isVisible()
         assert window.chat_selector.isVisible()
         assert window.prompt_input.isVisible()
+        assert window.prompt_input.maximumHeight() == 84
         assert window.ground_button.isVisible()
         assert window.send_button.isVisible()
         assert controller._nav_buttons[0].isVisible()
         assert controller._nav_buttons[6].isVisible()
+        composer = window.prompt_input.parentWidget()
+        assert composer is not None
+        assert composer.maximumWidth() == 1120
+        assert composer.width() <= window.width()
 
         window.prompt_input.setEnabled(True)
         window.prompt_input.setFocus(Qt.FocusReason.TabFocusReason)
