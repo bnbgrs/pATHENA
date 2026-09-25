@@ -534,6 +534,30 @@ QPushButton:hover {
     border-color: #3B4A4C;
 }
 
+QPushButton[v3PrimaryAction="true"] {
+    color: #CFF8EE;
+    background: #17302B;
+    border-color: #28584D;
+    font-weight: 650;
+}
+
+QPushButton[v3PrimaryAction="true"]:hover {
+    color: #F3F0F5;
+    background: #1E3C36;
+    border-color: #4B8D7E;
+}
+
+QPushButton[v3PrimaryAction="true"]:focus {
+    color: #F3F0F5;
+    border-color: #89E0CA;
+}
+
+QPushButton[v3PrimaryAction="true"]:disabled {
+    color: #667574;
+    background: #111817;
+    border-color: #243130;
+}
+
 QPushButton:focus {
     color: #F3F0F5;
     border-color: #89E0CA;
