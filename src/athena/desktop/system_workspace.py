@@ -313,7 +313,9 @@ class SystemWorkspace(QWidget):
 
     def hideEvent(self, event: QHideEvent) -> None:  # noqa: N802
         if self._shell_inspector is not None:
-            self._shell_inspector.show()
+            owner = self.window()
+            if not bool(owner.property("pathenaV3Presentation")):
+                self._shell_inspector.show()
             self._shell_inspector = None
         super().hideEvent(event)
 

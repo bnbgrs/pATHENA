@@ -7,6 +7,7 @@ by the grounded Core response.
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 
 from PySide6.QtCore import QObject, Qt, QTimer, Signal, Slot
@@ -28,13 +29,19 @@ from athena.desktop.pathena_pallas_semantic import (
     PallasSemanticNode,
     deterministic_layout,
 )
+from athena.desktop.pathena_v3_theme import (
+    V3_BORDER,
+    V3_DANGER,
+    V3_TEXT_DIM,
+)
 
 _AGE_MARKER_KEY = 7391
 _AGE_MARKER_VALUE = "pallas-living-age"
-_MUTED = QColor("#A9A29A")
-_CONFLICT = QColor("#D96B62")
-_BORDER = QColor("#202020")
+_MUTED = QColor(V3_TEXT_DIM)
+_CONFLICT = QColor(V3_DANGER)
+_BORDER = QColor(V3_BORDER)
 _LENSES = frozenset({"semantic", "age", "vitality"})
+_IDLE_INTERVAL_MS = 250
 _CONFLICT_REL = frozenset(
     {"conflict", "conflicts", "contradicts", "contradiction", "opposes"}
 )
@@ -65,9 +72,12 @@ class PallasLivingQtController(QObject):
         self._graph_id: str | None = None
         self._lens = "semantic"
         self._bindings: dict[int, _FieldBinding] = {}
+        self._reduced_motion = os.environ.get(
+            "PATHENA_REDUCED_MOTION", ""
+        ).casefold() in {"1", "true", "yes", "on"}
         self._timer = QTimer(self)
         self._timer.setTimerType(Qt.TimerType.PreciseTimer)
-        self._timer.setInterval(round(1000 / self._engine.config.fps))
+        self._timer.setInterval(_IDLE_INTERVAL_MS)
         self._timer.timeout.connect(self._tick)
         self._timer.start()
 
@@ -95,6 +105,13 @@ class PallasLivingQtController(QObject):
         self._engine.clear()
         self._graph_id = None
 
+    def _set_timer_activity(self, active: bool) -> None:
+        target = _IDLE_INTERVAL_MS
+        if active and not self._reduced_motion:
+            target = round(1000 / self._engine.config.fps)
+        if self._timer.interval() != target:
+            self._timer.setInterval(target)
+
     @Slot()
     def _tick(self) -> None:
         field = self._grounded_controller.field
@@ -103,11 +120,13 @@ class PallasLivingQtController(QObject):
             return
         snapshot = field.snapshot
         if snapshot is None or snapshot.status != "ready" or not snapshot.nodes:
+            self._set_timer_activity(False)
             self._bindings.clear()
             self._engine.clear()
             self._graph_id = None
             return
 
+        self._set_timer_activity(True)
         if snapshot.graph_id != self._graph_id:
             seeds = {
                 item.node_id: (item.x, item.y)
@@ -125,14 +144,16 @@ class PallasLivingQtController(QObject):
         for current in fields:
             self._ensure_binding(current, snapshot)
 
-        self._engine.step()
+        if not self._reduced_motion:
+            self._engine.step()
         for binding in tuple(self._bindings.values()):
             if isValid(binding.field):
                 self._apply_binding(binding)
         diagnostics: dict[str, object] = {
             key: value for key, value in self._engine.diagnostics().items()
         }
-        diagnostics["fps_target"] = int(self._engine.config.fps)
+        diagnostics["fps_target"] = 0 if self._reduced_motion else int(self._engine.config.fps)
+        diagnostics["motion"] = "reduced" if self._reduced_motion else "living"
         diagnostics["lens"] = self._lens
         self.diagnostics_changed.emit(diagnostics)
 
@@ -160,7 +181,10 @@ class PallasLivingQtController(QObject):
         self._bindings[id(field)] = self._bind_field(field, snapshot, token)
         field.setProperty("pathenaPallasLiving", True)
         field.setProperty("pathenaPallasLivingRenderer", "force-ca-v1")
-        field.setProperty("pathenaPallasTargetFps", int(self._engine.config.fps))
+        field.setProperty(
+            "pathenaPallasTargetFps",
+            0 if self._reduced_motion else int(self._engine.config.fps),
+        )
         field.setProperty("pathenaPallasLens", self._lens)
 
     def _bind_field(
@@ -210,7 +234,7 @@ class PallasLivingQtController(QObject):
                 age_item = QGraphicsSimpleTextItem("·", node_item)
                 age_item.setData(_AGE_MARKER_KEY, _AGE_MARKER_VALUE)
                 age_item.setBrush(QBrush(_MUTED))
-                font = QFont("Cascadia Mono")
+                font = QFont("Segoe UI Symbol")
                 font.setPixelSize(8)
                 age_item.setFont(font)
                 bounds = node_item.boundingRect()
@@ -259,6 +283,11 @@ class PallasLivingQtController(QObject):
                     if self._lens == "vitality"
                     else 1.0
                 )
+            item.setScale(
+                0.86 + 0.18 * state.vitality
+                if self._lens == "vitality"
+                else 1.0
+            )
             if age_item is not None:
                 age_item.setToolTip(
                     f"runtime age {state.age_seconds:.1f}s · "
