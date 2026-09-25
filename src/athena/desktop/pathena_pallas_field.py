@@ -31,6 +31,8 @@ from PySide6.QtWidgets import (
     QGraphicsView,
     QHBoxLayout,
     QLabel,
+    QStyle,
+    QStyleOptionGraphicsItem,
     QVBoxLayout,
     QWidget,
 )
@@ -185,6 +187,21 @@ class _PallasNodeItem(QGraphicsEllipseItem):
             title_font.setPixelSize(11)
             title.setFont(title_font)
             title.setPos(radius + 7, -title.boundingRect().height() / 2)
+
+    def paint(
+        self,
+        painter: QPainter,
+        option: QStyleOptionGraphicsItem,
+        widget: QWidget | None = None,
+    ) -> None:
+        # Qt's default graphics-item selection chrome is a dashed rectangle,
+        # which duplicates our circular semantic focus ring. Keep selection
+        # and keyboard focus semantics, but render only the deliberate V3 ring.
+        clean_option = QStyleOptionGraphicsItem(option)
+        clean_option.state &= ~(
+            QStyle.StateFlag.State_Selected | QStyle.StateFlag.State_HasFocus
+        )
+        super().paint(painter, clean_option, widget)
 
     def itemChange(
         self,
