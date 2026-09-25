@@ -148,8 +148,8 @@ class PathenaV3ShellController(QObject):
         main_layout.addWidget(self._build_workspace(), 1)
 
         inspector.setParent(body)
-        inspector.setMinimumWidth(300)
-        inspector.setMaximumWidth(380)
+        inspector.setMinimumWidth(280)
+        inspector.setMaximumWidth(340)
         inspector.hide()
 
         body_layout.addWidget(main, 1)
@@ -249,7 +249,7 @@ class PathenaV3ShellController(QObject):
         workspace = QFrame()
         workspace.setObjectName("v3Workspace")
         layout = QVBoxLayout(workspace)
-        layout.setContentsMargins(36, 18, 36, 30)
+        layout.setContentsMargins(28, 18, 28, 26)
         layout.setSpacing(0)
 
         self._replace_chat_page()
@@ -363,8 +363,8 @@ class PathenaV3ShellController(QObject):
         composer_layout.setSpacing(8)
 
         window.prompt_input.setParent(composer)
-        window.prompt_input.setMinimumHeight(44)
-        window.prompt_input.setMaximumHeight(112)
+        window.prompt_input.setMinimumHeight(48)
+        window.prompt_input.setMaximumHeight(84)
         window.prompt_input.setPlaceholderText("Ask, investigate, build…")
         composer_layout.addWidget(window.prompt_input, 1)
 
