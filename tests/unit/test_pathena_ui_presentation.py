@@ -11,7 +11,7 @@ from athena.api.contracts import (
 from athena.desktop.api_controller import DesktopApiSnapshot
 from athena.desktop.app import create_application
 from athena.desktop.pathena_design_tokens import SHELL
-from athena.desktop.pathena_theme import PATHENA_STYLESHEET
+from athena.desktop.pathena_v3_theme import PATHENA_V3_STYLESHEET
 from athena.desktop.pathena_window import (
     PathenaMainWindow,
     _humanize_review_heading,
@@ -25,7 +25,7 @@ def _app() -> QApplication:
 def test_pathena_application_uses_quiet_workspace_theme() -> None:
     app = _app()
 
-    assert app.styleSheet() == PATHENA_STYLESHEET
+    assert app.styleSheet() == PATHENA_V3_STYLESHEET
     assert app.applicationDisplayName() == "pATHENA"
 
 
@@ -72,12 +72,13 @@ def test_pathena_secondary_context_is_grounded_only_and_user_controlled() -> Non
 
         window._set_context_available(True)
         app.processEvents()
-        assert inspector.isHidden() is False
+        assert inspector.isHidden()
         assert window.context_button.isHidden() is False
         assert window.context_button.isChecked() is False
 
         window.context_button.click()
         app.processEvents()
+        assert inspector.isHidden() is False
         assert window.evidence_chain.isHidden() is False
 
         window._set_context_available(False)
@@ -166,8 +167,8 @@ def test_pathena_removes_redundant_shell_chrome_and_fake_status_marker() -> None
             for label in window.findChildren(QLabel, "sessionLabel")
         }
         assert session_labels == {"Conversation", "Model"}
-        assert "QLabel#promptMarker" in PATHENA_STYLESHEET
-        assert "max-width: 0" in PATHENA_STYLESHEET
+        assert "QPlainTextEdit#promptInput" in PATHENA_V3_STYLESHEET
+        assert "QPushButton#sendButton" in PATHENA_V3_STYLESHEET
     finally:
         window.close()
         app.processEvents()

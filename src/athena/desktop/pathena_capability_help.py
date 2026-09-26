@@ -25,13 +25,13 @@ from athena.desktop.pathena_capability_catalog import (
     resolve_capability_catalog,
 )
 from athena.desktop.pathena_design_tokens import SHELL, TYPE
-from athena.desktop.pathena_v2_theme import (
-    V2_ACCENT,
-    V2_ACCENT_SOFT,
-    V2_BORDER,
-    V2_SURFACE_HOVER,
-    V2_TEXT,
-    V2_TEXT_MUTED,
+from athena.desktop.pathena_v3_theme import (
+    V3_ACCENT,
+    V3_ACCENT_SOFT,
+    V3_BORDER,
+    V3_SURFACE_HOVER,
+    V3_TEXT,
+    V3_TEXT_MUTED,
 )
 
 
@@ -59,6 +59,9 @@ class CapabilityHelpController(QObject):
         if self._workspace is not None:
             return self._workspace
         try:
+            v3_workspace = self.window.findChild(QFrame, "v3Workspace")
+            if v3_workspace is not None:
+                return v3_workspace
             return self.window.findChild(QFrame, "conversation")
         except RuntimeError:
             return None
@@ -105,7 +108,7 @@ class CapabilityHelpController(QObject):
         navigation.setFixedWidth(SHELL.secondary_nav_width)
         navigation.setStyleSheet(
             f"QFrame#helpSecondaryNavigation {{ background: transparent; "
-            f"border: none; border-right: 1px solid {V2_BORDER}; }}"
+            f"border: none; border-right: 1px solid {V3_BORDER}; }}"
         )
         navigation_layout = QVBoxLayout(navigation)
         navigation_layout.setContentsMargins(0, 0, 10, 0)
@@ -136,20 +139,20 @@ class CapabilityHelpController(QObject):
                 outline: none;
             }}
             QListWidget#helpSections::item {{
-                color: {V2_TEXT_MUTED};
+                color: {V3_TEXT_MUTED};
                 background: transparent;
                 border: none;
                 border-left: 2px solid transparent;
                 padding: 7px 10px;
             }}
             QListWidget#helpSections::item:hover {{
-                color: {V2_TEXT};
-                background: {V2_SURFACE_HOVER};
+                color: {V3_TEXT};
+                background: {V3_SURFACE_HOVER};
             }}
             QListWidget#helpSections::item:selected {{
-                color: {V2_TEXT};
-                background: {V2_ACCENT_SOFT};
-                border-left: 2px solid {V2_ACCENT};
+                color: {V3_TEXT};
+                background: {V3_ACCENT_SOFT};
+                border-left: 2px solid {V3_ACCENT};
             }}
             """
         )
@@ -288,13 +291,22 @@ class CapabilityHelpController(QObject):
                     snapshot = self.snapshot()
                     self._refresh_hierarchy(snapshot)
                     self._publish_help_inspector(snapshot)
-                    self.window.page_title.setText("Help")
-                    self.window.page_title.setAccessibleDescription("Current workspace: Help.")
+                    shell = getattr(self.window, "_pathena_v3_shell_controller", None)
+                    header = getattr(shell, "_header", None)
+                    set_context = getattr(header, "set_context", None)
+                    if callable(set_context):
+                        set_context("Help", "Live capabilities, shortcuts and workspace entry points.")
+                    else:
+                        self.window.page_title.setText("Help")
+                        self.window.page_title.setAccessibleDescription("Current workspace: Help.")
                     self.window.setProperty("pathenaHelpWorkspaceVisible", True)
                     QTimer.singleShot(0, self._focus_help_search)
                 elif event.type() == QEvent.Type.Hide:
                     self._restore_inspector()
-                    sync_navigation = getattr(self.window, "_sync_reference_navigation", None)
+                    shell = getattr(self.window, "_pathena_v3_shell_controller", None)
+                    sync_navigation = getattr(shell, "_sync_navigation", None)
+                    if not callable(sync_navigation):
+                        sync_navigation = getattr(self.window, "_sync_reference_navigation", None)
                     if callable(sync_navigation):
                         sync_navigation(self.window.navigation.currentRow())
                     self.window.setProperty("pathenaHelpWorkspaceVisible", False)

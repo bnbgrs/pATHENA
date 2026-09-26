@@ -100,13 +100,13 @@ from athena.desktop.pathena_transient_dialog_shortcuts import (
     install_transient_dialog_shortcut_continuity,
 )
 from athena.desktop.pathena_ui_refinement_integrity import apply_complete_ui_refinements
-from athena.desktop.pathena_v2_jobs import install_v2_jobs_workspace
-from athena.desktop.pathena_v2_knowledge import install_v2_knowledge_workspace
-from athena.desktop.pathena_v2_research import install_v2_research_workspace
-from athena.desktop.pathena_v2_shell import install_v2_shell
-from athena.desktop.pathena_v2_sources import install_v2_sources_workspace
-from athena.desktop.pathena_v2_system import install_v2_system_workspace
-from athena.desktop.pathena_v2_theme import PATHENA_V2_STYLESHEET
+from athena.desktop.pathena_v3_jobs import install_v3_jobs_workspace
+from athena.desktop.pathena_v3_knowledge import install_v3_knowledge_workspace
+from athena.desktop.pathena_v3_research import install_v3_research_workspace
+from athena.desktop.pathena_v3_shell import install_v3_shell
+from athena.desktop.pathena_v3_sources import install_v3_sources_workspace
+from athena.desktop.pathena_v3_system import install_v3_system_workspace
+from athena.desktop.pathena_v3_theme import PATHENA_V3_STYLESHEET
 from athena.desktop.pathena_window import PathenaMainWindow
 from athena.desktop.pathena_workspace_presentation import apply_workspace_presentation
 from athena.desktop.research_results_extension import install_research_results_extension
@@ -134,7 +134,7 @@ def create_application(argv: Sequence[str] | None = None) -> QApplication:
     app.setOrganizationName("ATHENA")
     app.setApplicationDisplayName("pATHENA")
     app.setFont(QFont("Segoe UI", 10))
-    app.setStyleSheet(PATHENA_V2_STYLESHEET)
+    app.setStyleSheet(PATHENA_V3_STYLESHEET)
     return app
 
 
@@ -198,13 +198,13 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     controller = DesktopApiController(client)
     window = PathenaMainWindow(api_controller=controller)
-    v2_shell = install_v2_shell(window)
+    v3_shell = install_v3_shell(window)
     settings_runtime = install_settings_runtime(window, controller)
     pallas_grounded_field = install_pallas_grounded_field(window, controller)
     pallas_full_view = install_pallas_full_view(window, pallas_grounded_field)
-    v2_shell.bind_pallas(pallas_full_view.open_workspace)
-    pallas_full_view.workspace_opened.connect(v2_shell.pallas_opened)
-    pallas_full_view.workspace_closed.connect(v2_shell.pallas_closed)
+    v3_shell.bind_pallas(pallas_full_view.open_workspace)
+    pallas_full_view.workspace_opened.connect(v3_shell.pallas_opened)
+    pallas_full_view.workspace_closed.connect(v3_shell.pallas_closed)
     pallas_context_inspector = install_pallas_context_inspector(
         window,
         pallas_grounded_field,
@@ -235,7 +235,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     apply_workspace_presentation(window)
     install_navigation_context_accessibility(window)
     command_palette = install_command_palette(window)
-    v2_shell.bind_command_palette(command_palette.open)
+    v3_shell.bind_command_palette(command_palette.open)
     external_workspaces = install_external_workspaces(
         window,
         command_palette,
@@ -300,15 +300,15 @@ def main(argv: Sequence[str] | None = None) -> int:
         research_query=research_workspace.query_input,
         research_filter=research_results_extension.job_filter,
     )
-    v2_knowledge = install_v2_knowledge_workspace(knowledge_workspace)
-    v2_research = install_v2_research_workspace(
+    v3_knowledge = install_v3_knowledge_workspace(knowledge_workspace)
+    v3_research = install_v3_research_workspace(
         research_workspace,
         research_results_extension,
     )
-    v2_jobs = install_v2_jobs_workspace(jobs_workspace)
-    v2_sources = install_v2_sources_workspace(files_workspace)
-    v2_system = install_v2_system_workspace(system_workspace)
-    v2_shell.finalize()
+    v3_jobs = install_v3_jobs_workspace(jobs_workspace)
+    v3_sources = install_v3_sources_workspace(files_workspace)
+    v3_system = install_v3_system_workspace(system_workspace)
+    v3_shell.finalize()
     _schedule_initial_core_refreshes(controller, supervisor, scheduler_supervisor)
     heartbeat = _start_core_refresh_heartbeat(controller, supervisor, scheduler_supervisor)
     window.show()
@@ -341,11 +341,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     knowledge_tab_refresh_handoff.deleteLater()
     knowledge_detail_ownership.deleteLater()
     knowledge_selection_continuity.deleteLater()
-    v2_system.deleteLater()
-    v2_sources.deleteLater()
-    v2_jobs.deleteLater()
-    v2_research.deleteLater()
-    v2_knowledge.deleteLater()
+    v3_system.deleteLater()
+    v3_sources.deleteLater()
+    v3_jobs.deleteLater()
+    v3_research.deleteLater()
+    v3_knowledge.deleteLater()
     knowledge_workspace.deleteLater()
     research_proposal_focus.deleteLater()
     research_proposal_density.deleteLater()
@@ -367,8 +367,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     pallas_full_view.dispose()
     pallas_full_view.deleteLater()
     pallas_grounded_field.deleteLater()
-    v2_shell.dispose()
-    v2_shell.deleteLater()
+    v3_shell.dispose()
+    v3_shell.deleteLater()
     settings_runtime.deleteLater()
     return exit_code
 

@@ -336,6 +336,9 @@ class PathenaMainWindow(AthenaMainWindow):
         self.context_button.hide()
         self.evidence_chain.hide()
         self.context_button.toggled.connect(self.evidence_chain.setVisible)
+        self.context_button.toggled.connect(
+            lambda _checked: self._sync_inspector_visibility()
+        )
 
         chat_page = self.pages.widget(0)
         if chat_page is not None:
@@ -350,10 +353,12 @@ class PathenaMainWindow(AthenaMainWindow):
         if inspector is None:
             return
         context_button = getattr(self, "context_button", None)
-        context_available = (
-            isinstance(context_button, QPushButton) and not context_button.isHidden()
+        context_requested = (
+            isinstance(context_button, QPushButton)
+            and not context_button.isHidden()
+            and context_button.isChecked()
         )
-        inspector.setVisible(self.navigation.currentRow() != 0 or context_available)
+        inspector.setVisible(self.navigation.currentRow() != 0 or context_requested)
 
     def _set_context_available(self, available: bool) -> None:
         button = getattr(self, "context_button", None)

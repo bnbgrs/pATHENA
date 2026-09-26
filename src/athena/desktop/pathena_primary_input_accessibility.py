@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from PySide6.QtCore import QObject
-from PySide6.QtWidgets import QLineEdit, QWidget
+from PySide6.QtWidgets import QLineEdit, QPlainTextEdit, QWidget
 
 from athena.desktop.pathena_design_tokens import PALETTE, RADII
 
@@ -107,7 +107,7 @@ QPlainTextEdit#sourceDetails:focus {{
 
 @dataclass(frozen=True)
 class PrimaryInputTarget:
-    control: QLineEdit
+    control: QLineEdit | QPlainTextEdit
     accessible_name: str
     purpose: str
     keyboard_context: str
@@ -145,7 +145,7 @@ class PrimaryInputAccessibility(QObject):
 def install_primary_input_accessibility(
     window: QWidget,
     *,
-    chat_prompt: QLineEdit,
+    chat_prompt: QLineEdit | QPlainTextEdit,
     knowledge_filter: QLineEdit,
     research_query: QLineEdit,
     research_filter: QLineEdit,

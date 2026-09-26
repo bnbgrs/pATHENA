@@ -28,12 +28,17 @@ from athena.desktop.pathena_pallas_semantic import (
     PallasSemanticNode,
     deterministic_layout,
 )
+from athena.desktop.pathena_v3_theme import (
+    V3_BORDER,
+    V3_DANGER,
+    V3_TEXT_DIM,
+)
 
 _AGE_MARKER_KEY = 7391
 _AGE_MARKER_VALUE = "pallas-living-age"
-_MUTED = QColor("#A9A29A")
-_CONFLICT = QColor("#D96B62")
-_BORDER = QColor("#202020")
+_MUTED = QColor(V3_TEXT_DIM)
+_CONFLICT = QColor(V3_DANGER)
+_BORDER = QColor(V3_BORDER)
 _LENSES = frozenset({"semantic", "age", "vitality"})
 _CONFLICT_REL = frozenset(
     {"conflict", "conflicts", "contradicts", "contradiction", "opposes"}
@@ -67,7 +72,9 @@ class PallasLivingQtController(QObject):
         self._bindings: dict[int, _FieldBinding] = {}
         self._timer = QTimer(self)
         self._timer.setTimerType(Qt.TimerType.PreciseTimer)
-        self._timer.setInterval(round(1000 / self._engine.config.fps))
+        self._active_interval_ms = round(1000 / self._engine.config.fps)
+        self._idle_interval_ms = 250
+        self._timer.setInterval(self._active_interval_ms)
         self._timer.timeout.connect(self._tick)
         self._timer.start()
 
@@ -106,6 +113,8 @@ class PallasLivingQtController(QObject):
             self._bindings.clear()
             self._engine.clear()
             self._graph_id = None
+            if self._timer.interval() != self._idle_interval_ms:
+                self._timer.setInterval(self._idle_interval_ms)
             return
 
         if snapshot.graph_id != self._graph_id:
@@ -118,6 +127,13 @@ class PallasLivingQtController(QObject):
             self._bindings.clear()
 
         fields = self._live_fields()
+        target_interval = (
+            self._active_interval_ms
+            if any(current.isVisible() for current in fields)
+            else self._idle_interval_ms
+        )
+        if self._timer.interval() != target_interval:
+            self._timer.setInterval(target_interval)
         live_ids = {id(current) for current in fields}
         for stale_id in tuple(self._bindings):
             if stale_id not in live_ids:
@@ -210,7 +226,7 @@ class PallasLivingQtController(QObject):
                 age_item = QGraphicsSimpleTextItem("·", node_item)
                 age_item.setData(_AGE_MARKER_KEY, _AGE_MARKER_VALUE)
                 age_item.setBrush(QBrush(_MUTED))
-                font = QFont("Cascadia Mono")
+                font = QFont("Segoe UI Symbol")
                 font.setPixelSize(8)
                 age_item.setFont(font)
                 bounds = node_item.boundingRect()

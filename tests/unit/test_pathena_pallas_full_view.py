@@ -200,7 +200,7 @@ def test_full_view_reclaims_stale_inspector_and_restores_previous_context() -> N
 
 
 
-def test_full_view_uses_dedicated_v2_inspector_without_exposing_legacy_panel() -> None:
+def test_full_view_uses_dedicated_v3_inspector_without_exposing_legacy_panel() -> None:
     app, window, grounded, full_view = _surface()
     inspector = install_pallas_context_inspector(window, grounded)
     grounded.apply_snapshot(_snapshot())
@@ -209,22 +209,22 @@ def test_full_view_uses_dedicated_v2_inspector_without_exposing_legacy_panel() -
     app.processEvents()
 
     legacy_panel = window.findChild(QFrame, "inspector")
-    v2_panel = window.findChild(QFrame, "v2PallasInspector")
-    v2_title = window.findChild(QLabel, "v2PallasInspectorTitle")
-    v2_body = window.findChild(QLabel, "v2PallasInspectorBody")
+    v3_panel = window.findChild(QFrame, "v3PallasInspector")
+    v3_title = window.findChild(QLabel, "v3PallasInspectorTitle")
+    v3_body = window.findChild(QLabel, "v3PallasInspectorBody")
     assert legacy_panel is not None
-    assert v2_panel is not None and v2_panel.isVisible()
+    assert v3_panel is not None and v3_panel.isVisible()
     assert not legacy_panel.isVisible()
-    assert v2_title is not None and v2_title.text().endswith("Grounded response")
-    assert v2_body is not None and "Graph  grounded-run:run-2" in v2_body.text()
+    assert v3_title is not None and v3_title.text().endswith("Grounded response")
+    assert v3_body is not None and "Graph  grounded-run:run-2" in v3_body.text()
 
     workspace = full_view.workspace
     assert workspace is not None
     assert workspace.field.focus_node("canonical_claim:claim-2")
     app.processEvents()
 
-    assert v2_title.text().endswith("Supported claim")
-    assert "Confidence  0.91" in v2_body.text()
+    assert v3_title.text().endswith("Supported claim")
+    assert "Confidence  0.91" in v3_body.text()
     assert legacy_panel.property("pathenaPallasSelectionId") == "canonical_claim:claim-2"
     assert not legacy_panel.isVisible()
 

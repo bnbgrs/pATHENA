@@ -45,6 +45,16 @@ _PAGE_HINTS = (
     "Configure models, inference, local integrations, and app behavior.",
 )
 
+_PAGE_ICONS = (
+    "chat",
+    "knowledge",
+    "research",
+    "jobs",
+    "sources",
+    "system",
+    "settings",
+)
+
 
 class PathenaV2ShellController(QObject):
     """Own a single clean shell without changing domain or persistence behavior."""
@@ -61,6 +71,7 @@ class PathenaV2ShellController(QObject):
         self._command_button = QPushButton("Search or run a command      Ctrl K")
         self._pallas_button = V2NavigationButton(
             "PALLAS",
+            icon_name="pallas",
             accessible_name="Open PALLAS",
         )
         self._build()
@@ -153,10 +164,10 @@ class PathenaV2ShellController(QObject):
     def _build_sidebar(self) -> QWidget:
         sidebar = QFrame()
         sidebar.setObjectName("v2Sidebar")
-        sidebar.setFixedWidth(216)
+        sidebar.setFixedWidth(204)
 
         layout = QVBoxLayout(sidebar)
-        layout.setContentsMargins(15, 18, 15, 16)
+        layout.setContentsMargins(13, 18, 13, 16)
         layout.setSpacing(4)
 
         brand_row = QHBoxLayout()
@@ -204,7 +215,7 @@ class PathenaV2ShellController(QObject):
         return sidebar
 
     def _make_nav_button(self, index: int, text: str) -> V2NavigationButton:
-        button = V2NavigationButton(text)
+        button = V2NavigationButton(text, icon_name=_PAGE_ICONS[index])
         button.clicked.connect(
             lambda _checked=False, row=index: self._window.navigation.setCurrentRow(row)
         )

@@ -9,7 +9,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 pytest.importorskip("PySide6")
 
-from PySide6.QtWidgets import QApplication, QFrame
+from PySide6.QtWidgets import QApplication, QFrame, QLabel
 
 from athena.desktop.app import create_application
 from athena.desktop.command_palette import CommandPaletteController
@@ -20,7 +20,8 @@ from athena.desktop.pathena_capability_catalog import (
     resolve_capability_catalog,
 )
 from athena.desktop.pathena_capability_help import install_capability_help
-from athena.desktop.pathena_v2_theme import V2_ACCENT, V2_ACCENT_SOFT, V2_BORDER
+from athena.desktop.pathena_v3_shell import install_v3_shell
+from athena.desktop.pathena_v3_theme import V3_ACCENT, V3_ACCENT_SOFT, V3_BORDER
 from athena.desktop.pathena_window import PathenaMainWindow
 
 
@@ -164,19 +165,51 @@ def test_open_help_re_resolves_runtime_state_and_publishes_accessible_metadata()
         app.processEvents()
 
 
-def test_help_secondary_navigation_uses_v2_selection_language() -> None:
+def test_help_secondary_navigation_uses_v3_selection_language() -> None:
     app, window, palette = _surface()
     controller = install_capability_help(palette)
     try:
         navigation = palette.help_dialog.findChild(QFrame, "helpSecondaryNavigation")
         assert navigation is not None
-        assert f"border-right: 1px solid {V2_BORDER}" in navigation.styleSheet()
+        assert f"border-right: 1px solid {V3_BORDER}" in navigation.styleSheet()
 
         sections_style = controller.help_sections.styleSheet()
-        assert f"background: {V2_ACCENT_SOFT}" in sections_style
-        assert f"border-left: 2px solid {V2_ACCENT}" in sections_style
+        assert f"background: {V3_ACCENT_SOFT}" in sections_style
+        assert f"border-left: 2px solid {V3_ACCENT}" in sections_style
         assert "outline: none" in sections_style
     finally:
+        palette.deleteLater()
+        window.close()
+        app.processEvents()
+
+
+def test_help_is_hosted_inside_v3_workspace_and_restores_workbar_context() -> None:
+    app = _app()
+    window = PathenaMainWindow(api_controller=None)
+    install_v3_shell(window)
+    palette = CommandPaletteController(window)
+    controller = install_capability_help(palette)
+    window.show()
+    app.processEvents()
+    try:
+        title = window.findChild(QLabel, "v3PageTitle")
+        assert title is not None
+        assert title.text() == "Chat"
+
+        palette.open_help()
+        app.processEvents()
+
+        workspace = window.findChild(QFrame, "v3Workspace")
+        assert workspace is not None
+        assert palette.help_dialog.parent() is workspace
+        assert palette.help_dialog.geometry() == workspace.rect()
+        assert title.text() == "Help"
+
+        palette.help_dialog.hide()
+        app.processEvents()
+        assert title.text() == "Chat"
+    finally:
+        controller.dispose()
         palette.deleteLater()
         window.close()
         app.processEvents()
