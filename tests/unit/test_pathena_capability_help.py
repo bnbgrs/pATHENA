@@ -20,8 +20,8 @@ from athena.desktop.pathena_capability_catalog import (
     resolve_capability_catalog,
 )
 from athena.desktop.pathena_capability_help import install_capability_help
-from athena.desktop.pathena_v3_theme import V3_ACCENT, V3_ACCENT_SOFT, V3_BORDER
 from athena.desktop.pathena_v3_shell import install_v3_shell
+from athena.desktop.pathena_v3_theme import V3_ACCENT, V3_ACCENT_SOFT, V3_BORDER
 from athena.desktop.pathena_window import PathenaMainWindow
 
 
