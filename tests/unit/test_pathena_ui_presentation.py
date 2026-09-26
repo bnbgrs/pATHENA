@@ -167,8 +167,8 @@ def test_pathena_removes_redundant_shell_chrome_and_fake_status_marker() -> None
             for label in window.findChildren(QLabel, "sessionLabel")
         }
         assert session_labels == {"Conversation", "Model"}
-        assert "QLabel#promptMarker" in PATHENA_STYLESHEET
-        assert "max-width: 0" in PATHENA_STYLESHEET
+        assert "QPlainTextEdit#promptInput" in PATHENA_V3_STYLESHEET
+        assert "QPushButton#sendButton" in PATHENA_V3_STYLESHEET
     finally:
         window.close()
         app.processEvents()
