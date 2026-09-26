@@ -1106,11 +1106,12 @@ class ReferenceParityController(QObject):
         inspector = self.window.findChild(QFrame, "inspector")
         if inspector is not None:
             context_button = getattr(self.window, "context_button", None)
-            context_available = (
+            context_requested = (
                 isinstance(context_button, QPushButton)
                 and not context_button.isHidden()
+                and context_button.isChecked()
             )
-            inspector.setVisible(row == 0 and context_available)
+            inspector.setVisible(row == 0 and context_requested)
 
     def dispose(self) -> None:
         """Disconnect the final shared-shell listener before application teardown."""

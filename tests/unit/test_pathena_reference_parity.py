@@ -173,6 +173,8 @@ def test_reference_parity_keeps_generic_inspector_contextual() -> None:
         assert inspector.isHidden()
 
         window._set_context_available(True)
+        assert inspector.isHidden()
+        window.context_button.click()
         assert not inspector.isHidden()
 
         window.navigation.setCurrentRow(2)

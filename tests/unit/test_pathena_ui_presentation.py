@@ -72,12 +72,13 @@ def test_pathena_secondary_context_is_grounded_only_and_user_controlled() -> Non
 
         window._set_context_available(True)
         app.processEvents()
-        assert inspector.isHidden() is False
+        assert inspector.isHidden()
         assert window.context_button.isHidden() is False
         assert window.context_button.isChecked() is False
 
         window.context_button.click()
         app.processEvents()
+        assert inspector.isHidden() is False
         assert window.evidence_chain.isHidden() is False
 
         window._set_context_available(False)

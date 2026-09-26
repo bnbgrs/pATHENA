@@ -353,11 +353,12 @@ class PathenaMainWindow(AthenaMainWindow):
         if inspector is None:
             return
         context_button = getattr(self, "context_button", None)
-        context_available = (
+        context_requested = (
             isinstance(context_button, QPushButton)
             and not context_button.isHidden()
+            and context_button.isChecked()
         )
-        inspector.setVisible(self.navigation.currentRow() != 0 or context_available)
+        inspector.setVisible(self.navigation.currentRow() != 0 or context_requested)
 
     def _set_context_available(self, available: bool) -> None:
         button = getattr(self, "context_button", None)

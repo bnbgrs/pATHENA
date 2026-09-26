@@ -158,6 +158,8 @@ def test_reference_inspector_follows_grounding_and_non_chat_navigation() -> None
         assert window.details_button.isHidden()
 
         window._set_context_available(True)
+        assert inspector.isHidden()
+        window.context_button.click()
         assert not inspector.isHidden()
 
         window._enter_new_chat_state(clear_transient=True)
