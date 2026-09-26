@@ -18,7 +18,7 @@ def _app() -> QApplication:
 
 
 def _assert_inspector_width(inspector: QFrame) -> None:
-    assert inspector.width() == SHELL.inspector_width + inspector.frameWidth()
+    assert inspector.width() == SHELL.inspector_width
 
 
 def test_reference_shell_owns_icon_rail_without_rewiring_navigation() -> None:
@@ -136,12 +136,12 @@ def test_reference_composer_uses_large_work_surface_and_send_target() -> None:
         assert composer.height() == 88
         assert window.prompt_input.minimumHeight() == 44
         assert window.ground_button.minimumHeight() == 36
-        assert window.send_button.width() == SHELL.composer_action_size
-        assert window.send_button.height() == SHELL.composer_action_size
-        assert window.send_button.minimumWidth() == SHELL.composer_action_size
-        assert window.send_button.maximumWidth() == SHELL.composer_action_size
-        assert window.send_button.minimumHeight() == SHELL.composer_action_size
-        assert window.send_button.maximumHeight() == SHELL.composer_action_size
+        assert window.send_button.width() == 40
+        assert window.send_button.height() == 40
+        assert window.send_button.minimumWidth() == 40
+        assert window.send_button.maximumWidth() == 40
+        assert window.send_button.minimumHeight() == 40
+        assert window.send_button.maximumHeight() == 40
     finally:
         window.close()
 

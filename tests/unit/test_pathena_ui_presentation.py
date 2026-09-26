@@ -11,7 +11,7 @@ from athena.api.contracts import (
 from athena.desktop.api_controller import DesktopApiSnapshot
 from athena.desktop.app import create_application
 from athena.desktop.pathena_design_tokens import SHELL
-from athena.desktop.pathena_theme import PATHENA_STYLESHEET
+from athena.desktop.pathena_v3_theme import PATHENA_V3_STYLESHEET
 from athena.desktop.pathena_window import (
     PathenaMainWindow,
     _humanize_review_heading,
@@ -25,7 +25,7 @@ def _app() -> QApplication:
 def test_pathena_application_uses_quiet_workspace_theme() -> None:
     app = _app()
 
-    assert app.styleSheet() == PATHENA_STYLESHEET
+    assert app.styleSheet() == PATHENA_V3_STYLESHEET
     assert app.applicationDisplayName() == "pATHENA"
 
 
