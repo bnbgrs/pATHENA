@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
 from athena.api.contracts import ChatThreadResponse, GroundedChatResponse
 from athena.desktop.api_controller import DesktopApiController, DesktopApiSnapshot
 from athena.desktop.pathena_design_tokens import PALETTE, SHELL
+from athena.desktop.pathena_v3_theme import V3_COMPOSER_ACTION_SIZE
 from athena.desktop.window import AthenaMainWindow, MetricRow
 
 _DISPLAY_NAVIGATION = (
@@ -209,8 +210,8 @@ class PathenaMainWindow(AthenaMainWindow):
         self.send_button.setToolTip("Send message (Ctrl+Enter)")
         self.send_button.setAccessibleName("Send message")
         self.send_button.setFixedSize(
-            SHELL.composer_action_size,
-            SHELL.composer_action_size,
+            V3_COMPOSER_ACTION_SIZE,
+            V3_COMPOSER_ACTION_SIZE,
         )
 
         self.new_chat_button.setText("New")

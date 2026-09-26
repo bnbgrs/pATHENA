@@ -19,7 +19,7 @@ def _app() -> QApplication:
 
 
 def _assert_inspector_width(inspector: QFrame) -> None:
-    assert inspector.width() == SHELL.inspector_width
+    assert inspector.width() == SHELL.inspector_width + inspector.frameWidth()
     assert inspector.minimumWidth() == SHELL.inspector_width
     assert inspector.maximumWidth() == SHELL.inspector_width
 

@@ -120,21 +120,27 @@ _INITIAL_CORE_REFRESH_DELAYS_MS = (250, 750, 1_500, 3_000, 5_000, 10_000, 20_000
 _CORE_REFRESH_HEARTBEAT_MS = 30_000
 
 
+def _apply_application_presentation(app: QApplication) -> None:
+    """Apply the canonical V3 identity even when Qt reuses an application."""
+    app.setApplicationName("ATHENA")
+    app.setOrganizationName("ATHENA")
+    app.setApplicationDisplayName("pATHENA")
+    app.setFont(QFont("Segoe UI", 10))
+    app.setStyleSheet(PATHENA_V3_STYLESHEET)
+
+
 def create_application(argv: Sequence[str] | None = None) -> QApplication:
     """Create or reuse the Qt application and apply pATHENA's visual system."""
     existing = QApplication.instance()
     if isinstance(existing, QApplication):
+        _apply_application_presentation(existing)
         return existing
     if existing is not None:
         raise RuntimeError("pATHENA desktop requires QApplication ownership.")
 
     arguments = list(argv) if argv is not None else list(sys.argv)
     app = QApplication(arguments)
-    app.setApplicationName("ATHENA")
-    app.setOrganizationName("ATHENA")
-    app.setApplicationDisplayName("pATHENA")
-    app.setFont(QFont("Segoe UI", 10))
-    app.setStyleSheet(PATHENA_V3_STYLESHEET)
+    _apply_application_presentation(app)
     return app
 
 
