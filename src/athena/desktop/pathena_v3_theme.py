@@ -17,6 +17,7 @@ V3_ACCENT_SOFT = "#17302B"
 V3_MINT = "#79B8D1"
 V3_WARNING = "#E6C07A"
 V3_DANGER = "#FF8178"
+V3_COMPOSER_ACTION_SIZE = 40
 
 PATHENA_V3_STYLESHEET = """
 QMainWindow#athenaMainWindow {
@@ -255,11 +256,11 @@ QPushButton#sendButton {
     background: #89E0CA;
     border: 0;
     border-radius: 20px;
-    padding: 0;
     min-width: 40px;
     max-width: 40px;
     min-height: 40px;
     max-height: 40px;
+    padding: 0;
     font-size: 15pt;
     font-weight: 800;
 }

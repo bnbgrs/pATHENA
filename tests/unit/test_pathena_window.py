@@ -7,6 +7,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PySide6.QtWidgets import QApplication, QFrame, QLabel, QPushButton, QWidget
 
 from athena.desktop.pathena_design_tokens import PALETTE, SHELL
+from athena.desktop.pathena_v3_theme import V3_COMPOSER_ACTION_SIZE
 from athena.desktop.pathena_window import PathenaMainWindow
 
 
@@ -19,6 +20,8 @@ def _app() -> QApplication:
 
 def _assert_inspector_width(inspector: QFrame) -> None:
     assert inspector.width() == SHELL.inspector_width
+    assert inspector.minimumWidth() == SHELL.inspector_width
+    assert inspector.maximumWidth() == SHELL.inspector_width
 
 
 def test_reference_shell_owns_icon_rail_without_rewiring_navigation() -> None:
@@ -136,12 +139,12 @@ def test_reference_composer_uses_large_work_surface_and_send_target() -> None:
         assert composer.height() == 88
         assert window.prompt_input.minimumHeight() == 44
         assert window.ground_button.minimumHeight() == 36
-        assert window.send_button.width() == 40
-        assert window.send_button.height() == 40
-        assert window.send_button.minimumWidth() == 40
-        assert window.send_button.maximumWidth() == 40
-        assert window.send_button.minimumHeight() == 40
-        assert window.send_button.maximumHeight() == 40
+        assert window.send_button.width() == V3_COMPOSER_ACTION_SIZE
+        assert window.send_button.height() == V3_COMPOSER_ACTION_SIZE
+        assert window.send_button.minimumWidth() == V3_COMPOSER_ACTION_SIZE
+        assert window.send_button.maximumWidth() == V3_COMPOSER_ACTION_SIZE
+        assert window.send_button.minimumHeight() == V3_COMPOSER_ACTION_SIZE
+        assert window.send_button.maximumHeight() == V3_COMPOSER_ACTION_SIZE
     finally:
         window.close()
 
@@ -159,6 +162,8 @@ def test_reference_inspector_follows_grounding_and_non_chat_navigation() -> None
 
         window._set_context_available(True)
         assert inspector.isHidden()
+        assert not window.context_button.isHidden()
+
         window.context_button.click()
         assert not inspector.isHidden()
 
