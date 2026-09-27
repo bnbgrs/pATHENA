@@ -38,6 +38,14 @@ def project_knowledge_snapshot(snapshot: KnowledgeUnitSnapshot) -> ObsidianNote:
     relative_path = f"Knowledge/{stem}--{snapshot.knowledge_id}.md"
 
     frontmatter: dict[str, str | int] = {
+        # Beta 20 canonical projection identity. Legacy ATHENA-prefixed aliases
+        # remain below so already-exported tooling can transition without
+        # filename- or content-based identity guesses.
+        "athena_id": str(snapshot.knowledge_id),
+        "entity_type": "knowledge_unit",
+        "revision_id": str(revision.revision_id),
+        "revision_no": revision.revision_no,
+        "projection_version": 1,
         "athena_knowledge_id": str(snapshot.knowledge_id),
         "athena_revision_id": str(revision.revision_id),
         "athena_revision_no": revision.revision_no,

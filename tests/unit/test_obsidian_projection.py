@@ -14,7 +14,11 @@ from athena.knowledge.models import (
 from athena.knowledge.obsidian_projection import project_knowledge_snapshot
 
 
-def _snapshot(*, title: str | None = "Project / Decision: Alpha?", body: str = "Keep it local.") -> KnowledgeUnitSnapshot:
+def _snapshot(
+    *,
+    title: str | None = "Project / Decision: Alpha?",
+    body: str = "Keep it local.",
+) -> KnowledgeUnitSnapshot:
     knowledge_id = uuid.UUID("11111111-1111-1111-1111-111111111111")
     revision = KnowledgeUnitRevision(
         knowledge_id=knowledge_id,
@@ -46,6 +50,11 @@ def test_projection_is_deterministic_and_obsidian_safe() -> None:
     )
     assert note.markdown == (
         "---\n"
+        'athena_id: "11111111-1111-1111-1111-111111111111"\n'
+        'entity_type: "knowledge_unit"\n'
+        'revision_id: "22222222-2222-2222-2222-222222222222"\n'
+        "revision_no: 3\n"
+        "projection_version: 1\n"
         'athena_knowledge_id: "11111111-1111-1111-1111-111111111111"\n'
         'athena_revision_id: "22222222-2222-2222-2222-222222222222"\n'
         "athena_revision_no: 3\n"
