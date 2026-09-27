@@ -8,7 +8,6 @@ from types import SimpleNamespace
 import pytest
 
 import athena.jobs.backup_verify_worker as worker_module
-
 from athena.backup.service import BackupRestoreError
 from athena.backup.target_lock import BackupTargetBusyError
 from athena.jobs.backup_verify_payload import BACKUP_VERIFY_DEEP_PIPELINE_VERSION
@@ -216,7 +215,7 @@ def test_progress_renews_lease_while_deep_verify_advances(
     worker, job, jobs, backup = _case()
     worker.lease_extension_seconds = 3
     backup.progress_steps = 3
-    ticks = iter([0.0, 0.0, 2.0, 4.0, 6.0, 6.0])
+    ticks = iter([0.0, 0.0, 2.0, 4.0, 6.0, 8.0, 10.0, 12.0])
     monkeypatch.setattr(worker_module.time, "monotonic", lambda: next(ticks))
 
     result = worker.process_leased(job)
