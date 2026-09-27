@@ -62,6 +62,34 @@ class _Chat:
         )
 
 
+class _News:
+    def __init__(self) -> None:
+        self.value = {
+            "enabled": 1,
+            "timezone_name": "Europe/Berlin",
+            "local_hour": 7,
+            "local_minute": 0,
+        }
+
+    def profile(self) -> dict[str, object]:
+        return dict(self.value)
+
+    def configure_profile(
+        self,
+        *,
+        timezone_name: str | None = None,
+        local_hour: int | None = None,
+        local_minute: int | None = None,
+    ) -> dict[str, object]:
+        if timezone_name is not None:
+            self.value["timezone_name"] = timezone_name
+        if local_hour is not None:
+            self.value["local_hour"] = local_hour
+        if local_minute is not None:
+            self.value["local_minute"] = local_minute
+        return dict(self.value)
+
+
 class _Provider:
     @property
     def provider_id(self) -> str:
@@ -126,6 +154,31 @@ def test_capabilities_are_explicit_and_stable() -> None:
         "chat.create",
         "models.read",
     ]
+
+
+def test_news_schedule_uses_existing_profile_service() -> None:
+    facade = _facade()
+    news = _News()
+    facade.attach_news(news)
+
+    initial = facade.news_profile()
+    saved = facade.configure_news_schedule(
+        timezone_name="Europe/Berlin",
+        local_hour=6,
+        local_minute=30,
+    )
+
+    assert initial.to_dict() == {
+        "api_version": "v1",
+        "enabled": True,
+        "timezone_name": "Europe/Berlin",
+        "local_hour": 7,
+        "local_minute": 0,
+    }
+    assert saved.local_hour == 6
+    assert saved.local_minute == 30
+    assert "news.profile.read" in facade.capabilities().features
+    assert "news.schedule.write" in facade.capabilities().features
 
 
 def test_chat_summary_does_not_leak_domain_types() -> None:
