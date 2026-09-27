@@ -1,6 +1,9 @@
 name: pATHENA Windows Package
 
 on:
+  push:
+    branches:
+      - develop/pathena-next
   workflow_dispatch:
     inputs:
       source_ref:
