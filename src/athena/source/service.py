@@ -56,10 +56,21 @@ class SourceCaptureService:
             protected_content=protected_content,
         )
 
-    def capture_file(self, path: Path) -> SourceCaptureResult:
+    def capture_file(
+        self,
+        path: Path,
+        *,
+        max_file_bytes: int | None = None,
+    ) -> SourceCaptureResult:
         with runtime_data_lock(self.runtime_lock_root):
             source_path = path.expanduser()
-            prepared_blob = self.blob_store.capture_file(source_path)
+            if max_file_bytes is None:
+                prepared_blob = self.blob_store.capture_file(source_path)
+            else:
+                prepared_blob = self.blob_store.capture_file(
+                    source_path,
+                    max_file_bytes=max_file_bytes,
+                )
             source_path = source_path.resolve()
             existing_blob = self.repository.find_blob_by_integrity(
                 integrity_sha256=prepared_blob.integrity_sha256,
@@ -85,13 +96,22 @@ class SourceCaptureService:
         path: Path,
         *,
         protection_scope_id: uuid.UUID,
+        max_file_bytes: int | None = None,
     ) -> SourceCaptureResult:
         with runtime_data_lock(self.runtime_lock_root):
-            prepared = self.protected_blobs.capture_file(
-                path,
-                protection_scope_id=protection_scope_id,
-                source_type=SourceType.FILE,
-            )
+            if max_file_bytes is None:
+                prepared = self.protected_blobs.capture_file(
+                    path,
+                    protection_scope_id=protection_scope_id,
+                    source_type=SourceType.FILE,
+                )
+            else:
+                prepared = self.protected_blobs.capture_file(
+                    path,
+                    protection_scope_id=protection_scope_id,
+                    source_type=SourceType.FILE,
+                    max_file_bytes=max_file_bytes,
+                )
             metadata_record = self.protected_content.store_payload(
                 protection_scope_id,
                 prepared.metadata.to_payload(),
