@@ -32,6 +32,11 @@ class SourceChangedDuringCaptureError(BlobStoreError):
     """Raised when the source changes while ATHENA is copying it."""
 
 
+# Import-size violations deliberately reuse the source-mutation contract so
+# intake gets exactly its existing bounded retry and no oversized Source commits.
+SourceFileTooLargeError = SourceChangedDuringCaptureError
+
+
 class BlobIntegrityError(BlobStoreError):
     """Raised when stored bytes do not match the expected integrity hash."""
 
@@ -71,7 +76,13 @@ class BlobStore:
     def __init__(self, paths: RuntimePaths) -> None:
         self.paths = paths
 
-    def capture_file(self, path: Path) -> PreparedBlob:
+    def capture_file(
+        self,
+        path: Path,
+        *,
+        max_file_bytes: int | None = None,
+    ) -> PreparedBlob:
+        max_file_bytes = _validated_max_file_bytes(max_file_bytes)
         requested_path = path.expanduser()
         if requested_path.is_symlink():
             raise SourceFileNotReadableError(
@@ -88,6 +99,10 @@ class BlobStore:
             raise SourceFileNotReadableError(
                 f"Source path is not a regular file: {str(source_path)!r}."
             )
+        _ensure_within_capture_limit(
+            prospective_size=before.st_size,
+            max_file_bytes=max_file_bytes,
+        )
 
         staging_dir = self.paths.spool_root / "imports"
         staging_dir.mkdir(parents=True, exist_ok=True)
@@ -99,15 +114,26 @@ class BlobStore:
         try:
             with source_path.open("rb") as source, staging_path.open("xb") as target:
                 while True:
-                    chunk = source.read(_COPY_BUFFER_SIZE)
+                    chunk = source.read(
+                        _capture_read_size(
+                            byte_length=byte_length,
+                            max_file_bytes=max_file_bytes,
+                            default_chunk_size=_COPY_BUFFER_SIZE,
+                        )
+                    )
                     if not chunk:
                         break
+                    next_length = byte_length + len(chunk)
+                    _ensure_within_capture_limit(
+                        prospective_size=next_length,
+                        max_file_bytes=max_file_bytes,
+                    )
                     if len(media_type_prefix) < _MEDIA_TYPE_PREFIX_SIZE:
                         remaining = _MEDIA_TYPE_PREFIX_SIZE - len(media_type_prefix)
                         media_type_prefix.extend(chunk[:remaining])
                     target.write(chunk)
                     digest.update(chunk)
-                    byte_length += len(chunk)
+                    byte_length = next_length
                 target.flush()
                 os.fsync(target.fileno())
 
@@ -868,6 +894,28 @@ class BlobStore:
             )
 
 
+
+
+def _validated_max_file_bytes(value: int | None) -> int | None:
+    if value is None:
+        return None
+    if type(value) is not int or value < 0:
+        raise ValueError("max_file_bytes must be a non-negative integer or None.")
+    return value
+
+
+def _capture_read_size(*, byte_length: int, max_file_bytes: int | None, default_chunk_size: int) -> int:
+    if max_file_bytes is None:
+        return default_chunk_size
+    remaining = max_file_bytes - byte_length
+    if remaining < 0:
+        raise SourceChangedDuringCaptureError("Source exceeded the configured maximum capture size.")
+    return min(default_chunk_size, remaining + 1)
+
+
+def _ensure_within_capture_limit(*, prospective_size: int, max_file_bytes: int | None) -> None:
+    if max_file_bytes is not None and prospective_size > max_file_bytes:
+        raise SourceChangedDuringCaptureError("Source exceeded the configured maximum capture size.")
 
 
 def _content_addressed_blob_candidates(
