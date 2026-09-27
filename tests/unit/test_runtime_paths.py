@@ -48,3 +48,18 @@ def test_runtime_layout_stop_never_deletes_state(tmp_path) -> None:
     service.stop()
 
     assert sentinel.read_text(encoding="utf-8") == "persistent"
+
+
+def test_runtime_paths_expose_long_term_root_without_creating_it(tmp_path) -> None:
+    long_term_root = tmp_path / "external" / "structured"
+    paths = RuntimePaths.from_settings(
+        AthenaSettings(
+            local_root=tmp_path / "local",
+            long_term_root=long_term_root,
+        )
+    )
+
+    RuntimeLayoutService(paths).start()
+
+    assert paths.long_term_root == long_term_root
+    assert not long_term_root.exists()

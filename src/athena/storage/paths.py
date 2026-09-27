@@ -32,6 +32,7 @@ class RuntimePaths:
     archive_root: Path | None
     backup_root: Path | None
     projection_root: Path | None
+    long_term_root: Path | None = None
 
     def __post_init__(self) -> None:
         for required_value, field_name in (
@@ -45,6 +46,7 @@ class RuntimePaths:
         ):
             _require_path(required_value, field_name)
         for optional_value, field_name in (
+            (self.long_term_root, "long_term_root"),
             (self.archive_root, "archive_root"),
             (self.backup_root, "backup_root"),
             (self.projection_root, "projection_root"),
@@ -71,6 +73,7 @@ class RuntimePaths:
             archive_root=settings.archive_root,
             backup_root=settings.backup_root,
             projection_root=settings.projection_root,
+            long_term_root=settings.long_term_root,
         )
 
     @property
