@@ -565,6 +565,11 @@ def test_provider_lane_skips_global_housekeeping(
             forbidden,
         )
         monkeypatch.setattr(
+            app.backup_verify_worker,
+            "schedule_due",
+            forbidden,
+        )
+        monkeypatch.setattr(
             app.news,
             "schedule_due",
             forbidden,

@@ -12,7 +12,10 @@ from athena.jobs.backup import (
     BACKUP_CREATE_JOB_TYPE,
     daily_backup_slot_us,
 )
+from athena.jobs.backup_verify_durable_service import BackupDeepVerifyDurableJobService
+from athena.jobs.backup_verify_payload import BACKUP_VERIFY_DEEP_JOB_TYPE
 from athena.jobs.models import JobState
+from athena.jobs.scheduler import SchedulerLane
 
 
 def _app(tmp_path) -> AthenaApplication:
@@ -253,5 +256,61 @@ def test_scheduler_tick_dispatches_due_backup_job(
             target.target_id,
         ) == 1
 
+    finally:
+        app.stop()
+
+
+def test_application_composes_deep_verify_durable_runtime(tmp_path) -> None:
+    app = _app(tmp_path)
+
+    try:
+        assert isinstance(app.jobs, BackupDeepVerifyDurableJobService)
+        assert app.backup_verify_worker.jobs is app.jobs
+        assert BACKUP_VERIFY_DEEP_JOB_TYPE in app.job_scheduler.supported_job_types
+        assert (
+            BACKUP_VERIFY_DEEP_JOB_TYPE
+            in app.job_scheduler.job_types_for_lane(SchedulerLane.CONTROL)
+        )
+        assert (
+            BACKUP_VERIFY_DEEP_JOB_TYPE
+            not in app.job_scheduler.job_types_for_lane(SchedulerLane.PROVIDER)
+        )
+    finally:
+        app.stop()
+
+
+def test_scheduler_dispatches_due_deep_verify_job(tmp_path, monkeypatch) -> None:
+    app = _app(tmp_path)
+
+    try:
+        target = app.backup.register_target(tmp_path / "backup")
+        snapshot = app.backup.create_snapshot(target_id=target.target_id)
+        future_us = utc_now_us() + 8 * _DAY_US
+
+        monkeypatch.setattr(
+            app.backup_worker,
+            "schedule_due",
+            lambda **_kwargs: (),
+        )
+
+        scheduled = app.backup_verify_worker.schedule_due(
+            now_us=future_us,
+        )
+
+        assert len(scheduled) == 1
+        assert scheduled[0].job_type == BACKUP_VERIFY_DEEP_JOB_TYPE
+
+        result = app.job_scheduler.tick(
+            worker_id="scheduled-deep-verify-test",
+            now_us=future_us,
+            lane=SchedulerLane.CONTROL,
+        )
+
+        assert result.selected_job_id == scheduled[0].job_id
+        assert result.selected_job_type == BACKUP_VERIFY_DEEP_JOB_TYPE
+        assert result.final_state is JobState.COMPLETED
+        assert app.backup.get_snapshot(snapshot.snapshot_id).verification_status == (
+            "verified_deep"
+        )
     finally:
         app.stop()

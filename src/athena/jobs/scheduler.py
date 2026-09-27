@@ -20,6 +20,11 @@ from athena.jobs.backup import (
     BACKUP_CREATE_JOB_TYPE,
     DurableBackupWorker,
 )
+from athena.jobs.backup_verify_payload import BACKUP_VERIFY_DEEP_JOB_TYPE
+from athena.jobs.backup_verify_worker import (
+    BackupDeepVerifyJobError,
+    DurableBackupDeepVerifyWorker,
+)
 from athena.jobs.capabilities import CONTROL_LANE_JOB_TYPES
 from athena.jobs.embedding_processing import (
     DurableEmbeddingRebuildWorker,
@@ -165,6 +170,7 @@ class DurableJobScheduler:
         research_worker: DurableResearchWorker | None = None,
         archive_replication_worker: DurableArchiveReplicationWorker | None = None,
         backup_worker: DurableBackupWorker | None = None,
+        backup_verify_worker: DurableBackupDeepVerifyWorker | None = None,
         resources: ResourceManager | None = None,
         news_worker: DurableNewsSchedulerWorker | None = None,
         policy: SchedulerPolicy | None = None,
@@ -177,6 +183,7 @@ class DurableJobScheduler:
         self.research_worker = research_worker
         self.archive_replication_worker = archive_replication_worker
         self.backup_worker = backup_worker
+        self.backup_verify_worker = backup_verify_worker
         self.resources = resources
         self.news_worker = news_worker
         self.policy = policy or SchedulerPolicy()
@@ -206,6 +213,16 @@ class DurableJobScheduler:
                 | frozenset(
                     {
                         BACKUP_CREATE_JOB_TYPE,
+                    }
+                )
+            )
+
+        if self.backup_verify_worker is not None:
+            supported = (
+                supported
+                | frozenset(
+                    {
+                        BACKUP_VERIFY_DEEP_JOB_TYPE,
                     }
                 )
             )
@@ -259,6 +276,11 @@ class DurableJobScheduler:
 
         if owns_control_housekeeping and self.backup_worker is not None:
             self.backup_worker.schedule_due(
+                now_us=now,
+            )
+
+        if owns_control_housekeeping and self.backup_verify_worker is not None:
+            self.backup_verify_worker.schedule_due(
                 now_us=now,
             )
 
@@ -604,6 +626,11 @@ class DurableJobScheduler:
                     leased
                 )
 
+            if leased.job_type == BACKUP_VERIFY_DEEP_JOB_TYPE:
+                return self._dispatch_backup_verify(
+                    leased
+                )
+
             if (
                 leased.job_type
                 == ARCHIVE_REPLICATION_JOB_TYPE
@@ -683,6 +710,7 @@ class DurableJobScheduler:
 
         except (
             ArchiveReplicationJobError,
+            BackupDeepVerifyJobError,
             SourceProcessingJobError,
             EmbeddingRebuildJobError,
             SourceAnalysisJobError,
@@ -743,6 +771,36 @@ class DurableJobScheduler:
 
         raise JobSchedulerError(
             "Backup worker returned unsupported state "
+            f"{current.state.value!r}."
+        )
+
+    def _dispatch_backup_verify(
+        self,
+        leased: JobRecord,
+    ) -> tuple[str, JobRecord]:
+        worker = self.backup_verify_worker
+
+        if worker is None:
+            raise JobSchedulerError(
+                "No backup.verify_deep worker is configured."
+            )
+
+        current = worker.process_leased(leased)
+
+        if current.state is JobState.COMPLETED:
+            return "completed", current
+
+        if current.state is JobState.CANCELLED:
+            return "cancelled", current
+
+        if current.state is JobState.FAILED:
+            return "failed", current
+
+        if current.state is JobState.WAITING:
+            return "waiting", current
+
+        raise JobSchedulerError(
+            "Backup Deep verify worker returned unsupported state "
             f"{current.state.value!r}."
         )
 

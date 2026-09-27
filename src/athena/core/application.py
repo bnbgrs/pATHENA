@@ -27,11 +27,12 @@ from athena.core.services import LifecycleService, ServiceManager
 from athena.external.gateway import ExternalAccessGateway, ExternalResearchService
 from athena.jobs.archive_replication import DurableArchiveReplicationWorker
 from athena.jobs.backup import DurableBackupWorker
+from athena.jobs.backup_verify_durable_service import BackupDeepVerifyDurableJobService
+from athena.jobs.backup_verify_worker import DurableBackupDeepVerifyWorker
 from athena.jobs.embedding_processing import DurableEmbeddingRebuildWorker
 from athena.jobs.repository import JobRepository
 from athena.jobs.research import DurableResearchWorker
 from athena.jobs.scheduler import DurableJobScheduler
-from athena.jobs.service import DurableJobService
 from athena.jobs.source_analysis import DurableSourceAnalysisWorker
 from athena.jobs.source_extraction import DurableSourceHierarchicalExtractionWorker
 from athena.jobs.source_processing import DurableSourceProcessingWorker
@@ -192,7 +193,10 @@ class AthenaApplication:
         self.personal_memory_repository = PersonalMemoryRepository(self.database)
         self.personal_memory = PersonalMemoryService(self.personal_memory_repository, self.chat)
         self.job_repository = JobRepository(self.database)
-        self.jobs = DurableJobService(self.job_repository, self.chat)
+        self.jobs = BackupDeepVerifyDurableJobService(
+            self.job_repository,
+            self.chat,
+        )
         self.research_repository = ResearchRepository(self.database)
         self.blob_store = BlobStore(self.paths)
         self.archive_replication_repository = (
@@ -271,6 +275,10 @@ class AthenaApplication:
             jobs=self.jobs,
             backup=self.backup,
             quiet_hour_utc=self.settings.backup_quiet_hour_utc,
+        )
+        self.backup_verify_worker = DurableBackupDeepVerifyWorker(
+            jobs=self.jobs,
+            backup=self.backup,
         )
         self.external_access = ExternalAccessGateway(
             database=self.database,
@@ -534,6 +542,7 @@ class AthenaApplication:
             research_worker=self.research_worker,
             archive_replication_worker=self.archive_replication_worker,
             backup_worker=self.backup_worker,
+            backup_verify_worker=self.backup_verify_worker,
             resources=self.resources,
             news_worker=self.news,
         )
