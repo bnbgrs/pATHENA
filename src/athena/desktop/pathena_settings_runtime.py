@@ -13,7 +13,7 @@ from hashlib import sha256
 from math import isfinite
 from typing import Final
 
-from PySide6.QtCore import QObject, QRunnable, QSettings, QTime, Qt, Signal, Slot
+from PySide6.QtCore import QObject, QRunnable, QSettings, Qt, QTime, Signal, Slot
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
@@ -25,7 +25,7 @@ from PySide6.QtWidgets import (
 )
 
 from athena.api.contracts import NewsProfileResponse
-from athena.desktop.api_controller import DesktopApiController, DesktopApiSnapshot
+from athena.desktop.api_controller import CoreApiGateway, DesktopApiController, DesktopApiSnapshot
 from athena.desktop.pathena_window import PathenaMainWindow
 
 _CORE_READY_STATES: Final = frozenset({"ok", "ready", "running"})
@@ -53,7 +53,7 @@ class _NewsScheduleTask(QRunnable):
 
     def __init__(
         self,
-        gateway: object,
+        gateway: CoreApiGateway,
         *,
         timezone_name: str | None = None,
         local_hour: int | None = None,
@@ -70,12 +70,12 @@ class _NewsScheduleTask(QRunnable):
     def run(self) -> None:
         try:
             if self.timezone_name is None:
-                profile = self.gateway.news_profile()  # type: ignore[attr-defined]
+                profile = self.gateway.news_profile()
                 saved = False
             else:
                 assert self.local_hour is not None
                 assert self.local_minute is not None
-                profile = self.gateway.configure_news_schedule(  # type: ignore[attr-defined]
+                profile = self.gateway.configure_news_schedule(
                     timezone_name=self.timezone_name,
                     local_hour=self.local_hour,
                     local_minute=self.local_minute,
