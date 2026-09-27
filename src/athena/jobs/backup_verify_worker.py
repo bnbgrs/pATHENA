@@ -8,13 +8,13 @@ import uuid
 
 from athena.backup.service import BackupRestoreError, BackupService
 from athena.backup.target_lock import BackupTargetBusyError, backup_target_lock
+from athena.common.time import utc_now_us
 from athena.jobs.backup_verify import (
     BackupDeepVerifyCandidate,
     select_deep_verify_candidate,
 )
 from athena.jobs.backup_verify_admission import admit_backup_deep_verify_occurrence
 from athena.jobs.backup_verify_occurrence import materialize_backup_deep_verify_occurrence
-from athena.common.time import utc_now_us
 from athena.jobs.backup_verify_payload import (
     BACKUP_VERIFY_DEEP_JOB_TYPE,
     BackupDeepVerifyPayload,
