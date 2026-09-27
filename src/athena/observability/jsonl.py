@@ -249,3 +249,16 @@ def configure_jsonl_logging(
     handler.setLevel(numeric_level)
     handler.setFormatter(JsonFormatter())
     athena_logger.addHandler(handler)
+
+
+
+def close_jsonl_logging() -> None:
+    """Detach and close every ATHENA-owned persistent JSONL handler."""
+
+    for logger in (
+        logging.getLogger(_ATHENA_LOGGER_NAME),
+        logging.getLogger(),
+    ):
+        for handler in list(_owned_jsonl_handlers(logger)):
+            logger.removeHandler(handler)
+            handler.close()
