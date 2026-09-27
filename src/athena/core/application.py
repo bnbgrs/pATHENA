@@ -525,6 +525,7 @@ class AthenaApplication:
             service=self.source_hierarchical_extraction_service,
         )
         self.news = NewsService(self)
+        self.api.attach_news(self.news)
         self.job_scheduler = DurableJobScheduler(
             jobs=self.jobs,
             source_worker=self.source_processing,
