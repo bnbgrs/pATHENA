@@ -37,11 +37,13 @@ def test_settings_reject_invalid_log_level(tmp_path, monkeypatch) -> None:
 
 def test_settings_read_explicit_storage_roots(tmp_path, monkeypatch) -> None:
     local_root = tmp_path / "local"
+    long_term_root = tmp_path / "long-term"
     archive_root = tmp_path / "archive"
     backup_root = tmp_path / "backup"
     projection_root = tmp_path / "projection"
 
     monkeypatch.setenv("ATHENA_LOCAL_ROOT", str(local_root))
+    monkeypatch.setenv("ATHENA_LONG_TERM_ROOT", str(long_term_root))
     monkeypatch.setenv("ATHENA_ARCHIVE_ROOT", str(archive_root))
     monkeypatch.setenv("ATHENA_BACKUP_ROOT", str(backup_root))
     monkeypatch.setenv("ATHENA_PROJECTION_ROOT", str(projection_root))
@@ -49,6 +51,7 @@ def test_settings_read_explicit_storage_roots(tmp_path, monkeypatch) -> None:
     settings = AthenaSettings.from_environment()
 
     assert settings.local_root == local_root
+    assert settings.long_term_root == long_term_root
     assert settings.archive_root == archive_root
     assert settings.backup_root == backup_root
     assert settings.projection_root == projection_root
@@ -56,12 +59,14 @@ def test_settings_read_explicit_storage_roots(tmp_path, monkeypatch) -> None:
 
 def test_optional_long_term_roots_are_unset_by_default(tmp_path, monkeypatch) -> None:
     monkeypatch.setenv("ATHENA_LOCAL_ROOT", str(tmp_path))
+    monkeypatch.delenv("ATHENA_LONG_TERM_ROOT", raising=False)
     monkeypatch.delenv("ATHENA_ARCHIVE_ROOT", raising=False)
     monkeypatch.delenv("ATHENA_BACKUP_ROOT", raising=False)
     monkeypatch.delenv("ATHENA_PROJECTION_ROOT", raising=False)
 
     settings = AthenaSettings.from_environment()
 
+    assert settings.long_term_root is None
     assert settings.archive_root is None
     assert settings.backup_root is None
     assert settings.projection_root is None

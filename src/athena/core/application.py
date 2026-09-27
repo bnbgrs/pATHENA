@@ -63,6 +63,7 @@ from athena.model.adapters.lm_studio_embeddings import LMStudioEmbeddingProvider
 from athena.model.provenance import ModelRunRepository
 from athena.news.service import NewsService
 from athena.observability.health import HealthService
+from athena.observability.jsonl import close_jsonl_logging, configure_jsonl_logging
 from athena.observability.logging import configure_logging
 from athena.research.promotion import ResearchPromotionService
 from athena.research.repository import ResearchRepository
@@ -667,6 +668,16 @@ class AthenaApplication:
             # perform even temporary filesystem write probes or migration work.
             inspect_database_read_only(self.paths.database_path)
             self.services.start_all()
+            configure_jsonl_logging(
+                self.paths.log_root / "athena.jsonl",
+                level=self.settings.numeric_log_level,
+            )
+            logger.info(
+                "ATHENA persistent diagnostics ready",
+                extra={
+                    "event": "core.logging_persistent_ready",
+                },
+            )
             self.news.start()
             if run_startup_maintenance:
                 orphan_reconciliation = (
@@ -738,6 +749,7 @@ class AthenaApplication:
                     extra={"event": "core.start_failed"},
                 )
 
+            close_jsonl_logging()
             raise
 
         self.state = ApplicationState.RUNNING
@@ -770,8 +782,10 @@ class AthenaApplication:
                 "ATHENA Core shutdown failed",
                 extra={"event": "core.stop_failed"},
             )
+            close_jsonl_logging()
             raise
 
         self.state = ApplicationState.STOPPED
         self.health.mark_stopped()
         logger.info("ATHENA Core stopped", extra={"event": "core.stopped"})
+        close_jsonl_logging()
