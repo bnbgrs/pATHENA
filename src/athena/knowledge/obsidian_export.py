@@ -13,6 +13,7 @@ from pathlib import Path, PurePosixPath
 
 from athena.knowledge.models import KnowledgeUnitSnapshot
 from athena.knowledge.obsidian_projection import ObsidianNote, project_knowledge_snapshot
+from athena.knowledge.obsidian_sync import ObsidianWriteStampRegistry
 from athena.storage.durable_fs import durable_mkdir, durable_write_bytes, is_link_boundary
 
 
@@ -47,10 +48,16 @@ class ObsidianExportResult:
 class ObsidianVaultExporter:
     """Publish deterministic Knowledge notes into one explicit local vault."""
 
-    def __init__(self, vault_root: Path) -> None:
+    def __init__(
+        self,
+        vault_root: Path,
+        *,
+        write_stamps: ObsidianWriteStampRegistry | None = None,
+    ) -> None:
         if not isinstance(vault_root, Path):
             raise TypeError("vault_root must be a pathlib.Path.")
         self._vault_root = vault_root.absolute()
+        self._write_stamps = write_stamps
         self._assert_safe_vault_root()
 
     @property
@@ -98,6 +105,7 @@ class ObsidianVaultExporter:
             )
 
         durable_write_bytes(destination, payload, mode=0o600)
+        self._record_write(note.relative_path, payload)
         return ObsidianExportResult(
             path=destination,
             status=ObsidianExportStatus.CREATED,
@@ -126,6 +134,10 @@ class ObsidianVaultExporter:
 
         existing = destination.read_bytes()
         if existing == payload:
+            self._record_write(
+                destination.relative_to(self._vault_root).as_posix(),
+                payload,
+            )
             return ObsidianExportResult(
                 path=destination,
                 status=ObsidianExportStatus.UNCHANGED,
@@ -138,6 +150,10 @@ class ObsidianVaultExporter:
             )
 
         durable_write_bytes(destination, payload, mode=0o600)
+        self._record_write(
+            destination.relative_to(self._vault_root).as_posix(),
+            payload,
+        )
         return ObsidianExportResult(
             path=destination,
             status=ObsidianExportStatus.REPLACED,
@@ -199,3 +215,7 @@ class ObsidianVaultExporter:
                     )
                 continue
             durable_mkdir(cursor, exist_ok=False)
+
+    def _record_write(self, relative_path: str, payload: bytes) -> None:
+        if self._write_stamps is not None:
+            self._write_stamps.record(relative_path, payload)
