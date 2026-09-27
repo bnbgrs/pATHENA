@@ -13,6 +13,7 @@ from athena.config.settings import AthenaSettings, ConfigurationError
     [
         {"log_level": 20},
         {"local_root": "not-a-path-object"},
+        {"long_term_root": "not-a-path-object"},
         {"archive_root": "not-a-path-object"},
         {"backup_root": 1},
         {"projection_root": True},

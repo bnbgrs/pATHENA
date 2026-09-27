@@ -135,6 +135,7 @@ class AthenaSettings:
 
     log_level: str = "INFO"
     local_root: Path = Path(".")
+    long_term_root: Path | None = None
     archive_root: Path | None = None
     backup_root: Path | None = None
     projection_root: Path | None = None
@@ -165,7 +166,12 @@ class AthenaSettings:
             )
         object.__setattr__(self, "local_root", local_root)
 
-        for field_name in ("archive_root", "backup_root", "projection_root"):
+        for field_name in (
+            "long_term_root",
+            "archive_root",
+            "backup_root",
+            "projection_root",
+        ):
             value = getattr(self, field_name)
             if value is None:
                 continue
@@ -252,8 +258,9 @@ class AthenaSettings:
         """Create bootstrap settings from process environment.
 
         Local operational storage gets a safe platform-local default. Canonical
-        archive, backup, and projection roots remain optional until explicitly
-        configured; Phase 0 must not silently invent long-term storage.
+        long-term, archive, backup, and projection roots remain optional until
+        explicitly configured; Phase 0 must not silently invent durable external
+        storage.
         """
         local_root = _parse_absolute_path(
             os.getenv("ATHENA_LOCAL_ROOT"),
@@ -266,6 +273,10 @@ class AthenaSettings:
         return cls(
             log_level=os.getenv("ATHENA_LOG_LEVEL", "INFO"),
             local_root=local_root,
+            long_term_root=_parse_absolute_path(
+                os.getenv("ATHENA_LONG_TERM_ROOT"),
+                setting_name="ATHENA_LONG_TERM_ROOT",
+            ),
             archive_root=_parse_absolute_path(
                 os.getenv("ATHENA_ARCHIVE_ROOT"),
                 setting_name="ATHENA_ARCHIVE_ROOT",
