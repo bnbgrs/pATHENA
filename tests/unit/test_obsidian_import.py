@@ -164,7 +164,7 @@ def test_projected_semantic_metadata_cannot_be_silently_edited(tmp_path) -> None
 
 
 def test_unchanged_fallback_heading_does_not_create_explicit_title(tmp_path) -> None:
-    database, chat, repository, _knowledge, created = _fixture(
+    database, chat, repository, knowledge, created = _fixture(
         tmp_path,
         title=None,
     )
@@ -179,6 +179,6 @@ def test_unchanged_fallback_heading_does_not_create_explicit_title(tmp_path) -> 
 
         assert result.revision_id == created.revision_id
         assert result.payload.title is None
-        assert len(repository.list_history(created.knowledge_id)) == 1
+        assert len(knowledge.history(created.knowledge_id)) == 1
     finally:
         database.stop()
