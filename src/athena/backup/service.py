@@ -3771,7 +3771,6 @@ class BackupService(DeletionLedgerStorageMixin):
         snapshot_root: Path,
         expected_manifest_sha256: bytes,
         expected_snapshot_id: uuid.UUID | None = None,
-        progress_callback: Callable[[], None] | None = None,
     ) -> bool:
         marker = (
             snapshot_root
@@ -4046,6 +4045,7 @@ class BackupService(DeletionLedgerStorageMixin):
         snapshot_root: Path,
         expected_manifest_sha256: bytes,
         expected_snapshot_id: uuid.UUID | None = None,
+        progress_callback: Callable[[], None] | None = None,
     ) -> bool:
         marker = snapshot_root / "complete.marker"
         if not marker.is_file():
