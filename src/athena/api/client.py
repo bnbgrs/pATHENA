@@ -154,6 +154,7 @@ class CoreApiClient:
             self._request(
                 "PUT",
                 "/api/v1/news/profile",
+                expected_status=200,
                 json_body={
                     "timezone_name": timezone_name,
                     "local_hour": local_hour,
