@@ -3,9 +3,17 @@
 from __future__ import annotations
 
 import json
+import time
+import uuid
 
 from athena.backup.service import BackupRestoreError, BackupService
-from athena.backup.target_lock import BackupTargetBusyError
+from athena.backup.target_lock import BackupTargetBusyError, backup_target_lock
+from athena.jobs.backup_verify import (
+    BackupDeepVerifyCandidate,
+    select_deep_verify_candidate,
+)
+from athena.jobs.backup_verify_admission import admit_backup_deep_verify_occurrence
+from athena.jobs.backup_verify_occurrence import materialize_backup_deep_verify_occurrence
 from athena.common.time import utc_now_us
 from athena.jobs.backup_verify_payload import (
     BACKUP_VERIFY_DEEP_JOB_TYPE,
@@ -13,11 +21,13 @@ from athena.jobs.backup_verify_payload import (
     BackupDeepVerifyPayloadError,
     validate_backup_deep_verify_payload,
 )
-from athena.jobs.models import JobRecord, JobState, WaitingReason
+from athena.jobs.models import JobPriority, JobRecord, JobState, WaitingReason
 from athena.jobs.service import DurableJobService
 
+_DEFAULT_INTERVAL_SECONDS = 7 * 24 * 60 * 60
 _DEFAULT_RETRY_SECONDS = 5 * 60
 _DEFAULT_LEASE_EXTENSION_SECONDS = 15 * 60
+_JOB_SCAN_LIMIT = 4096
 
 
 class BackupDeepVerifyJobError(RuntimeError):
@@ -38,9 +48,14 @@ class DurableBackupDeepVerifyWorker:
         *,
         jobs: DurableJobService,
         backup: BackupService,
+        interval_seconds: int = _DEFAULT_INTERVAL_SECONDS,
         retry_seconds: int = _DEFAULT_RETRY_SECONDS,
         lease_extension_seconds: int = _DEFAULT_LEASE_EXTENSION_SECONDS,
     ) -> None:
+        self.interval_seconds = _positive_seconds(
+            interval_seconds,
+            label="Backup Deep verify interval_seconds",
+        )
         self.retry_seconds = _positive_seconds(
             retry_seconds,
             label="Backup Deep verify retry_seconds",
@@ -51,6 +66,102 @@ class DurableBackupDeepVerifyWorker:
         )
         self.jobs = jobs
         self.backup = backup
+
+
+    def schedule_due(
+        self,
+        *,
+        now_us: int | None = None,
+    ) -> tuple[JobRecord, ...]:
+        """Reserve at most one due occurrence under the target serialization lock."""
+        now = utc_now_us() if now_us is None else now_us
+        if isinstance(now, bool) or not isinstance(now, int) or now < 0:
+            raise ValueError("Backup Deep verify now_us must be non-negative.")
+
+        candidate = select_deep_verify_candidate(
+            self.backup,
+            now_us=now,
+            interval_seconds=self.interval_seconds,
+        )
+        if candidate is None:
+            return ()
+
+        try:
+            target = self.backup.get_target(candidate.target_id)
+        except BackupRestoreError:
+            return ()
+        if target.status != "active" or not target.root_path.is_dir():
+            return ()
+
+        try:
+            with backup_target_lock(target.root_path):
+                locked_candidate = select_deep_verify_candidate(
+                    self.backup,
+                    now_us=now,
+                    interval_seconds=self.interval_seconds,
+                )
+                if (
+                    locked_candidate is None
+                    or locked_candidate.target_id != candidate.target_id
+                ):
+                    return ()
+
+                current_target = self.backup.get_target(locked_candidate.target_id)
+                if (
+                    current_target.status != "active"
+                    or current_target.root_path != target.root_path
+                ):
+                    return ()
+                if self._has_active_target_job(locked_candidate.target_id):
+                    return ()
+                if self._has_job_for_occurrence(locked_candidate):
+                    return ()
+
+                occurrence = materialize_backup_deep_verify_occurrence(
+                    snapshot_id=locked_candidate.snapshot_id,
+                    occurrence_slot_us=locked_candidate.occurrence_slot_us,
+                )
+                create = admit_backup_deep_verify_occurrence(occurrence)
+                return (
+                    self.jobs.create(
+                        job_type=create.job_type,
+                        priority=JobPriority.MAINTENANCE,
+                        requested_scope=create.requested_scope,
+                        pinned_configuration=create.pinned_configuration,
+                        next_run_at_us=create.next_run_at_us,
+                    ),
+                )
+        except BackupTargetBusyError:
+            return ()
+
+    def _has_active_target_job(self, target_id: uuid.UUID) -> bool:
+        for job in self.jobs.active_for_type(
+            BACKUP_VERIFY_DEEP_JOB_TYPE,
+            limit=_JOB_SCAN_LIMIT,
+        ):
+            try:
+                payload = self._payload(job)
+                snapshot = self.backup.get_snapshot(payload.snapshot_id)
+            except (BackupDeepVerifyJobError, BackupRestoreError):
+                return True
+            if snapshot.target_id == target_id:
+                return True
+        return False
+
+    def _has_job_for_occurrence(self, candidate: BackupDeepVerifyCandidate) -> bool:
+        for job in self.jobs.list(limit=_JOB_SCAN_LIMIT):
+            if job.job_type != BACKUP_VERIFY_DEEP_JOB_TYPE:
+                continue
+            try:
+                payload = self._payload(job)
+            except BackupDeepVerifyJobError:
+                return True
+            if (
+                payload.snapshot_id == candidate.snapshot_id
+                and payload.occurrence_slot_us == candidate.occurrence_slot_us
+            ):
+                return True
+        return False
 
     def process_leased(self, job: JobRecord) -> JobRecord:
         """Verify one persisted snapshot without creating or replacing a backup."""
@@ -102,13 +213,23 @@ class DurableBackupDeepVerifyWorker:
                 reason=WaitingReason.STORAGE,
             )
 
-        self.jobs.heartbeat(
-            job.job_id,
+        heartbeat = _LeaseProgressHeartbeat(
+            jobs=self.jobs,
+            job_id=job.job_id,
             lease_token=lease_token,
-            extend_seconds=self.lease_extension_seconds,
+            lease_extension_seconds=self.lease_extension_seconds,
         )
+        heartbeat.force()
         try:
-            verified = self.backup.verify_deep(snapshot_id)
+            verified = self.backup.verify_deep(
+                snapshot_id,
+                progress_callback=heartbeat.progress,
+            )
+        except _BackupDeepVerifyCancellationRequested:
+            return self.jobs.acknowledge_cancel(
+                job.job_id,
+                lease_token=lease_token,
+            )
         except BackupTargetBusyError:
             return self._wait(
                 job,
@@ -221,3 +342,41 @@ class DurableBackupDeepVerifyWorker:
             reason=reason,
             next_run_at_us=retry_at_us,
         )
+
+
+class _BackupDeepVerifyCancellationRequested(RuntimeError):
+    pass
+
+
+class _LeaseProgressHeartbeat:
+    """Renew a lease only while the verification primitive reports progress."""
+
+    def __init__(
+        self,
+        *,
+        jobs: DurableJobService,
+        job_id: uuid.UUID,
+        lease_token: bytes,
+        lease_extension_seconds: int,
+    ) -> None:
+        self.jobs = jobs
+        self.job_id = job_id
+        self.lease_token = lease_token
+        self.lease_extension_seconds = lease_extension_seconds
+        self.interval_seconds = max(1.0, lease_extension_seconds / 3)
+        self.last_heartbeat_monotonic = time.monotonic()
+
+    def force(self) -> None:
+        current = self.jobs.heartbeat(
+            self.job_id,
+            lease_token=self.lease_token,
+            extend_seconds=self.lease_extension_seconds,
+        )
+        self.last_heartbeat_monotonic = time.monotonic()
+        if getattr(current, "state", None) is JobState.CANCEL_REQUESTED:
+            raise _BackupDeepVerifyCancellationRequested()
+
+    def progress(self) -> None:
+        now = time.monotonic()
+        if now - self.last_heartbeat_monotonic >= self.interval_seconds:
+            self.force()
