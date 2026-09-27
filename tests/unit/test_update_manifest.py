@@ -92,7 +92,9 @@ def test_package_rejects_hash_mismatch_and_symlink(tmp_path: Path) -> None:
 
     target = tmp_path / "target.zip"
     target.write_bytes(b"signed package")
-    link = tmp_path / "linked.zip"
+    link_root = tmp_path / "link-root"
+    link_root.mkdir()
+    link = link_root / manifest.package_name
     try:
         link.symlink_to(target)
     except OSError:
