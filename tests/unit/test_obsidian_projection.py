@@ -14,7 +14,11 @@ from athena.knowledge.models import (
 from athena.knowledge.obsidian_projection import project_knowledge_snapshot
 
 
-def _snapshot(*, title: str | None = "Project / Decision: Alpha?", body: str = "Keep it local.") -> KnowledgeUnitSnapshot:
+def _snapshot(
+    *,
+    title: str | None = "Project / Decision: Alpha?",
+    body: str = "Keep it local.",
+) -> KnowledgeUnitSnapshot:
     knowledge_id = uuid.UUID("11111111-1111-1111-1111-111111111111")
     revision = KnowledgeUnitRevision(
         knowledge_id=knowledge_id,

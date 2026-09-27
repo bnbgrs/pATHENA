@@ -19,7 +19,7 @@ from athena.knowledge.service import KnowledgeService
 from athena.storage.database import SQLiteDatabase
 
 
-def _fixture(tmp_path):
+def _fixture(tmp_path, *, title: str | None = "Original title"):
     database = SQLiteDatabase(tmp_path / "athena.db")
     database.start()
     chat = ChatService(ChatRepository(database))
@@ -31,7 +31,7 @@ def _fixture(tmp_path):
         chat_id=chat_id,
         sequence_no=1,
         knowledge_kind=KnowledgeKind.DECISION,
-        title="Original title",
+        title=title,
     )
     return database, chat, repository, knowledge, created
 
@@ -128,7 +128,13 @@ def test_legacy_projection_identity_remains_parseable(tmp_path) -> None:
             line
             for line in markdown.splitlines()
             if not line.startswith(
-                ("athena_id:", "entity_type:", "revision_id:", "revision_no:", "projection_version:")
+                (
+                    "athena_id:",
+                    "entity_type:",
+                    "revision_id:",
+                    "revision_no:",
+                    "projection_version:",
+                )
             )
         ]
         parsed = parse_obsidian_knowledge_edit("\n".join(lines) + "\n")
@@ -153,5 +159,26 @@ def test_projected_semantic_metadata_cannot_be_silently_edited(tmp_path) -> None
                 repository=repository,
                 chat=chat,
             ).apply_markdown(markdown)
+    finally:
+        database.stop()
+
+
+def test_unchanged_fallback_heading_does_not_create_explicit_title(tmp_path) -> None:
+    database, chat, repository, _knowledge, created = _fixture(
+        tmp_path,
+        title=None,
+    )
+    try:
+        snapshot = repository.load_current(created.knowledge_id)
+        markdown = project_knowledge_snapshot(snapshot).markdown
+
+        result = ObsidianKnowledgeReconciler(
+            repository=repository,
+            chat=chat,
+        ).apply_markdown(markdown)
+
+        assert result.revision_id == created.revision_id
+        assert result.payload.title is None
+        assert len(repository.list_history(created.knowledge_id)) == 1
     finally:
         database.stop()

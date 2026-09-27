@@ -7,7 +7,12 @@ import uuid
 from dataclasses import dataclass
 
 from athena.chat.service import ChatService
-from athena.knowledge.models import KnowledgeUnitDraft, KnowledgeUnitRevision
+from athena.knowledge.models import (
+    KnowledgeUnitDraft,
+    KnowledgeUnitRevision,
+    KnowledgeUnitSnapshot,
+)
+from athena.knowledge.obsidian_projection import project_knowledge_snapshot
 from athena.knowledge.repository import (
     KnowledgeConflictError,
     KnowledgeRepository,
@@ -124,8 +129,16 @@ class ObsidianKnowledgeReconciler:
         _require_unchanged_projected_metadata(edit.metadata, current)
 
         current_payload = revision.payload
+        projected_base_title = parse_obsidian_knowledge_edit(
+            project_knowledge_snapshot(current).markdown
+        ).title
+        next_title = (
+            current_payload.title
+            if edit.title == projected_base_title
+            else edit.title
+        )
         if (
-            current_payload.title == edit.title
+            current_payload.title == next_title
             and current_payload.body == edit.body
         ):
             return revision
@@ -138,7 +151,7 @@ class ObsidianKnowledgeReconciler:
                 expected_revision_id=edit.expected_revision_id,
                 draft=KnowledgeUnitDraft(
                     knowledge_kind=current_payload.knowledge_kind,
-                    title=edit.title,
+                    title=next_title,
                     body=edit.body,
                     valid_from_us=current_payload.valid_from_us,
                     valid_to_us=current_payload.valid_to_us,
@@ -233,7 +246,7 @@ def _canonical_uuid(value: str, field: str) -> uuid.UUID:
 
 def _require_unchanged_projected_metadata(
     metadata: dict[str, str | int],
-    current: object,
+    current: KnowledgeUnitSnapshot,
 ) -> None:
     revision = current.revision
     payload = revision.payload
