@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from pathlib import Path
 
 from athena.chat.repository import ChatRepository
@@ -8,7 +9,9 @@ from athena.knowledge.models import KnowledgeKind
 from athena.knowledge.obsidian_export import ObsidianVaultExporter
 from athena.knowledge.obsidian_import import ObsidianKnowledgeReconciler
 from athena.knowledge.obsidian_sync import (
+    ObsidianSyncState,
     ObsidianVaultWatcher,
+    ObsidianVaultWatchService,
     ObsidianWatchStatus,
     ObsidianWriteStampRegistry,
 )
@@ -49,6 +52,14 @@ def _replace_body(markdown: str, body: str) -> str:
     heading = next(index for index, line in enumerate(lines) if line.startswith("# "))
     lines[heading + 2 :] = body.splitlines()
     return "\n".join(lines) + "\n"
+
+
+def _wait_until(predicate, *, timeout_seconds: float = 2.0) -> None:
+    deadline = time.monotonic() + timeout_seconds
+    while not predicate():
+        if time.monotonic() >= deadline:
+            raise AssertionError("Timed out waiting for Obsidian sync state.")
+        time.sleep(0.01)
 
 
 def test_export_stamp_suppresses_self_import_after_stability_window(tmp_path: Path) -> None:
@@ -114,3 +125,59 @@ def test_change_during_debounce_restarts_stability_window(tmp_path: Path) -> Non
         assert current.payload.body == "Final external body"
     finally:
         database.stop()
+
+
+def test_watch_service_owns_thread_local_database_and_shutdown(tmp_path: Path) -> None:
+    database, repository, created, _exporter, _watcher = _runtime(tmp_path)
+    vault = tmp_path / "vault"
+    stamps = ObsidianWriteStampRegistry()
+    exporter = ObsidianVaultExporter(vault, write_stamps=stamps)
+    result = exporter.export_snapshot(repository.load_current(created.knowledge_id))
+    service = ObsidianVaultWatchService(
+        vault,
+        database_path=database.path,
+        write_stamps=stamps,
+        stability_window_seconds=0.02,
+        poll_interval_seconds=0.01,
+    )
+
+    try:
+        service.start()
+        _wait_until(lambda: service.state is ObsidianSyncState.RUNNING)
+        _wait_until(
+            lambda: service.last_result is not None
+            and service.last_result.status is ObsidianWatchStatus.SELF_WRITE_IGNORED
+        )
+
+        result.path.write_text(
+            _replace_body(result.path.read_text(encoding="utf-8"), "Runtime edit"),
+            encoding="utf-8",
+        )
+        _wait_until(
+            lambda: service.last_result is not None
+            and service.last_result.status is ObsidianWatchStatus.APPLIED
+        )
+
+        current = repository.load_current(created.knowledge_id).revision
+        assert current.revision_no == 2
+        assert current.payload.body == "Runtime edit"
+    finally:
+        service.stop()
+        database.stop()
+
+    assert service.state is ObsidianSyncState.STOPPED
+
+
+def test_watch_service_pauses_fail_closed_for_missing_vault(tmp_path: Path) -> None:
+    service = ObsidianVaultWatchService(
+        tmp_path / "missing-vault",
+        database_path=tmp_path / "athena.db",
+        write_stamps=ObsidianWriteStampRegistry(),
+    )
+
+    service.start()
+
+    assert service.state is ObsidianSyncState.PAUSED
+    assert "existing real directory" in (service.last_error or "")
+    service.stop()
+    assert service.state is ObsidianSyncState.STOPPED

@@ -1,8 +1,11 @@
+import time
+
 import pytest
 
 from athena.config.settings import AthenaSettings
 from athena.core.application import ApplicationState, AthenaApplication
 from athena.core.errors import StartupError
+from athena.knowledge.obsidian_sync import ObsidianSyncState
 from athena.observability.health import HealthStatus
 
 
@@ -82,3 +85,45 @@ def test_runtime_state_survives_restart(tmp_path) -> None:
     assert sentinel.read_text(encoding="utf-8") == "survives"
 
     second.stop()
+
+
+def test_configured_projection_watcher_follows_core_lifecycle(tmp_path) -> None:
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    app = AthenaApplication(
+        settings=AthenaSettings(
+            local_root=tmp_path / "runtime",
+            projection_root=vault,
+        )
+    )
+
+    app.start()
+    assert app.obsidian_sync is not None
+    deadline = time.monotonic() + 2.0
+    while app.obsidian_sync.state is ObsidianSyncState.STARTING:
+        if time.monotonic() >= deadline:
+            raise AssertionError("Timed out starting configured Obsidian sync.")
+        time.sleep(0.01)
+
+    assert app.obsidian_sync.state is ObsidianSyncState.RUNNING
+    assert "obsidian-sync" in app.services.started_service_names
+
+    app.stop()
+    assert app.obsidian_sync.state is ObsidianSyncState.STOPPED
+
+
+def test_missing_projection_root_pauses_without_blocking_core(tmp_path) -> None:
+    app = AthenaApplication(
+        settings=AthenaSettings(
+            local_root=tmp_path / "runtime",
+            projection_root=tmp_path / "missing-vault",
+        )
+    )
+
+    app.start()
+
+    assert app.state is ApplicationState.RUNNING
+    assert app.obsidian_sync is not None
+    assert app.obsidian_sync.state is ObsidianSyncState.PAUSED
+
+    app.stop()
