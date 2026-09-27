@@ -7,6 +7,7 @@ from types import SimpleNamespace
 
 import pytest
 
+import athena.jobs.backup_verify_worker as worker_module
 from athena.backup.service import BackupRestoreError
 from athena.backup.target_lock import BackupTargetBusyError
 from athena.jobs.backup_verify_payload import BACKUP_VERIFY_DEEP_PIPELINE_VERSION
@@ -50,6 +51,7 @@ class FakeBackup:
     target_status_value: str = "active"
     outcome: str = "ok"
     verify_calls: list[uuid.UUID] = field(default_factory=list)
+    progress_steps: int = 0
 
     def get_snapshot(self, snapshot_id):
         assert snapshot_id == self.snapshot_id
@@ -59,8 +61,11 @@ class FakeBackup:
         assert target_id == self.target_id
         return SimpleNamespace(status=self.target_status_value)
 
-    def verify_deep(self, snapshot_id):
+    def verify_deep(self, snapshot_id, *, progress_callback=None):
         self.verify_calls.append(snapshot_id)
+        if progress_callback is not None:
+            for _ in range(self.progress_steps):
+                progress_callback()
         if self.outcome == "busy":
             raise BackupTargetBusyError("busy")
         if self.outcome == "oserror":
@@ -202,3 +207,19 @@ def test_missing_pinned_configuration_fails_before_backup_access() -> None:
     with pytest.raises(BackupDeepVerifyJobError):
         worker.process_leased(job)
     assert backup.verify_calls == []
+
+
+def test_progress_renews_lease_while_deep_verify_advances(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    worker, job, jobs, backup = _case()
+    worker.lease_extension_seconds = 3
+    backup.progress_steps = 3
+    ticks = iter([0.0, 0.0, 2.0, 4.0, 6.0, 8.0, 10.0, 12.0])
+    monkeypatch.setattr(worker_module.time, "monotonic", lambda: next(ticks))
+
+    result = worker.process_leased(job)
+
+    assert result.state is JobState.COMPLETED
+    heartbeats = [call for call in jobs.calls if call[0] == "heartbeat"]
+    assert len(heartbeats) >= 3

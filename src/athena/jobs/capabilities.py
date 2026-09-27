@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from athena.jobs.backup_verify_payload import BACKUP_VERIFY_DEEP_JOB_TYPE
+
 # Only jobs proven not to call the local model/provider belong here.
 # Any new/unknown job type remains provider-isolated until explicitly reviewed.
 CONTROL_LANE_JOB_TYPES = frozenset(
@@ -9,6 +11,7 @@ CONTROL_LANE_JOB_TYPES = frozenset(
         "source.process",
         "backup.create",
         "archive.replicate",
+        BACKUP_VERIFY_DEEP_JOB_TYPE,
     }
 )
 

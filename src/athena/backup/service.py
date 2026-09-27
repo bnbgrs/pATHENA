@@ -10,6 +10,7 @@ import shutil
 import sqlite3
 import tempfile
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -1146,6 +1147,8 @@ class BackupService(DeletionLedgerStorageMixin):
     def verify_deep(
         self,
         snapshot_id: uuid.UUID,
+        *,
+        progress_callback: Callable[[], None] | None = None,
     ) -> BackupSnapshotRecord:
         """Hash every object and prove isolated restore capability."""
         record = self.get_snapshot(
@@ -1190,6 +1193,7 @@ class BackupService(DeletionLedgerStorageMixin):
                     expected_snapshot_id=(
                         record.snapshot_id
                     ),
+                    progress_callback=progress_callback,
                 ):
                     raise BackupRestoreError(
                         "Backup Deep verification failed."
@@ -1227,6 +1231,7 @@ class BackupService(DeletionLedgerStorageMixin):
                             destination_root=(
                                 destination
                             ),
+                            progress_callback=progress_callback,
                         )
                     )
 
@@ -1722,6 +1727,7 @@ class BackupService(DeletionLedgerStorageMixin):
         ],
         deletion_ledger_source: str,
         deletion_currentness_guaranteed: bool,
+        progress_callback: Callable[[], None] | None = None,
     ) -> Path:
         requested_destination = destination_root.expanduser()
         if not requested_destination.is_absolute():
@@ -1803,12 +1809,19 @@ class BackupService(DeletionLedgerStorageMixin):
                 exist_ok=True,
             )
             restored_db = state_root / "athena.db"
-            shutil.copy2(snapshot_root / "athena.db", restored_db)
+            _copy_file_with_progress(
+                snapshot_root / "athena.db",
+                restored_db,
+                progress_callback=progress_callback,
+            )
             database_meta = manifest.get("database")
             if not isinstance(database_meta, dict):
                 raise BackupRestoreError("Backup manifest database metadata is invalid.")
             expected_db_sha = bytes.fromhex(_required_str(database_meta, "sha256"))
-            copied_db_sha, _copied_db_length = _hash_file(restored_db)
+            copied_db_sha, _copied_db_length = _hash_file(
+                restored_db,
+                progress_callback=progress_callback,
+            )
             if copied_db_sha != expected_db_sha:
                 raise BackupRestoreError(
                     "Restored SQLite copy failed SHA-256 verification."
@@ -1833,6 +1846,7 @@ class BackupService(DeletionLedgerStorageMixin):
                     spool_root / storage_locator,
                     expected_sha256=digest,
                     expected_length=length,
+                    progress_callback=progress_callback,
                 )
 
             restored = sqlite3.connect(restored_db, autocommit=True)
@@ -4031,6 +4045,7 @@ class BackupService(DeletionLedgerStorageMixin):
         snapshot_root: Path,
         expected_manifest_sha256: bytes,
         expected_snapshot_id: uuid.UUID | None = None,
+        progress_callback: Callable[[], None] | None = None,
     ) -> bool:
         marker = snapshot_root / "complete.marker"
         if not marker.is_file():
@@ -4046,6 +4061,7 @@ class BackupService(DeletionLedgerStorageMixin):
             snapshot_root=snapshot_root,
             expected_manifest_sha256=expected_manifest_sha256,
             expected_snapshot_id=expected_snapshot_id,
+            progress_callback=progress_callback,
         )
 
     def _verify_payload_path(
@@ -4055,6 +4071,7 @@ class BackupService(DeletionLedgerStorageMixin):
         snapshot_root: Path,
         expected_manifest_sha256: bytes,
         expected_snapshot_id: uuid.UUID | None = None,
+        progress_callback: Callable[[], None] | None = None,
     ) -> bool:
         manifest_path = snapshot_root / "manifest.json"
         database_path = snapshot_root / "athena.db"
@@ -4077,7 +4094,10 @@ class BackupService(DeletionLedgerStorageMixin):
             return False
         if database.get("path") != "athena.db":
             return False
-        db_digest, _ = _hash_file(database_path)
+        db_digest, _ = _hash_file(
+            database_path,
+            progress_callback=progress_callback,
+        )
         if db_digest.hex() != database.get("sha256"):
             return False
         if not _manifest_matches_database(manifest, database_path):
@@ -4100,7 +4120,10 @@ class BackupService(DeletionLedgerStorageMixin):
                 object_path = _safe_existing_file(target, relative)
             except BackupRestoreError:
                 return False
-            digest, actual_length = _hash_file(object_path)
+            digest, actual_length = _hash_file(
+                object_path,
+                progress_callback=progress_callback,
+            )
             if digest != expected or actual_length != length:
                 return False
         check = sqlite3.connect(database_path)
@@ -4430,7 +4453,11 @@ def _object_relative_path(digest: bytes) -> Path:
     return Path("objects") / "sha256" / value[:2] / value[2:4] / f"{value}.blob"
 
 
-def _hash_file(path: Path) -> tuple[bytes, int]:
+def _hash_file(
+    path: Path,
+    *,
+    progress_callback: Callable[[], None] | None = None,
+) -> tuple[bytes, int]:
     digest = hashlib.sha256()
     length = 0
     try:
@@ -4441,9 +4468,39 @@ def _hash_file(path: Path) -> tuple[bytes, int]:
                     break
                 digest.update(chunk)
                 length += len(chunk)
+                _report_progress(progress_callback)
     except OSError as exc:
         raise BackupRestoreError(f"Cannot read backup object {path}.") from exc
     return digest.digest(), length
+
+
+def _report_progress(callback: Callable[[], None] | None) -> None:
+    if callback is not None:
+        callback()
+
+
+def _copy_file_with_progress(
+    source: Path,
+    destination: Path,
+    *,
+    progress_callback: Callable[[], None] | None = None,
+) -> None:
+    try:
+        with source.open("rb") as src, destination.open("xb") as dst:
+            while True:
+                chunk = src.read(1024 * 1024)
+                if not chunk:
+                    break
+                dst.write(chunk)
+                _report_progress(progress_callback)
+            dst.flush()
+            os.fsync(dst.fileno())
+        shutil.copystat(source, destination)
+    except OSError as exc:
+        destination.unlink(missing_ok=True)
+        raise BackupRestoreError(
+            f"Cannot copy backup file {source}."
+        ) from exc
 
 
 def _copy_verified(
@@ -4452,9 +4509,13 @@ def _copy_verified(
     *,
     expected_sha256: bytes,
     expected_length: int,
+    progress_callback: Callable[[], None] | None = None,
 ) -> None:
     if destination.exists():
-        digest, length = _hash_file(destination)
+        digest, length = _hash_file(
+            destination,
+            progress_callback=progress_callback,
+        )
         if digest != expected_sha256 or length != expected_length:
             raise BackupRestoreError(f"Existing backup object is corrupt: {destination}.")
         return
@@ -4471,9 +4532,13 @@ def _copy_verified(
                 if not chunk:
                     break
                 dst.write(chunk)
+                _report_progress(progress_callback)
             dst.flush()
             os.fsync(dst.fileno())
-        digest, length = _hash_file(temporary)
+        digest, length = _hash_file(
+            temporary,
+            progress_callback=progress_callback,
+        )
         if digest != expected_sha256 or length != expected_length:
             raise BackupRestoreError(f"Copied backup object failed hash verification: {source}.")
         durable_replace(temporary, destination)
