@@ -59,13 +59,17 @@ def _capture_read_size(*, plaintext_length: int, max_file_bytes: int | None) -> 
         return PROTECTED_BLOB_CHUNK_SIZE
     remaining = max_file_bytes - plaintext_length
     if remaining < 0:
-        raise SourceChangedDuringCaptureError("Protected Source exceeded the configured maximum capture size.")
+        raise SourceChangedDuringCaptureError(
+            "Protected Source exceeded the configured maximum capture size."
+        )
     return min(PROTECTED_BLOB_CHUNK_SIZE, remaining + 1)
 
 
 def _ensure_within_capture_limit(*, prospective_size: int, max_file_bytes: int | None) -> None:
     if max_file_bytes is not None and prospective_size > max_file_bytes:
-        raise SourceChangedDuringCaptureError("Protected Source exceeded the configured maximum capture size.")
+        raise SourceChangedDuringCaptureError(
+            "Protected Source exceeded the configured maximum capture size."
+        )
 
 
 @dataclass(frozen=True, slots=True)

@@ -24,11 +24,25 @@ def _paths(tmp_path: Path) -> RuntimePaths:
     archive = tmp_path / "archive"
     for path in (state, spool, derived, logs, temp, archive):
         path.mkdir(parents=True, exist_ok=True)
-    return RuntimePaths(local_root=local,state_root=state,database_path=state/"athena.db",spool_root=spool,derived_root=derived,log_root=logs,temp_root=temp,archive_root=archive,backup_root=None,projection_root=None)
+    return RuntimePaths(
+        local_root=local,
+        state_root=state,
+        database_path=state / "athena.db",
+        spool_root=spool,
+        derived_root=derived,
+        log_root=logs,
+        temp_root=temp,
+        archive_root=archive,
+        backup_root=None,
+        projection_root=None,
+    )
 
 
 def _service(tmp_path: Path) -> ImportIntakeService:
-    return ImportIntakeService(sources=cast(SourceCaptureService, _UnusedSources()), paths=_paths(tmp_path))
+    return ImportIntakeService(
+        sources=cast(SourceCaptureService, _UnusedSources()),
+        paths=_paths(tmp_path),
+    )
 
 
 def _symlink(path: Path, target: Path) -> None:
@@ -39,7 +53,10 @@ def _symlink(path: Path, target: Path) -> None:
         pytest.skip("symlink creation is unavailable in this environment")
 
 
-def test_selected_file_swap_to_symlink_fails_closed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_selected_file_swap_to_symlink_fails_closed(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     selected = tmp_path / "selected.txt"
     outside = tmp_path / "outside.txt"
     selected.write_text("safe", encoding="utf-8")
@@ -56,13 +73,24 @@ def test_selected_file_swap_to_symlink_fails_closed(tmp_path: Path, monkeypatch:
         return original(self, *args, **kwargs)
 
     monkeypatch.setattr(Path, "resolve", racing_resolve)
-    preflight = service.preflight(ImportRequest.from_paths([selected], symlink_policy=SymlinkPolicy.DO_NOT_FOLLOW))
+    preflight = service.preflight(
+        ImportRequest.from_paths(
+            [selected],
+            symlink_policy=SymlinkPolicy.DO_NOT_FOLLOW,
+        )
+    )
     assert preflight.blocked
     assert preflight.candidates == ()
-    assert any(i.code == "link_introduced_during_preflight" and i.blocking for i in preflight.issues)
+    assert any(
+        issue.code == "link_introduced_during_preflight" and issue.blocking
+        for issue in preflight.issues
+    )
 
 
-def test_directory_entry_swap_to_symlink_is_not_followed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_directory_entry_swap_to_symlink_is_not_followed(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     root = tmp_path / "input"
     root.mkdir()
     entry = root / "entry.txt"
@@ -81,7 +109,12 @@ def test_directory_entry_swap_to_symlink_is_not_followed(tmp_path: Path, monkeyp
         return original(self, *args, **kwargs)
 
     monkeypatch.setattr(Path, "resolve", racing_resolve)
-    preflight = service.preflight(ImportRequest.from_paths([root], symlink_policy=SymlinkPolicy.DO_NOT_FOLLOW))
+    preflight = service.preflight(
+        ImportRequest.from_paths(
+            [root],
+            symlink_policy=SymlinkPolicy.DO_NOT_FOLLOW,
+        )
+    )
     assert preflight.blocked
     assert all(candidate.path != entry for candidate in preflight.candidates)
     assert any(i.code == "link_introduced_during_preflight" and i.blocking for i in preflight.issues)
@@ -91,7 +124,12 @@ def test_stable_no_follow_file_remains_importable(tmp_path: Path) -> None:
     selected = tmp_path / "stable.txt"
     selected.write_text("stable", encoding="utf-8")
     service = _service(tmp_path)
-    preflight = service.preflight(ImportRequest.from_paths([selected], symlink_policy=SymlinkPolicy.DO_NOT_FOLLOW))
+    preflight = service.preflight(
+        ImportRequest.from_paths(
+            [selected],
+            symlink_policy=SymlinkPolicy.DO_NOT_FOLLOW,
+        )
+    )
     assert not preflight.blocked
     assert len(preflight.candidates) == 1
     assert preflight.candidates[0].capture_path == selected.resolve()

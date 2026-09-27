@@ -904,18 +904,27 @@ def _validated_max_file_bytes(value: int | None) -> int | None:
     return value
 
 
-def _capture_read_size(*, byte_length: int, max_file_bytes: int | None, default_chunk_size: int) -> int:
+def _capture_read_size(
+    *,
+    byte_length: int,
+    max_file_bytes: int | None,
+    default_chunk_size: int,
+) -> int:
     if max_file_bytes is None:
         return default_chunk_size
     remaining = max_file_bytes - byte_length
     if remaining < 0:
-        raise SourceChangedDuringCaptureError("Source exceeded the configured maximum capture size.")
+        raise SourceChangedDuringCaptureError(
+            "Source exceeded the configured maximum capture size."
+        )
     return min(default_chunk_size, remaining + 1)
 
 
 def _ensure_within_capture_limit(*, prospective_size: int, max_file_bytes: int | None) -> None:
     if max_file_bytes is not None and prospective_size > max_file_bytes:
-        raise SourceChangedDuringCaptureError("Source exceeded the configured maximum capture size.")
+        raise SourceChangedDuringCaptureError(
+            "Source exceeded the configured maximum capture size."
+        )
 
 
 def _content_addressed_blob_candidates(
