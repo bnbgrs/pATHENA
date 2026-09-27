@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import os
 import stat
+from collections.abc import Callable
 from io import TextIOWrapper
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
@@ -70,14 +71,21 @@ class _SecureRotatingFileHandler(RotatingFileHandler):
                 raise
             return descriptor
 
-        stream = self._builtin_open(
+        # logging.FileHandler installs `_builtin_open` dynamically at runtime so
+        # delayed reopen remains available during interpreter shutdown. Its stub
+        # does not expose that private hook, therefore type the retrieved runtime
+        # value locally instead of declaring a synthetic subclass attribute.
+        builtin_open = cast(
+            Callable[..., TextIOWrapper],
+            object.__getattribute__(self, "_builtin_open"),
+        )
+        return builtin_open(
             self.baseFilename,
             self.mode,
             encoding=self.encoding,
             errors=self.errors,
             opener=opener,
         )
-        return cast(TextIOWrapper, stream)
 
 
 def _validated_log_level(level: object) -> int:
