@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import uuid
-from typing import Protocol
+from typing import Any, Protocol
 
 from athena.api.contracts import (
     API_VERSION,
@@ -33,6 +33,7 @@ from athena.api.contracts import (
     KnowledgeUnitProposalResponse,
     MessageKnowledgeExtractionResponse,
     ModelResponse,
+    NewsProfileResponse,
     ProviderHealthResponse,
     RelationProposalResponse,
     RememberedChatMessageResponse,
@@ -104,6 +105,20 @@ class PersonalMemoryWriter(Protocol):
     """Minimal explicit Personal Memory boundary used by message actions."""
 
     def remember(self, *, content: str) -> PersonalMemoryRevision: ...
+
+
+class NewsProfileService(Protocol):
+    """Minimal existing News configuration boundary exposed by the Core API."""
+
+    def profile(self) -> dict[str, Any]: ...
+
+    def configure_profile(
+        self,
+        *,
+        timezone_name: str | None = None,
+        local_hour: int | None = None,
+        local_minute: int | None = None,
+    ) -> dict[str, Any]: ...
 
 
 class MessageKnowledgeExtractor(Protocol):
@@ -241,6 +256,37 @@ class CoreApiFacade:
         self._knowledge_inspection: KnowledgeInspectionApiService | None = None
         self._knowledge_read: KnowledgeReadApiService | None = None
         self._normal_search: NormalSearch | None = None
+        self._news: NewsProfileService | None = None
+
+    def attach_news(self, news: NewsProfileService) -> None:
+        """Attach the existing durable News profile exactly once."""
+        if self._news is not None:
+            raise RuntimeError("News profile is already attached to the Core API.")
+        self._news = news
+
+    def news_profile(self) -> NewsProfileResponse:
+        news = self._news
+        if news is None:
+            raise RuntimeError("News profile is unavailable in this Core process.")
+        return _news_profile_response(news.profile())
+
+    def configure_news_schedule(
+        self,
+        *,
+        timezone_name: str,
+        local_hour: int,
+        local_minute: int,
+    ) -> NewsProfileResponse:
+        news = self._news
+        if news is None:
+            raise RuntimeError("News profile is unavailable in this Core process.")
+        return _news_profile_response(
+            news.configure_profile(
+                timezone_name=timezone_name,
+                local_hour=local_hour,
+                local_minute=local_minute,
+            )
+        )
 
     def attach_normal_search(self, search: NormalSearch) -> None:
         """Attach normal Hybrid Search exactly once after app construction."""
@@ -360,6 +406,8 @@ class CoreApiFacade:
             )
         if self._normal_search is not None:
             features = (*features, "search.normal.hybrid")
+        if self._news is not None:
+            features = (*features, "news.profile.read", "news.schedule.write")
         return CapabilitiesResponse(
             api_version=API_VERSION,
             features=features,
@@ -1456,6 +1504,32 @@ def _deletion_result(result: DeletionResult) -> DeletionResultResponse:
         commit_id=str(result.commit_id),
         deleted_entity_ids=tuple(str(item) for item in result.deleted_entity_ids),
         preview_digest=result.preview_digest,
+    )
+
+
+def _news_profile_response(profile: dict[str, Any]) -> NewsProfileResponse:
+    timezone_name = profile.get("timezone_name")
+    local_hour = profile.get("local_hour")
+    local_minute = profile.get("local_minute")
+    enabled = profile.get("enabled")
+    if not isinstance(timezone_name, str) or not timezone_name.strip():
+        raise RuntimeError("News profile returned an invalid timezone.")
+    if isinstance(local_hour, bool) or not isinstance(local_hour, int) or not 0 <= local_hour <= 23:
+        raise RuntimeError("News profile returned an invalid hour.")
+    if isinstance(local_minute, bool) or not isinstance(local_minute, int) or not 0 <= local_minute <= 59:
+        raise RuntimeError("News profile returned an invalid minute.")
+    if isinstance(enabled, bool):
+        enabled_value = enabled
+    elif isinstance(enabled, int) and enabled in {0, 1}:
+        enabled_value = bool(enabled)
+    else:
+        raise RuntimeError("News profile returned an invalid enabled state.")
+    return NewsProfileResponse(
+        api_version=API_VERSION,
+        enabled=enabled_value,
+        timezone_name=timezone_name,
+        local_hour=local_hour,
+        local_minute=local_minute,
     )
 
 
