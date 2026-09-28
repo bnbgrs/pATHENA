@@ -83,6 +83,54 @@ def test_client_health_reads_discovery_and_authenticates(
     ]
 
 
+def test_client_reads_and_updates_news_schedule(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runtime_root = tmp_path / "api"
+    _bootstrap(runtime_root)
+    seen: list[tuple[str, str, dict[str, Any] | None]] = []
+
+    def fake_urlopen(request: Any, timeout: float) -> _Response:
+        del timeout
+        body = json.loads(request.data.decode("utf-8")) if request.data else None
+        seen.append((request.get_method(), request.full_url, body))
+        if request.get_method() == "GET":
+            return _Response({
+                "api_version": "v1",
+                "enabled": True,
+                "timezone_name": "Europe/Berlin",
+                "local_hour": 7,
+                "local_minute": 0,
+            })
+        return _Response({
+            "api_version": "v1",
+            "enabled": True,
+            "timezone_name": "Europe/Berlin",
+            "local_hour": 6,
+            "local_minute": 30,
+        })
+
+    monkeypatch.setattr(client_module, "urlopen", fake_urlopen)
+    client = CoreApiClient(runtime_root)
+
+    initial = client.news_profile()
+    saved = client.configure_news_schedule(
+        timezone_name="Europe/Berlin",
+        local_hour=6,
+        local_minute=30,
+    )
+
+    assert (initial.local_hour, initial.local_minute) == (7, 0)
+    assert (saved.local_hour, saved.local_minute) == (6, 30)
+    assert seen[0][:2] == ("GET", "http://127.0.0.1:32123/api/v1/news/profile")
+    assert seen[1] == (
+        "PUT",
+        "http://127.0.0.1:32123/api/v1/news/profile",
+        {"timezone_name": "Europe/Berlin", "local_hour": 6, "local_minute": 30},
+    )
+
+
 def test_client_reloads_bootstrap_and_retries_safe_get_after_core_restart(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
