@@ -13,16 +13,19 @@ from hashlib import sha256
 from math import isfinite
 from typing import Final
 
-from PySide6.QtCore import QObject, QSettings, Qt, Slot
+from PySide6.QtCore import QObject, QRunnable, QSettings, Qt, QTime, Signal, Slot
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
+    QPushButton,
     QSizePolicy,
+    QTimeEdit,
     QVBoxLayout,
     QWidget,
 )
 
-from athena.desktop.api_controller import DesktopApiController, DesktopApiSnapshot
+from athena.api.contracts import NewsProfileResponse
+from athena.desktop.api_controller import CoreApiGateway, DesktopApiController, DesktopApiSnapshot
 from athena.desktop.pathena_window import PathenaMainWindow
 
 _CORE_READY_STATES: Final = frozenset({"ok", "ready", "running"})
@@ -37,6 +40,54 @@ class StoredModelSettings:
     max_output_tokens: int | None
     temperature: float | None
     thinking: bool | None
+
+
+class _NewsScheduleSignals(QObject):
+    loaded = Signal(object)
+    saved = Signal(object)
+    failed = Signal(str)
+
+
+class _NewsScheduleTask(QRunnable):
+    """Read or update the existing Core-owned News profile off the UI thread."""
+
+    def __init__(
+        self,
+        gateway: CoreApiGateway,
+        *,
+        timezone_name: str | None = None,
+        local_hour: int | None = None,
+        local_minute: int | None = None,
+    ) -> None:
+        super().__init__()
+        self.gateway = gateway
+        self.timezone_name = timezone_name
+        self.local_hour = local_hour
+        self.local_minute = local_minute
+        self.signals = _NewsScheduleSignals()
+
+    @Slot()
+    def run(self) -> None:
+        try:
+            if self.timezone_name is None:
+                profile = self.gateway.news_profile()
+                saved = False
+            else:
+                assert self.local_hour is not None
+                assert self.local_minute is not None
+                profile = self.gateway.configure_news_schedule(
+                    timezone_name=self.timezone_name,
+                    local_hour=self.local_hour,
+                    local_minute=self.local_minute,
+                )
+                saved = True
+        except Exception as exc:
+            self.signals.failed.emit(str(exc) or "News schedule request failed.")
+            return
+        if saved:
+            self.signals.saved.emit(profile)
+        else:
+            self.signals.loaded.emit(profile)
 
 
 def model_storage_group(model_id: str) -> str:
@@ -107,6 +158,9 @@ class SettingsRuntimeController(QObject):
         self.settings = settings or _default_settings()
         self._hydrating = False
         self._last_snapshot: DesktopApiSnapshot | None = None
+        self._news_profile: NewsProfileResponse | None = None
+        self._news_task: _NewsScheduleTask | None = None
+        self._news_requested = False
 
         self.panel = QWidget()
         self.panel.setObjectName("settingsRuntimePanel")
@@ -119,6 +173,18 @@ class SettingsRuntimeController(QObject):
         self.detail = QLabel("Runtime status comes from the local Core API.")
         self.detail.setObjectName("settingsRuntimeDetail")
         self.detail.setWordWrap(True)
+        self.news_time = QTimeEdit()
+        self.news_time.setObjectName("settingsNewsTime")
+        self.news_time.setDisplayFormat("HH:mm")
+        self.news_time.setTime(QTime(7, 0))
+        self.news_time.setEnabled(False)
+        self.news_save = QPushButton("Save schedule")
+        self.news_save.setObjectName("settingsNewsScheduleSave")
+        self.news_save.setEnabled(False)
+        self.news_status = QLabel("News schedule · awaiting Core")
+        self.news_status.setObjectName("settingsNewsScheduleState")
+        self.news_status.setWordWrap(True)
+        self.news_status.setTextFormat(Qt.TextFormat.PlainText)
         for label in (
             self.provider_value,
             self.network_value,
@@ -168,6 +234,7 @@ class SettingsRuntimeController(QObject):
         window.temperature_spin.valueChanged.connect(self._persist_from_control)
         window.thinking_checkbox.toggled.connect(self._persist_from_control)
         window.model_selector.activated.connect(self._hydrate_after_selection)
+        self.news_save.clicked.connect(self.save_news_schedule)
 
         if controller is not None:
             controller.snapshot_ready.connect(self.apply_snapshot)
@@ -191,6 +258,22 @@ class SettingsRuntimeController(QObject):
         layout.addLayout(self._status_row("Connection", self.network_value))
         layout.addLayout(self._status_row("Persistence", self.persistence_value))
         layout.addWidget(self.detail)
+
+        news_title = QLabel("News automation")
+        news_title.setObjectName("settingsRuntimeTitle")
+        layout.addWidget(news_title)
+        news_row = QHBoxLayout()
+        news_row.setContentsMargins(0, 0, 0, 0)
+        news_row.setSpacing(10)
+        news_label = QLabel("Daily update")
+        news_label.setObjectName("settingsLabel")
+        news_label.setMinimumWidth(84)
+        news_row.addWidget(news_label)
+        news_row.addWidget(self.news_time)
+        news_row.addWidget(self.news_save)
+        news_row.addStretch(1)
+        layout.addLayout(news_row)
+        layout.addWidget(self.news_status)
 
         page_layout.insertWidget(4, self.panel)
 
@@ -233,6 +316,8 @@ class SettingsRuntimeController(QObject):
         if not isinstance(value, DesktopApiSnapshot):
             return
         self._last_snapshot = value
+        if not self._news_requested:
+            self.refresh_news_schedule()
         freshness = value.resolved_model_freshness
         provider = value.provider
         provider_freshness = "unavailable" if provider is None else freshness
@@ -332,6 +417,71 @@ class SettingsRuntimeController(QObject):
             "error",
             freshness="unavailable",
         )
+
+    def refresh_news_schedule(self) -> None:
+        controller = self.controller
+        if controller is None or self._news_task is not None:
+            return
+        gateway = getattr(controller, "gateway", None)
+        if gateway is None or not hasattr(gateway, "news_profile"):
+            return
+        self._news_requested = True
+        self.news_status.setText("News schedule · loading…")
+        task = _NewsScheduleTask(gateway)
+        task.signals.loaded.connect(self.apply_news_profile)
+        task.signals.failed.connect(self._apply_news_failure)
+        self._news_task = task
+        controller.thread_pool.start(task)
+
+    @Slot()
+    def save_news_schedule(self) -> None:
+        controller = self.controller
+        profile = self._news_profile
+        if controller is None or profile is None or self._news_task is not None:
+            return
+        gateway = getattr(controller, "gateway", None)
+        if gateway is None or not hasattr(gateway, "configure_news_schedule"):
+            return
+        value = self.news_time.time()
+        self.news_save.setEnabled(False)
+        self.news_status.setText("News schedule · saving…")
+        task = _NewsScheduleTask(
+            gateway,
+            timezone_name=profile.timezone_name,
+            local_hour=value.hour(),
+            local_minute=value.minute(),
+        )
+        task.signals.saved.connect(self.apply_news_profile)
+        task.signals.failed.connect(self._apply_news_failure)
+        self._news_task = task
+        controller.thread_pool.start(task)
+
+    @Slot(object)
+    def apply_news_profile(self, value: object) -> None:
+        if not isinstance(value, NewsProfileResponse):
+            self._apply_news_failure("Core returned an invalid News profile.")
+            return
+        self._news_task = None
+        self._news_profile = value
+        self.news_time.setTime(QTime(value.local_hour, value.local_minute))
+        self.news_time.setEnabled(True)
+        self.news_save.setEnabled(True)
+        state = "enabled" if value.enabled else "disabled"
+        self.news_status.setText(
+            f"News {state} · daily {value.local_hour:02d}:{value.local_minute:02d} · "
+            f"{value.timezone_name}"
+        )
+        self.news_status.setProperty("pathenaUiState", "success" if value.enabled else "idle")
+        self.news_status.setAccessibleDescription(self.news_status.text())
+
+    @Slot(str)
+    def _apply_news_failure(self, message: str) -> None:
+        self._news_task = None
+        self.news_status.setText(f"News schedule unavailable · {message}")
+        self.news_status.setProperty("pathenaUiState", "error")
+        self.news_status.setAccessibleDescription(self.news_status.text())
+        self.news_save.setEnabled(self._news_profile is not None)
+        self.news_time.setEnabled(self._news_profile is not None)
 
     @staticmethod
     def _set_state(
