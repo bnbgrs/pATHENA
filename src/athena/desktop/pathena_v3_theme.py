@@ -126,12 +126,12 @@ QFrame#v3WorkbarActions {
 }
 
 QPushButton#v3CommandButton {
-    color: #A3AAB7;
-    background: #151922;
-    border: 1px solid #2A3140;
-    border-radius: 12px;
+    color: #98A1B1;
+    background: #11151D;
+    border: 1px solid #252C39;
+    border-radius: 11px;
     padding: 8px 13px;
-    min-width: 210px;
+    min-width: 230px;
     text-align: left;
 }
 
