@@ -134,11 +134,11 @@ class PathenaV3ShellController(QObject):
     def _build_rail(self) -> QWidget:
         rail = QFrame()
         rail.setObjectName("v3Rail")
-        rail.setFixedWidth(88)
+        rail.setFixedWidth(76)
 
         layout = QVBoxLayout(rail)
-        layout.setContentsMargins(10, 18, 10, 16)
-        layout.setSpacing(5)
+        layout.setContentsMargins(8, 18, 8, 16)
+        layout.setSpacing(4)
 
         mark = QLabel("P")
         mark.setObjectName("v3Mark")
@@ -209,7 +209,7 @@ class PathenaV3ShellController(QObject):
         workspace = QFrame()
         workspace.setObjectName("v3Workspace")
         layout = QVBoxLayout(workspace)
-        layout.setContentsMargins(32, 24, 32, 30)
+        layout.setContentsMargins(38, 28, 38, 34)
         layout.setSpacing(0)
 
         self._replace_chat_page()
@@ -269,7 +269,7 @@ class PathenaV3ShellController(QObject):
             meta_layout.addWidget(context_button)
 
         meta.setMinimumWidth(620)
-        meta.setMaximumWidth(1180)
+        meta.setMaximumWidth(1040)
         meta.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         meta_row = QHBoxLayout()
         meta_row.setContentsMargins(0, 0, 0, 0)
@@ -282,7 +282,7 @@ class PathenaV3ShellController(QObject):
         stage = QFrame()
         stage.setObjectName("v3ConversationStage")
         stage_layout = QVBoxLayout(stage)
-        stage_layout.setContentsMargins(18, 14, 18, 14)
+        stage_layout.setContentsMargins(0, 4, 0, 4)
         stage_layout.setSpacing(10)
 
         conversation_row = QHBoxLayout()
@@ -304,7 +304,7 @@ class PathenaV3ShellController(QObject):
         stage_layout.addWidget(window.evidence_chain)
 
         stage.setMinimumWidth(620)
-        stage.setMaximumWidth(1180)
+        stage.setMaximumWidth(1040)
         stage.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         stage_row = QHBoxLayout()
         stage_row.setContentsMargins(0, 0, 0, 0)
@@ -317,12 +317,12 @@ class PathenaV3ShellController(QObject):
         composer = QFrame()
         composer.setObjectName("v3Composer")
         composer_layout = QHBoxLayout(composer)
-        composer_layout.setContentsMargins(14, 9, 10, 9)
+        composer_layout.setContentsMargins(16, 10, 10, 10)
         composer_layout.setSpacing(8)
 
         window.prompt_input.setParent(composer)
-        window.prompt_input.setMinimumHeight(48)
-        window.prompt_input.setMaximumHeight(84)
+        window.prompt_input.setMinimumHeight(46)
+        window.prompt_input.setMaximumHeight(76)
         window.prompt_input.setPlaceholderText("Ask, investigate, build…")
         window.prompt_input.show()
         composer_layout.addWidget(window.prompt_input, 1)
@@ -340,7 +340,7 @@ class PathenaV3ShellController(QObject):
         window.send_button.show()
         composer_layout.addWidget(window.send_button)
         composer.setMinimumWidth(620)
-        composer.setMaximumWidth(1120)
+        composer.setMaximumWidth(1040)
         composer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         composer_row = QHBoxLayout()
         composer_row.setContentsMargins(0, 0, 0, 0)
@@ -372,7 +372,7 @@ class PathenaV3ShellController(QObject):
         settings.setObjectName("v3SettingsPage")
         page_layout = QVBoxLayout(settings)
         page_layout.setContentsMargins(0, 0, 0, 0)
-        page_layout.setSpacing(16)
+        page_layout.setSpacing(20)
 
         intro_row = QHBoxLayout()
         intro_row.setContentsMargins(2, 0, 2, 0)
@@ -384,7 +384,7 @@ class PathenaV3ShellController(QObject):
         )
         intro.setObjectName("v3SettingsIntro")
         intro.setWordWrap(True)
-        intro.setMaximumWidth(760)
+        intro.setMaximumWidth(700)
         intro_row.addWidget(intro, 1)
 
         local_pill = V3Pill("LOCAL", tone="accent")
@@ -393,7 +393,7 @@ class PathenaV3ShellController(QObject):
 
         content = QHBoxLayout()
         content.setContentsMargins(0, 0, 0, 0)
-        content.setSpacing(24)
+        content.setSpacing(18)
 
         scroll = QScrollArea()
         scroll.setObjectName("v3SettingsScroll")
@@ -404,8 +404,8 @@ class PathenaV3ShellController(QObject):
         form = QWidget()
         form.setObjectName("v3SettingsForm")
         form_layout = QVBoxLayout(form)
-        form_layout.setContentsMargins(2, 0, 16, 24)
-        form_layout.setSpacing(0)
+        form_layout.setContentsMargins(0, 0, 10, 24)
+        form_layout.setSpacing(10)
 
         model_row = V3ControlRow(
             "Local model",
@@ -454,8 +454,8 @@ class PathenaV3ShellController(QObject):
 
         runtime = QFrame()
         runtime.setObjectName("v3RuntimeCard")
-        runtime.setMinimumWidth(300)
-        runtime.setMaximumWidth(350)
+        runtime.setMinimumWidth(310)
+        runtime.setMaximumWidth(330)
         runtime_layout = QVBoxLayout(runtime)
         runtime_layout.setContentsMargins(20, 20, 20, 20)
         runtime_layout.setSpacing(10)
@@ -475,7 +475,7 @@ class PathenaV3ShellController(QObject):
             runtime_layout.addWidget(runtime_panel)
 
         runtime_layout.addStretch(1)
-        content.addWidget(runtime)
+        content.addWidget(runtime, 0, Qt.AlignmentFlag.AlignTop)
         page_layout.addLayout(content, 1)
 
         current_index = pages.currentIndex()
