@@ -71,6 +71,17 @@ class CapabilitiesResponse(ApiContract):
 
 
 @dataclass(frozen=True, slots=True)
+class NewsProfileResponse(ApiContract):
+    """User-controlled daily News schedule exposed to desktop clients."""
+
+    api_version: str
+    enabled: bool
+    timezone_name: str
+    local_hour: int
+    local_minute: int
+
+
+@dataclass(frozen=True, slots=True)
 class ChatSummaryResponse(ApiContract):
     chat_id: str
     started_at_us: int
