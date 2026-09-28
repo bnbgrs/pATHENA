@@ -11,12 +11,16 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path, PurePosixPath
 
+from athena.chat.repository import ChatRepository
+from athena.chat.service import ChatService
 from athena.knowledge.obsidian_import import (
     ObsidianImportConflictError,
     ObsidianImportError,
     ObsidianKnowledgeReconciler,
     parse_obsidian_knowledge_edit,
 )
+from athena.knowledge.repository import KnowledgeRepository
+from athena.storage.database import SQLiteDatabase
 from athena.storage.durable_fs import is_link_boundary
 
 
@@ -28,6 +32,17 @@ class ObsidianWatchStatus(str, Enum):
     UNCHANGED = "unchanged"
     CONFLICT = "conflict"
     REJECTED = "rejected"
+
+
+class ObsidianSyncState(str, Enum):
+    """Lifecycle state of the optional projection watcher runtime."""
+
+    STOPPED = "stopped"
+    STARTING = "starting"
+    RUNNING = "running"
+    PAUSED = "paused"
+    STOPPING = "stopping"
+    FAILED = "failed"
 
 
 @dataclass(frozen=True, slots=True)
@@ -219,20 +234,140 @@ class ObsidianVaultWatcher:
         return files
 
     def _assert_safe_vault_root(self) -> None:
-        if not self._vault_root.is_dir():
-            raise NotADirectoryError(
-                f"Obsidian vault root must be an existing real directory: {self._vault_root}"
+        _assert_safe_vault_root(self._vault_root)
+
+
+class ObsidianVaultWatchService:
+    """Own a stoppable watcher and its thread-local SQLite connection."""
+
+    name = "obsidian-sync"
+
+    def __init__(
+        self,
+        vault_root: Path,
+        *,
+        database_path: Path,
+        write_stamps: ObsidianWriteStampRegistry,
+        stability_window_seconds: float = 0.5,
+        poll_interval_seconds: float = 0.25,
+        stop_timeout_seconds: float = 5.0,
+    ) -> None:
+        if not isinstance(vault_root, Path):
+            raise TypeError("vault_root must be a pathlib.Path.")
+        if not isinstance(database_path, Path):
+            raise TypeError("database_path must be a pathlib.Path.")
+        if not isinstance(write_stamps, ObsidianWriteStampRegistry):
+            raise TypeError("write_stamps must be an ObsidianWriteStampRegistry.")
+        if stop_timeout_seconds <= 0:
+            raise ValueError("stop_timeout_seconds must be positive.")
+        self._vault_root = vault_root.absolute()
+        self._database_path = database_path.absolute()
+        self._write_stamps = write_stamps
+        self._stability_window_seconds = stability_window_seconds
+        self._poll_interval_seconds = poll_interval_seconds
+        self._stop_timeout_seconds = stop_timeout_seconds
+        self._stop_event = threading.Event()
+        self._thread: threading.Thread | None = None
+        self._state = ObsidianSyncState.STOPPED
+        self._last_error: str | None = None
+        self._last_result: ObsidianWatchResult | None = None
+        self._lock = threading.Lock()
+
+    @property
+    def state(self) -> ObsidianSyncState:
+        with self._lock:
+            return self._state
+
+    @property
+    def last_error(self) -> str | None:
+        with self._lock:
+            return self._last_error
+
+    @property
+    def last_result(self) -> ObsidianWatchResult | None:
+        with self._lock:
+            return self._last_result
+
+    def start(self) -> None:
+        with self._lock:
+            if self._state in {ObsidianSyncState.STARTING, ObsidianSyncState.RUNNING}:
+                return
+            if self._state is ObsidianSyncState.STOPPING:
+                raise RuntimeError("Obsidian sync cannot start while it is stopping.")
+
+        try:
+            _assert_safe_vault_root(self._vault_root)
+        except (OSError, ValueError) as exc:
+            with self._lock:
+                self._state = ObsidianSyncState.PAUSED
+                self._last_error = str(exc)
+            return
+
+        self._stop_event.clear()
+        with self._lock:
+            self._state = ObsidianSyncState.STARTING
+            self._last_error = None
+            self._thread = threading.Thread(
+                target=self._run,
+                name="athena-obsidian-sync",
+                daemon=True,
             )
-        cursor = self._vault_root
-        while True:
-            if is_link_boundary(cursor):
-                raise NotADirectoryError(
-                    f"Obsidian vault root has an unsafe filesystem ancestor: {cursor}"
-                )
-            parent = cursor.parent
-            if parent == cursor:
-                break
-            cursor = parent
+            thread = self._thread
+        thread.start()
+
+    def stop(self) -> None:
+        with self._lock:
+            thread = self._thread
+            if thread is None:
+                self._state = ObsidianSyncState.STOPPED
+                return
+            self._state = ObsidianSyncState.STOPPING
+
+        self._stop_event.set()
+        thread.join(self._stop_timeout_seconds)
+        if thread.is_alive():
+            with self._lock:
+                self._state = ObsidianSyncState.FAILED
+                self._last_error = "Obsidian sync did not stop before its deadline."
+            raise RuntimeError(self._last_error)
+
+        with self._lock:
+            self._thread = None
+            if self._state is not ObsidianSyncState.FAILED:
+                self._state = ObsidianSyncState.STOPPED
+
+    def _run(self) -> None:
+        database = SQLiteDatabase(self._database_path)
+        try:
+            database.start()
+            watcher = ObsidianVaultWatcher(
+                self._vault_root,
+                reconciler=ObsidianKnowledgeReconciler(
+                    repository=KnowledgeRepository(database),
+                    chat=ChatService(ChatRepository(database)),
+                ),
+                write_stamps=self._write_stamps,
+                stability_window_seconds=self._stability_window_seconds,
+                poll_interval_seconds=self._poll_interval_seconds,
+            )
+            with self._lock:
+                self._state = ObsidianSyncState.RUNNING
+            watcher.run(self._stop_event, on_result=self._record_result)
+        except Exception as exc:
+            with self._lock:
+                self._state = ObsidianSyncState.FAILED
+                self._last_error = f"{type(exc).__name__}: {exc}"
+        finally:
+            try:
+                database.stop()
+            except Exception as exc:
+                with self._lock:
+                    self._state = ObsidianSyncState.FAILED
+                    self._last_error = f"{type(exc).__name__}: {exc}"
+
+    def _record_result(self, result: ObsidianWatchResult) -> None:
+        with self._lock:
+            self._last_result = result
 
 
 def _normalize_relative_path(relative_path: str) -> str:
@@ -247,3 +382,20 @@ def _normalize_relative_path(relative_path: str) -> str:
     ):
         raise ValueError("relative_path must be a strict POSIX-relative path.")
     return path.as_posix()
+
+
+def _assert_safe_vault_root(vault_root: Path) -> None:
+    if not vault_root.is_dir():
+        raise NotADirectoryError(
+            f"Obsidian vault root must be an existing real directory: {vault_root}"
+        )
+    cursor = vault_root
+    while True:
+        if is_link_boundary(cursor):
+            raise NotADirectoryError(
+                f"Obsidian vault root has an unsafe filesystem ancestor: {cursor}"
+            )
+        parent = cursor.parent
+        if parent == cursor:
+            return
+        cursor = parent

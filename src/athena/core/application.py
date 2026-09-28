@@ -41,6 +41,10 @@ from athena.knowledge.claim_repository import ClaimRepository
 from athena.knowledge.claim_service import ClaimService
 from athena.knowledge.extraction_service import ChatKnowledgeExtractionService
 from athena.knowledge.extraction_snapshot import ExtractionSnapshotRepository
+from athena.knowledge.obsidian_sync import (
+    ObsidianVaultWatchService,
+    ObsidianWriteStampRegistry,
+)
 from athena.knowledge.repository import KnowledgeRepository
 from athena.knowledge.review_service import ReviewService
 from athena.knowledge.service import KnowledgeService
@@ -289,6 +293,16 @@ class AthenaApplication:
         )
         self.knowledge_repository = KnowledgeRepository(self.database)
         self.knowledge = KnowledgeService(self.knowledge_repository, self.chat)
+        self.obsidian_write_stamps = ObsidianWriteStampRegistry()
+        self.obsidian_sync = (
+            ObsidianVaultWatchService(
+                self.paths.projection_root,
+                database_path=self.paths.database_path,
+                write_stamps=self.obsidian_write_stamps,
+            )
+            if self.paths.projection_root is not None
+            else None
+        )
         self.claim_repository = ClaimRepository(self.database)
         self.claims = ClaimService(self.claim_repository, self.chat)
         self.model_provider = LMStudioProvider(
@@ -642,7 +656,14 @@ class AthenaApplication:
             self.protected_content,
             self.source_protection,
         )
-        self.services = ServiceManager(bootstrap_services + services)
+        integration_services: tuple[LifecycleService, ...] = (
+            (self.obsidian_sync,)
+            if self.obsidian_sync is not None
+            else ()
+        )
+        self.services = ServiceManager(
+            bootstrap_services + integration_services + services
+        )
 
     def start(
         self,
