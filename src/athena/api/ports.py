@@ -16,6 +16,7 @@ from athena.api.contracts import (
     KnowledgeReviewResponse,
     MessageKnowledgeExtractionResponse,
     ModelResponse,
+    NewsProfileResponse,
     ProviderHealthResponse,
     RememberedChatMessageResponse,
     StorageHealthResponse,
@@ -28,6 +29,16 @@ class CoreDomainSurface(Protocol):
     def health(self) -> HealthResponse: ...
 
     def capabilities(self) -> CapabilitiesResponse: ...
+
+    def news_profile(self) -> NewsProfileResponse: ...
+
+    def configure_news_schedule(
+        self,
+        *,
+        timezone_name: str,
+        local_hour: int,
+        local_minute: int,
+    ) -> NewsProfileResponse: ...
 
     def list_chats(
         self,
