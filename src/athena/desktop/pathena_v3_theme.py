@@ -529,7 +529,8 @@ QLineEdit,
 QTextEdit,
 QPlainTextEdit,
 QSpinBox,
-QDoubleSpinBox {
+QDoubleSpinBox,
+QTimeEdit {
     color: #F3F0F5;
     background: #14191A;
     border: 1px solid #2A3334;
@@ -543,6 +544,7 @@ QTextEdit:focus,
 QPlainTextEdit:focus,
 QSpinBox:focus,
 QDoubleSpinBox:focus,
+QTimeEdit:focus,
 QComboBox:focus {
     border-color: #3D7669;
 }
