@@ -66,6 +66,11 @@ class _NewsScheduleTask(QRunnable):
         self.local_minute = local_minute
         self.signals = _NewsScheduleSignals()
 
+        # Keep the native QRunnable alive until the queued UI delivery releases
+        # the controller's Python reference. QThreadPool auto-deletion can race
+        # PySide signal delivery on Windows and crash the process.
+        self.setAutoDelete(False)
+
     @Slot()
     def run(self) -> None:
         try:
