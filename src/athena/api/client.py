@@ -35,6 +35,7 @@ from athena.api.contracts import (
     KnowledgeUnitProposalResponse,
     MessageKnowledgeExtractionResponse,
     ModelResponse,
+    NewsProfileResponse,
     ProviderHealthResponse,
     RelationProposalResponse,
     RememberedChatMessageResponse,
@@ -132,6 +133,35 @@ class CoreApiClient:
 
     def capabilities(self) -> CapabilitiesResponse:
         return _capabilities(self._get("/api/v1/capabilities"))
+
+    def news_profile(self) -> NewsProfileResponse:
+        return _news_profile(self._get("/api/v1/news/profile"))
+
+    def configure_news_schedule(
+        self,
+        *,
+        timezone_name: str,
+        local_hour: int,
+        local_minute: int,
+    ) -> NewsProfileResponse:
+        if not timezone_name.strip():
+            raise ValueError("News timezone_name must not be empty.")
+        if isinstance(local_hour, bool) or not isinstance(local_hour, int) or not 0 <= local_hour <= 23:
+            raise ValueError("News local_hour must be between 0 and 23.")
+        if isinstance(local_minute, bool) or not isinstance(local_minute, int) or not 0 <= local_minute <= 59:
+            raise ValueError("News local_minute must be between 0 and 59.")
+        return _news_profile(
+            self._request(
+                "PUT",
+                "/api/v1/news/profile",
+                expected_status=200,
+                json_body={
+                    "timezone_name": timezone_name,
+                    "local_hour": local_hour,
+                    "local_minute": local_minute,
+                },
+            )
+        )
 
     def list_chats(
         self,
@@ -1815,6 +1845,25 @@ def _grounded_chat(
             payload,
             "embedding_model_id",
         ),
+    )
+
+
+def _news_profile(payload: dict[str, JsonValue]) -> NewsProfileResponse:
+    enabled = _required_bool(payload, "enabled")
+    timezone_name = _required_str(payload, "timezone_name")
+    local_hour = _required_int(payload, "local_hour")
+    local_minute = _required_int(payload, "local_minute")
+    if not 0 <= local_hour <= 23 or not 0 <= local_minute <= 59:
+        raise CoreApiClientError(
+            "ATHENA Core returned an invalid News schedule.",
+            code="invalid_response",
+        )
+    return NewsProfileResponse(
+        api_version=_required_str(payload, "api_version"),
+        enabled=enabled,
+        timezone_name=timezone_name,
+        local_hour=local_hour,
+        local_minute=local_minute,
     )
 
 
