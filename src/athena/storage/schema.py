@@ -263,6 +263,12 @@ from athena.storage.schema_contract import (
     STORAGE_LAYOUT_VERSION as STORAGE_LAYOUT_VERSION,
 )
 from athena.storage.schema_contract import (
+    STRUCTURED_REPLICATION_MIGRATION_ID as STRUCTURED_REPLICATION_MIGRATION_ID,
+)
+from athena.storage.schema_contract import (
+    STRUCTURED_REPLICATION_SCHEMA_VERSION as STRUCTURED_REPLICATION_SCHEMA_VERSION,
+)
+from athena.storage.schema_contract import (
     DatabaseCompatibilityError as DatabaseCompatibilityError,
 )
 from athena.storage.schema_contract import (
@@ -388,6 +394,9 @@ from athena.storage.schema_evolution import (
 from athena.storage.schema_evolution import (
     _migrate_schema_v39_to_v40 as _migrate_schema_v39_to_v40,
 )
+from athena.storage.schema_evolution import (
+    _migrate_schema_v40_to_v41 as _migrate_schema_v40_to_v41,
+)
 from athena.storage.schema_verification import (
     _verify_schema_v15 as _verify_schema_v15,
 )
@@ -471,6 +480,9 @@ from athena.storage.schema_verification import (
 )
 from athena.storage.schema_verification import (
     _verify_schema_v40 as _verify_schema_v40,
+)
+from athena.storage.schema_verification import (
+    _verify_schema_v41 as _verify_schema_v41,
 )
 
 
@@ -559,6 +571,7 @@ def initialize_schema(connection: sqlite3.Connection, *, created_at_us: int) -> 
         OPERATIONAL_ERROR_SANITIZATION_SCHEMA_VERSION,
         OPERATIONAL_ERROR_PHYSICAL_CLEANUP_SCHEMA_VERSION,
         PROTECTED_SOURCE_SEMANTIC_SCHEMA_VERSION,
+        GROUNDED_RESPONSE_RECEIPT_SCHEMA_VERSION,
         SCHEMA_VERSION,
     }
     if existing_user_version not in supported_versions:
@@ -756,8 +769,13 @@ def initialize_schema(connection: sqlite3.Connection, *, created_at_us: int) -> 
         _migrate_schema_v39_to_v40(connection)
         existing_user_version = GROUNDED_RESPONSE_RECEIPT_SCHEMA_VERSION
 
+    if existing_user_version == GROUNDED_RESPONSE_RECEIPT_SCHEMA_VERSION:
+        _verify_schema_v40(connection)
+        _migrate_schema_v40_to_v41(connection)
+        existing_user_version = STRUCTURED_REPLICATION_SCHEMA_VERSION
+
     _configure_connection(connection)
-    _verify_schema_v40(connection)
+    _verify_schema_v41(connection)
 
 
 

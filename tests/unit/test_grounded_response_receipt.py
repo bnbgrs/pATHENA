@@ -16,10 +16,11 @@ from athena.chat.service import ChatService
 from athena.common.ids import uuid_to_blob
 from athena.storage.database import SQLiteDatabase
 from athena.storage.schema_contract import (
-    GROUNDED_RESPONSE_RECEIPT_MIGRATION_ID,
-    GROUNDED_RESPONSE_RECEIPT_SCHEMA_VERSION,
     PROTECTED_SOURCE_SEMANTIC_MIGRATION_ID,
     PROTECTED_SOURCE_SEMANTIC_SCHEMA_VERSION,
+    SCHEMA_VERSION,
+    STRUCTURED_REPLICATION_MIGRATION_ID,
+    STRUCTURED_REPLICATION_SCHEMA_VERSION,
 )
 
 
@@ -61,7 +62,8 @@ def test_fresh_database_contains_grounded_receipt_schema(
 
         assert (
             user_version
-            == GROUNDED_RESPONSE_RECEIPT_SCHEMA_VERSION
+            == STRUCTURED_REPLICATION_SCHEMA_VERSION
+            == SCHEMA_VERSION
         )
 
         table = database.connection.execute(
@@ -89,9 +91,9 @@ def test_fresh_database_contains_grounded_receipt_schema(
         assert metadata is not None
 
         assert tuple(metadata) == (
-            GROUNDED_RESPONSE_RECEIPT_SCHEMA_VERSION,
-            GROUNDED_RESPONSE_RECEIPT_MIGRATION_ID,
-            GROUNDED_RESPONSE_RECEIPT_SCHEMA_VERSION,
+            STRUCTURED_REPLICATION_SCHEMA_VERSION,
+            STRUCTURED_REPLICATION_MIGRATION_ID,
+            STRUCTURED_REPLICATION_SCHEMA_VERSION,
         )
 
     finally:
@@ -156,10 +158,7 @@ def test_v39_database_migrates_to_v40(
             ).fetchone()[0]
         )
 
-        assert (
-            user_version
-            == GROUNDED_RESPONSE_RECEIPT_SCHEMA_VERSION
-        )
+        assert user_version == SCHEMA_VERSION
 
         table = migrated.connection.execute(
             """
