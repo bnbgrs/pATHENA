@@ -92,9 +92,9 @@ class V3NavigationButton(QToolButton):
         self.setProperty("v3Nav", True)
         self.setProperty("active", False)
         self.setIcon(self._icons[False])
-        self.setIconSize(QSize(20, 20))
+        self.setIconSize(QSize(21, 21))
         self.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextUnderIcon)
-        self.setFixedSize(68, 58)
+        self.setFixedSize(60, 54)
         self.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         self.setToolTip(label)
         self.setAccessibleName(f"Open {label}")
@@ -117,11 +117,11 @@ class V3WorkspaceHeader(QFrame):
     def __init__(self, title: str, hint: str) -> None:
         super().__init__()
         self.setObjectName("v3Workbar")
-        self.setFixedHeight(68)
+        self.setFixedHeight(74)
 
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(32, 10, 24, 10)
-        layout.setSpacing(14)
+        layout.setContentsMargins(38, 12, 28, 12)
+        layout.setSpacing(16)
 
         copy = QVBoxLayout()
         copy.setContentsMargins(0, 0, 0, 0)
@@ -212,8 +212,8 @@ class V3ControlRow(QFrame):
         super().__init__()
         self.setObjectName("v3ControlRow")
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(0, 18, 0, 18)
-        layout.setSpacing(32)
+        layout.setContentsMargins(20, 17, 20, 17)
+        layout.setSpacing(24)
 
         copy = QVBoxLayout()
         copy.setContentsMargins(0, 0, 0, 0)
@@ -235,7 +235,7 @@ class V3ControlRow(QFrame):
         self.control_layout = QHBoxLayout(self.control_host)
         self.control_layout.setContentsMargins(0, 0, 0, 0)
         self.control_layout.setSpacing(8)
-        self.control_host.setMinimumWidth(340)
+        self.control_host.setMinimumWidth(300)
         layout.addWidget(self.control_host)
 
     def add_control(self, widget: QWidget, stretch: int = 0) -> None:
