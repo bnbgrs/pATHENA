@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Protocol
 
 from athena.api.contracts import (
@@ -123,6 +124,22 @@ class CoreDomainSurface(Protocol):
         temperature: float | None = None,
         thinking_enabled: bool | None = None,
     ) -> ChatThreadResponse: ...
+
+    def stream_chat_message(
+        self,
+        chat_id: str,
+        *,
+        content: str,
+        requested_model_id: str | None = None,
+        operation_id: str,
+        effective_context_limit: int | None = None,
+        max_output_tokens: int | None = None,
+        temperature: float | None = None,
+        thinking_enabled: bool | None = None,
+        on_delta: Callable[[str], None],
+    ) -> ChatThreadResponse: ...
+
+    def cancel_chat_operation(self, operation_id: str) -> bool: ...
 
     def send_unified_local_chat_message(
         self,
