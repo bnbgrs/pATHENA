@@ -50,7 +50,6 @@ def test_core_focused_lints_tests_but_types_only_production_python() -> None:
     assert "Mypy changed Core production Python files" in text
     assert "No changed Core production Python files selected for mypy." in text
     assert "src/athena/api/knowledge_.*|tests/unit/.*" not in text
-    assert "Mypy changed Core Python files" in text
     assert "mypy @changed" in text
     assert 'id: mypy' in text
     assert 'steps.mypy.outcome' in text
