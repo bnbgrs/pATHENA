@@ -104,6 +104,28 @@ def test_v3_shell_keeps_real_command_and_pallas_entry_points() -> None:
     window.close()
 
 
+def test_v3_non_chat_routes_cannot_resurrect_legacy_inspector() -> None:
+    app = _app()
+    window = PathenaMainWindow(api_controller=None)
+    controller = install_v3_shell(window)
+    controller.finalize()
+
+    inspector = window.findChild(QFrame, "inspector")
+    assert inspector is not None
+
+    window.navigation.setCurrentRow(6)
+    app.processEvents()
+    assert inspector.isHidden()
+
+    # Late Core/context refreshes still call the base visibility synchronizer.
+    # V3 must keep the legacy inspector out of non-chat workspaces.
+    window._sync_inspector_visibility()
+    app.processEvents()
+    assert inspector.isHidden()
+
+    window.close()
+
+
 def test_v3_finalize_reuses_real_settings_controls() -> None:
     _app()
     window = PathenaMainWindow(api_controller=None)
