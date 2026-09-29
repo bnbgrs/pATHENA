@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from collections.abc import Mapping
 from typing import Any
 
@@ -68,9 +69,9 @@ def test_runtime_start_uses_headless_server_without_gui(
         args: tuple[str, ...],
         *,
         timeout_seconds: float,
-    ) -> None:
+    ) -> subprocess.CompletedProcess[str]:
         calls.append((cli, tuple(args), timeout_seconds))
-        return None
+        return subprocess.CompletedProcess([cli, *args], 0, "", "")
 
     monkeypatch.setattr(
         LMStudioProvider,
