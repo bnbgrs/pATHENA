@@ -5,6 +5,8 @@ from __future__ import annotations
 import hashlib
 import json
 import uuid
+from collections.abc import Callable
+from threading import Event, Lock
 from typing import Any, Protocol
 
 from athena.api.contracts import (
@@ -44,6 +46,7 @@ from athena.api.knowledge_inspection import KnowledgeInspectionApiService
 from athena.api.knowledge_read import KnowledgeReadApiService
 from athena.api.search_adapter import hybrid_search_result_response
 from athena.api.search_contracts import SearchResultResponse
+from athena.chat.generation import GenerationCancelledError
 from athena.chat.models import ChatMessage, ChatSummary, ChatThread
 from athena.chat.provenance import strip_durable_provenance_manifest
 from athena.chat.send_identity import (
@@ -100,6 +103,8 @@ class DirectChatSender(Protocol):
         temperature: float | None = None,
         reasoning_mode: str | None = "off",
         external_context: str | None = None,
+        on_delta: Callable[[str], None] | None = None,
+        cancel_requested: Callable[[], bool] | None = None,
     ) -> object: ...
 
 
@@ -260,6 +265,8 @@ class CoreApiFacade:
         self._normal_search: NormalSearch | None = None
         self._news: NewsProfileService | None = None
         self._web_search: TorWebSearchService | None = None
+        self._chat_cancel_lock = Lock()
+        self._chat_cancel_events: dict[uuid.UUID, Event] = {}
 
     def attach_web_search(self, web_search: TorWebSearchService) -> None:
         """Attach explicit Tor-routed web discovery for direct chat."""
@@ -677,6 +684,117 @@ class CoreApiFacade:
                 parsed_chat_id
             )
         )
+
+    def stream_chat_message(
+        self,
+        chat_id: str,
+        *,
+        content: str,
+        requested_model_id: str | None = None,
+        operation_id: str,
+        effective_context_limit: int | None = None,
+        max_output_tokens: int | None = None,
+        temperature: float | None = None,
+        thinking_enabled: bool | None = None,
+        on_delta: Callable[[str], None],
+    ) -> ChatThreadResponse:
+        """Run one direct chat turn while exposing truthful provider deltas."""
+        if self._direct_chat is None:
+            raise RuntimeError(
+                "Direct chat is unavailable in this Core process."
+            )
+        if not callable(on_delta):
+            raise TypeError("Streaming chat requires an on_delta callback.")
+
+        parsed_chat_id = uuid.UUID(chat_id)
+        parsed_operation_id = uuid.UUID(operation_id)
+
+        chat_content = content
+        external_context: str | None = None
+        stripped = content.strip()
+        if stripped.lower().startswith("/web "):
+            query = stripped[5:].strip()
+            if not query:
+                raise ValueError("Web chat query must not be empty.")
+            if self._web_search is None:
+                raise RuntimeError(
+                    "Tor web search is unavailable in this Core process."
+                )
+            hits = self._web_search.search(query)
+            external_context = self._web_search.context_text(query, hits)
+            chat_content = query
+
+        cancel_event = Event()
+        with self._chat_cancel_lock:
+            if parsed_operation_id in self._chat_cancel_events:
+                raise RuntimeError(
+                    "This chat operation is already running."
+                )
+            self._chat_cancel_events[parsed_operation_id] = cancel_event
+
+        try:
+            try:
+                self._direct_chat.send_message(
+                    chat_id=parsed_chat_id,
+                    content=chat_content,
+                    requested_model_id=requested_model_id,
+                    operation_id=parsed_operation_id,
+                    effective_context_limit=effective_context_limit,
+                    output_reserve=(
+                        2048
+                        if max_output_tokens is None
+                        else max_output_tokens
+                    ),
+                    temperature=temperature,
+                    reasoning_mode=(
+                        None if thinking_enabled is True else "off"
+                    ),
+                    external_context=external_context,
+                    on_delta=on_delta,
+                    cancel_requested=cancel_event.is_set,
+                )
+            except SendOperationStateError as exc:
+                status = exc.status
+                if (
+                    status.chat_id != parsed_chat_id
+                    or status.operation_id != parsed_operation_id
+                ):
+                    raise RuntimeError(
+                        "Direct chat returned send-operation state for another request."
+                    ) from exc
+                if status.state is SendOperationState.COMPLETE:
+                    return _chat_thread(
+                        self._chat.load_chat(parsed_chat_id)
+                    )
+                raise
+
+            if cancel_event.is_set():
+                raise GenerationCancelledError(
+                    "Chat generation was cancelled."
+                )
+            return _chat_thread(
+                self._chat.load_chat(parsed_chat_id)
+            )
+        finally:
+            with self._chat_cancel_lock:
+                current = self._chat_cancel_events.get(
+                    parsed_operation_id
+                )
+                if current is cancel_event:
+                    self._chat_cancel_events.pop(
+                        parsed_operation_id,
+                        None,
+                    )
+
+    def cancel_chat_operation(self, operation_id: str) -> bool:
+        """Request cancellation of one currently running direct-chat operation."""
+        parsed_operation_id = uuid.UUID(operation_id)
+        with self._chat_cancel_lock:
+            event = self._chat_cancel_events.get(parsed_operation_id)
+            if event is None:
+                return False
+            event.set()
+            return True
 
     def send_unified_local_chat_message(
         self,
