@@ -70,7 +70,7 @@ QToolButton[v3Nav="true"] {
     border: 1px solid transparent;
     border-radius: 11px;
     padding: 4px 1px 3px 1px;
-    font-size: 7.0pt;
+    font-size: 7.8pt;
     font-weight: 620;
 }
 
@@ -87,8 +87,8 @@ QToolButton[v3Nav="true"]:focus {
 
 QToolButton[v3Nav="true"][active="true"] {
     color: #F2F4F8;
-    background: #171D30;
-    border-color: #33456F;
+    background: #19223A;
+    border-color: #36518A;
 }
 
 QToolButton[v3Nav="true"][active="true"]:focus {
@@ -110,14 +110,14 @@ QFrame#v3Workbar {
 
 QLabel#v3PageTitle {
     color: #F2F4F8;
-    font-size: 17pt;
+    font-size: 18pt;
     font-weight: 700;
     letter-spacing: -0.55px;
 }
 
 QLabel#v3PageHint {
     color: #7E8797;
-    font-size: 8.7pt;
+    font-size: 9pt;
 }
 
 QFrame#v3WorkbarActions {
@@ -131,7 +131,7 @@ QPushButton#v3CommandButton {
     border: 1px solid #252C39;
     border-radius: 11px;
     padding: 8px 13px;
-    min-width: 230px;
+    min-width: 210px;
     text-align: left;
 }
 
@@ -148,7 +148,7 @@ QLabel#v3RuntimeDot {
 
 QLabel#v3RuntimeText {
     color: #A3AAB7;
-    font-size: 8.7pt;
+    font-size: 9pt;
 }
 
 QLabel#v3Pill {
@@ -180,8 +180,9 @@ QWidget#v3ChatPage {
 }
 
 QFrame#v3ChatMeta {
-    background: transparent;
-    border: none;
+    background: #11151D;
+    border: 1px solid #252C39;
+    border-radius: 14px;
 }
 
 QLabel#v3MetaLabel,
@@ -221,9 +222,9 @@ QComboBox QAbstractItemView {
 }
 
 QFrame#v3ConversationStage {
-    background: transparent;
-    border: none;
-    border-radius: 0;
+    background: #0D1016;
+    border: 1px solid #202532;
+    border-radius: 18px;
 }
 
 QScrollArea#chatScroll,
@@ -233,9 +234,9 @@ QWidget#chatMessages {
 }
 
 QFrame#v3Composer {
-    background: #171C26;
-    border: 1px solid #3B4558;
-    border-radius: 16px;
+    background: #151B26;
+    border: 1px solid #30394B;
+    border-radius: 18px;
 }
 
 QFrame#v3Composer:focus-within {
@@ -255,11 +256,11 @@ QPushButton#sendButton {
     color: #0D1016;
     background: #7C9CFF;
     border: 0;
-    border-radius: 20px;
-    min-width: 40px;
-    max-width: 40px;
-    min-height: 40px;
-    max-height: 40px;
+    border-radius: 22px;
+    min-width: 44px;
+    max-width: 44px;
+    min-height: 44px;
+    max-height: 44px;
     padding: 0;
     font-size: 15pt;
     font-weight: 800;
@@ -354,7 +355,7 @@ QListWidget::item {
 }
 
 QListWidget::item:hover {
-    background: #20221C;
+    background: #1B202B;
 }
 
 QListWidget::item:selected {
@@ -369,7 +370,7 @@ QPlainTextEdit#semanticReviewDetails,
 QPlainTextEdit#researchDetails,
 QPlainTextEdit#jobDetails,
 QPlainTextEdit#sourceDetails {
-    color: #E8E3EC;
+    color: #F2F4F8;
     background: #11151D;
     border: 1px solid #252C39;
     border-radius: 14px;
@@ -584,7 +585,7 @@ QSpinBox:focus,
 QDoubleSpinBox:focus,
 QTimeEdit:focus,
 QComboBox:focus {
-    border-color: #3D7669;
+    border-color: #7C9CFF;
 }
 
 QPushButton {
@@ -602,13 +603,13 @@ QPushButton:hover {
 }
 
 QPushButton:focus {
-    border-color: #3D7669;
+    border-color: #7C9CFF;
 }
 
 QPushButton:disabled {
     color: #626C7D;
-    background: #131410;
-    border-color: #22231D;
+    background: #11151D;
+    border-color: #252C39;
 }
 
 /* Semantic workspace actions stay legible after legacy object-name refinement. */
@@ -658,24 +659,24 @@ QPushButton#researchRefreshButton:focus,
 QPushButton#researchCancelButton:focus,
 QPushButton#fileRefreshButton:focus,
 QPushButton#fileProcessButton:focus {
-    border-color: #3D7669;
+    border-color: #7C9CFF;
 }
 
 QPushButton#researchCancelButton:disabled,
 QPushButton#fileProcessButton:disabled {
-    color: #686A62;
-    background: #141510;
+    color: #687284;
+    background: #11151D;
     border-color: #252C39;
 }
 
 QPushButton#sendButton:disabled {
-    color: #7D8075;
+    color: #70798A;
     background: #222836;
     border: 1px solid #343D4E;
 }
 
 QPushButton#groundButton:disabled {
-    color: #6F7168;
+    color: #687284;
     background: #11151D;
     border-color: #2A3140;
 }
@@ -705,13 +706,13 @@ QScrollBar:vertical {
 }
 
 QScrollBar::handle:vertical {
-    background: #36382F;
+    background: #303748;
     min-height: 32px;
     border-radius: 4px;
 }
 
 QScrollBar::handle:vertical:hover {
-    background: #4B4E40;
+    background: #465168;
 }
 
 QScrollBar::add-line:vertical,
@@ -765,8 +766,8 @@ QFrame#v3SecurityPosture {
 }
 
 QFrame#v3ResearchBrief {
-    background: #151711;
-    border-color: #303626;
+    background: #121722;
+    border-color: #252C39;
 }
 
 QLabel#v3KnowledgeState {
@@ -788,7 +789,7 @@ QLabel#v3SchedulerStatus,
 QLabel#v3SourcesStatus,
 QLabel#v3SystemDetail,
 QLabel#v3RuntimeCardHint {
-    color: #8F8C82;
+    color: #98A1B1;
     font-size: 8.8pt;
 }
 
@@ -894,7 +895,7 @@ QLineEdit#helpSearch {
 }
 
 QLineEdit#helpSearch:focus {
-    border-color: #3D7669;
+    border-color: #7C9CFF;
 }
 
 QListWidget#helpSections,
@@ -956,19 +957,19 @@ QLabel#commandPaletteHint {
 
 QLineEdit#commandPaletteQuery {
     color: #F2F4F8;
-    background: #1A1C17;
-    border: 1px solid #404434;
+    background: #151922;
+    border: 1px solid #3B4558;
     border-radius: 14px;
     padding: 12px 14px;
     font-size: 11pt;
 }
 
 QLineEdit#commandPaletteQuery:focus {
-    border-color: #3D7669;
+    border-color: #7C9CFF;
 }
 
 QListWidget#commandPaletteResults {
-    color: #E8E3EC;
+    color: #F2F4F8;
     background: transparent;
     border: none;
     padding: 4px 0;
@@ -992,7 +993,7 @@ QListWidget#commandPaletteResults::item:selected {
 QLabel#commandPaletteFooter,
 QLabel#helpDialogIntro {
     color: #7E8797;
-    font-size: 8.7pt;
+    font-size: 9pt;
 }
 
 QPlainTextEdit#helpText {
@@ -1049,5 +1050,24 @@ QPushButton#comfyUiReleaseVram {
     color: #F0D18A;
     background: #292518;
     border-color: #4D4326;
+}
+
+/* --- Editorial empty states ------------------------------------------- */
+
+QFrame#v3EmptyState {
+    background: transparent;
+    border: none;
+}
+
+QLabel#v3EmptyTitle {
+    color: #F2F4F8;
+    font-size: 16pt;
+    font-weight: 700;
+    letter-spacing: -0.35px;
+}
+
+QLabel#v3EmptyBody {
+    color: #98A1B1;
+    font-size: 9.5pt;
 }
 """
