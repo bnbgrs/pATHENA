@@ -275,7 +275,17 @@ class LMStudioProvider:
                 return True
             self._runtime_start_attempt[:] = [now]
 
-            self._run_lms(
+            daemon = self._run_lms(
+                cli,
+                ("daemon", "up", "--json"),
+                timeout_seconds=15.0,
+            )
+            if daemon is None or daemon.returncode != 0:
+                # pATHENA manages only llmster/headless. Never fall back to
+                # launching the LM Studio desktop GUI.
+                return False
+
+            server = self._run_lms(
                 cli,
                 (
                     "server",
@@ -287,6 +297,8 @@ class LMStudioProvider:
                 ),
                 timeout_seconds=30.0,
             )
+            if server is None or server.returncode != 0:
+                return False
         return True
 
     @staticmethod
