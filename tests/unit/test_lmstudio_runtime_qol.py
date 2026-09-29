@@ -5,7 +5,12 @@ from pathlib import Path
 
 import pytest
 
-from athena.desktop.lmstudio_runtime import _endpoint_port, _find_lms, _process_command
+from athena.desktop.lmstudio_runtime import (
+    _endpoint_port,
+    _find_lms,
+    _process_command,
+    _should_attempt_auto_load,
+)
 
 
 @pytest.mark.parametrize(
@@ -71,3 +76,33 @@ def test_cmd_wrapper_rejects_shell_metacharacters() -> None:
             "C:\\Tools\\lms.cmd",
             ("load", "unsafe&model"),
         )
+
+
+@pytest.mark.parametrize(
+    ("loaded", "enabled", "attempted_model_id", "busy", "expected"),
+    [
+        (False, True, None, False, True),
+        (False, True, "other-model", False, True),
+        (False, True, "model-id", False, False),
+        (True, True, None, False, False),
+        (False, False, None, False, False),
+        (False, True, None, True, False),
+    ],
+)
+def test_auto_load_attempts_once_per_selected_model(
+    loaded: bool,
+    enabled: bool,
+    attempted_model_id: str | None,
+    busy: bool,
+    expected: bool,
+) -> None:
+    assert (
+        _should_attempt_auto_load(
+            model_id="model-id",
+            loaded=loaded,
+            enabled=enabled,
+            attempted_model_id=attempted_model_id,
+            busy=busy,
+        )
+        is expected
+    )
