@@ -380,9 +380,9 @@ class LMStudioRuntimeController(QObject):
         if not self._steps:
             self._active_step = None
             self.busy_changed.emit(False)
+            selected_model = self.window._selected_model()
             self.unload_button.setEnabled(
-                self.window._selected_model() is not None
-                and bool(self.window._selected_model().loaded)
+                selected_model is not None and selected_model.loaded
             )
             QTimer.singleShot(250, self.controller.refresh)
             return
