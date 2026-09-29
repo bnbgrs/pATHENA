@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from PySide6.QtCore import QPoint, QSize, Qt, QTimer, Signal, Slot
+from PySide6.QtCore import QPoint, QSettings, QSize, Qt, QTimer, Signal, Slot
 from PySide6.QtGui import (
     QColor,
     QKeySequence,
@@ -29,6 +29,7 @@ from PySide6.QtWidgets import (
     QMainWindow,
     QMessageBox,
     QPlainTextEdit,
+    QProgressBar,
     QPushButton,
     QScrollArea,
     QSizePolicy,
@@ -313,6 +314,16 @@ class AthenaMainWindow(QMainWindow):
         self.setMinimumSize(1320, 780)
 
         self.api_controller = api_controller
+        self._settings = QSettings()
+        self._preferred_model_id = self._settings.value(
+            "chat/model_id",
+            "",
+            type=str,
+        ) or None
+        self._active_model_id: str | None = None
+        self._pending_model_id: str | None = None
+        self._model_busy = False
+        self._activity_name = "LOCAL TASK"
         self.navigation = QListWidget()
         self.pages = QStackedWidget()
         self.ascii_panel = AsciiPanel()
@@ -336,6 +347,10 @@ class AthenaMainWindow(QMainWindow):
         self.temperature_spin = QDoubleSpinBox()
         self.thinking_checkbox = QCheckBox("OFF — REASONING DISABLED")
         self.settings_model_value = QLabel("—")
+        self.model_progress_label = QLabel("MODEL / WAITING")
+        self.model_progress = QProgressBar()
+        self.task_progress_label = QLabel("TASK / IDLE")
+        self.task_progress = QProgressBar()
         self._models_by_id: dict[str, ModelResponse] = {}
         self._context_by_model: dict[str, int] = {}
         self._max_output_by_model: dict[str, int] = {}
@@ -497,6 +512,7 @@ class AthenaMainWindow(QMainWindow):
         for name in _NAVIGATION:
             self.pages.addWidget(self._build_page(name))
         layout.addWidget(self.pages, 1)
+        layout.addWidget(self._build_progress_strip())
         layout.addWidget(self._build_command_input())
         return center
 
@@ -616,6 +632,8 @@ class AthenaMainWindow(QMainWindow):
         target_model = (
             previous_model
             if previous_model in self._models_by_id
+            else self._preferred_model_id
+            if self._preferred_model_id in self._models_by_id
             else loaded.backend_model_id
             if loaded is not None
             else llms[0].backend_model_id
@@ -741,6 +759,16 @@ class AthenaMainWindow(QMainWindow):
         )
         for selector in (self.model_selector, self.settings_model_selector):
             selector.setStyleSheet(selector_style)
+
+        loaded_selected = selected is not None and selected.loaded
+        if loaded_selected and selected is not None:
+            self._active_model_id = selected.backend_model_id
+            self._set_model_progress_ready(selected.display_name)
+        elif selected is not None and not self._model_busy:
+            self._set_model_progress_available(selected.display_name)
+            QTimer.singleShot(0, self._request_selected_model_activation)
+        elif selected is None and not self._model_busy:
+            self._set_model_progress_available("NO MODEL")
     def _build_settings_page(self, page: QWidget) -> QWidget:
         layout = QVBoxLayout(page)
         layout.setContentsMargins(8, 0, 18, 28)
@@ -935,6 +963,12 @@ class AthenaMainWindow(QMainWindow):
                 self.context_spin.setSingleStep(context_step)
 
                 remembered = self._context_by_model.get(model.backend_model_id)
+                if remembered is None:
+                    remembered = self._settings.value(
+                        f"models/{model.backend_model_id}/context",
+                        runtime_limit,
+                        type=int,
+                    )
                 target = runtime_limit if remembered is None else remembered
                 target = max(minimum, min(target, runtime_limit))
                 self.context_slider.setValue(target)
@@ -952,6 +986,12 @@ class AthenaMainWindow(QMainWindow):
             self.max_output_spin.setSingleStep(min(256, output_max))
 
             remembered_output = self._max_output_by_model.get(model.backend_model_id)
+            if remembered_output is None:
+                remembered_output = self._settings.value(
+                    f"models/{model.backend_model_id}/max_output",
+                    min(8192, output_max),
+                    type=int,
+                )
             output_target = (
                 min(8192, output_max)
                 if remembered_output is None
@@ -961,11 +1001,23 @@ class AthenaMainWindow(QMainWindow):
             self.max_output_spin.setValue(output_target)
             self._max_output_by_model[model.backend_model_id] = output_target
 
-            temperature = self._temperature_by_model.get(model.backend_model_id, 0.7)
+            temperature = self._temperature_by_model.get(model.backend_model_id)
+            if temperature is None:
+                temperature = self._settings.value(
+                    f"models/{model.backend_model_id}/temperature",
+                    0.7,
+                    type=float,
+                )
             self.temperature_spin.setValue(temperature)
             self._temperature_by_model[model.backend_model_id] = temperature
 
-            thinking = self._thinking_by_model.get(model.backend_model_id, False)
+            thinking = self._thinking_by_model.get(model.backend_model_id)
+            if thinking is None:
+                thinking = self._settings.value(
+                    f"models/{model.backend_model_id}/thinking",
+                    False,
+                    type=bool,
+                )
             self.thinking_checkbox.setChecked(thinking)
             self.thinking_checkbox.setText(
                 "ON — MODEL REASONING ALLOWED"
@@ -1007,6 +1059,8 @@ class AthenaMainWindow(QMainWindow):
         self._configure_context_for_selected_model()
         model = self._selected_model()
         if model is not None:
+            self._preferred_model_id = model.backend_model_id
+            self._settings.setValue("chat/model_id", model.backend_model_id)
             self.local_model_metric.set_value(model.display_name)
             self.model_metric.set_value(model.display_name)
             selector_style = (
@@ -1016,6 +1070,7 @@ class AthenaMainWindow(QMainWindow):
             )
             for selector in (self.model_selector, self.settings_model_selector):
                 selector.setStyleSheet(selector_style)
+            self._request_selected_model_activation()
         else:
             self.local_model_metric.set_value("none selected")
             self.model_metric.set_value("—")
@@ -1037,6 +1092,7 @@ class AthenaMainWindow(QMainWindow):
                 self.context_spin.blockSignals(False)
 
         self._context_by_model[model_id] = value
+        self._settings.setValue(f"models/{model_id}/context", value)
         formatted = _format_context(value)
         self.context_value_label.setText(formatted)
         self.context_metric.set_value(formatted)
@@ -1080,6 +1136,7 @@ class AthenaMainWindow(QMainWindow):
         model_id = self._selected_model_id()
         if model_id is not None:
             self._max_output_by_model[model_id] = value
+            self._settings.setValue(f"models/{model_id}/max_output", value)
 
     def _on_max_output_slider_changed(self, value: int) -> None:
         if self.max_output_spin.value() != value:
@@ -1091,11 +1148,16 @@ class AthenaMainWindow(QMainWindow):
         model_id = self._selected_model_id()
         if model_id is not None:
             self._max_output_by_model[model_id] = value
+            self._settings.setValue(f"models/{model_id}/max_output", value)
 
     def _on_temperature_changed(self, value: float) -> None:
         model_id = self._selected_model_id()
         if model_id is not None:
             self._temperature_by_model[model_id] = float(value)
+            self._settings.setValue(
+                f"models/{model_id}/temperature",
+                float(value),
+            )
 
     def _on_thinking_changed(self, checked: bool) -> None:
         self.thinking_checkbox.setText(
@@ -1111,6 +1173,10 @@ class AthenaMainWindow(QMainWindow):
         model_id = self._selected_model_id()
         if model_id is not None:
             self._thinking_by_model[model_id] = checked
+            self._settings.setValue(
+                f"models/{model_id}/thinking",
+                checked,
+            )
 
     def _transient_key(self) -> str:
         return self.current_chat_id or "__NEW_CHAT__"
@@ -1395,6 +1461,143 @@ class AthenaMainWindow(QMainWindow):
         layout.addStretch(1)
         return chain
 
+    def _build_progress_strip(self) -> QWidget:
+        strip = QFrame()
+        strip.setObjectName("activityStrip")
+        layout = QHBoxLayout(strip)
+        layout.setContentsMargins(2, 7, 2, 7)
+        layout.setSpacing(12)
+
+        for label, bar, name in (
+            (self.model_progress_label, self.model_progress, "modelProgress"),
+            (self.task_progress_label, self.task_progress, "taskProgress"),
+        ):
+            label.setObjectName("activityProgressLabel")
+            label.setMinimumWidth(142)
+            bar.setObjectName(name)
+            bar.setTextVisible(False)
+            bar.setFixedHeight(5)
+            bar.setRange(0, 100)
+            bar.setValue(0)
+            layout.addWidget(label)
+            layout.addWidget(bar, 1)
+
+        return strip
+
+    def _set_model_progress_available(self, name: str) -> None:
+        self.model_progress_label.setText(f"MODEL / {name} / AVAILABLE")
+        self.model_progress.setRange(0, 100)
+        self.model_progress.setValue(0)
+
+    def _set_model_progress_running(self, name: str) -> None:
+        self.model_progress_label.setText(f"MODEL / LOADING {name}")
+        self.model_progress.setRange(0, 0)
+
+    def _set_model_progress_ready(self, name: str) -> None:
+        self.model_progress_label.setText(f"MODEL / READY / {name}")
+        self.model_progress.setRange(0, 100)
+        self.model_progress.setValue(100)
+
+    def _set_model_progress_error(self, message: str) -> None:
+        self.model_progress_label.setText("MODEL / ERROR")
+        self.model_progress.setRange(0, 100)
+        self.model_progress.setValue(0)
+        self.model_progress.setToolTip(message)
+
+    def _set_task_progress_running(self, name: str) -> None:
+        self.task_progress_label.setText(f"TASK / {name}")
+        self.task_progress.setRange(0, 0)
+
+    def _set_task_progress_complete(self, name: str) -> None:
+        self.task_progress_label.setText(f"TASK / {name} / DONE")
+        self.task_progress.setRange(0, 100)
+        self.task_progress.setValue(100)
+        QTimer.singleShot(1200, self._reset_task_progress)
+
+    def _reset_task_progress(self) -> None:
+        if self._chat_busy:
+            return
+        self.task_progress_label.setText("TASK / IDLE")
+        self.task_progress.setRange(0, 100)
+        self.task_progress.setValue(0)
+
+    def _request_selected_model_activation(self) -> None:
+        controller = self.api_controller
+        model = self._selected_model()
+        if (
+            controller is None
+            or model is None
+            or self._model_busy
+            or self._chat_busy
+        ):
+            return
+        other_loaded = any(
+            candidate.loaded
+            and candidate.backend_model_id != model.backend_model_id
+            for candidate in self._models_by_id.values()
+        )
+        if model.loaded and not other_loaded:
+            self._active_model_id = model.backend_model_id
+            self._set_model_progress_ready(model.display_name)
+            return
+
+        self._pending_model_id = model.backend_model_id
+        self._set_model_progress_running(model.display_name)
+        controller.activate_model(
+            model_id=model.backend_model_id,
+            context_length=self._effective_context_limit(),
+            unload_others=True,
+        )
+
+    @Slot(bool)
+    def apply_model_busy(self, busy: bool) -> None:
+        self._model_busy = busy
+        if busy:
+            model = self._selected_model()
+            self._set_model_progress_running(
+                model.display_name if model is not None else "LOCAL MODEL"
+            )
+        self._sync_composer_enabled()
+
+    @Slot(object)
+    def apply_model_activated(self, model: object) -> None:
+        if not isinstance(model, ModelResponse):
+            return
+        self._active_model_id = model.backend_model_id
+        self._pending_model_id = None
+        self._preferred_model_id = model.backend_model_id
+        self._settings.setValue("chat/model_id", model.backend_model_id)
+        self._set_model_progress_ready(model.display_name)
+        self.status_text.setText("LOCAL / READY")
+
+    @Slot(str)
+    def apply_model_activation_failure(self, message: str) -> None:
+        self._pending_model_id = None
+        self._set_model_progress_error(message)
+        self.connection_detail.setText(message)
+        self.status_text.setText("LOCAL / MODEL ERROR")
+        if self._active_model_id is not None:
+            index = self.model_selector.findData(self._active_model_id)
+            settings_index = self.settings_model_selector.findData(
+                self._active_model_id
+            )
+            if index >= 0:
+                self.model_selector.blockSignals(True)
+                try:
+                    self.model_selector.setCurrentIndex(index)
+                finally:
+                    self.model_selector.blockSignals(False)
+            if settings_index >= 0:
+                self.settings_model_selector.blockSignals(True)
+                try:
+                    self.settings_model_selector.setCurrentIndex(settings_index)
+                finally:
+                    self.settings_model_selector.blockSignals(False)
+            self._preferred_model_id = self._active_model_id
+            self._settings.setValue("chat/model_id", self._active_model_id)
+            self._configure_context_for_selected_model()
+        self._sync_composer_enabled()
+
     def _build_command_input(self) -> QWidget:
         composer = QFrame()
         composer.setObjectName("composer")
@@ -1636,6 +1839,11 @@ class AthenaMainWindow(QMainWindow):
         )
         controller.chat_operation_failed.connect(self.apply_chat_operation_failure)
         controller.chat_busy_changed.connect(self.apply_chat_busy)
+        controller.model_busy_changed.connect(self.apply_model_busy)
+        controller.model_activated.connect(self.apply_model_activated)
+        controller.model_activation_failed.connect(
+            self.apply_model_activation_failure
+        )
 
         QTimer.singleShot(0, self.refresh_core_status)
         self.refresh_timer.start()
@@ -2045,6 +2253,10 @@ class AthenaMainWindow(QMainWindow):
     @Slot(bool)
     def apply_chat_busy(self, busy: bool) -> None:
         self._chat_busy = busy
+        if busy:
+            self._set_task_progress_running(self._activity_name)
+        else:
+            self._set_task_progress_complete(self._activity_name)
         self._sync_composer_enabled()
 
     @Slot()
@@ -2071,6 +2283,7 @@ class AthenaMainWindow(QMainWindow):
             return
 
         if self.web_button.isChecked():
+            self._activity_name = "WEB RESEARCH"
             controller.send_message(
                 chat_id=self.current_chat_id,
                 content=f"/web {content}",
@@ -2081,6 +2294,7 @@ class AthenaMainWindow(QMainWindow):
                 thinking_enabled=self._thinking_enabled(),
             )
         elif self.ground_button.isChecked():
+            self._activity_name = "GROUNDING"
             controller.send_grounded_message(
                 chat_id=self.current_chat_id,
                 content=content,
@@ -2091,6 +2305,7 @@ class AthenaMainWindow(QMainWindow):
                 thinking_enabled=self._thinking_enabled(),
             )
         else:
+            self._activity_name = "GENERATION"
             controller.send_message(
                 chat_id=self.current_chat_id,
                 content=content,
@@ -2233,6 +2448,7 @@ class AthenaMainWindow(QMainWindow):
         controls_available = (
             self.api_controller is not None
             and not self._chat_busy
+            and not self._model_busy
             and self.pending_chat_id is None
         )
         send_enabled = controls_available and self._core_ready
