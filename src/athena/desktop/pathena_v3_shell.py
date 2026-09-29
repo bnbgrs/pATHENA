@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
 )
 
 from athena.desktop.pathena_v3_components import (
+    V3ComposerFrame,
     V3ControlRow,
     V3NavigationButton,
     V3Pill,
@@ -314,7 +315,7 @@ class PathenaV3ShellController(QObject):
         stage_row.addStretch(1)
         outer.addLayout(stage_row, 1)
 
-        composer = QFrame()
+        composer = V3ComposerFrame()
         composer.setObjectName("v3Composer")
         composer_layout = QHBoxLayout(composer)
         composer_layout.setContentsMargins(16, 12, 12, 12)
@@ -360,6 +361,10 @@ class PathenaV3ShellController(QObject):
         window.send_button.show()
         window.send_button.raise_()
         window.send_button.update()
+        composer.bind_actions(
+            ground_button=window.ground_button,
+            send_button=window.send_button,
+        )
         composer.setMinimumWidth(620)
         composer.setMaximumWidth(1120)
         composer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
