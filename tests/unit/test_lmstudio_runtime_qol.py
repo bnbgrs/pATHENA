@@ -179,7 +179,6 @@ def test_model_load_verification_has_bounded_retry_and_failure() -> None:
     )
 
 
-
 @pytest.mark.parametrize(
     ("value", "expected"),
     [
