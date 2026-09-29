@@ -670,15 +670,15 @@ QPushButton#fileProcessButton:disabled {
 }
 
 QPushButton#sendButton:disabled {
-    color: #70798A;
-    background: #222836;
-    border: 1px solid #343D4E;
+    color: #C0CAE6;
+    background: #27344F;
+    border: 1px solid #40577F;
 }
 
 QPushButton#groundButton:disabled {
-    color: #687284;
-    background: #11151D;
-    border-color: #2A3140;
+    color: #8C98B0;
+    background: #151D2B;
+    border-color: #33405A;
 }
 
 QCheckBox {
