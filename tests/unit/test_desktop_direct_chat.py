@@ -898,3 +898,42 @@ def test_window_ctrl_enter_submits_direct_chat() -> None:
         assert pool.waitForDone(
             2_000
         )
+
+
+def test_window_keeps_prompt_editable_when_provider_is_unavailable() -> None:
+    app = _app()
+    gateway = _Gateway()
+    pool = _pool()
+    controller = DesktopApiController(
+        gateway,
+        thread_pool=pool,
+    )
+    window = AthenaMainWindow(controller)
+    try:
+        window.apply_api_snapshot(
+            DesktopApiSnapshot(
+                health=HealthResponse(
+                    api_version="v1",
+                    core_status="ok",
+                    detail=None,
+                ),
+                provider=ProviderHealthResponse(
+                    provider="lm_studio",
+                    status="unavailable",
+                    detail="LM Studio is not reachable at http://127.0.0.1:1234.",
+                ),
+                models=(),
+                chats=(),
+            )
+        )
+        app.processEvents()
+
+        assert window.prompt_input.isEnabled() is True
+        assert window.send_button.isEnabled() is False
+        assert window.ground_button.isEnabled() is False
+
+        window.prompt_input.setText("draft survives provider reconnect")
+        assert window.prompt_input.text() == "draft survives provider reconnect"
+    finally:
+        window.close()
+        assert pool.waitForDone(2_000)
