@@ -12,7 +12,7 @@ import shutil
 from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Final
+from typing import Final, Literal
 from urllib.parse import urlparse
 
 from PySide6.QtCore import QObject, QProcess, QSettings, QTimer, Signal, Slot
@@ -31,6 +31,9 @@ from athena.desktop.pathena_window import PathenaMainWindow
 
 _SETTINGS_ROOT: Final = "desktop/lmstudio-runtime/v1"
 _DEFAULT_BASE_URL: Final = "http://127.0.0.1:1234"
+_MODEL_VERIFY_INTERVAL_MS: Final = 750
+_MODEL_VERIFY_REFRESH_LIMIT: Final = 5
+_MODEL_LOAD_RETRY_LIMIT: Final = 1
 
 
 @dataclass(frozen=True, slots=True)
@@ -132,6 +135,26 @@ def _should_attempt_auto_start(
     return enabled and not provider_ready and not attempted and not busy
 
 
+def _model_verification_action(
+    *,
+    loaded: bool,
+    refreshes: int,
+    retries: int,
+) -> Literal["confirmed", "wait", "retry", "failed"]:
+    """Choose the bounded next step after a successful `lms load` command.
+
+    The CLI exit code proves only that the command completed. Core discovery remains
+    authoritative for whether the selected model is actually ready.
+    """
+    if loaded:
+        return "confirmed"
+    if refreshes < _MODEL_VERIFY_REFRESH_LIMIT:
+        return "wait"
+    if retries < _MODEL_LOAD_RETRY_LIMIT:
+        return "retry"
+    return "failed"
+
+
 class LMStudioRuntimeController(QObject):
     """Start the headless LM Studio service and load the model selected in pATHENA."""
 
@@ -156,7 +179,15 @@ class LMStudioRuntimeController(QObject):
         self._pending_model_id: str | None = None
         self._auto_load_attempted_model_id: str | None = None
         self._auto_start_attempted = False
+        self._verifying_model_id: str | None = None
+        self._model_verify_refreshes = 0
+        self._model_load_retries = 0
         self._last_snapshot: DesktopApiSnapshot | None = None
+
+        self._model_verify_timer = QTimer(self)
+        self._model_verify_timer.setSingleShot(True)
+        self._model_verify_timer.setInterval(_MODEL_VERIFY_INTERVAL_MS)
+        self._model_verify_timer.timeout.connect(controller.refresh)
 
         self.process = QProcess(self)
         self.process.setProcessChannelMode(QProcess.ProcessChannelMode.MergedChannels)
@@ -238,7 +269,12 @@ class LMStudioRuntimeController(QObject):
     @Slot(bool)
     def _auto_load_toggled(self, checked: bool) -> None:
         self._persist_settings(checked)
+        self._model_verify_timer.stop()
+        self._verifying_model_id = None
+        self._model_verify_refreshes = 0
+        self._model_load_retries = 0
         if not checked:
+            self._pending_model_id = None
             return
         self._auto_load_attempted_model_id = None
         if self._last_snapshot is not None:
@@ -319,6 +355,10 @@ class LMStudioRuntimeController(QObject):
         if selected is None:
             self._pending_model_id = None
             self._auto_load_attempted_model_id = None
+            self._model_verify_timer.stop()
+            self._verifying_model_id = None
+            self._model_verify_refreshes = 0
+            self._model_load_retries = 0
             self.unload_button.setEnabled(False)
             self._set_status("LM Studio runtime · server ready · no model selected")
             return
@@ -326,10 +366,49 @@ class LMStudioRuntimeController(QObject):
         self.unload_button.setEnabled(selected.loaded and not self.busy)
         if selected.loaded:
             self._pending_model_id = None
+            self._model_verify_timer.stop()
+            self._verifying_model_id = None
+            self._model_verify_refreshes = 0
+            self._model_load_retries = 0
             # Remember that this model has been satisfied for the current selection.
             # Keeping this marker avoids immediately undoing an intentional idle-TTL unload.
             self._auto_load_attempted_model_id = selected.backend_model_id
             self._set_status(f"LM Studio runtime · {selected.display_name} loaded")
+            return
+
+        if self._verifying_model_id == selected.backend_model_id:
+            action = _model_verification_action(
+                loaded=selected.loaded,
+                refreshes=self._model_verify_refreshes,
+                retries=self._model_load_retries,
+            )
+            if action == "wait":
+                self._set_status(
+                    f"LM Studio runtime · verifying {selected.display_name} with Core"
+                )
+                if not self._model_verify_timer.isActive():
+                    self._model_verify_refreshes += 1
+                    self._model_verify_timer.start()
+                return
+            if action == "retry":
+                self._model_verify_timer.stop()
+                self._verifying_model_id = None
+                self._model_verify_refreshes = 0
+                self._model_load_retries += 1
+                self._set_status(
+                    f"LM Studio runtime · retrying {selected.display_name} load"
+                )
+                self.ensure_selected_model()
+                return
+
+            self._model_verify_timer.stop()
+            self._verifying_model_id = None
+            self._pending_model_id = None
+            self._model_verify_refreshes = 0
+            self._set_status(
+                "LM Studio runtime · load completed but Core did not confirm "
+                f"{selected.display_name}; reselect the model to retry"
+            )
             return
 
         self._set_status(f"LM Studio runtime · {selected.display_name} available")
@@ -352,6 +431,10 @@ class LMStudioRuntimeController(QObject):
     @Slot(int)
     def _model_selected(self, _index: int) -> None:
         model = self.window._selected_model()
+        self._model_verify_timer.stop()
+        self._verifying_model_id = None
+        self._model_verify_refreshes = 0
+        self._model_load_retries = 0
         self._auto_load_attempted_model_id = None
         if model is None:
             self._pending_model_id = None
@@ -419,6 +502,10 @@ class LMStudioRuntimeController(QObject):
         self._pending_model_id = model.backend_model_id
         if model.loaded:
             self._pending_model_id = None
+            self._model_verify_timer.stop()
+            self._verifying_model_id = None
+            self._model_verify_refreshes = 0
+            self._model_load_retries = 0
             self._set_status(f"LM Studio runtime · {model.display_name} loaded")
             return
         if self.busy:
@@ -455,6 +542,10 @@ class LMStudioRuntimeController(QObject):
             self._set_status("LM Studio runtime · lms CLI not found")
             return
         self._pending_model_id = None
+        self._model_verify_timer.stop()
+        self._verifying_model_id = None
+        self._model_verify_refreshes = 0
+        self._model_load_retries = 0
         # Manual unload must not be immediately reversed by the next Core snapshot.
         self._auto_load_attempted_model_id = model.backend_model_id
         self._run_sequence(
@@ -518,13 +609,21 @@ class LMStudioRuntimeController(QObject):
             self._steps.clear()
             self._active_step = None
             self.busy_changed.emit(False)
+            if step.operation == "model_load":
+                self._pending_model_id = None
+                self._verifying_model_id = None
+                self._model_verify_timer.stop()
             detail = output.splitlines()[-1] if output else f"exit {exit_code}"
             self._set_status(f"LM Studio runtime · {step.operation} failed · {detail}")
             QTimer.singleShot(250, self.controller.refresh)
             return
 
         if step.operation == "model_load":
-            self._pending_model_id = None
+            # Exit 0 is command completion, not readiness. Hold pending state until
+            # a subsequent Core snapshot confirms this exact backend model as loaded.
+            self._verifying_model_id = self._pending_model_id
+            self._model_verify_refreshes = 0
+            self._model_verify_timer.stop()
         self._active_step = None
         self._start_next_step()
 
@@ -535,6 +634,10 @@ class LMStudioRuntimeController(QObject):
         self._active_step = None
         self.busy_changed.emit(False)
         label = step.operation if step is not None else "command"
+        if step is not None and step.operation == "model_load":
+            self._pending_model_id = None
+            self._verifying_model_id = None
+            self._model_verify_timer.stop()
         self._set_status(f"LM Studio runtime · {label} error · {error.name}")
         QTimer.singleShot(250, self.controller.refresh)
 
