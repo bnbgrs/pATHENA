@@ -66,6 +66,34 @@ class _Chat:
         )
 
 
+class _News:
+    def __init__(self) -> None:
+        self.value = {
+            "enabled": 1,
+            "timezone_name": "Europe/Berlin",
+            "local_hour": 7,
+            "local_minute": 0,
+        }
+
+    def profile(self) -> dict[str, object]:
+        return dict(self.value)
+
+    def configure_profile(
+        self,
+        *,
+        timezone_name: str | None = None,
+        local_hour: int | None = None,
+        local_minute: int | None = None,
+    ) -> dict[str, object]:
+        if timezone_name is not None:
+            self.value["timezone_name"] = timezone_name
+        if local_hour is not None:
+            self.value["local_hour"] = local_hour
+        if local_minute is not None:
+            self.value["local_minute"] = local_minute
+        return dict(self.value)
+
+
 class _Provider:
     @property
     def provider_id(self) -> str:
@@ -161,6 +189,15 @@ def _app(tmp_path) -> tuple[CoreApiAsgiApp, LocalApiRuntime, str]:
     return CoreApiAsgiApp(facade=_facade(), runtime=runtime), runtime, token
 
 
+def _news_app(tmp_path) -> tuple[CoreApiAsgiApp, LocalApiRuntime, str]:
+    runtime = LocalApiRuntime(tmp_path / "news-api")
+    runtime.publish(port=32124)
+    token = runtime.token_path.read_text(encoding="utf-8").strip()
+    facade = _facade()
+    facade.attach_news(_News())
+    return CoreApiAsgiApp(facade=facade, runtime=runtime), runtime, token
+
+
 def test_asgi_requires_session_token(tmp_path) -> None:
     app, runtime, _token = _app(tmp_path)
 
@@ -220,6 +257,42 @@ def test_asgi_health_and_capabilities(tmp_path) -> None:
     assert health_headers["x-request-id"]
     assert capabilities_status == 200
     assert "chat.read" in capabilities["features"]
+
+
+def test_asgi_news_schedule_read_and_update(tmp_path) -> None:
+    app, runtime, token = _news_app(tmp_path)
+
+    read_status, _, initial = asyncio.run(
+        _request(
+            app,
+            runtime,
+            method="GET",
+            path="/api/v1/news/profile",
+            token=token,
+        )
+    )
+    save_status, _, saved = asyncio.run(
+        _request(
+            app,
+            runtime,
+            method="PUT",
+            path="/api/v1/news/profile",
+            token=token,
+            body=json.dumps(
+                {
+                    "timezone_name": "Europe/Berlin",
+                    "local_hour": 6,
+                    "local_minute": 30,
+                }
+            ).encode("utf-8"),
+        )
+    )
+
+    assert read_status == 200
+    assert initial["enabled"] is True
+    assert (initial["local_hour"], initial["local_minute"]) == (7, 0)
+    assert save_status == 200
+    assert (saved["local_hour"], saved["local_minute"]) == (6, 30)
 
 
 def test_asgi_chat_routes_and_limit_validation(tmp_path) -> None:

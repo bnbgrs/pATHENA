@@ -19,6 +19,7 @@ from athena.api.contracts import (
     KnowledgeReviewResponse,
     MessageKnowledgeExtractionResponse,
     ModelResponse,
+    NewsProfileResponse,
     ProviderHealthResponse,
     RememberedChatMessageResponse,
     StorageHealthResponse,
@@ -211,6 +212,24 @@ class SerializedCoreApiSurface:
 
     def capabilities(self) -> CapabilitiesResponse:
         return self._executor.call(self._surface.capabilities)
+
+    def news_profile(self) -> NewsProfileResponse:
+        return self._executor.call(self._surface.news_profile)
+
+    def configure_news_schedule(
+        self,
+        *,
+        timezone_name: str,
+        local_hour: int,
+        local_minute: int,
+    ) -> NewsProfileResponse:
+        return self._executor.call(
+            lambda: self._surface.configure_news_schedule(
+                timezone_name=timezone_name,
+                local_hour=local_hour,
+                local_minute=local_minute,
+            )
+        )
 
     def list_chats(
         self,

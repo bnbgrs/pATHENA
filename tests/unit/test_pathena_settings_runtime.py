@@ -14,6 +14,7 @@ from PySide6.QtWidgets import QApplication
 from athena.api.contracts import (
     HealthResponse,
     ModelResponse,
+    NewsProfileResponse,
     ProviderHealthResponse,
 )
 from athena.desktop.api_controller import (
@@ -92,6 +93,32 @@ def _apply(
 ) -> None:
     window.apply_api_snapshot(snapshot)
     runtime.apply_snapshot(snapshot)
+
+
+def test_news_schedule_profile_is_presented_in_settings(tmp_path) -> None:
+    app = _app()
+    window = PathenaMainWindow(api_controller=None)
+    runtime = install_settings_runtime(window, None, settings=_settings(tmp_path))
+    try:
+        runtime.apply_news_profile(
+            NewsProfileResponse(
+                api_version="v1",
+                enabled=True,
+                timezone_name="Europe/Berlin",
+                local_hour=6,
+                local_minute=30,
+            )
+        )
+
+        assert runtime.news_time.time().hour() == 6
+        assert runtime.news_time.time().minute() == 30
+        assert runtime.news_time.isEnabled() is True
+        assert runtime.news_save.isEnabled() is True
+        assert runtime.news_status.text() == "News enabled · daily 06:30 · Europe/Berlin"
+        assert runtime.news_status.property("pathenaUiState") == "success"
+    finally:
+        window.close()
+        app.processEvents()
 
 
 def test_model_settings_persist_across_real_window_recreation(tmp_path) -> None:

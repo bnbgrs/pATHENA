@@ -116,6 +116,39 @@ class CoreApiAsgiApp:
                 await _send_contract(send, self._facade.capabilities(), request_id=request_id)
                 return
 
+            if method == "GET" and path == "/api/v1/news/profile":
+                await _send_contract(
+                    send,
+                    self._facade.news_profile(),
+                    request_id=request_id,
+                )
+                return
+
+            if method == "PUT" and path == "/api/v1/news/profile":
+                payload = await _read_json_object(receive)
+                unknown = set(payload) - {"timezone_name", "local_hour", "local_minute"}
+                if unknown:
+                    raise ValueError("News profile request contains unsupported fields.")
+                timezone_name = payload.get("timezone_name")
+                local_hour = payload.get("local_hour")
+                local_minute = payload.get("local_minute")
+                if not isinstance(timezone_name, str) or not timezone_name.strip():
+                    raise ValueError("News timezone_name must be non-empty text.")
+                if isinstance(local_hour, bool) or not isinstance(local_hour, int):
+                    raise ValueError("News local_hour must be an integer.")
+                if isinstance(local_minute, bool) or not isinstance(local_minute, int):
+                    raise ValueError("News local_minute must be an integer.")
+                await _send_contract(
+                    send,
+                    self._facade.configure_news_schedule(
+                        timezone_name=timezone_name,
+                        local_hour=local_hour,
+                        local_minute=local_minute,
+                    ),
+                    request_id=request_id,
+                )
+                return
+
             if method == "GET" and path == "/api/v1/chats":
                 limit = _positive_limit(
                     scope,
@@ -838,6 +871,7 @@ def _known_path(path: str) -> bool:
         "/api/v1/health",
         "/api/v1/storage/health",
         "/api/v1/capabilities",
+        "/api/v1/news/profile",
         "/api/v1/chats",
         "/api/v1/models",
         "/api/v1/models/health",
