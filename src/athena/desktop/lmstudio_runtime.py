@@ -121,6 +121,17 @@ def _should_attempt_auto_load(
     )
 
 
+def _should_attempt_auto_start(
+    *,
+    provider_ready: bool,
+    enabled: bool,
+    attempted: bool,
+    busy: bool,
+) -> bool:
+    """Attempt automatic server start once per provider-unavailable episode."""
+    return enabled and not provider_ready and not attempted and not busy
+
+
 class LMStudioRuntimeController(QObject):
     """Start the headless LM Studio service and load the model selected in pATHENA."""
 
@@ -144,6 +155,7 @@ class LMStudioRuntimeController(QObject):
         self._active_step: _CommandStep | None = None
         self._pending_model_id: str | None = None
         self._auto_load_attempted_model_id: str | None = None
+        self._auto_start_attempted = False
         self._last_snapshot: DesktopApiSnapshot | None = None
 
         self.process = QProcess(self)
@@ -172,7 +184,7 @@ class LMStudioRuntimeController(QObject):
         self._restore_settings()
         self._install_settings_panel()
 
-        self.auto_start.toggled.connect(self._persist_settings)
+        self.auto_start.toggled.connect(self._auto_start_toggled)
         self.auto_load.toggled.connect(self._auto_load_toggled)
         self.idle_minutes.valueChanged.connect(self._persist_settings)
         self.restart_button.clicked.connect(self.restart_server)
@@ -215,6 +227,13 @@ class LMStudioRuntimeController(QObject):
         finally:
             self.settings.endGroup()
         self.settings.sync()
+
+    @Slot(bool)
+    def _auto_start_toggled(self, checked: bool) -> None:
+        self._persist_settings(checked)
+        self._auto_start_attempted = False
+        if checked and self._last_snapshot is not None:
+            self.apply_snapshot(self._last_snapshot)
 
     @Slot(bool)
     def _auto_load_toggled(self, checked: bool) -> None:
@@ -283,11 +302,19 @@ class LMStudioRuntimeController(QObject):
 
         if not provider_ready:
             self.unload_button.setEnabled(False)
-            if self.auto_start.isChecked():
+            if _should_attempt_auto_start(
+                provider_ready=provider_ready,
+                enabled=self.auto_start.isChecked(),
+                attempted=self._auto_start_attempted,
+                busy=self.busy,
+            ):
+                self._auto_start_attempted = True
                 self.ensure_server()
-            else:
+            elif not self.auto_start.isChecked():
                 self._set_status("LM Studio runtime · server unavailable")
             return
+
+        self._auto_start_attempted = False
 
         if selected is None:
             self._pending_model_id = None
@@ -362,6 +389,7 @@ class LMStudioRuntimeController(QObject):
     def restart_server(self) -> None:
         if self.busy:
             return
+        self._auto_start_attempted = True
         self._auto_load_attempted_model_id = None
         if self._lms_path is None:
             self._set_status("LM Studio runtime · lms CLI not found")
