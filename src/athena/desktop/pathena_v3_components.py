@@ -178,7 +178,9 @@ class V3ComposerFrame(QFrame):
     though their geometry and visibility are correct. The real buttons remain
     authoritative for state, input and accessibility; this frame only paints
     matching underlays so the actions stay visually legible in every renderer.
-    Text and glyphs are deliberately left to the real buttons to avoid double-painting.
+    The frame owns the visible action labels while the real buttons retain their
+    semantic text with transparent foregrounds. This yields exactly one visible
+    label in both native Windows capture and the interactive desktop.
     """
 
     def __init__(self) -> None:
@@ -224,15 +226,21 @@ class V3ComposerFrame(QFrame):
             if ground.isChecked():
                 background = QColor("#18213A")
                 border = QColor("#31457F")
+                foreground = QColor("#E3E9FF")
             elif ground.isEnabled():
                 background = QColor("#151922")
                 border = QColor("#2A3140")
+                foreground = QColor("#A3AAB7")
             else:
                 background = QColor("#151D2B")
                 border = QColor("#33405A")
+                foreground = QColor("#8C98B0")
             painter.setPen(QPen(border, 1.0))
             painter.setBrush(background)
             painter.drawRoundedRect(rect, 9, 9)
+            painter.setPen(foreground)
+            painter.setFont(ground.font())
+            painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, ground.text())
 
         send = self._send_button
         if send is not None and not send.isHidden():
@@ -247,12 +255,17 @@ class V3ComposerFrame(QFrame):
             if send.isEnabled():
                 background = QColor("#7C9CFF")
                 border = QColor("#7C9CFF")
+                foreground = QColor("#0D1016")
             else:
                 background = QColor("#27344F")
                 border = QColor("#40577F")
+                foreground = QColor("#C0CAE6")
             painter.setPen(QPen(border, 1.0))
             painter.setBrush(background)
             painter.drawRoundedRect(rect, diameter / 2.0, diameter / 2.0)
+            painter.setPen(foreground)
+            painter.setFont(send.font())
+            painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, send.text())
 
         painter.end()
 
