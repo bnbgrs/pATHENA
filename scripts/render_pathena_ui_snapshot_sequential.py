@@ -261,6 +261,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             raise RuntimeError("Real repository-backed Knowledge workbench is unavailable.")
 
         expected_ids = set(reference_knowledge_ids)
+        preferred_id = reference_knowledge_ids[0]
+        stabilized = False
         deadline = time.monotonic() + 8.0
         observed_ids: set[str] = set()
         detail_id = ""
@@ -271,6 +273,27 @@ def main(argv: Sequence[str] | None = None) -> int:
                 str(knowledge_list.item(index).data(Qt.ItemDataRole.UserRole))
                 for index in range(knowledge_list.count())
             }
+            if expected_ids.issubset(observed_ids) and not stabilized:
+                knowledge_list.sortItems(Qt.SortOrder.AscendingOrder)
+                preferred_row = next(
+                    (
+                        index
+                        for index in range(knowledge_list.count())
+                        if str(
+                            knowledge_list.item(index).data(Qt.ItemDataRole.UserRole)
+                        )
+                        == preferred_id
+                    ),
+                    -1,
+                )
+                if preferred_row < 0:
+                    raise RuntimeError("Preferred Knowledge fixture entry is unavailable.")
+                knowledge_list.setCurrentRow(preferred_row)
+                stabilized = True
+                app.processEvents()
+                time.sleep(0.05)
+                continue
+
             detail_id = str(
                 knowledge_details.property("pathenaKnowledgeEntityId") or ""
             )
@@ -278,8 +301,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 knowledge_details.property("pathenaKnowledgeReviewState") or ""
             )
             if (
-                expected_ids.issubset(observed_ids)
-                and detail_id in expected_ids
+                stabilized
+                and detail_id == preferred_id
                 and detail_state == "ready"
                 and knowledge_details.toPlainText().strip()
             ):
