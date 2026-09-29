@@ -649,9 +649,10 @@ class CoreApiClient:
         unload_others: bool = True,
     ) -> ModelResponse:
         normalized = model_id.strip()
-        if not normalized or "/" in normalized:
-            raise ValueError("Model ID must be a single non-empty path segment.")
+        if not normalized:
+            raise ValueError("Model ID must not be empty.")
         body: dict[str, JsonValue] = {
+            "model_id": normalized,
             "unload_others": unload_others,
         }
         if context_length is not None:
@@ -665,7 +666,7 @@ class CoreApiClient:
         return _model(
             self._request(
                 "POST",
-                f"/api/v1/models/{normalized}/activate",
+                "/api/v1/models/activate",
                 expected_status=200,
                 json_body=body,
                 timeout_seconds=330.0,
