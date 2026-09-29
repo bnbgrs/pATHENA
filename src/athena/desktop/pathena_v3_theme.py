@@ -446,15 +446,9 @@ QFrame#v2FormControl {
     border: none;
 }
 
-QFrame#v3ControlRow {
-    background: #121722;
-    border: 1px solid #252C39;
-    border-radius: 14px;
-}
-
 QFrame#v3ControlRow:hover {
-    background: #161C28;
-    border-color: #343D4E;
+    background: #111722;
+    border-bottom-color: #39445A;
 }
 
 QFrame#v3RuntimeCard {
