@@ -149,6 +149,7 @@ class DirectChatService:
         safety_margin: int = _DEFAULT_SAFETY_MARGIN,
         temperature: float | None = None,
         reasoning_mode: str | None = "off",
+        external_context: str | None = None,
         on_delta: Callable[[str], None] | None = None,
     ) -> DirectChatGenerationResult:
         validated_turns = _bounded_positive_int(
@@ -196,7 +197,19 @@ class DirectChatService:
         prior_sections, prior_refs = _prior_chat_sections(recent_messages)
         conversation_tokens = _estimate_persisted_messages(recent_messages)
         current_user_tokens = estimate_tokens(content) + _MESSAGE_WRAPPER_ESTIMATE
-        estimated_input_tokens = conversation_tokens + current_user_tokens
+        normalized_external_context = (
+            external_context.strip()
+            if isinstance(external_context, str) and external_context.strip()
+            else None
+        )
+        external_context_tokens = (
+            estimate_tokens(normalized_external_context) + _MESSAGE_WRAPPER_ESTIMATE
+            if normalized_external_context is not None
+            else 0
+        )
+        estimated_input_tokens = (
+            conversation_tokens + external_context_tokens + current_user_tokens
+        )
         effective_output_reserve = _effective_output_reserve(
             context_limit=context_limit,
             estimated_input_tokens=estimated_input_tokens,
@@ -249,8 +262,21 @@ class DirectChatService:
             entity_id=user_message.message_id,
             revision_id=user_message.revision_id,
         )
+        external_sections = (
+            (
+                ContextSection(
+                    name="external_web",
+                    role="system",
+                    content=normalized_external_context,
+                    included_ref_ids=(),
+                ),
+            )
+            if normalized_external_context is not None
+            else ()
+        )
         sections = (
             *prior_sections,
+            *external_sections,
             ContextSection(
                 name="current_user",
                 role="user",
@@ -274,7 +300,7 @@ class DirectChatService:
             conversation_tokens=conversation_tokens,
             current_user_tokens=current_user_tokens,
             system_tokens=0,
-            context_tokens=0,
+            context_tokens=external_context_tokens,
             estimated_input_tokens=estimated_input_tokens,
             estimated_total_tokens=estimated_total_tokens,
         )
