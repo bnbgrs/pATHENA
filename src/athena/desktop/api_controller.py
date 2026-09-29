@@ -790,7 +790,15 @@ class _ChatTask(QRunnable):
                         content=self.content,
                     )
 
-                    if state == "complete":
+                    if (
+                        exc.code == "generation_cancelled"
+                        and state == "incomplete"
+                    ):
+                        outcome = _ChatOperationOutcome(
+                            operation="cancelled",
+                            thread=reconciled,
+                        )
+                    elif state == "complete":
                         outcome = _ChatOperationOutcome(
                             operation=self.operation,
                             thread=reconciled,
@@ -1188,6 +1196,7 @@ class DesktopApiController(QObject):
     chat_busy_changed = Signal(bool)
     chat_delta = Signal(str)
     chat_cancel_requested = Signal(bool)
+    chat_cancelled = Signal()
     model_activated = Signal(object)
     model_activation_failed = Signal(str)
     model_busy_changed = Signal(bool)
@@ -1662,6 +1671,9 @@ class DesktopApiController(QObject):
             elif outcome.thread is not None:
                 if outcome.operation == "send":
                     self.chat_sent.emit(outcome.thread)
+                elif outcome.operation == "cancelled":
+                    self.chat_loaded.emit(outcome.thread)
+                    self.chat_cancelled.emit()
                 else:
                     self.chat_loaded.emit(outcome.thread)
         finally:
