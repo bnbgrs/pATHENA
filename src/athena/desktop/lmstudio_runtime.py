@@ -52,7 +52,7 @@ def _default_settings() -> QSettings:
     )
 
 
-def _endpoint_port(base_url: str) -> int:
+def _endpoint(base_url: str) -> tuple[str, int]:
     parsed = urlparse(base_url)
     if parsed.scheme != "http" or parsed.hostname not in {"127.0.0.1", "localhost", "::1"}:
         raise ValueError("LM Studio runtime control requires a loopback HTTP endpoint.")
@@ -61,10 +61,16 @@ def _endpoint_port(base_url: str) -> int:
     except ValueError as exc:
         raise ValueError("LM Studio endpoint contains an invalid port.") from exc
     if port is None:
-        return 80
+        port = 80
     if not 1 <= port <= 65535:
         raise ValueError("LM Studio endpoint contains an invalid port.")
-    return port
+    bind_host = "::1" if parsed.hostname == "::1" else "127.0.0.1"
+    return bind_host, port
+
+
+def _endpoint_port(base_url: str) -> int:
+    """Compatibility helper for tests/callers that only need the validated port."""
+    return _endpoint(base_url)[1]
 
 
 def _find_lms() -> str | None:
@@ -476,7 +482,7 @@ class LMStudioRuntimeController(QObject):
             )
             return
         try:
-            port = _endpoint_port(self.base_url)
+            bind_host, port = _endpoint(self.base_url)
         except ValueError as exc:
             self._set_status(f"LM Studio runtime · {exc}")
             return
@@ -484,8 +490,7 @@ class LMStudioRuntimeController(QObject):
             (
                 _CommandStep("daemon_up", ("daemon", "up"), "Starting headless LM Studio daemon"),
                 _CommandStep(
-                    "server_start",
-                    ("server", "start", "--port", str(port), "--bind", "127.0.0.1"),
+                    "server_start", ("server", "start", "--port", str(port), "--bind", bind_host),
                     "Starting local LM Studio server",
                 ),
             )
@@ -506,7 +511,7 @@ class LMStudioRuntimeController(QObject):
             self._set_status("LM Studio runtime · lms CLI not found")
             return
         try:
-            port = _endpoint_port(self.base_url)
+            bind_host, port = _endpoint(self.base_url)
         except ValueError as exc:
             self._set_status(f"LM Studio runtime · {exc}")
             return
@@ -516,7 +521,7 @@ class LMStudioRuntimeController(QObject):
                 _CommandStep("daemon_up", ("daemon", "up"), "Ensuring headless LM Studio daemon"),
                 _CommandStep(
                     "server_start",
-                    ("server", "start", "--port", str(port), "--bind", "127.0.0.1"),
+                    ("server", "start", "--port", str(port), "--bind", bind_host),
                     "Starting local LM Studio server",
                 ),
             )
