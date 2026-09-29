@@ -83,6 +83,11 @@ def test_runtime_start_uses_headless_server_without_gui(
     assert calls == [
         (
             r"C:\Users\test\.lmstudio\bin\lms.exe",
+            ("daemon", "up", "--json"),
+            15.0,
+        ),
+        (
+            r"C:\Users\test\.lmstudio\bin\lms.exe",
             (
                 "server",
                 "start",
@@ -92,7 +97,7 @@ def test_runtime_start_uses_headless_server_without_gui(
                 "127.0.0.1",
             ),
             30.0,
-        )
+        ),
     ]
 
 
@@ -198,3 +203,72 @@ def test_selected_unloaded_model_is_auto_loaded_and_returned() -> None:
     assert provider.load_calls == [("example/qwen-q4", 8192)]
     assert model.loaded is True
     assert model.backend_model_id == "example/qwen-q4"
+
+
+def test_explicit_context_change_reloads_same_model_instead_of_duplication(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    provider = LMStudioProvider(
+        "http://127.0.0.1:1234",
+        timeout_seconds=1.0,
+        generation_timeout_seconds=2.0,
+    )
+    state = {"loaded": True, "context": 8192}
+    calls: list[tuple[str, str, dict[str, Any] | None]] = []
+
+    def payload() -> dict[str, Any]:
+        raw = _model_payload(loaded=state["loaded"])
+        if state["loaded"]:
+            raw["loaded_instances"][0]["config"]["context_length"] = state["context"]
+        return raw
+
+    def fake_open(request: Any, timeout: float) -> _Response:
+        del timeout
+        body = (
+            None
+            if request.data is None
+            else json.loads(request.data.decode("utf-8"))
+        )
+        calls.append((request.get_method(), request.full_url, body))
+
+        if request.full_url == provider.models_url:
+            return _Response({"models": [payload()]})
+        if request.full_url == provider.model_unload_url:
+            assert body == {"instance_id": "example/qwen-q4:runtime"}
+            state["loaded"] = False
+            return _Response({"status": "unloaded"})
+        if request.full_url == provider.model_load_url:
+            assert body == {
+                "model": "example/qwen-q4",
+                "context_length": 16384,
+            }
+            state["loaded"] = True
+            state["context"] = 16384
+            return _Response(
+                {
+                    "type": "llm",
+                    "instance_id": "example/qwen-q4:runtime",
+                    "load_time_seconds": 0.1,
+                    "status": "loaded",
+                }
+            )
+        raise AssertionError(request.full_url)
+
+    monkeypatch.setattr(lm_studio, "open_local_request", fake_open)
+
+    model = provider.load_model(
+        "example/qwen-q4",
+        context_length=16384,
+    )
+
+    assert model.loaded is True
+    assert model.loaded_context_length == 16384
+    lifecycle = [
+        url
+        for method, url, _body in calls
+        if method == "POST"
+    ]
+    assert lifecycle == [
+        provider.model_unload_url,
+        provider.model_load_url,
+    ]
