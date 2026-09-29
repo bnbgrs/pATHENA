@@ -632,18 +632,20 @@ class CoreApiAsgiApp:
                 )
                 return
 
-            model_activate_id = _single_resource_id(
-                path,
-                prefix="/api/v1/models/",
-                suffix="/activate",
-            )
-            if method == "POST" and model_activate_id is not None:
+            if method == "POST" and path == "/api/v1/models/activate":
                 payload = await _read_json_object(receive)
-                unknown = set(payload) - {"context_length", "unload_others"}
+                unknown = set(payload) - {
+                    "model_id",
+                    "context_length",
+                    "unload_others",
+                }
                 if unknown:
                     raise ValueError(
                         "Model activation contains unsupported fields."
                     )
+                model_activate_id = payload.get("model_id")
+                if not isinstance(model_activate_id, str) or not model_activate_id.strip():
+                    raise ValueError("Model activation model_id must be non-empty text.")
                 context_length = payload.get("context_length")
                 if context_length is not None and (
                     isinstance(context_length, bool)
@@ -915,11 +917,7 @@ def _known_path(path: str) -> bool:
         "/api/v1/system/shutdown",
     }:
         return True
-    if _single_resource_id(
-        path,
-        prefix="/api/v1/models/",
-        suffix="/activate",
-    ) is not None:
+    if path == "/api/v1/models/activate":
         return True
     if (
         path.startswith("/api/v1/chats/")
