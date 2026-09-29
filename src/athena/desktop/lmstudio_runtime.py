@@ -418,6 +418,11 @@ class LMStudioRuntimeController(QObject):
         # A stop/start command can race with an already-correct server state. Refresh
         # after any failure so the Core, rather than CLI wording, decides actual truth.
         if exit_code != 0:
+            if step.operation == "server_stop" and self._steps:
+                # Repair/restart remains useful when the server was already stopped.
+                self._active_step = None
+                self._start_next_step()
+                return
             self._steps.clear()
             self._active_step = None
             self.busy_changed.emit(False)
