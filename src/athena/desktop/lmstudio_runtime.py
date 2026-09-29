@@ -104,6 +104,23 @@ def _process_command(lms_path: str, arguments: tuple[str, ...]) -> tuple[str, li
     return lms_path, list(arguments)
 
 
+def _should_attempt_auto_load(
+    *,
+    model_id: str,
+    loaded: bool,
+    enabled: bool,
+    attempted_model_id: str | None,
+    busy: bool,
+) -> bool:
+    """Attempt one automatic load per selected model until the user selects again."""
+    return (
+        enabled
+        and not loaded
+        and not busy
+        and attempted_model_id != model_id
+    )
+
+
 class LMStudioRuntimeController(QObject):
     """Start the headless LM Studio service and load the model selected in pATHENA."""
 
@@ -126,6 +143,7 @@ class LMStudioRuntimeController(QObject):
         self._steps: deque[_CommandStep] = deque()
         self._active_step: _CommandStep | None = None
         self._pending_model_id: str | None = None
+        self._auto_load_attempted_model_id: str | None = None
         self._last_snapshot: DesktopApiSnapshot | None = None
 
         self.process = QProcess(self)
@@ -155,7 +173,7 @@ class LMStudioRuntimeController(QObject):
         self._install_settings_panel()
 
         self.auto_start.toggled.connect(self._persist_settings)
-        self.auto_load.toggled.connect(self._persist_settings)
+        self.auto_load.toggled.connect(self._auto_load_toggled)
         self.idle_minutes.valueChanged.connect(self._persist_settings)
         self.restart_button.clicked.connect(self.restart_server)
         self.unload_button.clicked.connect(self.unload_selected_model)
@@ -197,6 +215,15 @@ class LMStudioRuntimeController(QObject):
         finally:
             self.settings.endGroup()
         self.settings.sync()
+
+    @Slot(bool)
+    def _auto_load_toggled(self, checked: bool) -> None:
+        self._persist_settings(checked)
+        if not checked:
+            return
+        self._auto_load_attempted_model_id = None
+        if self._last_snapshot is not None:
+            self.apply_snapshot(self._last_snapshot)
 
     def _install_settings_panel(self) -> None:
         settings_page = self.window.pages.widget(6)
@@ -263,17 +290,31 @@ class LMStudioRuntimeController(QObject):
             return
 
         if selected is None:
+            self._pending_model_id = None
+            self._auto_load_attempted_model_id = None
             self.unload_button.setEnabled(False)
             self._set_status("LM Studio runtime · server ready · no model selected")
             return
 
         self.unload_button.setEnabled(selected.loaded and not self.busy)
         if selected.loaded:
+            self._pending_model_id = None
+            # Remember that this model has been satisfied for the current selection.
+            # Keeping this marker avoids immediately undoing an intentional idle-TTL unload.
+            self._auto_load_attempted_model_id = selected.backend_model_id
             self._set_status(f"LM Studio runtime · {selected.display_name} loaded")
             return
 
         self._set_status(f"LM Studio runtime · {selected.display_name} available")
-        if self.auto_load.isChecked() and self._pending_model_id == selected.backend_model_id:
+        if _should_attempt_auto_load(
+            model_id=selected.backend_model_id,
+            loaded=selected.loaded,
+            enabled=self.auto_load.isChecked(),
+            attempted_model_id=self._auto_load_attempted_model_id,
+            busy=self.busy,
+        ):
+            self._pending_model_id = selected.backend_model_id
+            self._auto_load_attempted_model_id = selected.backend_model_id
             self.ensure_selected_model()
 
     @Slot(str)
@@ -284,6 +325,7 @@ class LMStudioRuntimeController(QObject):
     @Slot(int)
     def _model_selected(self, _index: int) -> None:
         model = self.window._selected_model()
+        self._auto_load_attempted_model_id = None
         if model is None:
             self._pending_model_id = None
             return
@@ -320,6 +362,7 @@ class LMStudioRuntimeController(QObject):
     def restart_server(self) -> None:
         if self.busy:
             return
+        self._auto_load_attempted_model_id = None
         if self._lms_path is None:
             self._set_status("LM Studio runtime · lms CLI not found")
             return
@@ -356,6 +399,7 @@ class LMStudioRuntimeController(QObject):
             self._set_status("LM Studio runtime · lms CLI not found")
             return
 
+        self._auto_load_attempted_model_id = model.backend_model_id
         arguments: list[str] = ["load", model.backend_model_id]
         context = self.window._effective_context_limit()
         if context is not None:
@@ -383,6 +427,8 @@ class LMStudioRuntimeController(QObject):
             self._set_status("LM Studio runtime · lms CLI not found")
             return
         self._pending_model_id = None
+        # Manual unload must not be immediately reversed by the next Core snapshot.
+        self._auto_load_attempted_model_id = model.backend_model_id
         self._run_sequence(
             (
                 _CommandStep(
