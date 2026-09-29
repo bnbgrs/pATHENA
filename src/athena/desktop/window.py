@@ -2182,20 +2182,20 @@ class AthenaMainWindow(QMainWindow):
         )
 
     def _sync_composer_enabled(self) -> None:
-        enabled = (
-            self.api_controller is not None
-            and self._core_ready
-            and not self._chat_busy
-            and self.pending_chat_id is None
-        )
-        self.prompt_input.setEnabled(enabled)
-        self.ground_button.setEnabled(enabled)
-        self.send_button.setEnabled(enabled)
         controls_available = (
             self.api_controller is not None
             and not self._chat_busy
             and self.pending_chat_id is None
         )
+        send_enabled = controls_available and self._core_ready
+
+        # Keep the composer editable while the local provider reconnects. Users
+        # must be able to draft or preserve a prompt even when LM Studio is
+        # temporarily unavailable; only actions that require a ready model are
+        # blocked until the next successful Core/provider refresh.
+        self.prompt_input.setEnabled(controls_available)
+        self.ground_button.setEnabled(send_enabled)
+        self.send_button.setEnabled(send_enabled)
         self.chat_selector.setEnabled(controls_available)
         self.delete_chat_button.setEnabled(
             controls_available and self.current_chat_id is not None
