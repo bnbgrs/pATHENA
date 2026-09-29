@@ -3,12 +3,17 @@
 from __future__ import annotations
 
 import json
+import os
+import shutil
+import subprocess
+from pathlib import Path
 from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from threading import Lock
-from time import monotonic
+from time import monotonic, sleep
 from typing import Any, cast
 from urllib.error import HTTPError, URLError
+from urllib.parse import urlsplit
 from urllib.request import Request
 
 from athena.model.adapters.local_http import open_local_request
@@ -61,6 +66,12 @@ class LMStudioProvider:
     _model_discovery_lock: Any = field(
         default_factory=Lock, init=False, repr=False, compare=False
     )
+    _runtime_start_lock: Any = field(
+        default_factory=Lock, init=False, repr=False, compare=False
+    )
+    _runtime_start_attempt: list[float] = field(
+        default_factory=list, init=False, repr=False, compare=False
+    )
 
     @property
     def provider_id(self) -> str:
@@ -69,6 +80,14 @@ class LMStudioProvider:
     @property
     def models_url(self) -> str:
         return f"{self.base_url}/api/v1/models"
+
+    @property
+    def model_load_url(self) -> str:
+        return f"{self.base_url}/api/v1/models/load"
+
+    @property
+    def model_unload_url(self) -> str:
+        return f"{self.base_url}/api/v1/models/unload"
 
     @property
     def chat_completions_url(self) -> str:
@@ -92,9 +111,31 @@ class LMStudioProvider:
         return ProviderHealth(ProviderHealthStatus.READY)
 
     def discover_models(self) -> tuple[ModelInfo, ...]:
+        try:
+            return self._discover_models_once()
+        except ProviderUnavailableError as first_error:
+            if not self._try_start_local_runtime():
+                raise
+            deadline = monotonic() + 20.0
+            while monotonic() < deadline:
+                sleep(0.25)
+                try:
+                    return self._discover_models_once(ignore_cache=True)
+                except ProviderUnavailableError:
+                    continue
+            raise ProviderUnavailableError(
+                "LM Studio could not be started automatically. "
+                "pATHENA tried the local lms runtime but the API did not become ready."
+            ) from first_error
+
+    def _discover_models_once(
+        self,
+        *,
+        ignore_cache: bool = False,
+    ) -> tuple[ModelInfo, ...]:
         now = monotonic()
         with self._model_discovery_lock:
-            if self._model_discovery_cache:
+            if self._model_discovery_cache and not ignore_cache:
                 cached_at, cached_models = self._model_discovery_cache[0]
                 if now - cached_at <= 1.0:
                     return cached_models
@@ -119,6 +160,186 @@ class LMStudioProvider:
             normalized = tuple(models)
             self._model_discovery_cache[:] = [(monotonic(), normalized)]
             return normalized
+
+    def get_model_info(self, model_id: str) -> ModelInfo:
+        normalized_id = model_id.strip()
+        if not normalized_id:
+            raise ValueError("model_id must not be empty.")
+        models = self.discover_models()
+        for model in models:
+            if model.backend_model_id == normalized_id:
+                return model
+        raise ModelProviderError(
+            f"LM Studio did not report model {normalized_id!r}."
+        )
+
+    def load_model(
+        self,
+        model_id: str,
+        *,
+        context_length: int | None = None,
+    ) -> ModelInfo:
+        normalized_id = model_id.strip()
+        if not normalized_id:
+            raise ValueError("model_id must not be empty.")
+        if context_length is not None and context_length < 1:
+            raise ValueError("context_length must be positive when provided.")
+
+        model = self.get_model_info(normalized_id)
+        if (
+            context_length is not None
+            and model.context_capacity is not None
+            and context_length > model.context_capacity
+        ):
+            raise ProviderContextLimitError(
+                "Requested LM Studio load context exceeds the model maximum."
+            )
+        if model.loaded and (
+            context_length is None
+            or model.loaded_context_length is None
+            or context_length <= model.loaded_context_length
+        ):
+            return model
+
+        payload: dict[str, Any] = {"model": normalized_id}
+        if context_length is not None:
+            payload["context_length"] = context_length
+        self._post_json(
+            self.model_load_url,
+            payload,
+            timeout=self.generation_timeout_seconds,
+        )
+        with self._model_discovery_lock:
+            self._model_discovery_cache.clear()
+        loaded = self._discover_models_once(ignore_cache=True)
+        for candidate in loaded:
+            if candidate.backend_model_id == normalized_id and candidate.loaded:
+                return candidate
+        raise ProviderProtocolError(
+            f"LM Studio reported a successful load but {normalized_id!r} is not loaded."
+        )
+
+    def unload_model(self, model_id: str) -> None:
+        normalized_id = model_id.strip()
+        if not normalized_id:
+            raise ValueError("model_id must not be empty.")
+        payload = self._get_json(self.models_url)
+        models_value = payload.get("models")
+        if not isinstance(models_value, list):
+            raise ProviderProtocolError(
+                "LM Studio response is missing a 'models' array."
+            )
+        instance_ids: list[str] = []
+        for raw_model in models_value:
+            if not isinstance(raw_model, Mapping) or raw_model.get("key") != normalized_id:
+                continue
+            loaded_instances = raw_model.get("loaded_instances")
+            if not isinstance(loaded_instances, list):
+                raise ProviderProtocolError(
+                    f"LM Studio model {normalized_id!r} has invalid 'loaded_instances'."
+                )
+            for instance in loaded_instances:
+                if isinstance(instance, Mapping):
+                    instance_id = instance.get("id") or instance.get("instance_id")
+                    if isinstance(instance_id, str) and instance_id:
+                        instance_ids.append(instance_id)
+        for instance_id in instance_ids:
+            self._post_json(
+                self.model_unload_url,
+                {"instance_id": instance_id},
+                timeout=self.generation_timeout_seconds,
+            )
+        with self._model_discovery_lock:
+            self._model_discovery_cache.clear()
+
+    def estimate_context_capacity(self, model_id: str) -> int | None:
+        return self.get_model_info(model_id).context_capacity
+
+    def cancel_generation(self, request_id: str) -> None:
+        raise ModelProviderError(
+            f"LM Studio generation cancellation is not exposed for request {request_id!r}."
+        )
+
+    def _try_start_local_runtime(self) -> bool:
+        parsed = urlsplit(self.base_url)
+        if parsed.scheme != "http" or parsed.hostname not in {"127.0.0.1", "localhost", "::1"}:
+            return False
+        port = parsed.port or 1234
+        cli = self._find_lms_cli()
+        if cli is None:
+            return False
+
+        with self._runtime_start_lock:
+            now = monotonic()
+            if self._runtime_start_attempt and now - self._runtime_start_attempt[0] < 10.0:
+                return True
+            self._runtime_start_attempt[:] = [now]
+
+            self._run_lms(
+                cli,
+                ("daemon", "up", "--json"),
+                timeout_seconds=15.0,
+            )
+            self._run_lms(
+                cli,
+                (
+                    "server",
+                    "start",
+                    "--port",
+                    str(port),
+                    "--bind",
+                    "127.0.0.1",
+                ),
+                timeout_seconds=30.0,
+            )
+        return True
+
+    @staticmethod
+    def _find_lms_cli() -> str | None:
+        configured = os.getenv("ATHENA_LMS_CLI", "").strip()
+        if configured:
+            candidate = Path(configured).expanduser()
+            return str(candidate) if candidate.is_file() else None
+
+        discovered = shutil.which("lms") or shutil.which("lms.exe")
+        if discovered:
+            return discovered
+
+        names = ("lms.exe", "lms.cmd") if os.name == "nt" else ("lms",)
+        roots = (
+            Path.home() / ".lmstudio" / "bin",
+            Path.home() / ".cache" / "lm-studio" / "bin",
+        )
+        for root in roots:
+            for name in names:
+                candidate = root / name
+                if candidate.is_file():
+                    return str(candidate)
+        return None
+
+    @staticmethod
+    def _run_lms(
+        cli: str,
+        args: Sequence[str],
+        *,
+        timeout_seconds: float,
+    ) -> subprocess.CompletedProcess[str] | None:
+        kwargs: dict[str, Any] = {
+            "capture_output": True,
+            "text": True,
+            "check": False,
+            "timeout": timeout_seconds,
+        }
+        if os.name == "nt":
+            kwargs["creationflags"] = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+        try:
+            return subprocess.run(
+                [cli, *args],
+                **kwargs,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            return None
+
 
     def stream_chat(
         self,
@@ -631,6 +852,47 @@ class LMStudioProvider:
             # Reconciliation is deliberately best-effort. A transient models
             # endpoint failure must not replace the original generation error.
             return None
+
+    def _post_json(
+        self,
+        url: str,
+        payload: Mapping[str, Any],
+        *,
+        timeout: float,
+    ) -> Mapping[str, Any]:
+        request = Request(
+            url,
+            data=json.dumps(dict(payload), ensure_ascii=False).encode("utf-8"),
+            method="POST",
+            headers={
+                "Accept": "application/json",
+                "Content-Type": "application/json",
+            },
+        )
+        try:
+            with open_local_request(request, timeout=timeout) as response:
+                raw = response.read()
+        except HTTPError as exc:
+            detail = self._http_error_detail(exc)
+            if self._is_context_limit_error(exc.code, detail):
+                raise ProviderContextLimitError(
+                    "LM Studio rejected the requested model context."
+                ) from exc
+            raise ModelProviderError(
+                f"LM Studio returned HTTP {exc.code} for {url}{detail}."
+            ) from exc
+        except (URLError, TimeoutError, OSError) as exc:
+            raise ProviderUnavailableError(
+                f"LM Studio is not reachable at {self.base_url}."
+            ) from exc
+
+        try:
+            decoded = json.loads(raw.decode("utf-8")) if raw else {}
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise ProviderProtocolError("LM Studio returned invalid JSON.") from exc
+        if not isinstance(decoded, Mapping):
+            raise ProviderProtocolError("LM Studio returned a non-object JSON response.")
+        return cast(Mapping[str, Any], decoded)
 
     def _get_json(self, url: str) -> Mapping[str, Any]:
         request = Request(url, headers={"Accept": "application/json"})
