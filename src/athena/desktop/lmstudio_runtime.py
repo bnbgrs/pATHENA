@@ -419,6 +419,12 @@ class LMStudioRuntimeController(QObject):
             attempted_model_id=self._auto_load_attempted_model_id,
             busy=self.busy,
         ):
+            # A newly selected/restored model owns a fresh bounded verification
+            # budget. Retries from a prior model must never leak across identities.
+            self._model_verify_timer.stop()
+            self._verifying_model_id = None
+            self._model_verify_refreshes = 0
+            self._model_load_retries = 0
             self._pending_model_id = selected.backend_model_id
             self._auto_load_attempted_model_id = selected.backend_model_id
             self.ensure_selected_model()
