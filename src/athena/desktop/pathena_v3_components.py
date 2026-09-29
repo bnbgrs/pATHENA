@@ -26,7 +26,7 @@ _ACTIVE = QColor("#7C9CFF")
 def _glyph_icon(name: str, *, active: bool) -> QIcon:
     """Draw dependency-free V3 navigation glyphs."""
 
-    pixmap = QPixmap(22, 22)
+    pixmap = QPixmap(24, 24)
     pixmap.fill(Qt.GlobalColor.transparent)
     painter = QPainter(pixmap)
     painter.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -92,9 +92,9 @@ class V3NavigationButton(QToolButton):
         self.setProperty("v3Nav", True)
         self.setProperty("active", False)
         self.setIcon(self._icons[False])
-        self.setIconSize(QSize(22, 22))
+        self.setIconSize(QSize(23, 23))
         self.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextUnderIcon)
-        self.setFixedSize(60, 56)
+        self.setFixedSize(68, 58)
         self.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         self.setToolTip(label)
         self.setAccessibleName(f"Open {label}")
