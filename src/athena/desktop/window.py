@@ -2048,6 +2048,14 @@ class AthenaMainWindow(QMainWindow):
         self._sync_composer_enabled()
 
     @Slot()
+    def _on_web_toggled(self, checked: bool) -> None:
+        if checked and self.ground_button.isChecked():
+            self.ground_button.setChecked(False)
+
+    def _on_ground_toggled(self, checked: bool) -> None:
+        if checked and self.web_button.isChecked():
+            self.web_button.setChecked(False)
+
     def _submit_prompt(self) -> None:
         controller = self.api_controller
         if (
