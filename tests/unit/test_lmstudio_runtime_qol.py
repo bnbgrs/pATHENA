@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 
 import pytest
 
-from athena.desktop import lmstudio_runtime
 from athena.desktop.lmstudio_runtime import _endpoint_port, _find_lms, _process_command
 
 
@@ -56,7 +56,7 @@ def test_process_command_routes_cmd_wrappers_through_comspec(monkeypatch: pytest
 
 
 def test_find_lms_honors_explicit_executable_override(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: pytest.TempPathFactory
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     executable = tmp_path / ("lms.exe" if os.name == "nt" else "lms")
     executable.write_text("stub", encoding="utf-8")
@@ -64,10 +64,8 @@ def test_find_lms_honors_explicit_executable_override(
     assert _find_lms() == str(executable.resolve())
 
 
-def test_cmd_wrapper_rejects_shell_metacharacters(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(lmstudio_runtime.os, "name", "nt")
+@pytest.mark.skipif(os.name != "nt", reason="cmd.exe wrappers are Windows-only")
+def test_cmd_wrapper_rejects_shell_metacharacters() -> None:
     with pytest.raises(ValueError, match="unsafe"):
         _process_command(
             "C:\\Tools\\lms.cmd",
