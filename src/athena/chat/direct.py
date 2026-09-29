@@ -183,7 +183,10 @@ class DirectChatService:
                     operation_status
                 )
 
-        model = self.chat_generation.select_model(requested_model_id)
+        model = self.chat_generation.select_model(
+            requested_model_id,
+            context_length=effective_context_limit,
+        )
         context_limit = _resolve_context_limit(
             model=model,
             requested_limit=effective_context_limit,
