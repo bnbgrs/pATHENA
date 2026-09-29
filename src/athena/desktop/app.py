@@ -18,6 +18,7 @@ from athena.desktop.files_workspace import install_files_workspace
 from athena.desktop.jobs_workspace import install_jobs_workspace
 from athena.desktop.knowledge_acceptance import install_knowledge_acceptance
 from athena.desktop.knowledge_workspace import install_knowledge_workspace
+from athena.desktop.lmstudio_runtime import install_lmstudio_runtime
 from athena.desktop.pathena_async_focus_integrity_6200 import apply_ui_refinements_6101_6200
 from athena.desktop.pathena_background_completion_accessibility import (
     install_background_completion_accessibility,
@@ -206,6 +207,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     window = PathenaMainWindow(api_controller=controller)
     v3_shell = install_v3_shell(window)
     settings_runtime = install_settings_runtime(window, controller)
+    install_lmstudio_runtime(window, controller)
     pallas_grounded_field = install_pallas_grounded_field(window, controller)
     pallas_full_view = install_pallas_full_view(window, pallas_grounded_field)
     v3_shell.bind_pallas(pallas_full_view.open_workspace)
