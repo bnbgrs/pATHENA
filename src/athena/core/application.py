@@ -25,6 +25,7 @@ from athena.config.settings import AthenaSettings
 from athena.core.knowledge_inspection import build_knowledge_inspection_api
 from athena.core.services import LifecycleService, ServiceManager
 from athena.external.gateway import ExternalAccessGateway, ExternalResearchService
+from athena.external.web_search import TorWebSearchService
 from athena.jobs.archive_replication import DurableArchiveReplicationWorker
 from athena.jobs.backup import DurableBackupWorker
 from athena.jobs.backup_verify_durable_service import BackupDeepVerifyDurableJobService
@@ -291,6 +292,7 @@ class AthenaApplication:
             sources=self.sources,
             paths=self.paths,
         )
+        self.web_search = TorWebSearchService(self.external_access)
         self.knowledge_repository = KnowledgeRepository(self.database)
         self.knowledge = KnowledgeService(self.knowledge_repository, self.chat)
         self.obsidian_write_stamps = ObsidianWriteStampRegistry()
@@ -343,6 +345,7 @@ class AthenaApplication:
             direct_chat=self.direct_chat,
             lifecycle_deletion=self.lifecycle_deletion,
         )
+        self.api.attach_web_search(self.web_search)
         self.knowledge_read = attach_knowledge_read_api(
             facade=self.api,
             knowledge=self.knowledge,
