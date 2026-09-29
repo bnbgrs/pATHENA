@@ -1836,6 +1836,7 @@ class AthenaMainWindow(QMainWindow):
         controller.chat_cancel_requested.connect(
             self.apply_chat_cancel_requested
         )
+        controller.chat_cancelled.connect(self.apply_chat_cancelled)
         controller.model_busy_changed.connect(self.apply_model_busy)
         controller.model_activated.connect(self.apply_model_activated)
         controller.model_activation_failed.connect(
@@ -2311,6 +2312,22 @@ class AthenaMainWindow(QMainWindow):
             self._streaming_label.setText(self._streaming_text)
             self._streaming_label.updateGeometry()
         self._schedule_chat_tail_follow()
+
+    @Slot()
+    def apply_chat_cancelled(self) -> None:
+        self._activity_failed = True
+        self._clear_streaming_preview()
+        self.prompt_input.clear()
+        self.task_progress_label.setText(
+            f"TASK / {self._activity_name} / STOPPED"
+        )
+        self.task_progress.setRange(0, 100)
+        self.task_progress.setValue(0)
+        self.connection_detail.setText(
+            "Generation stopped. The user turn was kept; incomplete assistant text was not persisted."
+        )
+        self.status_text.setText("LOCAL / READY")
+        QTimer.singleShot(2200, self._reset_task_progress)
 
     @Slot(bool)
     def apply_chat_cancel_requested(self, accepted: bool) -> None:
