@@ -32,9 +32,11 @@ def test_v3_shell_is_structurally_distinct_and_keeps_route_contract() -> None:
 
     rail = shell.findChild(QFrame, "v3Rail")
     assert rail is not None
-    assert rail.width() == 88
+    assert 72 <= rail.width() <= 80
+    assert rail.minimumWidth() == rail.maximumWidth()
 
     nav_buttons = shell.findChildren(QToolButton, "v3NavButton")
+    assert all(button.width() <= rail.width() - 16 for button in nav_buttons)
     assert [button.text() for button in nav_buttons[:5]] == [
         "Chat",
         "Knowledge",
