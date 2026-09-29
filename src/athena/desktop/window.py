@@ -676,7 +676,7 @@ class AthenaMainWindow(QMainWindow):
                             if model_freshness == "stale"
                             else "Loaded in LM Studio and ready for chat"
                             if model.loaded
-                            else "Available in LM Studio but not currently loaded"
+                            else "Available locally; pATHENA will load this model automatically when used"
                         ),
                         Qt.ItemDataRole.ToolTipRole,
                     )
@@ -862,10 +862,11 @@ class AthenaMainWindow(QMainWindow):
             self._core_transport_ready
             and self._provider_ready
             and model is not None
-            and model.loaded
         )
-        if self._core_ready:
+        if self._core_ready and model is not None and model.loaded:
             self.status_text.setText("LOCAL / READY")
+        elif self._core_ready:
+            self.status_text.setText("LOCAL / READY · AUTO-LOAD")
         elif self._last_model_error is not None:
             self.status_text.setText("LOCAL / MODEL ERROR")
         elif not self._provider_ready:
@@ -873,7 +874,7 @@ class AthenaMainWindow(QMainWindow):
         elif model is None:
             self.status_text.setText("LOCAL / MODEL REQUIRED")
         else:
-            self.status_text.setText("LOCAL / MODEL NOT LOADED")
+            self.status_text.setText("LOCAL / MODEL REQUIRED")
 
     def _configure_context_for_selected_model(self) -> None:
         model = self._selected_model()
@@ -906,7 +907,7 @@ class AthenaMainWindow(QMainWindow):
                 self.thinking_checkbox.setText("OFF — REASONING DISABLED")
                 return
 
-            state = "LOADED" if model.loaded else "AVAILABLE / NOT LOADED"
+            state = "LOADED" if model.loaded else "AVAILABLE / AUTO-LOAD"
             self.settings_model_value.setText(f"{model.display_name} · {state}")
             self.settings_model_value.setStyleSheet(
                 "color: #63D98B;"
