@@ -69,6 +69,14 @@ def _find_lms() -> str | None:
         resolved = shutil.which(executable)
         if resolved:
             return resolved
+
+    # LM Studio ships the CLI in its working directory even before PATH bootstrap.
+    # This fallback is particularly useful on Windows desktop installs.
+    home_bin = Path.home() / ".lmstudio" / "bin"
+    for filename in ("lms.exe", "lms.cmd", "lms.bat", "lms"):
+        candidate = home_bin / filename
+        if candidate.is_file():
+            return str(candidate)
     return None
 
 
