@@ -1524,8 +1524,14 @@ class AthenaMainWindow(QMainWindow):
     def _request_selected_model_activation(self) -> None:
         controller = self.api_controller
         model = self._selected_model()
+        activator = (
+            getattr(controller, "activate_model", None)
+            if controller is not None
+            else None
+        )
         if (
             controller is None
+            or not callable(activator)
             or model is None
             or self._model_busy
             or self._chat_busy
@@ -1543,7 +1549,7 @@ class AthenaMainWindow(QMainWindow):
 
         self._pending_model_id = model.backend_model_id
         self._set_model_progress_running(model.display_name)
-        controller.activate_model(
+        activator(
             model_id=model.backend_model_id,
             context_length=self._effective_context_limit(),
             unload_others=True,
