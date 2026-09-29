@@ -153,6 +153,9 @@ def test_v3_shell_keeps_core_chat_controls_visible_at_minimum_desktop_size() -> 
         assert window.prompt_input.maximumHeight() == 90
         assert window.ground_button.isVisible()
         assert window.send_button.isVisible()
+        assert window.send_button.width() == 44
+        assert window.send_button.height() == 44
+        assert "#27344F" in window.send_button.styleSheet()
         assert controller._nav_buttons[0].isVisible()
         assert controller._nav_buttons[6].isVisible()
         composer = window.prompt_input.parentWidget()
