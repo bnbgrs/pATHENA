@@ -86,6 +86,22 @@ class CoreApiGateway(Protocol):
         thinking_enabled: bool | None = None,
     ) -> ChatThreadResponse: ...
 
+    def stream_chat_message(
+        self,
+        chat_id: str,
+        *,
+        content: str,
+        model_id: str | None = None,
+        operation_id: str,
+        effective_context_limit: int | None = None,
+        max_output_tokens: int | None = None,
+        temperature: float | None = None,
+        thinking_enabled: bool | None = None,
+        on_delta: object,
+    ) -> ChatThreadResponse: ...
+
+    def cancel_chat_operation(self, operation_id: str) -> bool: ...
+
     def send_unified_local_chat_message(
         self,
         chat_id: str,
@@ -341,6 +357,7 @@ class _ChatTask(QRunnable):
         review_id: str | None = None,
         review_decision: str | None = None,
         outcomes: SimpleQueue[_ChatOperationOutcome],
+        delta_outcomes: SimpleQueue[str],
         receiver: QObject,
     ) -> None:
         super().__init__()
@@ -361,8 +378,23 @@ class _ChatTask(QRunnable):
         self.review_id = review_id
         self.review_decision = review_decision
         self.outcomes = outcomes
+        self.delta_outcomes = delta_outcomes
         self.receiver = receiver
         self.setAutoDelete(False)
+
+    def _publish_delta(self, chunk: str) -> None:
+        if not chunk:
+            return
+        self.delta_outcomes.put(chunk)
+        queued = QMetaObject.invokeMethod(
+            self.receiver,
+            "_drain_chat_delta",
+            Qt.ConnectionType.QueuedConnection,
+        )
+        if not queued:
+            raise RuntimeError(
+                "ATHENA desktop could not queue a streamed chat delta."
+            )
 
     @Slot()
     def run(self) -> None:
@@ -428,7 +460,24 @@ class _ChatTask(QRunnable):
                             "Created chat belongs to another chat."
                         )
 
-                if (
+                streamer = getattr(
+                    self.gateway,
+                    "stream_chat_message",
+                    None,
+                )
+                if callable(streamer):
+                    thread = streamer(
+                        resolved_chat_id,
+                        content=content,
+                        model_id=self.model_id,
+                        operation_id=operation_id,
+                        effective_context_limit=self.effective_context_limit,
+                        max_output_tokens=self.max_output_tokens,
+                        temperature=self.temperature,
+                        thinking_enabled=self.thinking_enabled,
+                        on_delta=self._publish_delta,
+                    )
+                elif (
                     self.effective_context_limit is None
                     and self.max_output_tokens is None
                     and self.temperature is None
@@ -972,6 +1021,50 @@ def _collect_snapshot(
     )
 
 
+class _CancelTask(QRunnable):
+    """Send one cancellation request without blocking the UI thread."""
+
+    def __init__(
+        self,
+        *,
+        gateway: CoreApiGateway,
+        operation_id: str,
+        outcomes: SimpleQueue[tuple[bool, str | None]],
+        receiver: QObject,
+    ) -> None:
+        super().__init__()
+        self.gateway = gateway
+        self.operation_id = operation_id
+        self.outcomes = outcomes
+        self.receiver = receiver
+        self.setAutoDelete(False)
+
+    @Slot()
+    def run(self) -> None:
+        try:
+            cancel = getattr(self.gateway, "cancel_chat_operation", None)
+            if not callable(cancel):
+                raise RuntimeError(
+                    "The active Core client does not support chat cancellation."
+                )
+            accepted = bool(cancel(self.operation_id))
+        except Exception as exc:
+            outcome = (False, str(exc))
+        else:
+            outcome = (accepted, None)
+
+        self.outcomes.put(outcome)
+        queued = QMetaObject.invokeMethod(
+            self.receiver,
+            "_drain_cancel_outcome",
+            Qt.ConnectionType.QueuedConnection,
+        )
+        if not queued:
+            raise RuntimeError(
+                "ATHENA desktop could not queue the cancellation result."
+            )
+
+
 class _ModelTask(QRunnable):
     """Activate one local model away from the UI thread."""
 
@@ -1093,6 +1186,8 @@ class DesktopApiController(QObject):
     knowledge_merge_review_ready = Signal(object)
     chat_operation_failed = Signal(str, str)
     chat_busy_changed = Signal(bool)
+    chat_delta = Signal(str)
+    chat_cancel_requested = Signal(bool)
     model_activated = Signal(object)
     model_activation_failed = Signal(str)
     model_busy_changed = Signal(bool)
@@ -1121,6 +1216,10 @@ class DesktopApiController(QObject):
         self._chat_busy = False
         self._chat_outcomes: SimpleQueue[_ChatOperationOutcome] = SimpleQueue()
         self._active_chat_task: _ChatTask | None = None
+        self._active_operation_id: str | None = None
+        self._chat_deltas: SimpleQueue[str] = SimpleQueue()
+        self._cancel_outcomes: SimpleQueue[tuple[bool, str | None]] = SimpleQueue()
+        self._active_cancel_task: _CancelTask | None = None
         self._model_busy = False
         self._model_outcomes: SimpleQueue[_ModelActivationOutcome] = SimpleQueue()
         self._active_model_task: _ModelTask | None = None
@@ -1177,12 +1276,14 @@ class DesktopApiController(QObject):
     ) -> None:
         if self._chat_busy or not content.strip():
             return
+        operation_id = str(new_uuid7())
+        self._active_operation_id = operation_id
         self._start_chat_task(
             operation="send",
             chat_id=chat_id,
             content=content,
             model_id=model_id,
-            operation_id=str(new_uuid7()),
+            operation_id=operation_id,
             effective_context_limit=effective_context_limit,
             max_output_tokens=max_output_tokens,
             temperature=temperature,
@@ -1202,17 +1303,36 @@ class DesktopApiController(QObject):
     ) -> None:
         if self._chat_busy or not content.strip():
             return
+        operation_id = str(new_uuid7())
+        self._active_operation_id = operation_id
         self._start_chat_task(
             operation="send_grounded",
             chat_id=chat_id,
             content=content,
             model_id=model_id,
-            operation_id=str(new_uuid7()),
+            operation_id=operation_id,
             effective_context_limit=effective_context_limit,
             max_output_tokens=max_output_tokens,
             temperature=temperature,
             thinking_enabled=thinking_enabled,
         )
+
+    def cancel_chat(self) -> None:
+        operation_id = self._active_operation_id
+        if (
+            not self._chat_busy
+            or operation_id is None
+            or self._active_cancel_task is not None
+        ):
+            return
+        task = _CancelTask(
+            gateway=self.gateway,
+            operation_id=operation_id,
+            outcomes=self._cancel_outcomes,
+            receiver=self,
+        )
+        self._active_cancel_task = task
+        self.thread_pool.start(task)
 
     def remember_message(
         self,
@@ -1343,6 +1463,7 @@ class DesktopApiController(QObject):
             review_id=review_id,
             review_decision=review_decision,
             outcomes=self._chat_outcomes,
+            delta_outcomes=self._chat_deltas,
             receiver=self,
         )
         self._active_chat_task = task
@@ -1457,6 +1578,29 @@ class DesktopApiController(QObject):
         self.refresh_state_changed.emit(False)
 
     @Slot()
+    def _drain_chat_delta(self) -> None:
+        try:
+            chunk = self._chat_deltas.get_nowait()
+        except Empty:
+            return
+        self.chat_delta.emit(chunk)
+
+    @Slot()
+    def _drain_cancel_outcome(self) -> None:
+        try:
+            try:
+                accepted, error = self._cancel_outcomes.get_nowait()
+            except Empty:
+                self.chat_cancel_requested.emit(False)
+                return
+            if error is not None:
+                self.chat_cancel_requested.emit(False)
+                return
+            self.chat_cancel_requested.emit(accepted)
+        finally:
+            self._active_cancel_task = None
+
+    @Slot()
     def _drain_model_outcome(self) -> None:
         try:
             try:
@@ -1522,5 +1666,6 @@ class DesktopApiController(QObject):
                     self.chat_loaded.emit(outcome.thread)
         finally:
             self._active_chat_task = None
+            self._active_operation_id = None
             self._chat_busy = False
             self.chat_busy_changed.emit(False)
