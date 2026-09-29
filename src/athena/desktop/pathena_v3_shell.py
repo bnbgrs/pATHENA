@@ -128,13 +128,13 @@ class PathenaV3ShellController(QObject):
         legacy_shell.setParent(shell)
         legacy_shell.hide()
         window.setCentralWidget(shell)
-        window.resize(1580, 960)
+        window.resize(1480, 900)
         window.setMinimumSize(1120, 720)
 
     def _build_rail(self) -> QWidget:
         rail = QFrame()
         rail.setObjectName("v3Rail")
-        rail.setFixedWidth(76)
+        rail.setFixedWidth(84)
 
         layout = QVBoxLayout(rail)
         layout.setContentsMargins(8, 18, 8, 16)
@@ -321,8 +321,8 @@ class PathenaV3ShellController(QObject):
         composer_layout.setSpacing(8)
 
         window.prompt_input.setParent(composer)
-        window.prompt_input.setMinimumHeight(48)
-        window.prompt_input.setMaximumHeight(84)
+        window.prompt_input.setMinimumHeight(52)
+        window.prompt_input.setMaximumHeight(90)
         window.prompt_input.setPlaceholderText("Ask, investigate, build…")
         window.prompt_input.show()
         composer_layout.addWidget(window.prompt_input, 1)
