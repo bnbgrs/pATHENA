@@ -41,6 +41,14 @@ class CoreApiGateway(Protocol):
 
     def list_models(self) -> tuple[ModelResponse, ...]: ...
 
+    def activate_model(
+        self,
+        model_id: str,
+        *,
+        context_length: int | None = None,
+        unload_others: bool = True,
+    ) -> ModelResponse: ...
+
     def news_profile(self) -> NewsProfileResponse: ...
 
     def configure_news_schedule(
@@ -179,6 +187,18 @@ class _RefreshOutcome:
     def __post_init__(self) -> None:
         if (self.snapshot is None) == (self.error is None):
             raise ValueError("Refresh outcome requires exactly one result kind.")
+
+
+@dataclass(frozen=True, slots=True)
+class _ModelActivationOutcome:
+    model: ModelResponse | None = None
+    error: str | None = None
+
+    def __post_init__(self) -> None:
+        if (self.model is None) == (self.error is None):
+            raise ValueError(
+                "Model activation outcome requires exactly one result kind."
+            )
 
 
 @dataclass(frozen=True, slots=True)
@@ -952,6 +972,57 @@ def _collect_snapshot(
     )
 
 
+class _ModelTask(QRunnable):
+    """Activate one local model away from the UI thread."""
+
+    def __init__(
+        self,
+        *,
+        gateway: CoreApiGateway,
+        model_id: str,
+        context_length: int | None,
+        unload_others: bool,
+        outcomes: SimpleQueue[_ModelActivationOutcome],
+        receiver: QObject,
+    ) -> None:
+        super().__init__()
+        self.gateway = gateway
+        self.model_id = model_id
+        self.context_length = context_length
+        self.unload_others = unload_others
+        self.outcomes = outcomes
+        self.receiver = receiver
+        self.setAutoDelete(False)
+
+    @Slot()
+    def run(self) -> None:
+        try:
+            model = self.gateway.activate_model(
+                self.model_id,
+                context_length=self.context_length,
+                unload_others=self.unload_others,
+            )
+        except CoreApiClientError as exc:
+            outcome = _ModelActivationOutcome(error=str(exc))
+        except Exception as exc:
+            outcome = _ModelActivationOutcome(
+                error=f"Local model activation failed: {exc}"
+            )
+        else:
+            outcome = _ModelActivationOutcome(model=model)
+
+        self.outcomes.put(outcome)
+        queued = QMetaObject.invokeMethod(
+            self.receiver,
+            "_drain_model_outcome",
+            Qt.ConnectionType.QueuedConnection,
+        )
+        if not queued:
+            raise RuntimeError(
+                "ATHENA desktop could not queue the model activation result."
+            )
+
+
 class _RefreshTask(QRunnable):
     """Collect one API snapshot in a pool thread and queue delivery to the UI."""
 
@@ -1022,6 +1093,9 @@ class DesktopApiController(QObject):
     knowledge_merge_review_ready = Signal(object)
     chat_operation_failed = Signal(str, str)
     chat_busy_changed = Signal(bool)
+    model_activated = Signal(object)
+    model_activation_failed = Signal(str)
+    model_busy_changed = Signal(bool)
 
     def __init__(
         self,
@@ -1047,6 +1121,9 @@ class DesktopApiController(QObject):
         self._chat_busy = False
         self._chat_outcomes: SimpleQueue[_ChatOperationOutcome] = SimpleQueue()
         self._active_chat_task: _ChatTask | None = None
+        self._model_busy = False
+        self._model_outcomes: SimpleQueue[_ModelActivationOutcome] = SimpleQueue()
+        self._active_model_task: _ModelTask | None = None
 
     @property
     def refreshing(self) -> bool:
@@ -1055,6 +1132,32 @@ class DesktopApiController(QObject):
     @property
     def chat_busy(self) -> bool:
         return self._chat_busy
+
+    @property
+    def model_busy(self) -> bool:
+        return self._model_busy
+
+    def activate_model(
+        self,
+        *,
+        model_id: str,
+        context_length: int | None,
+        unload_others: bool = True,
+    ) -> None:
+        if self._model_busy or self._chat_busy or not model_id.strip():
+            return
+        task = _ModelTask(
+            gateway=self.gateway,
+            model_id=model_id,
+            context_length=context_length,
+            unload_others=unload_others,
+            outcomes=self._model_outcomes,
+            receiver=self,
+        )
+        self._active_model_task = task
+        self._model_busy = True
+        self.model_busy_changed.emit(True)
+        self.thread_pool.start(task)
 
     def load_chat(self, chat_id: str) -> None:
         if not chat_id or self._chat_busy:
@@ -1249,6 +1352,9 @@ class DesktopApiController(QObject):
 
     @Slot()
     def refresh(self) -> None:
+        if self._model_busy:
+            self._refresh_requested = True
+            return
         if self._refreshing:
             self._refresh_requested = True
             return
@@ -1349,6 +1455,28 @@ class DesktopApiController(QObject):
             return
         self._refreshing = False
         self.refresh_state_changed.emit(False)
+
+    @Slot()
+    def _drain_model_outcome(self) -> None:
+        try:
+            try:
+                outcome = self._model_outcomes.get_nowait()
+            except Empty:
+                self.model_activation_failed.emit(
+                    "ATHENA model activation result was lost."
+                )
+                return
+
+            if outcome.error is not None:
+                self.model_activation_failed.emit(outcome.error)
+                return
+            if outcome.model is not None:
+                self.model_activated.emit(outcome.model)
+        finally:
+            self._active_model_task = None
+            self._model_busy = False
+            self.model_busy_changed.emit(False)
+            self.refresh()
 
     @Slot()
     def _drain_chat_outcome(self) -> None:
