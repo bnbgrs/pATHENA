@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from PySide6.QtCore import QPoint, QSize, Qt, QTimer, Slot
+from PySide6.QtCore import QPoint, QSize, Qt, QTimer, Signal, Slot
 from PySide6.QtGui import (
     QColor,
     QKeySequence,
@@ -272,7 +272,9 @@ class _AutoHeightMessageLabel(QLabel):
 
 
 class PromptInput(QPlainTextEdit):
-    """Multiline composer input with the legacy text access contract."""
+    """Multiline composer input with Enter-to-send chat behavior."""
+
+    submit_requested = Signal()
 
     def __init__(self) -> None:
         super().__init__()
@@ -283,6 +285,21 @@ class PromptInput(QPlainTextEdit):
 
     def setText(self, text: str) -> None:  # noqa: N802 - compatibility with QLineEdit
         self.setPlainText(text)
+
+    def keyPressEvent(self, event) -> None:  # type: ignore[override]
+        if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
+            modifiers = event.modifiers()
+            if modifiers & Qt.KeyboardModifier.ShiftModifier:
+                super().keyPressEvent(event)
+                return
+            if modifiers in (
+                Qt.KeyboardModifier.NoModifier,
+                Qt.KeyboardModifier.ControlModifier,
+            ):
+                self.submit_requested.emit()
+                event.accept()
+                return
+        super().keyPressEvent(event)
 
 
 class AthenaMainWindow(QMainWindow):
@@ -1391,8 +1408,9 @@ class AthenaMainWindow(QMainWindow):
         self.prompt_input.setPlaceholderText("Ask ATHENA")
         self.prompt_input.setDisabled(True)
         self.prompt_input.setToolTip(
-            "Direct chat becomes available when ATHENA Core and a local model are ready."
+            "Enter sends the message. Shift+Enter inserts a new line."
         )
+        self.prompt_input.submit_requested.connect(self._submit_prompt)
 
         self._send_return_shortcut = QShortcut(
             QKeySequence("Ctrl+Return"),
@@ -1423,7 +1441,7 @@ class AthenaMainWindow(QMainWindow):
 
         self.send_button.setObjectName("sendButton")
         self.send_button.setText("SEND")
-        self.send_button.setToolTip("Send message ? Ctrl+Enter")
+        self.send_button.setToolTip("Send message · Enter")
         self.send_button.setDisabled(True)
         self.send_button.clicked.connect(self._submit_prompt)
 
