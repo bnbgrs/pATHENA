@@ -10,6 +10,7 @@ from athena.desktop.lmstudio_runtime import (
     _find_lms,
     _process_command,
     _should_attempt_auto_load,
+    _should_attempt_auto_start,
 )
 
 
@@ -102,6 +103,34 @@ def test_auto_load_attempts_once_per_selected_model(
             loaded=loaded,
             enabled=enabled,
             attempted_model_id=attempted_model_id,
+            busy=busy,
+        )
+        is expected
+    )
+
+
+@pytest.mark.parametrize(
+    ("provider_ready", "enabled", "attempted", "busy", "expected"),
+    [
+        (False, True, False, False, True),
+        (True, True, False, False, False),
+        (False, False, False, False, False),
+        (False, True, True, False, False),
+        (False, True, False, True, False),
+    ],
+)
+def test_auto_start_attempts_once_per_provider_outage(
+    provider_ready: bool,
+    enabled: bool,
+    attempted: bool,
+    busy: bool,
+    expected: bool,
+) -> None:
+    assert (
+        _should_attempt_auto_start(
+            provider_ready=provider_ready,
+            enabled=enabled,
+            attempted=attempted,
             busy=busy,
         )
         is expected
