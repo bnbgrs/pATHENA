@@ -99,6 +99,7 @@ class DirectChatSender(Protocol):
         output_reserve: int = 2048,
         temperature: float | None = None,
         reasoning_mode: str | None = "off",
+        external_context: str | None = None,
     ) -> object: ...
 
 
