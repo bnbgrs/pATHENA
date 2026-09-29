@@ -162,14 +162,29 @@ class FilesWorkspace(QWidget):
             str(Path.home()),
             "Supported documents (*.txt *.md *.markdown *.pdf *.docx *.html *.htm);;All files (*)",
         )
-        if not selected:
+        if selected:
+            self.import_paths([selected])
+
+    def import_paths(self, paths: list[str]) -> None:
+        """Queue local files for sequential capture without blocking the Qt event loop."""
+        for raw_path in paths:
+            candidate = Path(raw_path).expanduser()
+            if candidate.is_file():
+                normalized = str(candidate.resolve())
+                if normalized not in self._pending_imports:
+                    self._pending_imports.append(normalized)
+        self._start_next_import()
+
+    def _start_next_import(self) -> None:
+        if self._busy() or not self._pending_imports:
             return
+        selected = self._pending_imports.pop(0)
         self.details.clear()
         set_pathena_ui_state(self.details, "busy")
         self._start(
             "import",
             ["import", selected],
-            "Capturing Source and queueing retrieval processing",
+            f"Capturing {Path(selected).name} and queueing retrieval processing",
             source_id=self._selected_source_id,
         )
 
@@ -309,6 +324,8 @@ class FilesWorkspace(QWidget):
                 set_pathena_ui_state(self.details, "error")
             if operation == "list":
                 self.details.setPlainText(output)
+            if operation == "import" and self._pending_imports:
+                QTimer.singleShot(0, self._start_next_import)
             return
 
         if operation == "list":
@@ -342,7 +359,10 @@ class FilesWorkspace(QWidget):
             set_pathena_ui_state(self.status, "success")
             if owns_details:
                 set_pathena_ui_state(self.details, "success")
-            QTimer.singleShot(150, self.refresh)
+            if self._pending_imports:
+                QTimer.singleShot(0, self._start_next_import)
+            else:
+                QTimer.singleShot(150, self.refresh)
             return
 
         if operation == "process":
@@ -453,6 +473,8 @@ class FilesWorkspace(QWidget):
         set_pathena_ui_state(self.status, "error")
         if owns_details:
             set_pathena_ui_state(self.details, "error")
+        if operation == "import" and self._pending_imports:
+            QTimer.singleShot(0, self._start_next_import)
 
 
 def _format_bytes(value: int) -> str:
