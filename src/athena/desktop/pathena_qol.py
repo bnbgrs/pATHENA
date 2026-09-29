@@ -92,6 +92,7 @@ class PathenaQolController(QObject):
         self._last_failed_prompt = ""
         self._last_failed_operation = ""
         self._zoom_delta = 0
+        self._pinned_chats = self._load_pinned_chats()
         self._save_timer = QTimer(self)
         self._save_timer.setSingleShot(True)
         self._save_timer.setInterval(250)
@@ -122,6 +123,21 @@ class PathenaQolController(QObject):
     def _read_str(self, key: str, default: str = "") -> str:
         value = self.settings.value(f"{_SETTINGS_ROOT}/{key}", default)
         return value if isinstance(value, str) else default
+
+    def _load_pinned_chats(self) -> set[str]:
+        value = self.settings.value(f"{_SETTINGS_ROOT}/pinned_chats", [])
+        if isinstance(value, str):
+            return {value} if value else set()
+        if isinstance(value, list):
+            return {item for item in value if isinstance(item, str) and item}
+        return set()
+
+    def _persist_pinned_chats(self) -> None:
+        self.settings.setValue(
+            f"{_SETTINGS_ROOT}/pinned_chats",
+            sorted(self._pinned_chats),
+        )
+        self.settings.sync()
 
     def _build_quick_switcher(self) -> None:
         self.quick_dialog = QDialog(self.window)
@@ -251,6 +267,9 @@ class PathenaQolController(QObject):
         self.knowledge_shortcut = QShortcut(QKeySequence("Ctrl+Shift+K"), self.window)
         self.knowledge_shortcut.activated.connect(self.add_latest_to_knowledge)
 
+        self.pin_chat_shortcut = QShortcut(QKeySequence("Ctrl+Alt+P"), self.window)
+        self.pin_chat_shortcut.activated.connect(self.toggle_current_chat_pin)
+
     def _connect_signals(self) -> None:
         self.controller.snapshot_ready.connect(self.apply_snapshot)
         self.controller.chat_loaded.connect(self._chat_committed)
@@ -339,10 +358,18 @@ class PathenaQolController(QObject):
 
         snapshot = self._last_snapshot
         if snapshot is not None:
-            for chat in snapshot.chats:
+            chats = sorted(
+                snapshot.chats,
+                key=lambda chat: (
+                    chat.chat_id not in self._pinned_chats,
+                    -chat.started_at_us,
+                ),
+            )
+            for chat in chats:
                 started = datetime.fromtimestamp(chat.started_at_us / 1_000_000)
+                prefix = "Pinned conversation" if chat.chat_id in self._pinned_chats else "Conversation"
                 label = (
-                    f"Conversation · {started:%d %b %H:%M} · "
+                    f"{prefix} · {started:%d %b %H:%M} · "
                     f"{chat.message_count} messages · {chat.chat_id[:8]}"
                 )
                 actions.append(
@@ -631,6 +658,21 @@ class PathenaQolController(QObject):
             if button.isEnabled():
                 button.click()
                 return
+
+    @Slot()
+    def toggle_current_chat_pin(self) -> None:
+        chat_id = self.window.current_chat_id
+        if not chat_id:
+            return
+        if chat_id in self._pinned_chats:
+            self._pinned_chats.remove(chat_id)
+            message = f"Conversation {chat_id[:8].upper()} unpinned."
+        else:
+            self._pinned_chats.add(chat_id)
+            message = f"Conversation {chat_id[:8].upper()} pinned."
+        self._persist_pinned_chats()
+        self._rebuild_quick_actions()
+        self.activity_message.emit(message)
 
     def _restore_last_prompt(self) -> bool:
         if self.window.prompt_input.text():
