@@ -286,6 +286,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         research_query=research_workspace.query_input,
         research_filter=research_results_extension.job_filter,
     )
+    qol = install_pathena_qol(
+        window,
+        controller,
+        runtime=lmstudio_runtime,
+        files_workspace=files_workspace,
+        research_workspace=research_workspace,
+        jobs_workspace=jobs_workspace,
+    )
     _schedule_initial_core_refreshes(controller, supervisor, scheduler_supervisor)
     heartbeat = _start_core_refresh_heartbeat(controller, supervisor, scheduler_supervisor)
     window.show()
