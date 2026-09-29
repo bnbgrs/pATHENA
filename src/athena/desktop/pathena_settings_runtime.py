@@ -30,6 +30,7 @@ from athena.desktop.pathena_window import PathenaMainWindow
 
 _CORE_READY_STATES: Final = frozenset({"ok", "ready", "running"})
 _SETTINGS_ROOT: Final = "desktop/model-settings/v1"
+_SELECTED_MODEL_KEY: Final = f"{_SETTINGS_ROOT}/selected_model_id"
 
 
 @dataclass(frozen=True, slots=True)
@@ -161,6 +162,9 @@ class SettingsRuntimeController(QObject):
         self.window = window
         self.controller = controller
         self.settings = settings or _default_settings()
+        stored_selected = self.settings.value(_SELECTED_MODEL_KEY, "")
+        if isinstance(stored_selected, str) and stored_selected.strip():
+            self.window._preferred_model_id = stored_selected.strip()
         self._hydrating = False
         self._last_snapshot: DesktopApiSnapshot | None = None
         self._news_profile: NewsProfileResponse | None = None
@@ -239,11 +243,18 @@ class SettingsRuntimeController(QObject):
         window.temperature_spin.valueChanged.connect(self._persist_from_control)
         window.thinking_checkbox.toggled.connect(self._persist_from_control)
         window.model_selector.activated.connect(self._hydrate_after_selection)
+        window.settings_model_selector.activated.connect(
+            self._hydrate_after_selection
+        )
         self.news_save.clicked.connect(self.save_news_schedule)
 
         if controller is not None:
             controller.snapshot_ready.connect(self.apply_snapshot)
             controller.connection_failed.connect(self.apply_connection_failure)
+            controller.model_activated.connect(self._persist_activated_model)
+            controller.model_activation_failed.connect(
+                self._persist_current_model_after_failure
+            )
 
     def _install_panel(self) -> None:
         settings_page = self.window.pages.widget(6)
@@ -509,7 +520,27 @@ class SettingsRuntimeController(QObject):
 
     @Slot(int)
     def _hydrate_after_selection(self, _index: int) -> None:
+        self.persist_preferred_model()
         self.hydrate_selected_model()
+
+    @Slot(object)
+    def _persist_activated_model(self, value: object) -> None:
+        model_id = getattr(value, "backend_model_id", None)
+        if isinstance(model_id, str) and model_id.strip():
+            self.settings.setValue(_SELECTED_MODEL_KEY, model_id.strip())
+            self.settings.sync()
+
+    @Slot(str)
+    def _persist_current_model_after_failure(self, _message: str) -> None:
+        self.persist_preferred_model()
+
+    def persist_preferred_model(self) -> None:
+        model = self.window._selected_model()
+        if model is None:
+            return
+        self.settings.setValue(_SELECTED_MODEL_KEY, model.backend_model_id)
+        self.settings.sync()
+        self.window._preferred_model_id = model.backend_model_id
 
     def persist_selected_model(self) -> None:
         """Synchronously persist the controls already used for real requests."""
@@ -519,6 +550,8 @@ class SettingsRuntimeController(QObject):
         if model is None:
             return
 
+        self.settings.setValue(_SELECTED_MODEL_KEY, model.backend_model_id)
+        self.window._preferred_model_id = model.backend_model_id
         group = model_storage_group(model.backend_model_id)
         self.settings.beginGroup(group)
         try:
