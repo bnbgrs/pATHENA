@@ -316,3 +316,5 @@ jobs:
 # Rebuild trigger: Tor web chat integration 2026-09-29
 
 # Rebuild trigger: single-icon send button
+
+# Rebuild trigger: automatic LM Studio runtime and selected-model loading
