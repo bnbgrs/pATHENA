@@ -885,7 +885,7 @@ def test_window_ctrl_enter_submits_direct_chat() -> None:
 
         assert (
             window.send_button.text()
-            == "SEND"
+            == "→"
         )
 
         window.prompt_input.setFocus()
