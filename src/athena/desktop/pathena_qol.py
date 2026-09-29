@@ -303,6 +303,13 @@ class PathenaQolController(QObject):
                 if index >= 0:
                     self.window.model_selector.setCurrentIndex(index)
                     self.window._on_model_selected(index)
+            selected_model = self.window._selected_model()
+            if selected_model is not None:
+                self.settings.setValue(
+                    f"{_SETTINGS_ROOT}/model_id",
+                    selected_model.backend_model_id,
+                )
+                if self.runtime.auto_load.isChecked():
                     self.runtime.ensure_selected_model()
             self._restored_model = True
 
@@ -659,6 +666,14 @@ class PathenaQolController(QObject):
                     )
                     event.acceptProposedAction()
                     return True
+            elif event.type() == QEvent.Type.WindowActivate:
+                selected_model = self.window._selected_model()
+                if (
+                    selected_model is not None
+                    and not selected_model.loaded
+                    and self.runtime.auto_load.isChecked()
+                ):
+                    self.runtime.ensure_selected_model()
             elif event.type() in {QEvent.Type.Move, QEvent.Type.Resize}:
                 self._schedule_save()
             elif event.type() == QEvent.Type.Close:
