@@ -340,6 +340,7 @@ class PathenaV3ShellController(QObject):
             "QPushButton:checked { color: #E3E9FF; background: #18213A; "
             "border-color: #31457F; }"
         )
+        window.ground_button.setFixedHeight(36)
         composer_layout.addWidget(window.ground_button)
         window.ground_button.ensurePolished()
         window.ground_button.show()
@@ -349,13 +350,13 @@ class PathenaV3ShellController(QObject):
         window.send_button.setParent(composer)
         window.send_button.setText("↑")
         window.send_button.setToolTip("Send message · Ctrl+Enter")
-        window.send_button.setFixedSize(44, 44)
         window.send_button.setStyleSheet(
             "QPushButton { color: #0D1016; background: #7C9CFF; border: 0; "
             "border-radius: 22px; padding: 0; font-size: 15pt; font-weight: 800; } "
             "QPushButton:disabled { color: #C0CAE6; background: #27344F; "
             "border: 1px solid #40577F; }"
         )
+        window.send_button.setFixedSize(44, 44)
         composer_layout.addWidget(window.send_button)
         window.send_button.ensurePolished()
         window.send_button.show()
