@@ -1051,6 +1051,52 @@ class CoreApiFacade:
     def list_models(self) -> tuple[ModelResponse, ...]:
         return tuple(_model(model) for model in self._model_provider.discover_models())
 
+    def activate_model(
+        self,
+        model_id: str,
+        *,
+        context_length: int | None = None,
+        unload_others: bool = True,
+    ) -> ModelResponse:
+        normalized_id = model_id.strip()
+        if not normalized_id:
+            raise ValueError("Model ID must not be empty.")
+        if context_length is not None and (
+            isinstance(context_length, bool)
+            or not isinstance(context_length, int)
+            or context_length < 1
+        ):
+            raise ValueError("Model context_length must be a positive integer.")
+
+        loader = getattr(self._model_provider, "load_model", None)
+        if not callable(loader):
+            raise RuntimeError("The active model provider cannot load models.")
+
+        before = self._model_provider.discover_models()
+        selected = loader(normalized_id, context_length=context_length)
+
+        if unload_others:
+            unloader = getattr(self._model_provider, "unload_model", None)
+            if not callable(unloader):
+                raise RuntimeError("The active model provider cannot unload models.")
+            for model in before:
+                if (
+                    model.model_type == "llm"
+                    and model.loaded
+                    and model.backend_model_id != normalized_id
+                ):
+                    unloader(model.backend_model_id)
+
+        refreshed = self._model_provider.discover_models()
+        for model in refreshed:
+            if model.backend_model_id == normalized_id:
+                if not model.loaded:
+                    raise RuntimeError(
+                        "Selected model did not remain loaded after activation."
+                    )
+                return _model(model)
+        return _model(selected)
+
     def search(
         self,
         query: str,
