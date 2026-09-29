@@ -72,18 +72,18 @@ QFrame#composer {
     border: none;
 }
 QLabel#emptyStateEyebrow {
-    color: #F26A21;
+    color: #7E8797;
     font-size: 9px;
-    font-weight: 600;
+    font-weight: 650;
     letter-spacing: 1px;
 }
 QLabel#emptyStateTitle {
-    color: #F2F2F2;
+    color: #F2F4F8;
     font-size: 20px;
-    font-weight: 600;
+    font-weight: 650;
 }
 QLabel#emptyStateBody {
-    color: #858585;
+    color: #98A1B1;
     font-size: 12px;
 }
 QFrame#emptyStatePanel {
@@ -91,32 +91,33 @@ QFrame#emptyStatePanel {
     border: none;
 }
 QPushButton#sendButton:disabled {
-    color: #555555;
-    background: #121212;
-    border: 1px solid #202020;
+    color: #92A0C4;
+    background: #252E43;
+    border: 1px solid #36435F;
 }
 QPushButton#groundButton:disabled {
-    color: #555555;
-    background: transparent;
-    border-color: transparent;
+    color: #768196;
+    background: #171D28;
+    border: 1px solid #2C3546;
 }
+QPlainTextEdit#promptInput:disabled,
 QLineEdit#promptInput:disabled {
-    color: #666666;
-    background: #090909;
-    border-color: #1D1D1D;
+    color: #7E8797;
+    background: transparent;
+    border: none;
 }
 QComboBox#chatSelector:disabled,
 QComboBox#modelSelector:disabled {
-    color: #5E5E5E;
-    background: #090909;
-    border-color: #1B1B1B;
+    color: #70798A;
+    background: #121722;
+    border-color: #252C39;
 }
 QLabel#localStatus {
-    color: #777777;
+    color: #7E8797;
     font-size: 9px;
 }
 QLabel#keyboardHint {
-    color: #626262;
+    color: #687284;
     font-size: 9px;
 }
 """
