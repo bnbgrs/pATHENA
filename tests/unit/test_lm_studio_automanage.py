@@ -51,7 +51,7 @@ def _model_payload(*, loaded: bool) -> dict[str, Any]:
     }
 
 
-def test_runtime_start_prefers_headless_daemon_then_server(
+def test_runtime_start_uses_headless_server_without_gui(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     provider = LMStudioProvider("http://127.0.0.1:1234")
@@ -79,15 +79,20 @@ def test_runtime_start_prefers_headless_daemon_then_server(
     )
 
     assert provider._try_start_local_runtime() is True
-    assert calls[0][1] == ("daemon", "up", "--json")
-    assert calls[1][1] == (
-        "server",
-        "start",
-        "--port",
-        "1234",
-        "--bind",
-        "127.0.0.1",
-    )
+    assert calls == [
+        (
+            r"C:\Users\test\.lmstudio\bin\lms.exe",
+            (
+                "server",
+                "start",
+                "--port",
+                "1234",
+                "--bind",
+                "127.0.0.1",
+            ),
+            30.0,
+        )
+    ]
 
 
 def test_provider_loads_downloaded_model_through_native_v1_api(
