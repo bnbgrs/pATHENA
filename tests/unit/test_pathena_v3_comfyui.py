@@ -69,6 +69,9 @@ def test_v3_comfyui_is_shell_hosted_and_restores_selected_route() -> None:
         assert title.text() == "ComfyUI"
         assert hint.text() == "Local image and video workflows · loopback only."
         assert controller.close_button.isVisible()
+        inner_title = controller.dialog.findChild(QLabel, "comfyUiTitle")
+        assert inner_title is not None
+        assert inner_title.isHidden()
         assert app.focusWidget() is controller.check_button
 
         window.resize(window.width() + 180, window.height() + 120)
