@@ -8,6 +8,7 @@ import pytest
 from athena.desktop.lmstudio_runtime import (
     _endpoint_port,
     _find_lms,
+    _model_verification_action,
     _process_command,
     _should_attempt_auto_load,
     _should_attempt_auto_start,
@@ -134,4 +135,42 @@ def test_auto_start_attempts_once_per_provider_outage(
             busy=busy,
         )
         is expected
+    )
+
+
+def test_model_load_verification_waits_for_core_confirmation() -> None:
+    assert (
+        _model_verification_action(
+            loaded=False,
+            refreshes=0,
+            retries=0,
+        )
+        == "wait"
+    )
+    assert (
+        _model_verification_action(
+            loaded=True,
+            refreshes=1,
+            retries=0,
+        )
+        == "confirmed"
+    )
+
+
+def test_model_load_verification_has_bounded_retry_and_failure() -> None:
+    assert (
+        _model_verification_action(
+            loaded=False,
+            refreshes=5,
+            retries=0,
+        )
+        == "retry"
+    )
+    assert (
+        _model_verification_action(
+            loaded=False,
+            refreshes=5,
+            retries=1,
+        )
+        == "failed"
     )
