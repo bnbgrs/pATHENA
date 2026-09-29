@@ -329,7 +329,7 @@ class PathenaV3ShellController(QObject):
         composer_layout.addWidget(window.prompt_input, 1)
 
         window.ground_button.setParent(composer)
-        window.ground_button.setText("Ground")
+        window.ground_button.setText("Sources")
         window.ground_button.setToolTip("Ground this turn in local knowledge and source evidence")
         window.ground_button.setAccessibleName("Ground message in local evidence")
         window.ground_button.setStyleSheet(
