@@ -308,3 +308,5 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 # Live Windows build trigger: 2026-09-29 from UI SHA 1e0c5668780c586230fd852406daad47886b9121
+
+# Rebuild trigger: editable chat composer fix ca1b6f42c13eb8e00557c504a506c0ce7a7dddcb
