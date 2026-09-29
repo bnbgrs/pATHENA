@@ -304,7 +304,7 @@ class AthenaMainWindow(QMainWindow):
         self.status_text = QLabel("LOCAL / CORE DISCONNECTED")
         self.prompt_input = PromptInput()
         self.ground_button = QPushButton("GROUND")
-        self.send_button = QPushButton("CTRL+ENTER")
+        self.send_button = QPushButton("→")
         self.chat_selector = QComboBox()
         self.model_selector = QComboBox()
         self.settings_model_selector = QComboBox()
@@ -2014,7 +2014,6 @@ class AthenaMainWindow(QMainWindow):
     @Slot(bool)
     def apply_chat_busy(self, busy: bool) -> None:
         self._chat_busy = busy
-        self.send_button.setText("WORKING" if busy else "SEND")
         self._sync_composer_enabled()
 
     @Slot()
