@@ -8,6 +8,7 @@ import pytest
 from athena.desktop.lmstudio_runtime import (
     _endpoint_port,
     _find_lms,
+    _model_confirmation_action,
     _process_command,
     _should_attempt_auto_load,
     _should_attempt_auto_start,
@@ -135,3 +136,46 @@ def test_auto_start_attempts_once_per_provider_outage(
         )
         is expected
     )
+
+
+
+def test_model_load_waits_for_core_confirmation_before_becoming_ready() -> None:
+    action, remaining = _model_confirmation_action(
+        pending_model_id="model-id",
+        selected_model_id="model-id",
+        loaded=False,
+        refreshes_remaining=2,
+    )
+    assert (action, remaining) == ("refresh", 1)
+
+    action, remaining = _model_confirmation_action(
+        pending_model_id="model-id",
+        selected_model_id="model-id",
+        loaded=True,
+        refreshes_remaining=remaining,
+    )
+    assert (action, remaining) == ("confirmed", 0)
+
+
+def test_model_load_confirmation_failure_is_bounded() -> None:
+    remaining = 2
+    actions: list[str] = []
+    for _ in range(3):
+        action, remaining = _model_confirmation_action(
+            pending_model_id="model-id",
+            selected_model_id="model-id",
+            loaded=False,
+            refreshes_remaining=remaining,
+        )
+        actions.append(action)
+    assert actions == ["refresh", "refresh", "failed"]
+    assert remaining == 0
+
+
+def test_model_confirmation_ignores_a_different_selected_model() -> None:
+    assert _model_confirmation_action(
+        pending_model_id="old-model",
+        selected_model_id="new-model",
+        loaded=False,
+        refreshes_remaining=3,
+    ) == ("none", 3)
