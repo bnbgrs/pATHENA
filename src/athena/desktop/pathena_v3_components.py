@@ -6,8 +6,8 @@ behavior remain outside this module.
 
 from __future__ import annotations
 
-from PySide6.QtCore import QEvent, QPointF, QRectF, QSize, Qt
-from PySide6.QtGui import QColor, QCursor, QIcon, QPainter, QPen, QPixmap
+from PySide6.QtCore import QEvent, QObject, QPointF, QRectF, QSize, Qt
+from PySide6.QtGui import QColor, QCursor, QIcon, QPainter, QPaintEvent, QPen, QPixmap
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -200,7 +200,7 @@ class V3ComposerFrame(QFrame):
         send_button.installEventFilter(self)
         self.update()
 
-    def eventFilter(self, watched: object, event: QEvent) -> bool:  # noqa: N802
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:  # noqa: N802
         if watched in {self._ground_button, self._send_button} and event.type() in {
             QEvent.Type.EnabledChange,
             QEvent.Type.Hide,
@@ -212,7 +212,7 @@ class V3ComposerFrame(QFrame):
             self.update()
         return super().eventFilter(watched, event)
 
-    def paintEvent(self, event: QEvent) -> None:  # noqa: N802
+    def paintEvent(self, event: QPaintEvent) -> None:  # noqa: N802
         super().paintEvent(event)
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
