@@ -321,6 +321,7 @@ class AthenaMainWindow(QMainWindow):
         self.status_text = QLabel("LOCAL / CORE DISCONNECTED")
         self.prompt_input = PromptInput()
         self.ground_button = QPushButton("GROUND")
+        self.web_button = QPushButton("WEB")
         self.send_button = QPushButton("CTRL+ENTER")
         self.chat_selector = QComboBox()
         self.model_selector = QComboBox()
@@ -1439,6 +1440,16 @@ class AthenaMainWindow(QMainWindow):
             "Ground this turn in local Knowledge and Raw Archive evidence."
         )
 
+        self.web_button.setObjectName("webButton")
+        self.web_button.setCheckable(True)
+        self.web_button.setChecked(False)
+        self.web_button.setDisabled(True)
+        self.web_button.setToolTip(
+            "Search the public web through Tor for this message."
+        )
+        self.web_button.toggled.connect(self._on_web_toggled)
+        self.ground_button.toggled.connect(self._on_ground_toggled)
+
         self.send_button.setObjectName("sendButton")
         self.send_button.setText("SEND")
         self.send_button.setToolTip("Send message · Enter")
@@ -1503,6 +1514,7 @@ class AthenaMainWindow(QMainWindow):
         layout.addWidget(self.prompt_input, 1)
         layout.addWidget(attach)
         layout.addWidget(self.ground_button)
+        layout.addWidget(self.web_button)
         layout.addWidget(self.send_button)
         return composer
 
@@ -2050,7 +2062,17 @@ class AthenaMainWindow(QMainWindow):
         if not content:
             return
 
-        if self.ground_button.isChecked():
+        if self.web_button.isChecked():
+            controller.send_message(
+                chat_id=self.current_chat_id,
+                content=f"/web {content}",
+                model_id=self._selected_model_id(),
+                effective_context_limit=self._effective_context_limit(),
+                max_output_tokens=self._max_output_tokens(),
+                temperature=self._temperature(),
+                thinking_enabled=self._thinking_enabled(),
+            )
+        elif self.ground_button.isChecked():
             controller.send_grounded_message(
                 chat_id=self.current_chat_id,
                 content=content,
@@ -2213,6 +2235,7 @@ class AthenaMainWindow(QMainWindow):
         # blocked until the next successful Core/provider refresh.
         self.prompt_input.setEnabled(controls_available)
         self.ground_button.setEnabled(send_enabled)
+        self.web_button.setEnabled(send_enabled)
         self.send_button.setEnabled(send_enabled)
         self.chat_selector.setEnabled(controls_available)
         self.delete_chat_button.setEnabled(
