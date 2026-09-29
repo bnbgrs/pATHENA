@@ -367,9 +367,10 @@ class CommandPaletteController(QObject):
         self.query.clear()
         self._refresh_results("")
         self.dialog.adjustSize()
+        self.dialog.resize(702, 512)
 
         parent_rect = self.window.geometry()
-        dialog_size = self.dialog.sizeHint()
+        dialog_size = self.dialog.size()
         x = parent_rect.x() + max(0, (parent_rect.width() - dialog_size.width()) // 2)
         y = parent_rect.y() + max(
             0,
