@@ -281,7 +281,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 str(knowledge_list.item(index).data(Qt.ItemDataRole.UserRole))
                 for index in range(knowledge_list.count())
             }
-            knowledge_busy = getattr(knowledge_workspace, "_knowledge_busy")
+            knowledge_busy = knowledge_workspace._knowledge_busy  # type: ignore[attr-defined]
             if expected_ids.issubset(observed_ids) and not stabilized:
                 if knowledge_busy():
                     time.sleep(0.05)
