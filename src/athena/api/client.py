@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import uuid
 from dataclasses import dataclass
+from collections.abc import Callable
 from pathlib import Path
 from typing import cast
 from urllib.error import HTTPError, URLError
@@ -362,6 +363,231 @@ class CoreApiClient:
                 ),
             )
         )
+
+    def stream_chat_message(
+        self,
+        chat_id: str,
+        *,
+        content: str,
+        model_id: str | None = None,
+        operation_id: str,
+        effective_context_limit: int | None = None,
+        max_output_tokens: int | None = None,
+        temperature: float | None = None,
+        thinking_enabled: bool | None = None,
+        on_delta: Callable[[str], None],
+    ) -> ChatThreadResponse:
+        """Stream one direct-chat response from the local Core as NDJSON."""
+        if not chat_id or "/" in chat_id:
+            raise ValueError("Chat ID must be a single non-empty path segment.")
+        if not content.strip():
+            raise ValueError(
+                "Chat message content must contain non-whitespace text."
+            )
+        if model_id is not None and not model_id.strip():
+            raise ValueError(
+                "Chat model_id must be non-empty when provided."
+            )
+        if not callable(on_delta):
+            raise TypeError("on_delta must be callable.")
+
+        try:
+            canonical_operation_id = str(uuid.UUID(operation_id))
+        except (ValueError, AttributeError) as exc:
+            raise ValueError(
+                "Chat operation_id must be a valid UUID."
+            ) from exc
+
+        if effective_context_limit is not None and (
+            isinstance(effective_context_limit, bool)
+            or not isinstance(effective_context_limit, int)
+            or effective_context_limit < 1
+        ):
+            raise ValueError(
+                "Chat effective_context_limit must be positive when provided."
+            )
+        if max_output_tokens is not None and (
+            isinstance(max_output_tokens, bool)
+            or not isinstance(max_output_tokens, int)
+            or max_output_tokens < 1
+        ):
+            raise ValueError(
+                "Chat max_output_tokens must be positive when provided."
+            )
+        if temperature is not None and (
+            isinstance(temperature, bool)
+            or not isinstance(temperature, (int, float))
+            or not 0.0 <= float(temperature) <= 2.0
+        ):
+            raise ValueError(
+                "Chat temperature must be between 0.0 and 2.0."
+            )
+        if (
+            thinking_enabled is not None
+            and not isinstance(thinking_enabled, bool)
+        ):
+            raise ValueError(
+                "Chat thinking_enabled must be boolean when provided."
+            )
+
+        payload: dict[str, JsonValue] = {
+            "content": content,
+            "operation_id": canonical_operation_id,
+        }
+        if model_id is not None:
+            payload["model_id"] = model_id
+        if effective_context_limit is not None:
+            payload["effective_context_limit"] = effective_context_limit
+        if max_output_tokens is not None:
+            payload["max_output_tokens"] = max_output_tokens
+        if temperature is not None:
+            payload["temperature"] = float(temperature)
+        if thinking_enabled is not None:
+            payload["thinking_enabled"] = thinking_enabled
+
+        bootstrap = self._load_bootstrap()
+        url = (
+            bootstrap.base_url
+            + f"/api/v1/chats/{chat_id}/messages/stream"
+        )
+        request = Request(
+            url,
+            data=json.dumps(
+                payload,
+                ensure_ascii=False,
+                separators=(",", ":"),
+            ).encode("utf-8"),
+            method="POST",
+            headers={
+                "Accept": "application/x-ndjson",
+                "Authorization": f"Bearer {bootstrap.token}",
+                "Content-Type": "application/json",
+            },
+        )
+
+        terminal: ChatThreadResponse | None = None
+        try:
+            with urlopen(
+                request,
+                timeout=self.generation_timeout_seconds,
+            ) as response:
+                if int(response.status) != 200:
+                    raise CoreApiClientError(
+                        "ATHENA Core returned an unexpected streamed-chat status.",
+                        status=int(response.status),
+                        code="unexpected_status",
+                    )
+                for raw_line in response:
+                    try:
+                        event = _json_object(raw_line.strip())
+                    except CoreApiClientError as exc:
+                        raise CoreApiClientError(
+                            "ATHENA Core returned invalid streamed-chat data.",
+                            code="invalid_response",
+                        ) from exc
+
+                    event_type = event.get("type")
+                    if event_type == "delta":
+                        text = event.get("text")
+                        if not isinstance(text, str):
+                            raise CoreApiClientError(
+                                "ATHENA Core returned an invalid chat delta.",
+                                code="invalid_response",
+                            )
+                        if text:
+                            on_delta(text)
+                        continue
+
+                    if event_type == "complete":
+                        thread_value = event.get("thread")
+                        if not isinstance(thread_value, dict):
+                            raise CoreApiClientError(
+                                "ATHENA Core completed chat without a thread.",
+                                code="invalid_response",
+                            )
+                        terminal = _chat_thread(
+                            cast(dict[str, JsonValue], thread_value)
+                        )
+                        continue
+
+                    if event_type == "cancelled":
+                        message = event.get("message")
+                        raise CoreApiClientError(
+                            message
+                            if isinstance(message, str)
+                            else "Chat generation was cancelled.",
+                            code="generation_cancelled",
+                            retryable=False,
+                        )
+
+                    if event_type == "error":
+                        message = event.get("message")
+                        code = event.get("code")
+                        raise CoreApiClientError(
+                            message
+                            if isinstance(message, str)
+                            else "ATHENA streamed chat failed.",
+                            code=(
+                                code
+                                if isinstance(code, str)
+                                else "stream_error"
+                            ),
+                            retryable=False,
+                        )
+
+                    raise CoreApiClientError(
+                        "ATHENA Core returned an unknown streamed-chat event.",
+                        code="invalid_response",
+                    )
+        except HTTPError as exc:
+            raw = exc.read()
+            raise _problem_from_http_error(exc.code, raw) from None
+        except CoreApiClientError:
+            raise
+        except (URLError, TimeoutError, OSError) as exc:
+            raise CoreApiClientError(
+                "ATHENA Core is unavailable.",
+                code="core_unavailable",
+                retryable=True,
+            ) from exc
+
+        if terminal is None:
+            raise CoreApiClientError(
+                "ATHENA Core stream ended without a completed chat.",
+                code="invalid_response",
+            )
+        return terminal
+
+    def cancel_chat_operation(self, operation_id: str) -> bool:
+        try:
+            canonical_operation_id = str(uuid.UUID(operation_id))
+        except (ValueError, AttributeError) as exc:
+            raise ValueError(
+                "Chat operation_id must be a valid UUID."
+            ) from exc
+
+        payload = self._request(
+            "POST",
+            (
+                "/api/v1/chat-operations/"
+                + canonical_operation_id
+                + "/cancel"
+            ),
+            expected_status=202,
+        )
+        accepted = payload.get("accepted")
+        returned_id = payload.get("operation_id")
+        if not isinstance(accepted, bool):
+            raise CoreApiClientError(
+                "ATHENA Core returned invalid cancellation state.",
+                code="invalid_response",
+            )
+        if returned_id != canonical_operation_id:
+            raise CoreApiClientError(
+                "ATHENA Core returned cancellation state for another operation.",
+                code="invalid_response",
+            )
+        return accepted
 
     def send_unified_local_chat_message(
         self,
