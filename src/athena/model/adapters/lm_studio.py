@@ -277,11 +277,6 @@ class LMStudioProvider:
 
             self._run_lms(
                 cli,
-                ("daemon", "up", "--json"),
-                timeout_seconds=15.0,
-            )
-            self._run_lms(
-                cli,
                 (
                     "server",
                     "start",
