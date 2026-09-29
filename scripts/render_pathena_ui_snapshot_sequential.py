@@ -263,10 +263,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         expected_ids = set(reference_knowledge_ids)
         preferred_id = reference_knowledge_ids[0]
         knowledge_workspace: object | None = knowledge_list
-        while knowledge_workspace is not None and not callable(
-            getattr(knowledge_workspace, "_knowledge_busy", None)
+        while knowledge_workspace is not None and not hasattr(
+            knowledge_workspace, "_knowledge_busy"
         ):
-            knowledge_workspace = knowledge_workspace.parent()
+            knowledge_workspace = knowledge_workspace.parent()  # type: ignore[attr-defined]
         if knowledge_workspace is None:
             raise RuntimeError("Knowledge process ownership is unavailable.")
 
