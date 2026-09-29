@@ -164,6 +164,12 @@ from athena.storage.schema_contract import (
     SOURCE_PROTECTION_TRANSITION_SCHEMA_VERSION as SOURCE_PROTECTION_TRANSITION_SCHEMA_VERSION,
 )
 from athena.storage.schema_contract import STORAGE_LAYOUT_VERSION as STORAGE_LAYOUT_VERSION
+from athena.storage.schema_contract import (
+    STRUCTURED_REPLICATION_MIGRATION_ID as STRUCTURED_REPLICATION_MIGRATION_ID,
+)
+from athena.storage.schema_contract import (
+    STRUCTURED_REPLICATION_SCHEMA_VERSION as STRUCTURED_REPLICATION_SCHEMA_VERSION,
+)
 from athena.storage.schema_contract import DatabaseCompatibilityError as DatabaseCompatibilityError
 from athena.storage.schema_contract import _user_tables as _user_tables
 from athena.storage.schema_error_sanitization import (
@@ -2925,16 +2931,15 @@ _verify_schema_v39.__module__ = "athena.storage.schema"
 
 def _verify_schema_v40(
     connection: sqlite3.Connection,
+    *,
+    schema_version: int = GROUNDED_RESPONSE_RECEIPT_SCHEMA_VERSION,
+    migration_id: str = GROUNDED_RESPONSE_RECEIPT_MIGRATION_ID,
 ) -> None:
     """Verify durable Grounded-response receipt persistence."""
     _verify_schema_v39(
         connection,
-        schema_version=(
-            GROUNDED_RESPONSE_RECEIPT_SCHEMA_VERSION
-        ),
-        migration_id=(
-            GROUNDED_RESPONSE_RECEIPT_MIGRATION_ID
-        ),
+        schema_version=schema_version,
+        migration_id=migration_id,
     )
 
     tables = set(
@@ -3052,3 +3057,58 @@ def _verify_schema_v40(
 
 
 _verify_schema_v40.__module__ = "athena.storage.schema"
+
+
+def _verify_schema_v41(connection: sqlite3.Connection) -> None:
+    """Verify structured replication state and monotone-history constraints."""
+    _verify_schema_v40(
+        connection,
+        schema_version=STRUCTURED_REPLICATION_SCHEMA_VERSION,
+        migration_id=STRUCTURED_REPLICATION_MIGRATION_ID,
+    )
+    metadata = connection.execute(
+        "SELECT schema_version, last_migration_id, minimum_reader_version "
+        "FROM schema_metadata WHERE singleton_id = 1"
+    ).fetchone()
+    if metadata is None or tuple(metadata) != (
+        STRUCTURED_REPLICATION_SCHEMA_VERSION,
+        STRUCTURED_REPLICATION_MIGRATION_ID,
+        STRUCTURED_REPLICATION_SCHEMA_VERSION,
+    ):
+        raise DatabaseCompatibilityError(
+            "ATHENA structured replication schema metadata is invalid."
+        )
+
+    tables = set(_user_tables(connection))
+    if not {"replication_targets", "replication_commits"}.issubset(tables):
+        raise DatabaseCompatibilityError(
+            "ATHENA structured replication state schema is missing."
+        )
+    target_columns = {
+        str(row[1]) for row in connection.execute("PRAGMA table_info(replication_targets)")
+    }
+    commit_columns = {
+        str(row[1]) for row in connection.execute("PRAGMA table_info(replication_commits)")
+    }
+    if target_columns != {
+        "target_id", "target_role", "target_locator", "state",
+        "confirmed_commit_seq", "confirmed_head_hash", "conflict_code",
+        "created_at_us", "updated_at_us", "verified_at_us",
+    } or commit_columns != {
+        "target_id", "commit_seq", "state", "head_hash",
+        "previous_head_hash", "created_at_us", "verified_at_us",
+    }:
+        raise DatabaseCompatibilityError(
+            "ATHENA structured replication state columns are incompatible."
+        )
+    index = connection.execute(
+        "SELECT 1 FROM sqlite_master WHERE type = 'index' "
+        "AND name = 'idx_replication_commits_state'"
+    ).fetchone()
+    if index is None or connection.execute("PRAGMA foreign_key_check").fetchall():
+        raise DatabaseCompatibilityError(
+            "ATHENA structured replication state integrity verification failed."
+        )
+
+
+_verify_schema_v41.__module__ = "athena.storage.schema"

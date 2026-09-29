@@ -4,12 +4,13 @@ import sqlite3
 from pathlib import Path
 
 from athena.storage.schema import (
-    GROUNDED_RESPONSE_RECEIPT_MIGRATION_ID,
     GROUNDED_RESPONSE_RECEIPT_SCHEMA_VERSION,
     OPERATIONAL_ERROR_PHYSICAL_CLEANUP_MIGRATION_ID,
     OPERATIONAL_ERROR_PHYSICAL_CLEANUP_SCHEMA_VERSION,
     PROTECTED_SOURCE_SEMANTIC_SCHEMA_VERSION,
     SCHEMA_VERSION,
+    STRUCTURED_REPLICATION_MIGRATION_ID,
+    STRUCTURED_REPLICATION_SCHEMA_VERSION,
     initialize_schema,
 )
 
@@ -70,11 +71,8 @@ def test_fresh_database_reaches_protected_source_semantic_schema(
             == 39
         )
 
-        assert (
-            SCHEMA_VERSION
-            == GROUNDED_RESPONSE_RECEIPT_SCHEMA_VERSION
-            == 40
-        )
+        assert GROUNDED_RESPONSE_RECEIPT_SCHEMA_VERSION == 40
+        assert SCHEMA_VERSION == STRUCTURED_REPLICATION_SCHEMA_VERSION == 41
 
         assert int(
             connection.execute(
@@ -98,7 +96,7 @@ def test_fresh_database_reaches_protected_source_semantic_schema(
                     "last_migration_id"
                 ]
             )
-            == GROUNDED_RESPONSE_RECEIPT_MIGRATION_ID
+            == STRUCTURED_REPLICATION_MIGRATION_ID
         )
 
         assert int(
@@ -239,7 +237,7 @@ def test_realistic_v38_database_migrates_additively_to_v39(
                     "last_migration_id"
                 ]
             )
-            == GROUNDED_RESPONSE_RECEIPT_MIGRATION_ID
+            == STRUCTURED_REPLICATION_MIGRATION_ID
         )
 
         assert (

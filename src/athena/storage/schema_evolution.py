@@ -194,6 +194,12 @@ from athena.storage.schema_contract import (
     SOURCE_REPRESENTATION_SCHEMA_VERSION as SOURCE_REPRESENTATION_SCHEMA_VERSION,
 )
 from athena.storage.schema_contract import STORAGE_LAYOUT_VERSION as STORAGE_LAYOUT_VERSION
+from athena.storage.schema_contract import (
+    STRUCTURED_REPLICATION_MIGRATION_ID as STRUCTURED_REPLICATION_MIGRATION_ID,
+)
+from athena.storage.schema_contract import (
+    STRUCTURED_REPLICATION_SCHEMA_VERSION as STRUCTURED_REPLICATION_SCHEMA_VERSION,
+)
 from athena.storage.schema_contract import DatabaseCompatibilityError as DatabaseCompatibilityError
 from athena.storage.schema_contract import _user_tables as _user_tables
 from athena.storage.schema_error_sanitization import (
@@ -4078,6 +4084,114 @@ def _migrate_schema_v39_to_v40(
         raise
 
 
+def _migrate_schema_v40_to_v41(connection: sqlite3.Connection) -> None:
+    """Add restart-safe state for monotone structured replication."""
+    connection.execute("BEGIN IMMEDIATE")
+    try:
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS replication_targets (
+                target_id BLOB(16) NOT NULL CHECK(length(target_id) = 16),
+                target_role TEXT NOT NULL CHECK(target_role = 'long_term_root'),
+                target_locator TEXT NOT NULL UNIQUE CHECK(length(target_locator) > 0),
+                state TEXT NOT NULL CHECK(
+                    state IN ('pending', 'active', 'conflict', 'recovering', 'paused')
+                ),
+                confirmed_commit_seq INTEGER NOT NULL
+                    CHECK(confirmed_commit_seq >= 0),
+                confirmed_head_hash TEXT NULL CHECK(
+                    confirmed_head_hash IS NULL OR length(confirmed_head_hash) = 64
+                ),
+                conflict_code TEXT NULL CHECK(
+                    conflict_code IS NULL OR length(conflict_code) BETWEEN 1 AND 200
+                ),
+                created_at_us INTEGER NOT NULL CHECK(created_at_us >= 0),
+                updated_at_us INTEGER NOT NULL CHECK(updated_at_us >= created_at_us),
+                verified_at_us INTEGER NULL CHECK(
+                    verified_at_us IS NULL OR verified_at_us >= created_at_us
+                ),
+                PRIMARY KEY(target_id),
+                CHECK(
+                    (confirmed_commit_seq = 0 AND confirmed_head_hash IS NULL)
+                    OR (confirmed_commit_seq > 0 AND confirmed_head_hash IS NOT NULL)
+                ),
+                CHECK(
+                    (state = 'conflict' AND conflict_code IS NOT NULL)
+                    OR (state != 'conflict' AND conflict_code IS NULL)
+                )
+            ) WITHOUT ROWID
+            """
+        )
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS replication_commits (
+                target_id BLOB(16) NOT NULL CHECK(length(target_id) = 16),
+                commit_seq INTEGER NOT NULL CHECK(commit_seq >= 1),
+                state TEXT NOT NULL CHECK(state IN ('pending', 'verified')),
+                head_hash TEXT NOT NULL CHECK(length(head_hash) = 64),
+                previous_head_hash TEXT NULL CHECK(
+                    previous_head_hash IS NULL OR length(previous_head_hash) = 64
+                ),
+                created_at_us INTEGER NOT NULL CHECK(created_at_us >= 0),
+                verified_at_us INTEGER NULL CHECK(
+                    verified_at_us IS NULL OR verified_at_us >= created_at_us
+                ),
+                PRIMARY KEY(target_id, commit_seq),
+                FOREIGN KEY(target_id) REFERENCES replication_targets(target_id)
+                    ON DELETE RESTRICT,
+                FOREIGN KEY(commit_seq) REFERENCES commit_records(commit_seq)
+                    ON DELETE RESTRICT,
+                CHECK(
+                    (state = 'pending' AND verified_at_us IS NULL)
+                    OR (state = 'verified' AND verified_at_us IS NOT NULL)
+                )
+            ) WITHOUT ROWID
+            """
+        )
+        connection.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_replication_commits_state
+            ON replication_commits(target_id, state, commit_seq)
+            """
+        )
+
+        target_columns = {
+            str(row[1]) for row in connection.execute("PRAGMA table_info(replication_targets)")
+        }
+        commit_columns = {
+            str(row[1]) for row in connection.execute("PRAGMA table_info(replication_commits)")
+        }
+        if target_columns != {
+            "target_id", "target_role", "target_locator", "state",
+            "confirmed_commit_seq", "confirmed_head_hash", "conflict_code",
+            "created_at_us", "updated_at_us", "verified_at_us",
+        } or commit_columns != {
+            "target_id", "commit_seq", "state", "head_hash",
+            "previous_head_hash", "created_at_us", "verified_at_us",
+        }:
+            raise DatabaseCompatibilityError(
+                "Existing structured replication state has an incompatible schema."
+            )
+
+        connection.execute(
+            """
+            UPDATE schema_metadata
+            SET schema_version = ?, last_migration_id = ?, minimum_reader_version = ?
+            WHERE singleton_id = 1
+            """,
+            (
+                STRUCTURED_REPLICATION_SCHEMA_VERSION,
+                STRUCTURED_REPLICATION_MIGRATION_ID,
+                STRUCTURED_REPLICATION_SCHEMA_VERSION,
+            ),
+        )
+        connection.execute(f"PRAGMA user_version = {STRUCTURED_REPLICATION_SCHEMA_VERSION}")
+        connection.execute("COMMIT")
+    except BaseException:
+        connection.rollback()
+        raise
+
+
 # Preserve historical private evolution import/pickle identities.
 _create_schema_v1.__module__ = "athena.storage.schema"
 _migrate_schema_v1_to_v2.__module__ = "athena.storage.schema"
@@ -4114,3 +4228,4 @@ _migrate_schema_v35_to_v36.__module__ = "athena.storage.schema"
 _migrate_schema_v36_to_v37.__module__ = "athena.storage.schema"
 _migrate_schema_v38_to_v39.__module__ = "athena.storage.schema"
 _migrate_schema_v39_to_v40.__module__ = "athena.storage.schema"
+_migrate_schema_v40_to_v41.__module__ = "athena.storage.schema"

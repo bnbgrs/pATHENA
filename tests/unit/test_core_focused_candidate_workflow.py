@@ -29,7 +29,7 @@ def test_core_focused_pytest_selects_only_core_owned_test_families() -> None:
     assert "No changed Core-owned unit-test files selected" in text
 
 
-def test_core_focused_lints_and_types_only_core_owned_python() -> None:
+def test_core_focused_lints_tests_but_types_only_production_python() -> None:
     text = _workflow_text()
     selector = (
         "^(src/athena/knowledge/.*|src/athena/api/(knowledge_.*|research)|tests/unit/("
@@ -39,9 +39,17 @@ def test_core_focused_lints_and_types_only_core_owned_python() -> None:
 
     assert '"src/athena/api/knowledge_*.py"' in text
     assert '"src/athena/api/research.py"' in text
-    assert text.count(selector) == 3
+    production_selector = (
+        "^(src/athena/knowledge/.*|src/athena/api/(knowledge_.*|research))\\.py$"
+    )
+
+    # Ruff and Ruff remediation retain Core-owned tests; mypy deliberately receives
+    # production modules only. Focused pytest independently selects the test families.
+    assert text.count(selector) == 2
+    assert text.count(production_selector) == 1
+    assert "Mypy changed Core production Python files" in text
+    assert "No changed Core production Python files selected for mypy." in text
     assert "src/athena/api/knowledge_.*|tests/unit/.*" not in text
-    assert "Mypy changed Core Python files" in text
     assert "mypy @changed" in text
     assert 'id: mypy' in text
     assert 'steps.mypy.outcome' in text

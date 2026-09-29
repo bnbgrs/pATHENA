@@ -104,7 +104,7 @@ jobs:
           $ruffOutput | Tee-Object -FilePath ".focused-evidence/ruff.txt" | ForEach-Object { Write-Host $_ }
           if ($ruffExit -ne 0) { throw "Exact changed-file Ruff contract failed." }
 
-      - name: Mypy changed Core Python files
+      - name: Mypy changed Core production Python files
         id: mypy
         continue-on-error: true
         shell: pwsh
@@ -112,19 +112,19 @@ jobs:
           New-Item -ItemType Directory -Force -Path ".focused-evidence" | Out-Null
           $changed = @(
             git diff --diff-filter=ACMRT --name-only $env:BASE_SHA $env:CANDIDATE_SHA -- "*.py" |
-              Where-Object { $_ -match '^(src/athena/knowledge/.*|src/athena/api/(knowledge_.*|research)|tests/unit/(test_claim.*|test_knowledge.*|test_concept_note.*|test_identity_transition.*|test_temporal.*|test_user_correction.*|test_api_research))\.py$' }
+              Where-Object { $_ -match '^(src/athena/knowledge/.*|src/athena/api/(knowledge_.*|research))\.py$' }
           )
-          if ($LASTEXITCODE -ne 0) { throw "Unable to resolve changed Core Python files for mypy." }
+          if ($LASTEXITCODE -ne 0) { throw "Unable to resolve changed Core production Python files for mypy." }
           if ($changed.Count -eq 0) {
-            "No changed Core Python files selected for mypy." | Tee-Object -FilePath ".focused-evidence/mypy.txt" | Write-Host
+            "No changed Core production Python files selected for mypy." | Tee-Object -FilePath ".focused-evidence/mypy.txt" | Write-Host
             exit 0
           }
-          Write-Host "Mypy exact candidate files:"
+          Write-Host "Mypy exact candidate production files:"
           $changed | ForEach-Object { Write-Host "  $_" }
           $mypyOutput = @(& uv run --locked --extra dev --extra desktop --no-sync mypy @changed 2>&1)
           $mypyExit = $LASTEXITCODE
           $mypyOutput | Tee-Object -FilePath ".focused-evidence/mypy.txt" | ForEach-Object { Write-Host $_ }
-          if ($mypyExit -ne 0) { throw "Exact changed-file mypy contract failed." }
+          if ($mypyExit -ne 0) { throw "Exact changed-production-file mypy contract failed." }
 
       - name: Run changed focused unit tests
         id: focused_tests

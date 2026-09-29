@@ -16,10 +16,10 @@ from athena.source.protection_transition import (
 from athena.source.repository import SourceProtectionTransitionPendingError
 from athena.storage.database import SQLiteDatabase
 from athena.storage.schema import (
-    GROUNDED_RESPONSE_RECEIPT_MIGRATION_ID,
     PROTECTED_SOURCE_BLOB_MIGRATION_ID,
     PROTECTED_SOURCE_BLOB_SCHEMA_VERSION,
     SCHEMA_VERSION,
+    STRUCTURED_REPLICATION_MIGRATION_ID,
 )
 
 _TEST_KDF = Argon2idParameters(
@@ -541,7 +541,7 @@ def test_v33_database_upgrades_additively_to_transition_v34(
         assert metadata is not None
         assert tuple(metadata) == (
             SCHEMA_VERSION,
-            GROUNDED_RESPONSE_RECEIPT_MIGRATION_ID,
+            STRUCTURED_REPLICATION_MIGRATION_ID,
             SCHEMA_VERSION,
         )
         assert connection.execute(
