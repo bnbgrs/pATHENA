@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import uuid
 from collections.abc import Awaitable, Callable
@@ -17,6 +18,7 @@ from athena.api.service import (
     KnowledgeReviewConflictError,
     KnowledgeReviewNotFoundError,
 )
+from athena.chat.generation import GenerationCancelledError
 from athena.chat.repository import ChatNotFoundError
 from athena.chat.send_identity import (
     SendOperationState,
@@ -36,6 +38,10 @@ AsgiReceive = Callable[[], Awaitable[AsgiMessage]]
 AsgiSend = Callable[[AsgiMessage], Awaitable[None]]
 
 _JSON_HEADERS = ((b"content-type", b"application/json; charset=utf-8"),)
+_NDJSON_HEADERS = (
+    (b"content-type", b"application/x-ndjson; charset=utf-8"),
+    (b"cache-control", b"no-store"),
+)
 _MAX_JSON_BODY_BYTES = 64 * 1024
 
 
@@ -431,6 +437,68 @@ class CoreApiAsgiApp:
                         temperature=temperature,
                         thinking_enabled=thinking_enabled,
                     ),
+                    request_id=request_id,
+                )
+                return
+
+            if (
+                method == "POST"
+                and path.startswith("/api/v1/chats/")
+                and path.endswith("/messages/stream")
+            ):
+                chat_id = path.removeprefix("/api/v1/chats/").removesuffix(
+                    "/messages/stream"
+                )
+                if not chat_id or "/" in chat_id:
+                    raise ValueError("Invalid streamed chat message resource path.")
+                payload = await _read_json_object(receive)
+                (
+                    content,
+                    model_id,
+                    operation_id,
+                    effective_context_limit,
+                    max_output_tokens,
+                    temperature,
+                    thinking_enabled,
+                ) = _parse_stream_chat_payload(payload)
+                await _send_chat_stream(
+                    send=send,
+                    facade=self._facade,
+                    request_id=request_id,
+                    chat_id=chat_id,
+                    content=content,
+                    model_id=model_id,
+                    operation_id=operation_id,
+                    effective_context_limit=effective_context_limit,
+                    max_output_tokens=max_output_tokens,
+                    temperature=temperature,
+                    thinking_enabled=thinking_enabled,
+                )
+                return
+
+            cancel_operation_id = _single_resource_id(
+                path,
+                prefix="/api/v1/chat-operations/",
+                suffix="/cancel",
+            )
+            if method == "POST" and cancel_operation_id is not None:
+                await _consume_empty_body(receive)
+                try:
+                    uuid.UUID(cancel_operation_id)
+                except ValueError as exc:
+                    raise ValueError(
+                        "Chat operation ID must be a valid UUID."
+                    ) from exc
+                accepted = self._facade.cancel_chat_operation(
+                    cancel_operation_id
+                )
+                await _send_json(
+                    send,
+                    status=202,
+                    payload={
+                        "accepted": accepted,
+                        "operation_id": cancel_operation_id,
+                    },
                     request_id=request_id,
                 )
                 return
@@ -921,6 +989,20 @@ def _known_path(path: str) -> bool:
         return True
     if (
         path.startswith("/api/v1/chats/")
+        and path.endswith("/messages/stream")
+    ):
+        chat_id = path.removeprefix(
+            "/api/v1/chats/"
+        ).removesuffix("/messages/stream")
+        return bool(chat_id) and "/" not in chat_id
+    if _single_resource_id(
+        path,
+        prefix="/api/v1/chat-operations/",
+        suffix="/cancel",
+    ) is not None:
+        return True
+    if (
+        path.startswith("/api/v1/chats/")
         and path.endswith("/deletion-preview")
     ):
         chat_id = path.removeprefix(
@@ -1164,6 +1246,270 @@ async def _send_problem(
         },
         request_id=resolved_request_id,
         extra_headers=extra_headers,
+    )
+
+
+def _parse_stream_chat_payload(
+    payload: dict[str, JsonValue],
+) -> tuple[
+    str,
+    str | None,
+    str,
+    int | None,
+    int | None,
+    float | None,
+    bool | None,
+]:
+    unknown = set(payload) - {
+        "content",
+        "model_id",
+        "operation_id",
+        "effective_context_limit",
+        "max_output_tokens",
+        "temperature",
+        "thinking_enabled",
+    }
+    if unknown:
+        raise ValueError(
+            "Streamed chat message request contains unsupported fields."
+        )
+    content = payload.get("content")
+    if not isinstance(content, str) or not content.strip():
+        raise ValueError(
+            "Chat message content must contain non-whitespace text."
+        )
+    model_id = payload.get("model_id")
+    if model_id is not None and (
+        not isinstance(model_id, str) or not model_id.strip()
+    ):
+        raise ValueError(
+            "Chat model_id must be a non-empty string or null."
+        )
+    operation_id = payload.get("operation_id")
+    if not isinstance(operation_id, str) or not operation_id.strip():
+        raise ValueError(
+            "Streamed chat operation_id must be a non-empty UUID string."
+        )
+    try:
+        uuid.UUID(operation_id)
+    except ValueError as exc:
+        raise ValueError(
+            "Streamed chat operation_id must be a valid UUID string."
+        ) from exc
+
+    effective_context_limit = payload.get("effective_context_limit")
+    if effective_context_limit is not None and (
+        isinstance(effective_context_limit, bool)
+        or not isinstance(effective_context_limit, int)
+        or effective_context_limit < 1
+    ):
+        raise ValueError(
+            "Chat effective_context_limit must be a positive integer or null."
+        )
+    max_output_tokens = payload.get("max_output_tokens")
+    if max_output_tokens is not None and (
+        isinstance(max_output_tokens, bool)
+        or not isinstance(max_output_tokens, int)
+        or max_output_tokens < 1
+    ):
+        raise ValueError(
+            "Chat max_output_tokens must be a positive integer or null."
+        )
+    temperature_value = payload.get("temperature")
+    if temperature_value is not None and (
+        isinstance(temperature_value, bool)
+        or not isinstance(temperature_value, (int, float))
+        or not 0.0 <= float(temperature_value) <= 2.0
+    ):
+        raise ValueError(
+            "Chat temperature must be between 0.0 and 2.0 or null."
+        )
+    temperature = (
+        None if temperature_value is None else float(temperature_value)
+    )
+    thinking_enabled = payload.get("thinking_enabled")
+    if thinking_enabled is not None and not isinstance(
+        thinking_enabled, bool
+    ):
+        raise ValueError(
+            "Chat thinking_enabled must be boolean or null."
+        )
+    return (
+        content,
+        model_id if isinstance(model_id, str) else None,
+        operation_id,
+        effective_context_limit,
+        max_output_tokens,
+        temperature,
+        thinking_enabled,
+    )
+
+
+async def _send_ndjson_event(
+    send: AsgiSend,
+    payload: dict[str, JsonValue],
+    *,
+    more_body: bool,
+) -> None:
+    body = (
+        json.dumps(
+            payload,
+            ensure_ascii=False,
+            separators=(",", ":"),
+        )
+        + "\n"
+    ).encode("utf-8")
+    await send(
+        {
+            "type": "http.response.body",
+            "body": body,
+            "more_body": more_body,
+        }
+    )
+
+
+async def _send_chat_stream(
+    *,
+    send: AsgiSend,
+    facade: CoreApiSurface,
+    request_id: str,
+    chat_id: str,
+    content: str,
+    model_id: str | None,
+    operation_id: str,
+    effective_context_limit: int | None,
+    max_output_tokens: int | None,
+    temperature: float | None,
+    thinking_enabled: bool | None,
+) -> None:
+    loop = asyncio.get_running_loop()
+    deltas: asyncio.Queue[str] = asyncio.Queue()
+
+    def on_delta(value: str) -> None:
+        if value:
+            loop.call_soon_threadsafe(
+                deltas.put_nowait,
+                value,
+            )
+
+    await send(
+        {
+            "type": "http.response.start",
+            "status": 200,
+            "headers": list(
+                _NDJSON_HEADERS
+                + ((b"x-request-id", request_id.encode("ascii")),)
+            ),
+        }
+    )
+
+    task = asyncio.create_task(
+        asyncio.to_thread(
+            facade.stream_chat_message,
+            chat_id,
+            content=content,
+            requested_model_id=model_id,
+            operation_id=operation_id,
+            effective_context_limit=effective_context_limit,
+            max_output_tokens=max_output_tokens,
+            temperature=temperature,
+            thinking_enabled=thinking_enabled,
+            on_delta=on_delta,
+        )
+    )
+
+    while True:
+        if task.done() and deltas.empty():
+            break
+        try:
+            delta = await asyncio.wait_for(
+                deltas.get(),
+                timeout=0.05,
+            )
+        except TimeoutError:
+            continue
+        await _send_ndjson_event(
+            send,
+            {
+                "type": "delta",
+                "text": delta,
+            },
+            more_body=True,
+        )
+
+    try:
+        thread = await task
+    except GenerationCancelledError:
+        await _send_ndjson_event(
+            send,
+            {
+                "type": "cancelled",
+                "message": (
+                    "Generation stopped. The incomplete assistant response "
+                    "was not persisted."
+                ),
+            },
+            more_body=False,
+        )
+        return
+    except ProviderOutputLimitError:
+        await _send_ndjson_event(
+            send,
+            {
+                "type": "error",
+                "code": "output_limit_reached",
+                "message": (
+                    "The model reached the configured maximum output tokens. "
+                    "The incomplete assistant response was not persisted."
+                ),
+            },
+            more_body=False,
+        )
+        return
+    except SendOperationStateError:
+        await _send_ndjson_event(
+            send,
+            {
+                "type": "error",
+                "code": "send_operation_state_conflict",
+                "message": (
+                    "The chat operation cannot continue from its current "
+                    "durable state."
+                ),
+            },
+            more_body=False,
+        )
+        return
+    except (ValueError, TypeError) as exc:
+        await _send_ndjson_event(
+            send,
+            {
+                "type": "error",
+                "code": "invalid_request",
+                "message": str(exc),
+            },
+            more_body=False,
+        )
+        return
+    except Exception:
+        await _send_ndjson_event(
+            send,
+            {
+                "type": "error",
+                "code": "internal_error",
+                "message": "ATHENA could not complete streamed chat.",
+            },
+            more_body=False,
+        )
+        return
+
+    await _send_ndjson_event(
+        send,
+        {
+            "type": "complete",
+            "thread": thread.to_dict(),
+        },
+        more_body=False,
     )
 
 
