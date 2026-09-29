@@ -848,9 +848,16 @@ def test_window_ctrl_enter_submits_direct_chat() -> None:
             is True
         )
 
-        assert (
-            window.send_button.text() == "→"
-        )
+        assert window.send_button.text() == "→"
+        assert window.send_button.accessibleName() == "Send message"
+
+        window.apply_chat_busy(True)
+        assert window.send_button.text() == "→"
+        assert window.send_button.isEnabled() is False
+
+        window.apply_chat_busy(False)
+        assert window.send_button.text() == "→"
+        assert window.send_button.isEnabled() is True
 
         window.prompt_input.setFocus()
 
