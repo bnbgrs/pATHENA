@@ -196,10 +196,18 @@ class LMStudioProvider:
             )
         if model.loaded and (
             context_length is None
-            or model.loaded_context_length is None
-            or context_length <= model.loaded_context_length
+            or (
+                model.loaded_context_length is not None
+                and context_length <= model.loaded_context_length
+            )
         ):
             return model
+
+        # An explicit context change must not create a second runtime instance of
+        # the same model. Unload the current instance first, then reacquire it with
+        # the requested context.
+        if model.loaded and context_length is not None:
+            self.unload_model(normalized_id)
 
         payload: dict[str, Any] = {"model": normalized_id}
         if context_length is not None:
