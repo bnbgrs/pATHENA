@@ -641,6 +641,37 @@ class CoreApiClient:
         payload = self._get("/api/v1/models")
         return tuple(_model(item) for item in _items(payload))
 
+    def activate_model(
+        self,
+        model_id: str,
+        *,
+        context_length: int | None = None,
+        unload_others: bool = True,
+    ) -> ModelResponse:
+        normalized = model_id.strip()
+        if not normalized or "/" in normalized:
+            raise ValueError("Model ID must be a single non-empty path segment.")
+        body: dict[str, JsonValue] = {
+            "unload_others": unload_others,
+        }
+        if context_length is not None:
+            if (
+                isinstance(context_length, bool)
+                or not isinstance(context_length, int)
+                or context_length < 1
+            ):
+                raise ValueError("context_length must be a positive integer.")
+            body["context_length"] = context_length
+        return _model(
+            self._request(
+                "POST",
+                f"/api/v1/models/{normalized}/activate",
+                expected_status=200,
+                json_body=body,
+                timeout_seconds=330.0,
+            )
+        )
+
     def discovery_process_id(self) -> int:
         """Return the PID that published the currently trusted discovery state."""
         return self._load_bootstrap().process_id
