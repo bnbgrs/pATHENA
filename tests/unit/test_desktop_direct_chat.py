@@ -972,3 +972,170 @@ def test_window_keeps_prompt_editable_when_provider_is_unavailable() -> None:
     finally:
         window.close()
         assert pool.waitForDone(2_000)
+
+
+
+class _StreamingGateway(_Gateway):
+    def __init__(self) -> None:
+        super().__init__()
+        self.cancelled_operations: list[str] = []
+        self.started = threading.Event()
+        self.release = threading.Event()
+        self.cancel_mode = False
+
+    def stream_chat_message(
+        self,
+        chat_id: str,
+        *,
+        content: str,
+        model_id: str | None = None,
+        operation_id: str,
+        effective_context_limit: int | None = None,
+        max_output_tokens: int | None = None,
+        temperature: float | None = None,
+        thinking_enabled: bool | None = None,
+        on_delta,
+    ) -> ChatThreadResponse:
+        del (
+            model_id,
+            effective_context_limit,
+            max_output_tokens,
+            temperature,
+            thinking_enabled,
+        )
+        self._record()
+        self.sent.append((chat_id, content, operation_id))
+
+        incomplete = _thread(
+            chat_id=chat_id,
+            operation_id=operation_id,
+            content=content,
+            state="incomplete",
+        )
+        self.threads[chat_id] = incomplete
+        self.started.set()
+        on_delta("Hello ")
+        on_delta("world")
+
+        if self.cancel_mode:
+            assert self.release.wait(2.0)
+            raise CoreApiClientError(
+                "Generation stopped.",
+                code="generation_cancelled",
+                retryable=False,
+            )
+
+        complete = _thread(
+            chat_id=chat_id,
+            operation_id=operation_id,
+            content=content,
+            state="complete",
+        )
+        self.threads[chat_id] = complete
+        return complete
+
+    def cancel_chat_operation(self, operation_id: str) -> bool:
+        self.cancelled_operations.append(operation_id)
+        self.release.set()
+        return True
+
+
+def test_controller_emits_live_deltas_before_completed_chat() -> None:
+    app = _app()
+    gateway = _StreamingGateway()
+    pool = QThreadPool()
+    pool.setMaxThreadCount(2)
+    controller = DesktopApiController(
+        gateway,
+        thread_pool=pool,
+    )
+    delta_spy = QSignalSpy(controller.chat_delta)
+    sent_spy = QSignalSpy(controller.chat_sent)
+
+    controller.send_message(
+        chat_id=CHAT_ID,
+        content="stream this",
+    )
+
+    assert pool.waitForDone(2_000)
+    app.processEvents()
+
+    assert [delta_spy.at(i)[0] for i in range(delta_spy.count())] == [
+        "Hello ",
+        "world",
+    ]
+    assert sent_spy.count() == 1
+
+
+def test_controller_stop_cancels_active_stream_without_chat_failure() -> None:
+    app = _app()
+    gateway = _StreamingGateway()
+    gateway.cancel_mode = True
+    pool = QThreadPool()
+    pool.setMaxThreadCount(2)
+    controller = DesktopApiController(
+        gateway,
+        thread_pool=pool,
+    )
+    cancelled_spy = QSignalSpy(controller.chat_cancelled)
+    failure_spy = QSignalSpy(controller.chat_operation_failed)
+    loaded_spy = QSignalSpy(controller.chat_loaded)
+
+    controller.send_message(
+        chat_id=CHAT_ID,
+        content="stop this",
+    )
+    assert gateway.started.wait(2.0)
+
+    controller.cancel_chat()
+
+    assert pool.waitForDone(3_000)
+    app.processEvents()
+
+    assert gateway.cancelled_operations
+    assert cancelled_spy.count() == 1
+    assert failure_spy.count() == 0
+    assert loaded_spy.count() == 1
+    thread = loaded_spy.at(0)[0]
+    assert isinstance(thread, ChatThreadResponse)
+    assert [message.message_type for message in thread.messages] == ["user"]
+
+
+def test_window_renders_transient_streaming_text_and_clears_on_completion() -> None:
+    app = _app()
+    gateway = _Gateway()
+    pool = _pool()
+    controller = DesktopApiController(
+        gateway,
+        thread_pool=pool,
+    )
+    window = AthenaMainWindow(controller)
+    try:
+        window.apply_api_snapshot(_ready_snapshot())
+        window.apply_chat_delta("live ")
+        window.apply_chat_delta("answer")
+        app.processEvents()
+
+        assert window._streaming_label is not None
+        assert window._streaming_label.text() == "live answer"
+
+        final_thread = _thread(
+            chat_id=CHAT_ID,
+            operation_id=(
+                "99999999-9999-4999-8999-999999999999"
+            ),
+            content="question",
+            state="complete",
+        )
+        window.apply_chat_sent(final_thread)
+        app.processEvents()
+
+        assert window._streaming_label is None
+        rendered = {
+            label.text()
+            for label in window.chat_messages_widget.findChildren(QLabel)
+        }
+        assert "hello from ATHENA" in rendered
+    finally:
+        window.close()
+        assert pool.waitForDone(2_000)
