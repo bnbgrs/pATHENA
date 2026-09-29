@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from PySide6.QtCore import QPoint, QSettings, QSize, Qt, QTimer, Signal, Slot
+from PySide6.QtCore import QPoint, QSize, Qt, QTimer, Signal, Slot
 from PySide6.QtGui import (
     QColor,
     QKeySequence,
@@ -314,12 +314,7 @@ class AthenaMainWindow(QMainWindow):
         self.setMinimumSize(1320, 780)
 
         self.api_controller = api_controller
-        self._settings = QSettings()
-        self._preferred_model_id = self._settings.value(
-            "chat/model_id",
-            "",
-            type=str,
-        ) or None
+        self._preferred_model_id: str | None = None
         self._active_model_id: str | None = None
         self._pending_model_id: str | None = None
         self._model_busy = False
@@ -963,12 +958,6 @@ class AthenaMainWindow(QMainWindow):
                 self.context_spin.setSingleStep(context_step)
 
                 remembered = self._context_by_model.get(model.backend_model_id)
-                if remembered is None:
-                    remembered = self._settings.value(
-                        f"models/{model.backend_model_id}/context",
-                        runtime_limit,
-                        type=int,
-                    )
                 target = runtime_limit if remembered is None else remembered
                 target = max(minimum, min(target, runtime_limit))
                 self.context_slider.setValue(target)
@@ -986,12 +975,6 @@ class AthenaMainWindow(QMainWindow):
             self.max_output_spin.setSingleStep(min(256, output_max))
 
             remembered_output = self._max_output_by_model.get(model.backend_model_id)
-            if remembered_output is None:
-                remembered_output = self._settings.value(
-                    f"models/{model.backend_model_id}/max_output",
-                    min(8192, output_max),
-                    type=int,
-                )
             output_target = (
                 min(8192, output_max)
                 if remembered_output is None
@@ -1001,23 +984,11 @@ class AthenaMainWindow(QMainWindow):
             self.max_output_spin.setValue(output_target)
             self._max_output_by_model[model.backend_model_id] = output_target
 
-            temperature = self._temperature_by_model.get(model.backend_model_id)
-            if temperature is None:
-                temperature = self._settings.value(
-                    f"models/{model.backend_model_id}/temperature",
-                    0.7,
-                    type=float,
-                )
+            temperature = self._temperature_by_model.get(model.backend_model_id, 0.7)
             self.temperature_spin.setValue(temperature)
             self._temperature_by_model[model.backend_model_id] = temperature
 
-            thinking = self._thinking_by_model.get(model.backend_model_id)
-            if thinking is None:
-                thinking = self._settings.value(
-                    f"models/{model.backend_model_id}/thinking",
-                    False,
-                    type=bool,
-                )
+            thinking = self._thinking_by_model.get(model.backend_model_id, False)
             self.thinking_checkbox.setChecked(thinking)
             self.thinking_checkbox.setText(
                 "ON — MODEL REASONING ALLOWED"
@@ -1060,7 +1031,7 @@ class AthenaMainWindow(QMainWindow):
         model = self._selected_model()
         if model is not None:
             self._preferred_model_id = model.backend_model_id
-            self._settings.setValue("chat/model_id", model.backend_model_id)
+            
             self.local_model_metric.set_value(model.display_name)
             self.model_metric.set_value(model.display_name)
             selector_style = (
@@ -1092,7 +1063,7 @@ class AthenaMainWindow(QMainWindow):
                 self.context_spin.blockSignals(False)
 
         self._context_by_model[model_id] = value
-        self._settings.setValue(f"models/{model_id}/context", value)
+        
         formatted = _format_context(value)
         self.context_value_label.setText(formatted)
         self.context_metric.set_value(formatted)
@@ -1136,7 +1107,7 @@ class AthenaMainWindow(QMainWindow):
         model_id = self._selected_model_id()
         if model_id is not None:
             self._max_output_by_model[model_id] = value
-            self._settings.setValue(f"models/{model_id}/max_output", value)
+            
 
     def _on_max_output_slider_changed(self, value: int) -> None:
         if self.max_output_spin.value() != value:
@@ -1148,16 +1119,13 @@ class AthenaMainWindow(QMainWindow):
         model_id = self._selected_model_id()
         if model_id is not None:
             self._max_output_by_model[model_id] = value
-            self._settings.setValue(f"models/{model_id}/max_output", value)
+            
 
     def _on_temperature_changed(self, value: float) -> None:
         model_id = self._selected_model_id()
         if model_id is not None:
             self._temperature_by_model[model_id] = float(value)
-            self._settings.setValue(
-                f"models/{model_id}/temperature",
-                float(value),
-            )
+            
 
     def _on_thinking_changed(self, checked: bool) -> None:
         self.thinking_checkbox.setText(
@@ -1173,10 +1141,7 @@ class AthenaMainWindow(QMainWindow):
         model_id = self._selected_model_id()
         if model_id is not None:
             self._thinking_by_model[model_id] = checked
-            self._settings.setValue(
-                f"models/{model_id}/thinking",
-                checked,
-            )
+            
 
     def _transient_key(self) -> str:
         return self.current_chat_id or "__NEW_CHAT__"
@@ -1572,7 +1537,7 @@ class AthenaMainWindow(QMainWindow):
         self._active_model_id = model.backend_model_id
         self._pending_model_id = None
         self._preferred_model_id = model.backend_model_id
-        self._settings.setValue("chat/model_id", model.backend_model_id)
+        
         self._set_model_progress_ready(model.display_name)
         self.status_text.setText("LOCAL / READY")
 
@@ -1600,7 +1565,7 @@ class AthenaMainWindow(QMainWindow):
                 finally:
                     self.settings_model_selector.blockSignals(False)
             self._preferred_model_id = self._active_model_id
-            self._settings.setValue("chat/model_id", self._active_model_id)
+            
             self._configure_context_for_selected_model()
         self._sync_composer_enabled()
 
