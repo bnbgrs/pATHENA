@@ -1422,8 +1422,9 @@ class AthenaMainWindow(QMainWindow):
         )
 
         self.send_button.setObjectName("sendButton")
-        self.send_button.setText("SEND")
-        self.send_button.setToolTip("Send message ? Ctrl+Enter")
+        self.send_button.setText("→")
+        self.send_button.setAccessibleName("Send message")
+        self.send_button.setToolTip("Send message · Ctrl+Enter")
         self.send_button.setDisabled(True)
         self.send_button.clicked.connect(self._submit_prompt)
 
