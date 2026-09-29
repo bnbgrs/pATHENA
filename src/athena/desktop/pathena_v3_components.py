@@ -6,12 +6,13 @@ behavior remain outside this module.
 
 from __future__ import annotations
 
-from PySide6.QtCore import QPointF, QRectF, QSize, Qt
+from PySide6.QtCore import QEvent, QPointF, QRectF, QSize, Qt
 from PySide6.QtGui import QColor, QCursor, QIcon, QPainter, QPen, QPixmap
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
+    QPushButton,
     QSizePolicy,
     QToolButton,
     QVBoxLayout,
@@ -168,6 +169,102 @@ class V3Section(QFrame):
         super().__init__()
         self.setObjectName(object_name)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+
+
+class V3ComposerFrame(QFrame):
+    """Composer surface with a paint fallback for action affordances.
+
+    Qt's offscreen Windows renderer can omit disabled QPushButton children even
+    though their geometry and visibility are correct. The real buttons remain
+    authoritative for state, input and accessibility; this frame only paints
+    matching underlays so the actions stay visually legible in every renderer.
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._ground_button: QPushButton | None = None
+        self._send_button: QPushButton | None = None
+
+    def bind_actions(
+        self,
+        *,
+        ground_button: QPushButton,
+        send_button: QPushButton,
+    ) -> None:
+        for button in (self._ground_button, self._send_button):
+            if button is not None:
+                button.removeEventFilter(self)
+        self._ground_button = ground_button
+        self._send_button = send_button
+        ground_button.installEventFilter(self)
+        send_button.installEventFilter(self)
+        self.update()
+
+    def eventFilter(self, watched: object, event: QEvent) -> bool:  # noqa: N802
+        if watched in {self._ground_button, self._send_button} and event.type() in {
+            QEvent.Type.EnabledChange,
+            QEvent.Type.Hide,
+            QEvent.Type.Move,
+            QEvent.Type.Resize,
+            QEvent.Type.Show,
+            QEvent.Type.StyleChange,
+        }:
+            self.update()
+        return super().eventFilter(watched, event)
+
+    def paintEvent(self, event: QEvent) -> None:  # noqa: N802
+        super().paintEvent(event)
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        ground = self._ground_button
+        if ground is not None and not ground.isHidden():
+            rect = QRectF(ground.geometry()).adjusted(0.5, 0.5, -0.5, -0.5)
+            if ground.isChecked():
+                background = QColor("#18213A")
+                border = QColor("#31457F")
+                foreground = QColor("#E3E9FF")
+            elif ground.isEnabled():
+                background = QColor("#151922")
+                border = QColor("#2A3140")
+                foreground = QColor("#A3AAB7")
+            else:
+                background = QColor("#151D2B")
+                border = QColor("#33405A")
+                foreground = QColor("#8C98B0")
+            painter.setPen(QPen(border, 1.0))
+            painter.setBrush(background)
+            painter.drawRoundedRect(rect, 9, 9)
+            painter.setPen(foreground)
+            painter.setFont(ground.font())
+            painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, "Ground")
+
+        send = self._send_button
+        if send is not None and not send.isHidden():
+            slot = QRectF(send.geometry())
+            diameter = min(44.0, slot.height())
+            rect = QRectF(
+                slot.center().x() - diameter / 2.0,
+                slot.center().y() - diameter / 2.0,
+                diameter,
+                diameter,
+            ).adjusted(0.5, 0.5, -0.5, -0.5)
+            if send.isEnabled():
+                background = QColor("#7C9CFF")
+                border = QColor("#7C9CFF")
+                foreground = QColor("#0D1016")
+            else:
+                background = QColor("#27344F")
+                border = QColor("#40577F")
+                foreground = QColor("#C0CAE6")
+            painter.setPen(QPen(border, 1.0))
+            painter.setBrush(background)
+            painter.drawRoundedRect(rect, diameter / 2.0, diameter / 2.0)
+            painter.setPen(foreground)
+            painter.setFont(send.font())
+            painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, "↑")
+
+        painter.end()
 
 
 class V3EmptyState(QFrame):
