@@ -376,13 +376,16 @@ class PathenaStartupExperience(QObject):
         layout = messages.layout()
         if not isinstance(layout, QVBoxLayout):
             return
+        # The base empty-chat renderer already owns the trailing stretch.
+        # Add one matching leading stretch so first-run copy sits deliberately
+        # in the workspace rather than clinging to the upper-left corner.
+        layout.insertStretch(0, 1)
         layout.insertWidget(
-            0,
+            1,
             panel,
             0,
-            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop,
+            Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter,
         )
-        layout.addStretch(1)
 
 
 def install_startup_experience(window: QWidget) -> PathenaStartupExperience:
