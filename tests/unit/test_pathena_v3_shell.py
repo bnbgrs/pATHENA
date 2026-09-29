@@ -177,13 +177,14 @@ def test_v3_shell_keeps_core_chat_controls_visible_at_minimum_desktop_size() -> 
         assert window.send_button.isVisible()
         assert window.send_button.width() == 44
         assert window.send_button.height() == 44
-        assert window.ground_button.text() == "Ground"
+        assert window.ground_button.text() == "Sources"
         assert window.send_button.text() == "↑"
         assert "color: rgba(0, 0, 0, 0)" in window.ground_button.styleSheet()
         assert "color: rgba(0, 0, 0, 0)" in window.send_button.styleSheet()
         assert window.ground_button.accessibleName() == "Ground message in local evidence"
         assert window.send_button.accessibleName() == "Send message"
-        assert "#27344F" in window.send_button.styleSheet()
+        assert "background: transparent" in window.send_button.styleSheet()
+        assert "border: 0" in window.send_button.styleSheet()
         assert controller._nav_buttons[0].isVisible()
         assert controller._nav_buttons[6].isVisible()
         composer = window.prompt_input.parentWidget()
