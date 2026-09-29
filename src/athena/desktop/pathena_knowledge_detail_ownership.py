@@ -57,7 +57,14 @@ class KnowledgeDetailOwnership(QObject):
 
     def _drain_output(self) -> None:
         workspace = self.workspace
-        chunk = bytes(workspace._knowledge_process.readAllStandardOutput().data()).decode(
+        try:
+            data = workspace._knowledge_process.readAllStandardOutput().data()
+        except RuntimeError:
+            # Qt may deliver a final queued readyRead signal while the owning
+            # workspace is already being torn down. There is no output left to
+            # attach safely once the underlying QProcess has been deleted.
+            return
+        chunk = bytes(data).decode(
             "utf-8",
             errors="replace",
         )
