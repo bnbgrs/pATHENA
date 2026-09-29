@@ -307,3 +307,4 @@ jobs:
             ${{ env.MANIFEST_PATH }}
           if-no-files-found: error
           retention-days: 14
+# Live Windows build trigger: 2026-09-29 from UI SHA 1e0c5668780c586230fd852406daad47886b9121
