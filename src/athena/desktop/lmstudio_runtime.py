@@ -31,6 +31,8 @@ from athena.desktop.pathena_window import PathenaMainWindow
 
 _SETTINGS_ROOT: Final = "desktop/lmstudio-runtime/v1"
 _DEFAULT_BASE_URL: Final = "http://127.0.0.1:1234"
+_MODEL_CONFIRMATION_REFRESH_LIMIT: Final = 6
+_MODEL_CONFIRMATION_DELAY_MS: Final = 500
 
 
 @dataclass(frozen=True, slots=True)
@@ -132,6 +134,23 @@ def _should_attempt_auto_start(
     return enabled and not provider_ready and not attempted and not busy
 
 
+def _model_confirmation_action(
+    *,
+    pending_model_id: str | None,
+    selected_model_id: str,
+    loaded: bool,
+    refreshes_remaining: int,
+) -> tuple[str, int]:
+    """Return the bounded post-load Core-confirmation action and next budget."""
+    if pending_model_id != selected_model_id:
+        return "none", refreshes_remaining
+    if loaded:
+        return "confirmed", 0
+    if refreshes_remaining > 0:
+        return "refresh", refreshes_remaining - 1
+    return "failed", 0
+
+
 class LMStudioRuntimeController(QObject):
     """Start the headless LM Studio service and load the model selected in pATHENA."""
 
@@ -154,6 +173,7 @@ class LMStudioRuntimeController(QObject):
         self._steps: deque[_CommandStep] = deque()
         self._active_step: _CommandStep | None = None
         self._pending_model_id: str | None = None
+        self._model_confirmation_refreshes_remaining = 0
         self._auto_load_attempted_model_id: str | None = None
         self._auto_start_attempted = False
         self._last_snapshot: DesktopApiSnapshot | None = None
@@ -324,10 +344,32 @@ class LMStudioRuntimeController(QObject):
             return
 
         self.unload_button.setEnabled(selected.loaded and not self.busy)
-        if selected.loaded:
+        confirmation, remaining = _model_confirmation_action(
+            pending_model_id=self._pending_model_id,
+            selected_model_id=selected.backend_model_id,
+            loaded=selected.loaded,
+            refreshes_remaining=self._model_confirmation_refreshes_remaining,
+        )
+        self._model_confirmation_refreshes_remaining = remaining
+        if confirmation == "confirmed":
             self._pending_model_id = None
-            # Remember that this model has been satisfied for the current selection.
-            # Keeping this marker avoids immediately undoing an intentional idle-TTL unload.
+            self._auto_load_attempted_model_id = selected.backend_model_id
+            self._set_status(f"LM Studio runtime · {selected.display_name} loaded")
+            return
+        if confirmation == "refresh":
+            self._set_status(
+                f"LM Studio runtime · waiting for Core to confirm {selected.display_name}"
+            )
+            QTimer.singleShot(_MODEL_CONFIRMATION_DELAY_MS, self.controller.refresh)
+            return
+        if confirmation == "failed":
+            self._pending_model_id = None
+            self._set_status(
+                f"LM Studio runtime · Core did not confirm {selected.display_name} loaded"
+            )
+            return
+        if selected.loaded:
+            # The model can already be loaded before pATHENA initiated the request.
             self._auto_load_attempted_model_id = selected.backend_model_id
             self._set_status(f"LM Studio runtime · {selected.display_name} loaded")
             return
@@ -353,6 +395,7 @@ class LMStudioRuntimeController(QObject):
     def _model_selected(self, _index: int) -> None:
         model = self.window._selected_model()
         self._auto_load_attempted_model_id = None
+        self._model_confirmation_refreshes_remaining = 0
         if model is None:
             self._pending_model_id = None
             return
@@ -417,6 +460,7 @@ class LMStudioRuntimeController(QObject):
         if model is None:
             return
         self._pending_model_id = model.backend_model_id
+        self._model_confirmation_refreshes_remaining = 0
         if model.loaded:
             self._pending_model_id = None
             self._set_status(f"LM Studio runtime · {model.display_name} loaded")
@@ -455,6 +499,7 @@ class LMStudioRuntimeController(QObject):
             self._set_status("LM Studio runtime · lms CLI not found")
             return
         self._pending_model_id = None
+        self._model_confirmation_refreshes_remaining = 0
         # Manual unload must not be immediately reversed by the next Core snapshot.
         self._auto_load_attempted_model_id = model.backend_model_id
         self._run_sequence(
@@ -524,7 +569,11 @@ class LMStudioRuntimeController(QObject):
             return
 
         if step.operation == "model_load":
-            self._pending_model_id = None
+            # CLI exit 0 only means LM Studio accepted the load command. Keep the
+            # request pending until Core discovery reports this exact model loaded.
+            self._model_confirmation_refreshes_remaining = (
+                _MODEL_CONFIRMATION_REFRESH_LIMIT
+            )
         self._active_step = None
         self._start_next_step()
 
@@ -533,6 +582,7 @@ class LMStudioRuntimeController(QObject):
         step = self._active_step
         self._steps.clear()
         self._active_step = None
+        self._model_confirmation_refreshes_remaining = 0
         self.busy_changed.emit(False)
         label = step.operation if step is not None else "command"
         self._set_status(f"LM Studio runtime · {label} error · {error.name}")
