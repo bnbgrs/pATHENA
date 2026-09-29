@@ -632,6 +632,43 @@ class CoreApiAsgiApp:
                 )
                 return
 
+            model_activate_id = _single_resource_id(
+                path,
+                prefix="/api/v1/models/",
+                suffix="/activate",
+            )
+            if method == "POST" and model_activate_id is not None:
+                payload = await _read_json_object(receive)
+                unknown = set(payload) - {"context_length", "unload_others"}
+                if unknown:
+                    raise ValueError(
+                        "Model activation contains unsupported fields."
+                    )
+                context_length = payload.get("context_length")
+                if context_length is not None and (
+                    isinstance(context_length, bool)
+                    or not isinstance(context_length, int)
+                    or context_length < 1
+                ):
+                    raise ValueError(
+                        "Model activation context_length must be a positive integer."
+                    )
+                unload_others = payload.get("unload_others", True)
+                if not isinstance(unload_others, bool):
+                    raise ValueError(
+                        "Model activation unload_others must be boolean."
+                    )
+                await _send_contract(
+                    send,
+                    self._facade.activate_model(
+                        model_activate_id,
+                        context_length=context_length,
+                        unload_others=unload_others,
+                    ),
+                    request_id=request_id,
+                )
+                return
+
             review_run_id = _single_resource_id(
                 path,
                 prefix="/api/v1/knowledge-extractions/",
@@ -877,6 +914,12 @@ def _known_path(path: str) -> bool:
         "/api/v1/models/health",
         "/api/v1/system/shutdown",
     }:
+        return True
+    if _single_resource_id(
+        path,
+        prefix="/api/v1/models/",
+        suffix="/activate",
+    ) is not None:
         return True
     if (
         path.startswith("/api/v1/chats/")
