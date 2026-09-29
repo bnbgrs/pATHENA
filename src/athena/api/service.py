@@ -709,7 +709,7 @@ class CoreApiFacade:
             ):
                 result = self._unified_local_chat.send_message(
                     chat_id=parsed_chat_id,
-                    content=chat_content,
+                    content=content,
                     requested_model_id=requested_model_id,
                     requested_embedding_model_id=requested_embedding_model_id,
                 )
@@ -720,7 +720,7 @@ class CoreApiFacade:
             ):
                 result = self._unified_local_chat.send_message(
                     chat_id=parsed_chat_id,
-                    content=chat_content,
+                    content=content,
                     requested_model_id=requested_model_id,
                     requested_embedding_model_id=requested_embedding_model_id,
                     effective_context_limit=effective_context_limit,
@@ -728,7 +728,7 @@ class CoreApiFacade:
             else:
                 result = self._unified_local_chat.send_message(
                     chat_id=parsed_chat_id,
-                    content=chat_content,
+                    content=content,
                     requested_model_id=requested_model_id,
                     requested_embedding_model_id=requested_embedding_model_id,
                     effective_context_limit=effective_context_limit,
@@ -746,7 +746,7 @@ class CoreApiFacade:
         ):
             result = self._unified_local_chat.send_message(
                 chat_id=parsed_chat_id,
-                content=chat_content,
+                content=content,
                 requested_model_id=requested_model_id,
                 requested_embedding_model_id=requested_embedding_model_id,
                 operation_id=parsed_operation_id,
@@ -758,7 +758,7 @@ class CoreApiFacade:
         ):
             result = self._unified_local_chat.send_message(
                 chat_id=parsed_chat_id,
-                content=chat_content,
+                content=content,
                 requested_model_id=requested_model_id,
                 requested_embedding_model_id=requested_embedding_model_id,
                 operation_id=parsed_operation_id,
@@ -767,7 +767,7 @@ class CoreApiFacade:
         else:
             result = self._unified_local_chat.send_message(
                 chat_id=parsed_chat_id,
-                content=chat_content,
+                content=content,
                 requested_model_id=requested_model_id,
                 requested_embedding_model_id=requested_embedding_model_id,
                 operation_id=parsed_operation_id,
@@ -1295,7 +1295,7 @@ def _chat_message(message: ChatMessage) -> ChatMessageResponse:
         actor_id=None if message.actor_id is None else str(message.actor_id),
         created_at_us=message.created_at_us,
         revision_id=str(message.revision_id),
-        content=chat_content,
+        content=content,
         content_format=message.content_format,
     )
 
