@@ -13,6 +13,7 @@ from pathlib import Path, PurePosixPath
 
 from athena.chat.repository import ChatRepository
 from athena.chat.service import ChatService
+from athena.knowledge.obsidian_conflicts import ObsidianConflictStore
 from athena.knowledge.obsidian_import import (
     ObsidianImportConflictError,
     ObsidianImportError,
@@ -100,6 +101,7 @@ class ObsidianVaultWatcher:
         write_stamps: ObsidianWriteStampRegistry,
         stability_window_seconds: float = 0.5,
         poll_interval_seconds: float = 0.25,
+        conflict_store: ObsidianConflictStore | None = None,
     ) -> None:
         if not isinstance(vault_root, Path):
             raise TypeError("vault_root must be a pathlib.Path.")
@@ -112,6 +114,7 @@ class ObsidianVaultWatcher:
         self._write_stamps = write_stamps
         self._stability_window_seconds = stability_window_seconds
         self._poll_interval_seconds = poll_interval_seconds
+        self._conflict_store = conflict_store
         self._observed: dict[str, _ObservedFile] = {}
         self._processed_hashes: dict[str, str] = {}
         self._assert_safe_vault_root()
@@ -193,6 +196,8 @@ class ObsidianVaultWatcher:
                 detail=f"Managed Obsidian projection is not UTF-8: {exc}",
             )
         except ObsidianImportConflictError as exc:
+            if self._conflict_store is not None:
+                self._conflict_store.record(relative_path=relative_path, payload=payload, detail=str(exc))
             return ObsidianWatchResult(
                 relative_path=relative_path,
                 status=ObsidianWatchStatus.CONFLICT,
@@ -204,6 +209,8 @@ class ObsidianVaultWatcher:
                 status=ObsidianWatchStatus.REJECTED,
                 detail=str(exc),
             )
+        if self._conflict_store is not None:
+            self._conflict_store.resolve(relative_path)
         status = (
             ObsidianWatchStatus.UNCHANGED
             if revision.revision_id == parsed.expected_revision_id
@@ -349,6 +356,9 @@ class ObsidianVaultWatchService:
                 write_stamps=self._write_stamps,
                 stability_window_seconds=self._stability_window_seconds,
                 poll_interval_seconds=self._poll_interval_seconds,
+                conflict_store=ObsidianConflictStore(
+                    self._database_path.with_name(f"{self._database_path.name}.obsidian-conflicts.json")
+                ),
             )
             with self._lock:
                 self._state = ObsidianSyncState.RUNNING
