@@ -151,7 +151,11 @@ class DirectChatService:
         reasoning_mode: str | None = "off",
         external_context: str | None = None,
         on_delta: Callable[[str], None] | None = None,
+        cancel_requested: Callable[[], bool] | None = None,
     ) -> DirectChatGenerationResult:
+        if cancel_requested is not None and cancel_requested():
+            raise GenerationCancelledError("Chat generation was cancelled.")
+
         validated_turns = _bounded_positive_int(
             max_recent_conversation_turns,
             label="Recent conversation turns",
@@ -346,7 +350,14 @@ class DirectChatService:
                     package.snapshot_commit_seq,
                     phase="immediately-before-primary-model-call",
                 ),
+                cancel_requested=cancel_requested,
             )
+        except GenerationCancelledError:
+            self.model_runs.finish_run(
+                processing_run.processing_run_id,
+                status="cancelled",
+            )
+            raise
         except KeyboardInterrupt:
             self.model_runs.finish_run(
                 processing_run.processing_run_id,
