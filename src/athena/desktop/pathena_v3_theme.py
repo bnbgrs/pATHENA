@@ -180,9 +180,10 @@ QWidget#v3ChatPage {
 }
 
 QFrame#v3ChatMeta {
-    background: #11151D;
-    border: 1px solid #252C39;
-    border-radius: 14px;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid #202532;
+    border-radius: 0;
 }
 
 QLabel#v3MetaLabel,
@@ -222,9 +223,9 @@ QComboBox QAbstractItemView {
 }
 
 QFrame#v3ConversationStage {
-    background: #0D1016;
-    border: 1px solid #202532;
-    border-radius: 18px;
+    background: transparent;
+    border: none;
+    border-radius: 0;
 }
 
 QScrollArea#chatScroll,
@@ -234,9 +235,9 @@ QWidget#chatMessages {
 }
 
 QFrame#v3Composer {
-    background: #151B26;
-    border: 1px solid #30394B;
-    border-radius: 18px;
+    background: #141A25;
+    border: 1px solid #34405A;
+    border-radius: 16px;
 }
 
 QFrame#v3Composer:focus-within {
