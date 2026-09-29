@@ -276,6 +276,32 @@ QPushButton#sendButton:disabled {
     background: #2A3140;
 }
 
+QFrame#activityStrip {
+    background: transparent;
+    border: none;
+}
+
+QLabel#activityProgressLabel {
+    color: #7E8797;
+    font-size: 7.6pt;
+    font-weight: 650;
+}
+
+QProgressBar#modelProgress,
+QProgressBar#taskProgress {
+    min-height: 5px;
+    max-height: 5px;
+    background: #202633;
+    border: none;
+    border-radius: 2px;
+}
+
+QProgressBar#modelProgress::chunk,
+QProgressBar#taskProgress::chunk {
+    background: #7C9CFF;
+    border-radius: 2px;
+}
+
 QPushButton#newChatButton,
 QPushButton#deleteChatButton,
 QPushButton#contextToggle,
