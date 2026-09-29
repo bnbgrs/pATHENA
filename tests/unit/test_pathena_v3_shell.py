@@ -32,7 +32,7 @@ def test_v3_shell_is_structurally_distinct_and_keeps_route_contract() -> None:
 
     rail = shell.findChild(QFrame, "v3Rail")
     assert rail is not None
-    assert 72 <= rail.width() <= 80
+    assert 82 <= rail.width() <= 86
     assert rail.minimumWidth() == rail.maximumWidth()
 
     nav_buttons = shell.findChildren(QToolButton, "v3NavButton")
@@ -63,8 +63,8 @@ def test_v3_shell_is_structurally_distinct_and_keeps_route_contract() -> None:
     assert window.pages.widget(0).objectName() == "v3ChatPage"
     assert window.prompt_input.parent().objectName() == "v3Composer"
     assert isinstance(window.prompt_input, QPlainTextEdit)
-    assert window.prompt_input.minimumHeight() == 48
-    assert window.prompt_input.maximumHeight() == 84
+    assert window.prompt_input.minimumHeight() == 52
+    assert window.prompt_input.maximumHeight() == 90
     window.prompt_input.setText("first line\nsecond line")
     assert window.prompt_input.text() == "first line\nsecond line"
 
@@ -150,7 +150,7 @@ def test_v3_shell_keeps_core_chat_controls_visible_at_minimum_desktop_size() -> 
         assert window.model_selector.isVisible()
         assert window.chat_selector.isVisible()
         assert window.prompt_input.isVisible()
-        assert window.prompt_input.maximumHeight() == 84
+        assert window.prompt_input.maximumHeight() == 90
         assert window.ground_button.isVisible()
         assert window.send_button.isVisible()
         assert controller._nav_buttons[0].isVisible()
