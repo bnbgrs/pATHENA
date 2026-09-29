@@ -319,6 +319,7 @@ class AthenaMainWindow(QMainWindow):
         self._pending_model_id: str | None = None
         self._model_busy = False
         self._activity_name = "LOCAL TASK"
+        self._activity_failed = False
         self.navigation = QListWidget()
         self.pages = QStackedWidget()
         self.ascii_panel = AsciiPanel()
@@ -1479,6 +1480,13 @@ class AthenaMainWindow(QMainWindow):
         self.task_progress.setValue(100)
         QTimer.singleShot(1200, self._reset_task_progress)
 
+    def _set_task_progress_error(self, name: str, message: str) -> None:
+        self.task_progress_label.setText(f"TASK / {name} / ERROR")
+        self.task_progress.setRange(0, 100)
+        self.task_progress.setValue(0)
+        self.task_progress.setToolTip(message)
+        QTimer.singleShot(2200, self._reset_task_progress)
+
     def _reset_task_progress(self) -> None:
         if self._chat_busy:
             return
@@ -2215,6 +2223,8 @@ class AthenaMainWindow(QMainWindow):
             self.knowledge_review_panel.setVisible(True)
             self.knowledge_review_state.setText("ERROR / " + operation.upper())
         if operation in {"send", "send_grounded"}:
+            self._activity_failed = True
+            self._set_task_progress_error(self._activity_name, message)
             self._remember_transient_failure(operation, message)
             self._append_chat_operation_failure(
                 operation=operation,
@@ -2225,7 +2235,10 @@ class AthenaMainWindow(QMainWindow):
     def apply_chat_busy(self, busy: bool) -> None:
         self._chat_busy = busy
         if busy:
+            self._activity_failed = False
             self._set_task_progress_running(self._activity_name)
+        elif self._activity_failed:
+            self._activity_failed = False
         else:
             self._set_task_progress_complete(self._activity_name)
         self._sync_composer_enabled()
