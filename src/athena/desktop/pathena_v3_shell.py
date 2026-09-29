@@ -481,8 +481,8 @@ class PathenaV3ShellController(QObject):
 
         runtime = QFrame()
         runtime.setObjectName("v3RuntimeCard")
-        runtime.setMinimumWidth(310)
-        runtime.setMaximumWidth(330)
+        runtime.setMinimumWidth(370)
+        runtime.setMaximumWidth(390)
         runtime_layout = QVBoxLayout(runtime)
         runtime_layout.setContentsMargins(20, 20, 20, 20)
         runtime_layout.setSpacing(10)
