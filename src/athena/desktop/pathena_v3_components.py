@@ -94,7 +94,7 @@ class V3NavigationButton(QToolButton):
         self.setIcon(self._icons[False])
         self.setIconSize(QSize(22, 22))
         self.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextUnderIcon)
-        self.setFixedSize(72, 58)
+        self.setFixedSize(60, 56)
         self.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         self.setToolTip(label)
         self.setAccessibleName(f"Open {label}")
