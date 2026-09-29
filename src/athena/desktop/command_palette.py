@@ -90,7 +90,8 @@ class CommandPaletteController(QObject):
         )
         self.dialog.setModal(False)
         self.dialog.setWindowFlag(Qt.WindowType.FramelessWindowHint, True)
-        self.dialog.setMinimumWidth(560)
+        self.dialog.setMinimumWidth(680)
+        self.dialog.resize(700, 510)
 
         self.query = QLineEdit(self.dialog)
         self.query.setObjectName("commandPaletteQuery")
@@ -110,7 +111,7 @@ class CommandPaletteController(QObject):
         self.results.setHorizontalScrollBarPolicy(
             Qt.ScrollBarPolicy.ScrollBarAlwaysOff
         )
-        self.results.setMinimumHeight(280)
+        self.results.setMinimumHeight(320)
 
         self.help_dialog = QDialog(window)
         self.help_dialog.setObjectName("helpDialog")
