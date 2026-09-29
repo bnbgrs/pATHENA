@@ -137,6 +137,7 @@ class PathenaV3ShellController(QObject):
                 self._composer_action_painters.append(painter)
         for action in (self._window.ground_button, self._window.send_button):
             action.setFlat(False)
+            action.raise_()
             action.update()
 
         self._sync_navigation(max(0, self._window.navigation.currentRow()))
