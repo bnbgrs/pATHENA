@@ -322,7 +322,7 @@ class AthenaMainWindow(QMainWindow):
         self.prompt_input = PromptInput()
         self.ground_button = QPushButton("GROUND")
         self.web_button = QPushButton("WEB")
-        self.send_button = QPushButton("CTRL+ENTER")
+        self.send_button = QPushButton("→")
         self.chat_selector = QComboBox()
         self.model_selector = QComboBox()
         self.settings_model_selector = QComboBox()
@@ -1451,7 +1451,7 @@ class AthenaMainWindow(QMainWindow):
         self.ground_button.toggled.connect(self._on_ground_toggled)
 
         self.send_button.setObjectName("sendButton")
-        self.send_button.setText("SEND")
+        self.send_button.setAccessibleName("Send message")
         self.send_button.setToolTip("Send message · Enter")
         self.send_button.setDisabled(True)
         self.send_button.clicked.connect(self._submit_prompt)
@@ -2044,7 +2044,6 @@ class AthenaMainWindow(QMainWindow):
     @Slot(bool)
     def apply_chat_busy(self, busy: bool) -> None:
         self._chat_busy = busy
-        self.send_button.setText("WORKING" if busy else "SEND")
         self._sync_composer_enabled()
 
     @Slot()
