@@ -6,6 +6,9 @@ from pathlib import Path
 import pytest
 
 from athena.desktop.lmstudio_runtime import (
+    _CommandStep,
+    _accepted_model_load_id,
+    _coerce_idle_minutes,
     _endpoint_port,
     _find_lms,
     _model_verification_action,
@@ -174,3 +177,56 @@ def test_model_load_verification_has_bounded_retry_and_failure() -> None:
         )
         == "failed"
     )
+
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        (30, 30),
+        (0, 0),
+        (-1, 0),
+        (2000, 1440),
+        ("30", 30),
+        (None, 30),
+        (True, 30),
+    ],
+)
+def test_idle_minutes_coercion_is_typed_and_bounded(value: object, expected: int) -> None:
+    assert _coerce_idle_minutes(value) == expected
+
+
+def test_pending_model_identity_is_derived_only_from_accepted_load_step() -> None:
+    accepted = _CommandStep(
+        operation="model_load",
+        arguments=("load", "model-id", "--context-length", "8192"),
+        status="Loading model",
+    )
+    assert _accepted_model_load_id(accepted) == "model-id"
+
+    server_step = _CommandStep(
+        operation="server_start",
+        arguments=("server", "start", "--port", "1234"),
+        status="Starting server",
+    )
+    assert _accepted_model_load_id(server_step) is None
+
+    malformed = _CommandStep(
+        operation="model_load",
+        arguments=("load", ""),
+        status="Loading model",
+    )
+    assert _accepted_model_load_id(malformed) is None
+
+
+def test_model_verification_never_confirms_without_core_loaded_state() -> None:
+    assert _model_verification_action(
+        loaded=False,
+        refreshes=0,
+        retries=0,
+    ) == "wait"
+    assert _model_verification_action(
+        loaded=False,
+        refreshes=5,
+        retries=0,
+    ) == "retry"
