@@ -630,7 +630,12 @@ class ChatGenerationService:
             "Grounded generation exhausted attempts without a terminal result."
         )
 
-    def select_model(self, requested_model_id: str | None = None) -> ModelInfo:
+    def select_model(
+        self,
+        requested_model_id: str | None = None,
+        *,
+        context_length: int | None = None,
+    ) -> ModelInfo:
         models = self.provider.discover_models()
         llms = tuple(model for model in models if model.model_type == "llm")
 
@@ -644,9 +649,24 @@ class ChatGenerationService:
                 )
             model = matches[0]
             if not model.loaded:
-                raise ModelSelectionError(
-                    f"Model {requested_model_id!r} exists but is not loaded."
-                )
+                loader = getattr(self.provider, "load_model", None)
+                if not callable(loader):
+                    raise ModelSelectionError(
+                        f"Model {requested_model_id!r} exists but is not loaded."
+                    )
+                try:
+                    model = loader(
+                        requested_model_id,
+                        context_length=context_length,
+                    )
+                except Exception as exc:
+                    raise ModelSelectionError(
+                        f"Model {requested_model_id!r} could not be loaded automatically."
+                    ) from exc
+                if not model.loaded:
+                    raise ModelSelectionError(
+                        f"Model {requested_model_id!r} did not become loaded."
+                    )
             return model
 
         loaded = tuple(model for model in llms if model.loaded)
