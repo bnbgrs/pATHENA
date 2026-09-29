@@ -51,6 +51,7 @@ from athena.chat.send_identity import (
     SendOperationStateError,
 )
 from athena.chat.service import ChatService
+from athena.external.web_search import TorWebSearchService
 from athena.chat.unified import UnifiedLocalChatResult
 from athena.knowledge.acceptance_service import ProposalAcceptanceError
 from athena.knowledge.deduplication import (
@@ -257,6 +258,13 @@ class CoreApiFacade:
         self._knowledge_read: KnowledgeReadApiService | None = None
         self._normal_search: NormalSearch | None = None
         self._news: NewsProfileService | None = None
+        self._web_search: TorWebSearchService | None = None
+
+    def attach_web_search(self, web_search: TorWebSearchService) -> None:
+        """Attach explicit Tor-routed web discovery for direct chat."""
+        if self._web_search is not None:
+            raise RuntimeError("Web search is already attached to the Core API.")
+        self._web_search = web_search
 
     def attach_news(self, news: NewsProfileService) -> None:
         """Attach the existing durable News profile exactly once."""
@@ -408,6 +416,8 @@ class CoreApiFacade:
             features = (*features, "search.normal.hybrid")
         if self._news is not None:
             features = (*features, "news.profile.read", "news.schedule.write")
+        if self._web_search is not None:
+            features = (*features, "chat.web.tor")
         return CapabilitiesResponse(
             api_version=API_VERSION,
             features=features,
@@ -525,6 +535,19 @@ class CoreApiFacade:
 
         parsed_chat_id = uuid.UUID(chat_id)
 
+        chat_content = content
+        external_context: str | None = None
+        stripped = content.strip()
+        if stripped.lower().startswith("/web "):
+            query = stripped[5:].strip()
+            if not query:
+                raise ValueError("Web chat query must not be empty.")
+            if self._web_search is None:
+                raise RuntimeError("Tor web search is unavailable in this Core process.")
+            hits = self._web_search.search(query)
+            external_context = self._web_search.context_text(query, hits)
+            chat_content = query
+
         parsed_operation_id = (
             None
             if operation_id is None
@@ -541,8 +564,9 @@ class CoreApiFacade:
                 ):
                     self._direct_chat.send_message(
                         chat_id=parsed_chat_id,
-                        content=content,
+                        content=chat_content,
                         requested_model_id=requested_model_id,
+                        external_context=external_context,
                     )
                 elif (
                     max_output_tokens is None
@@ -551,15 +575,17 @@ class CoreApiFacade:
                 ):
                     self._direct_chat.send_message(
                         chat_id=parsed_chat_id,
-                        content=content,
+                        content=chat_content,
                         requested_model_id=requested_model_id,
+                        external_context=external_context,
                         effective_context_limit=effective_context_limit,
                     )
                 else:
                     self._direct_chat.send_message(
                         chat_id=parsed_chat_id,
-                        content=content,
+                        content=chat_content,
                         requested_model_id=requested_model_id,
+                        external_context=external_context,
                         effective_context_limit=effective_context_limit,
                         output_reserve=(
                             2048
@@ -581,8 +607,9 @@ class CoreApiFacade:
             ):
                 self._direct_chat.send_message(
                     chat_id=parsed_chat_id,
-                    content=content,
+                    content=chat_content,
                     requested_model_id=requested_model_id,
+                    external_context=external_context,
                     operation_id=parsed_operation_id,
                 )
             elif (
@@ -592,16 +619,18 @@ class CoreApiFacade:
             ):
                 self._direct_chat.send_message(
                     chat_id=parsed_chat_id,
-                    content=content,
+                    content=chat_content,
                     requested_model_id=requested_model_id,
+                    external_context=external_context,
                     operation_id=parsed_operation_id,
                     effective_context_limit=effective_context_limit,
                 )
             else:
                 self._direct_chat.send_message(
                     chat_id=parsed_chat_id,
-                    content=content,
+                    content=chat_content,
                     requested_model_id=requested_model_id,
+                    external_context=external_context,
                     operation_id=parsed_operation_id,
                     effective_context_limit=effective_context_limit,
                     output_reserve=(
@@ -680,7 +709,7 @@ class CoreApiFacade:
             ):
                 result = self._unified_local_chat.send_message(
                     chat_id=parsed_chat_id,
-                    content=content,
+                    content=chat_content,
                     requested_model_id=requested_model_id,
                     requested_embedding_model_id=requested_embedding_model_id,
                 )
@@ -691,7 +720,7 @@ class CoreApiFacade:
             ):
                 result = self._unified_local_chat.send_message(
                     chat_id=parsed_chat_id,
-                    content=content,
+                    content=chat_content,
                     requested_model_id=requested_model_id,
                     requested_embedding_model_id=requested_embedding_model_id,
                     effective_context_limit=effective_context_limit,
@@ -699,7 +728,7 @@ class CoreApiFacade:
             else:
                 result = self._unified_local_chat.send_message(
                     chat_id=parsed_chat_id,
-                    content=content,
+                    content=chat_content,
                     requested_model_id=requested_model_id,
                     requested_embedding_model_id=requested_embedding_model_id,
                     effective_context_limit=effective_context_limit,
@@ -717,7 +746,7 @@ class CoreApiFacade:
         ):
             result = self._unified_local_chat.send_message(
                 chat_id=parsed_chat_id,
-                content=content,
+                content=chat_content,
                 requested_model_id=requested_model_id,
                 requested_embedding_model_id=requested_embedding_model_id,
                 operation_id=parsed_operation_id,
@@ -729,7 +758,7 @@ class CoreApiFacade:
         ):
             result = self._unified_local_chat.send_message(
                 chat_id=parsed_chat_id,
-                content=content,
+                content=chat_content,
                 requested_model_id=requested_model_id,
                 requested_embedding_model_id=requested_embedding_model_id,
                 operation_id=parsed_operation_id,
@@ -738,7 +767,7 @@ class CoreApiFacade:
         else:
             result = self._unified_local_chat.send_message(
                 chat_id=parsed_chat_id,
-                content=content,
+                content=chat_content,
                 requested_model_id=requested_model_id,
                 requested_embedding_model_id=requested_embedding_model_id,
                 operation_id=parsed_operation_id,
@@ -1266,7 +1295,7 @@ def _chat_message(message: ChatMessage) -> ChatMessageResponse:
         actor_id=None if message.actor_id is None else str(message.actor_id),
         created_at_us=message.created_at_us,
         revision_id=str(message.revision_id),
-        content=content,
+        content=chat_content,
         content_format=message.content_format,
     )
 
