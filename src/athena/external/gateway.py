@@ -414,6 +414,81 @@ class ExternalAccessGateway:
             created_at_us=int(row["created_at_us"]),
         )
 
+    def fetch_url(
+        self,
+        authorization_id: uuid.UUID,
+        url: str,
+        *,
+        max_bytes: int = 2 * 1024 * 1024,
+        timeout_seconds: float = 30.0,
+    ) -> ExternalResponse:
+        """Fetch authorized external bytes without committing them as a Source.
+
+        This is intended for discovery documents such as search-result pages.
+        Result pages selected as evidence should still be captured separately
+        through :meth:`capture_url`.
+        """
+        if not isinstance(url, str):
+            raise ExternalDestinationError("External URL must be text.")
+        if type(max_bytes) is not int or max_bytes < 1 or max_bytes > 32 * 1024 * 1024:
+            raise ValueError("External fetch max_bytes is outside the safe discovery range.")
+        if (
+            isinstance(timeout_seconds, bool)
+            or not isinstance(timeout_seconds, (int, float))
+            or not math.isfinite(float(timeout_seconds))
+            or timeout_seconds <= 0
+            or timeout_seconds > 120
+        ):
+            raise ValueError("External fetch timeout must be in (0, 120] seconds.")
+
+        authorization = self._authorized_or_audit(authorization_id, url=url)
+        transport_route = (
+            "tor" if authorization.privacy_route == "tor_preferred"
+            else authorization.privacy_route
+        )
+        transport = self.transports.get(transport_route)
+        if transport is None:
+            raise ExternalAuthorizationError(
+                "Configured privacy route is unavailable; no direct fallback is permitted."
+            )
+
+        current_url = url
+        for redirect_count in range(self._MAX_REDIRECTS + 1):
+            authorization = self._authorized_or_audit(
+                authorization_id,
+                url=current_url,
+            )
+            response = self._fetch_authorized_url(
+                authorization,
+                transport=transport,
+                url=current_url,
+                max_bytes=max_bytes,
+                timeout_seconds=timeout_seconds,
+            )
+            if response.status in {301, 302, 303, 307, 308}:
+                location = response.headers.get("location")
+                if not location:
+                    raise ExternalTransportError("Redirect response has no Location header.")
+                if redirect_count >= self._MAX_REDIRECTS:
+                    raise ExternalTransportError("External redirect limit exceeded.")
+                current_url = urljoin(current_url, location)
+                continue
+            if response.status < 200 or response.status >= 300:
+                raise ExternalTransportError(
+                    f"External server returned HTTP {response.status}."
+                )
+            self._require_authorized(authorization_id, url=response.final_url)
+            self._audit(
+                authorization,
+                url=response.final_url,
+                outcome="fetched",
+                reason_code="discovery_only",
+                response_bytes=len(response.body),
+                source_id=None,
+            )
+            return response
+        raise ExternalTransportError("External redirect processing failed.")
+
     def capture_url(
         self,
         authorization_id: uuid.UUID,
