@@ -330,6 +330,7 @@ class AthenaMainWindow(QMainWindow):
         self.ground_button = QPushButton("GROUND")
         self.web_button = QPushButton("WEB")
         self.send_button = QPushButton("→")
+        self.stop_button = QPushButton("STOP")
         self.chat_selector = QComboBox()
         self.model_selector = QComboBox()
         self.settings_model_selector = QComboBox()
@@ -375,6 +376,9 @@ class AthenaMainWindow(QMainWindow):
         self.pending_chat_id: str | None = None
         self._core_ready = False
         self._chat_busy = False
+        self._streaming_text = ""
+        self._streaming_container: QWidget | None = None
+        self._streaming_label: _AutoHeightMessageLabel | None = None
         self._chat_follow_tail = True
         self._chat_scroll_programmatic = False
         self._chat_slider_active = False
@@ -1639,6 +1643,15 @@ class AthenaMainWindow(QMainWindow):
         self.send_button.setDisabled(True)
         self.send_button.clicked.connect(self._submit_prompt)
 
+        self.stop_button.setObjectName("stopButton")
+        self.stop_button.setAccessibleName("Stop generation")
+        self.stop_button.setToolTip(
+            "Stop the current local generation without persisting incomplete assistant text"
+        )
+        self.stop_button.setVisible(False)
+        self.stop_button.setEnabled(False)
+        self.stop_button.clicked.connect(self._cancel_active_chat)
+
         self.chat_selector.setObjectName("chatSelector")
         self.chat_selector.setMinimumWidth(150)
         self.chat_selector.activated.connect(self._on_chat_selected)
@@ -1699,6 +1712,7 @@ class AthenaMainWindow(QMainWindow):
         layout.addWidget(self.ground_button)
         layout.addWidget(self.web_button)
         layout.addWidget(self.send_button)
+        layout.addWidget(self.stop_button)
         return composer
 
     def _build_inspector(self) -> QWidget:
@@ -1818,6 +1832,10 @@ class AthenaMainWindow(QMainWindow):
         )
         controller.chat_operation_failed.connect(self.apply_chat_operation_failure)
         controller.chat_busy_changed.connect(self.apply_chat_busy)
+        controller.chat_delta.connect(self.apply_chat_delta)
+        controller.chat_cancel_requested.connect(
+            self.apply_chat_cancel_requested
+        )
         controller.model_busy_changed.connect(self.apply_model_busy)
         controller.model_activated.connect(self.apply_model_activated)
         controller.model_activation_failed.connect(
@@ -1995,6 +2013,7 @@ class AthenaMainWindow(QMainWindow):
             thread.chat_id
         )
         self.prompt_input.clear()
+        self._clear_streaming_preview()
         self._render_chat_thread(thread)
         QTimer.singleShot(0, self.refresh_core_status)
 
@@ -2223,6 +2242,7 @@ class AthenaMainWindow(QMainWindow):
             self.knowledge_review_panel.setVisible(True)
             self.knowledge_review_state.setText("ERROR / " + operation.upper())
         if operation in {"send", "send_grounded"}:
+            self._clear_streaming_preview()
             self._activity_failed = True
             self._set_task_progress_error(self._activity_name, message)
             self._remember_transient_failure(operation, message)
@@ -2234,6 +2254,10 @@ class AthenaMainWindow(QMainWindow):
     @Slot(bool)
     def apply_chat_busy(self, busy: bool) -> None:
         self._chat_busy = busy
+        cancellable = busy and self._activity_name != "GROUNDING"
+        self.stop_button.setVisible(cancellable)
+        self.stop_button.setEnabled(cancellable)
+        self.send_button.setVisible(not cancellable)
         if busy:
             self._activity_failed = False
             self._set_task_progress_running(self._activity_name)
@@ -2241,7 +2265,85 @@ class AthenaMainWindow(QMainWindow):
             self._activity_failed = False
         else:
             self._set_task_progress_complete(self._activity_name)
+        if not busy:
+            self.stop_button.setVisible(False)
+            self.stop_button.setEnabled(False)
+            self.send_button.setVisible(True)
         self._sync_composer_enabled()
+
+    @Slot(str)
+    def apply_chat_delta(self, chunk: str) -> None:
+        if not chunk:
+            return
+        self._streaming_text += chunk
+        if self._streaming_container is None:
+            container = QWidget()
+            container.setObjectName("chatMessage")
+            container.setProperty("messageRole", "assistant")
+            layout = QVBoxLayout(container)
+            layout.setContentsMargins(0, 0, 0, 18)
+            layout.setSpacing(8)
+
+            meta = QLabel("ATHENA  /  STREAMING")
+            meta.setObjectName("speaker")
+            _make_label_selectable(meta)
+            body = _AutoHeightMessageLabel("")
+            body.setObjectName("message")
+            body.setTextFormat(Qt.TextFormat.PlainText)
+            body.setWordWrap(True)
+            _make_label_selectable(body)
+
+            layout.addWidget(meta)
+            layout.addWidget(body)
+            layout.addWidget(_rule())
+            insert_index = max(
+                0,
+                self.chat_messages_layout.count() - 1,
+            )
+            self.chat_messages_layout.insertWidget(
+                insert_index,
+                container,
+            )
+            self._streaming_container = container
+            self._streaming_label = body
+
+        if self._streaming_label is not None:
+            self._streaming_label.setText(self._streaming_text)
+            self._streaming_label.updateGeometry()
+        self._schedule_chat_tail_follow()
+
+    @Slot(bool)
+    def apply_chat_cancel_requested(self, accepted: bool) -> None:
+        if accepted:
+            self.task_progress_label.setText(
+                f"TASK / {self._activity_name} / STOPPING"
+            )
+            self.stop_button.setEnabled(False)
+            self.stop_button.setText("STOPPING")
+        else:
+            self.stop_button.setEnabled(self._chat_busy)
+            self.stop_button.setText("STOP")
+            self.connection_detail.setText(
+                "Stop request could not be accepted by the active Core operation."
+            )
+
+    def _cancel_active_chat(self) -> None:
+        controller = self.api_controller
+        if controller is None or not self._chat_busy:
+            return
+        self.stop_button.setEnabled(False)
+        self.stop_button.setText("STOPPING")
+        controller.cancel_chat()
+
+    def _clear_streaming_preview(self) -> None:
+        container = self._streaming_container
+        self._streaming_text = ""
+        self._streaming_label = None
+        self._streaming_container = None
+        if container is not None:
+            self.chat_messages_layout.removeWidget(container)
+            container.deleteLater()
+        self.stop_button.setText("STOP")
 
     @Slot()
     def _on_web_toggled(self, checked: bool) -> None:
