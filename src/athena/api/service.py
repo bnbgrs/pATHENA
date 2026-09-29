@@ -1073,19 +1073,66 @@ class CoreApiFacade:
             raise RuntimeError("The active model provider cannot load models.")
 
         before = self._model_provider.discover_models()
-        selected = loader(normalized_id, context_length=context_length)
+        selected_before = next(
+            (
+                model
+                for model in before
+                if model.backend_model_id == normalized_id
+            ),
+            None,
+        )
+        previously_loaded = tuple(
+            model
+            for model in before
+            if (
+                model.model_type == "llm"
+                and model.loaded
+                and model.backend_model_id != normalized_id
+            )
+        )
 
-        if unload_others:
+        unloader = None
+        if unload_others and previously_loaded:
             unloader = getattr(self._model_provider, "unload_model", None)
             if not callable(unloader):
                 raise RuntimeError("The active model provider cannot unload models.")
-            for model in before:
-                if (
-                    model.model_type == "llm"
-                    and model.loaded
-                    and model.backend_model_id != normalized_id
-                ):
-                    unloader(model.backend_model_id)
+
+        # When switching to an unloaded model, free VRAM before loading the new
+        # model. This avoids a transient two-model residency spike on smaller GPUs.
+        unloaded_for_switch: list[object] = []
+        if (
+            unload_others
+            and previously_loaded
+            and (selected_before is None or not selected_before.loaded)
+        ):
+            assert callable(unloader)
+            for model in previously_loaded:
+                unloader(model.backend_model_id)
+                unloaded_for_switch.append(model)
+
+        try:
+            selected = loader(normalized_id, context_length=context_length)
+        except Exception:
+            # Best-effort rollback: if the requested model cannot be loaded,
+            # restore the prior working model(s) with their previous context.
+            for previous in unloaded_for_switch:
+                try:
+                    loader(
+                        previous.backend_model_id,
+                        context_length=previous.loaded_context_length,
+                    )
+                except Exception:
+                    # Preserve the original activation error; refresh will expose
+                    # the truthful provider state if rollback is incomplete.
+                    pass
+            raise
+
+        # If the selected model was already resident, the load operation does not
+        # need extra VRAM; remove other LLM instances after it is confirmed ready.
+        if unload_others and previously_loaded and not unloaded_for_switch:
+            assert callable(unloader)
+            for model in previously_loaded:
+                unloader(model.backend_model_id)
 
         refreshed = self._model_provider.discover_models()
         for model in refreshed:
