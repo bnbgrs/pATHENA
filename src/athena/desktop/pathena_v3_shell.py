@@ -132,7 +132,7 @@ class PathenaV3ShellController(QObject):
                 ("ground", self._window.ground_button),
                 ("send", self._window.send_button),
             ):
-                painter = _DisabledComposerActionPainter(role, action)
+                painter = _DisabledComposerActionPainter(role, self)
                 action.installEventFilter(painter)
                 self._composer_action_painters.append(painter)
         for action in (self._window.ground_button, self._window.send_button):
