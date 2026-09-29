@@ -333,12 +333,12 @@ class PathenaV3ShellController(QObject):
         window.ground_button.setToolTip("Ground this turn in local knowledge and source evidence")
         window.ground_button.setAccessibleName("Ground message in local evidence")
         window.ground_button.setStyleSheet(
-            "QPushButton { color: #A3AAB7; background: transparent; "
+            "QPushButton { color: rgba(0, 0, 0, 0); background: transparent; "
             "border: 1px solid transparent; border-radius: 9px; padding: 6px 9px; } "
-            "QPushButton:disabled { color: #8C98B0; background: #151D2B; "
-            "border-color: #33405A; } "
-            "QPushButton:checked { color: #E3E9FF; background: #18213A; "
-            "border-color: #31457F; }"
+            "QPushButton:disabled { color: rgba(0, 0, 0, 0); background: transparent; "
+            "border-color: transparent; } "
+            "QPushButton:checked { color: rgba(0, 0, 0, 0); background: transparent; "
+            "border-color: transparent; }"
         )
         window.ground_button.setFixedHeight(36)
         composer_layout.addWidget(window.ground_button)
@@ -351,10 +351,10 @@ class PathenaV3ShellController(QObject):
         window.send_button.setText("↑")
         window.send_button.setToolTip("Send message · Ctrl+Enter")
         window.send_button.setStyleSheet(
-            "QPushButton { color: #0D1016; background: #7C9CFF; border: 0; "
+            "QPushButton { color: rgba(0, 0, 0, 0); background: transparent; border: 0; "
             "border-radius: 22px; padding: 0; font-size: 15pt; font-weight: 800; } "
-            "QPushButton:disabled { color: #C0CAE6; background: #27344F; "
-            "border: 1px solid #40577F; }"
+            "QPushButton:disabled { color: rgba(0, 0, 0, 0); background: transparent; "
+            "border: 0; }"
         )
         window.send_button.setFixedSize(44, 44)
         composer_layout.addWidget(window.send_button)
