@@ -400,6 +400,26 @@ class PathenaV3ShellController(QObject):
         window.send_button.show()
         window.send_button.raise_()
         window.send_button.update()
+
+        window.stop_button.setParent(composer)
+        window.stop_button.setText("Stop")
+        window.stop_button.setToolTip(
+            "Stop generation without persisting incomplete assistant text"
+        )
+        window.stop_button.setStyleSheet(
+            "QPushButton { color: #E6A3A3; background: #24191C; "
+            "border: 1px solid #6D343D; border-radius: 9px; padding: 6px 12px; "
+            "font-weight: 650; } "
+            "QPushButton:hover { color: #FFD0D0; background: #332025; "
+            "border-color: #99505C; } "
+            "QPushButton:disabled { color: #7F6A6E; background: #1C181A; "
+            "border-color: #3D2B2F; }"
+        )
+        window.stop_button.setFixedHeight(36)
+        composer_layout.addWidget(window.stop_button)
+        window.stop_button.ensurePolished()
+        window.stop_button.hide()
+
         composer.bind_actions(
             ground_button=window.ground_button,
             send_button=window.send_button,
