@@ -328,6 +328,7 @@ class ComfyUiController(QObject):
         title_row = QHBoxLayout()
         title = QLabel("ComfyUI")
         title.setObjectName("comfyUiTitle")
+        title.setVisible(self._workspace is None)
         title_row.addWidget(title)
         title_row.addStretch(1)
         self.close_button = QPushButton("Close")
@@ -342,6 +343,7 @@ class ComfyUiController(QObject):
         intro = QLabel("Local image + video workflow · loopback only")
         intro.setWordWrap(True)
         intro.setProperty("role", "muted")
+        intro.setVisible(self._workspace is None)
         outer.addWidget(intro)
 
         connection_label = QLabel("CONNECTION")
