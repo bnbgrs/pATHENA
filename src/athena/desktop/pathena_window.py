@@ -353,6 +353,19 @@ class PathenaMainWindow(AthenaMainWindow):
         inspector = self.findChild(QFrame, "inspector")
         if inspector is None:
             return
+
+        central = self.centralWidget()
+        if (
+            central is not None
+            and central.objectName() == "v3Shell"
+            and self.navigation.currentRow() != 0
+        ):
+            # V3 workspaces own their contextual detail surfaces. Keep the
+            # legacy global inspector from being resurrected by late Core or
+            # context refreshes after navigation.
+            inspector.hide()
+            return
+
         context_button = getattr(self, "context_button", None)
         context_requested = (
             isinstance(context_button, QPushButton)
