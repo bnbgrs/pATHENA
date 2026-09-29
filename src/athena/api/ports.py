@@ -103,6 +103,14 @@ class CoreDomainSurface(Protocol):
 
     def list_models(self) -> tuple[ModelResponse, ...]: ...
 
+    def activate_model(
+        self,
+        model_id: str,
+        *,
+        context_length: int | None = None,
+        unload_others: bool = True,
+    ) -> ModelResponse: ...
+
     def send_chat_message(
         self,
         chat_id: str,
