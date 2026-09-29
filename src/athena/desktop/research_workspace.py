@@ -54,6 +54,12 @@ class ResearchWorkspace(QWidget):
         self.cancel_button.setEnabled(False)
         self.cancel_button.clicked.connect(self.cancel_selected)
 
+        self.rerun_button = QPushButton("RERUN")
+        self.rerun_button.setObjectName("newChatButton")
+        self.rerun_button.setEnabled(False)
+        self.rerun_button.setToolTip("Create a new durable research run with the selected query")
+        self.rerun_button.clicked.connect(self.rerun_selected)
+
         self.status = QLabel("Ready.")
         self.status.setObjectName("researchStatus")
         self.status.setTextInteractionFlags(
@@ -93,6 +99,7 @@ class ResearchWorkspace(QWidget):
         header.addWidget(title)
         header.addStretch(1)
         header.addWidget(self.refresh_button)
+        header.addWidget(self.rerun_button)
         header.addWidget(self.cancel_button)
         layout.addLayout(header)
 
@@ -143,6 +150,13 @@ class ResearchWorkspace(QWidget):
             "Requesting research cancellation",
         )
 
+    def rerun_selected(self) -> None:
+        query = self._selected_query
+        if self._busy() or not query:
+            return
+        self.query_input.setText(query)
+        self.enqueue()
+
     def _selection_changed(
         self,
         current: QListWidgetItem | None,
@@ -150,8 +164,10 @@ class ResearchWorkspace(QWidget):
     ) -> None:
         job_id = None if current is None else current.data(Qt.ItemDataRole.UserRole)
         state = None if current is None else current.data(Qt.ItemDataRole.UserRole + 1)
+        query = None if current is None else current.data(Qt.ItemDataRole.UserRole + 2)
         self._selected_job_id = str(job_id) if job_id else None
         self._selected_job_state = str(state) if state else None
+        self._selected_query = str(query) if query else None
         self._sync_cancel_button()
         if self._selected_job_id and not self._busy():
             set_pathena_ui_state(self.details, "busy")
@@ -193,6 +209,13 @@ class ResearchWorkspace(QWidget):
         self.cancel_button.setAccessibleDescription(reason)
         self.cancel_button.setProperty("pathenaResearchJobState", state)
         self.cancel_button.setProperty("pathenaResearchCancelAvailable", enabled)
+        rerun_enabled = not self._busy() and bool(self._selected_query)
+        self.rerun_button.setEnabled(rerun_enabled)
+        self.rerun_button.setAccessibleDescription(
+            "Create a new research run with the selected query."
+            if rerun_enabled
+            else "Select a research run with a query to rerun it."
+        )
 
     def _start(self, operation: str, arguments: list[str], label: str) -> None:
         self._operation = operation
@@ -213,6 +236,7 @@ class ResearchWorkspace(QWidget):
             self._sync_cancel_button()
         else:
             self.cancel_button.setEnabled(False)
+            self.rerun_button.setEnabled(False)
 
     def _drain_output(self) -> None:
         chunk = bytes(self._process.readAllStandardOutput().data()).decode(
@@ -285,13 +309,15 @@ class ResearchWorkspace(QWidget):
             job_id, state, stage, coverage, query = parts
             coverage_label = "—" if coverage == "-" else f"{float(coverage) * 100:.1f}%"
             item = QListWidgetItem(
-                f"{state.upper():<16} {coverage_label:>7}  {query or '<no query>'}"
+                f"{state.upper():<16} {stage.upper():<14} {coverage_label:>7}  "
+                f"{query or '<no query>'}"
             )
             item.setToolTip(
                 f"{job_id}\nstate={state}\nstage={stage}\ncoverage={coverage_label}"
             )
             item.setData(Qt.ItemDataRole.UserRole, job_id)
             item.setData(Qt.ItemDataRole.UserRole + 1, state)
+            item.setData(Qt.ItemDataRole.UserRole + 2, query)
             self.jobs.addItem(item)
             if selected == job_id:
                 item_to_select = item
@@ -307,6 +333,7 @@ class ResearchWorkspace(QWidget):
             set_pathena_ui_state(self.jobs, "success")
             self._selected_job_id = None
             self._selected_job_state = None
+            self._selected_query = None
             self._sync_cancel_button()
             self.jobs.setCurrentRow(-1)
             job_label = selected[:8].upper()
