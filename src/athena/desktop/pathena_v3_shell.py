@@ -331,13 +331,30 @@ class PathenaV3ShellController(QObject):
         window.ground_button.setText("Ground")
         window.ground_button.setToolTip("Ground this turn in local knowledge and source evidence")
         window.ground_button.setAccessibleName("Ground message in local evidence")
+        window.ground_button.setStyleSheet(
+            "QPushButton { color: #A3AAB7; background: transparent; "
+            "border: 1px solid transparent; border-radius: 9px; padding: 6px 9px; } "
+            "QPushButton:disabled { color: #8C98B0; background: #151D2B; "
+            "border-color: #33405A; } "
+            "QPushButton:checked { color: #E3E9FF; background: #18213A; "
+            "border-color: #31457F; }"
+        )
         window.ground_button.show()
+        window.ground_button.raise_()
         composer_layout.addWidget(window.ground_button)
 
         window.send_button.setParent(composer)
         window.send_button.setText("↑")
         window.send_button.setToolTip("Send message · Ctrl+Enter")
+        window.send_button.setFixedSize(44, 44)
+        window.send_button.setStyleSheet(
+            "QPushButton { color: #0D1016; background: #7C9CFF; border: 0; "
+            "border-radius: 22px; padding: 0; font-size: 15pt; font-weight: 800; } "
+            "QPushButton:disabled { color: #C0CAE6; background: #27344F; "
+            "border: 1px solid #40577F; }"
+        )
         window.send_button.show()
+        window.send_button.raise_()
         composer_layout.addWidget(window.send_button)
         composer.setMinimumWidth(620)
         composer.setMaximumWidth(1120)
