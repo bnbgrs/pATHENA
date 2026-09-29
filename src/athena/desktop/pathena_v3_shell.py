@@ -4,8 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from PySide6.QtCore import QEvent, QObject, QRectF, Qt, Slot
-from PySide6.QtGui import QColor, QPainter, QPen
+from PySide6.QtCore import QObject, Qt, Slot
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -39,49 +38,6 @@ _PAGE_HINTS = (
 _PAGE_ICONS = ("chat", "knowledge", "research", "jobs", "sources", "system", "settings")
 
 
-class _DisabledComposerActionPainter(QObject):
-    """Paint disabled composer actions deterministically across Qt platforms."""
-
-    def __init__(self, role: str, parent: QObject) -> None:
-        super().__init__(parent)
-        self._role = role
-
-    def eventFilter(self, watched: QObject, event: QEvent) -> bool:  # noqa: N802
-        if (
-            event.type() != QEvent.Type.Paint
-            or not isinstance(watched, QPushButton)
-            or watched.isEnabled()
-        ):
-            return super().eventFilter(watched, event)
-
-        if self._role == "send":
-            background = QColor("#252E43")
-            border = QColor("#36435F")
-            foreground = QColor("#92A0C4")
-            radius = 22.0
-        else:
-            background = QColor("#171D28")
-            border = QColor("#2C3546")
-            foreground = QColor("#768196")
-            radius = 10.0
-
-        painter = QPainter(watched)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        pen = QPen(border, 1.0)
-        painter.setPen(pen)
-        painter.setBrush(background)
-        rect = QRectF(watched.rect()).adjusted(0.5, 0.5, -0.5, -0.5)
-        painter.drawRoundedRect(rect, radius, radius)
-        painter.setPen(foreground)
-        painter.drawText(
-            watched.rect(),
-            Qt.AlignmentFlag.AlignCenter,
-            watched.text(),
-        )
-        painter.end()
-        return True
-
-
 class PathenaV3ShellController(QObject):
     """Own the V3 visual shell without changing product semantics."""
 
@@ -91,7 +47,6 @@ class PathenaV3ShellController(QObject):
         self._command_callback: Callable[[], None] | None = None
         self._pallas_callback: Callable[[], None] | None = None
         self._nav_buttons: dict[int, V3NavigationButton] = {}
-        self._composer_action_painters: list[_DisabledComposerActionPainter] = []
         self._legacy_shell: QWidget | None = None
         self._inspector: QFrame | None = None
         self._header = V3WorkspaceHeader("Chat", _PAGE_HINTS[0])
@@ -124,22 +79,6 @@ class PathenaV3ShellController(QObject):
         self._window.ground_button.show()
         self._window.send_button.setFixedSize(44, 44)
         self._window.send_button.show()
-
-        # Disabled QPushButtons can disappear from native Windows/offscreen grabs.
-        # Paint only their disabled state ourselves; enabled behavior and signals stay native.
-        if not self._composer_action_painters:
-            for role, action in (
-                ("ground", self._window.ground_button),
-                ("send", self._window.send_button),
-            ):
-                painter = _DisabledComposerActionPainter(role, self)
-                action.installEventFilter(painter)
-                self._composer_action_painters.append(painter)
-        for action in (self._window.ground_button, self._window.send_button):
-            action.setFlat(False)
-            action.raise_()
-            action.update()
-
         self._sync_navigation(max(0, self._window.navigation.currentRow()))
 
     def _build(self) -> None:
