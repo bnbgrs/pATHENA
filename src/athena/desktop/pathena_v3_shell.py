@@ -349,6 +349,7 @@ class PathenaV3ShellController(QObject):
 
         window.send_button.setParent(composer)
         window.send_button.setText("↑")
+        window.send_button.setAccessibleName("Send message")
         window.send_button.setToolTip("Send message · Ctrl+Enter")
         window.send_button.setStyleSheet(
             "QPushButton { color: rgba(0, 0, 0, 0); background: transparent; border: 0; "
