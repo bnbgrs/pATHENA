@@ -315,6 +315,23 @@ class PathenaV3ShellController(QObject):
         stage_row.addStretch(1)
         outer.addLayout(stage_row, 1)
 
+        activity_strip = self._legacy_shell.findChild(QFrame, "activityStrip")
+        if activity_strip is not None:
+            activity_strip.setParent(chat)
+            activity_strip.setMinimumWidth(620)
+            activity_strip.setMaximumWidth(1120)
+            activity_strip.setSizePolicy(
+                QSizePolicy.Policy.Expanding,
+                QSizePolicy.Policy.Fixed,
+            )
+            activity_row = QHBoxLayout()
+            activity_row.setContentsMargins(0, 0, 0, 0)
+            activity_row.setSpacing(0)
+            activity_row.addStretch(1)
+            activity_row.addWidget(activity_strip, 8)
+            activity_row.addStretch(1)
+            outer.addLayout(activity_row)
+
         composer = V3ComposerFrame()
         composer.setObjectName("v3Composer")
         composer_layout = QHBoxLayout(composer)
@@ -347,9 +364,30 @@ class PathenaV3ShellController(QObject):
         window.ground_button.raise_()
         window.ground_button.update()
 
+        window.web_button.setParent(composer)
+        window.web_button.setText("Web")
+        window.web_button.setToolTip(
+            "Search the public web through Tor for this message"
+        )
+        window.web_button.setAccessibleName("Use Tor web research for this message")
+        window.web_button.setStyleSheet(
+            "QPushButton { color: #A3AAB7; background: transparent; "
+            "border: 1px solid transparent; border-radius: 9px; padding: 6px 9px; } "
+            "QPushButton:disabled { color: #8C98B0; background: #151D2B; "
+            "border-color: #33405A; } "
+            "QPushButton:checked { color: #E3E9FF; background: #18213A; "
+            "border-color: #31457F; }"
+        )
+        window.web_button.setFixedHeight(36)
+        composer_layout.addWidget(window.web_button)
+        window.web_button.ensurePolished()
+        window.web_button.show()
+        window.web_button.raise_()
+        window.web_button.update()
+
         window.send_button.setParent(composer)
         window.send_button.setText("↑")
-        window.send_button.setToolTip("Send message · Ctrl+Enter")
+        window.send_button.setToolTip("Send message · Enter")
         window.send_button.setStyleSheet(
             "QPushButton { color: #0D1016; background: #7C9CFF; border: 0; "
             "border-radius: 22px; padding: 0; font-size: 15pt; font-weight: 800; } "
