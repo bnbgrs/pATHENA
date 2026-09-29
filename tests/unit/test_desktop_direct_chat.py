@@ -721,6 +721,41 @@ def test_controller_absent_lost_send_does_not_retry_post() -> None:
     assert error_spy.count() == 1
 
 
+
+def test_enter_sends_and_shift_enter_inserts_newline() -> None:
+    app = _app()
+    gateway = _Gateway()
+    pool = _pool()
+    controller = DesktopApiController(
+        gateway,
+        thread_pool=pool,
+    )
+    window = AthenaMainWindow(controller)
+    try:
+        window.apply_api_snapshot(_ready_snapshot())
+        app.processEvents()
+
+        window.prompt_input.setFocus()
+        window.prompt_input.setText("first line")
+        QTest.keyClick(window.prompt_input, Qt.Key.Key_Return)
+        assert pool.waitForDone(2_000)
+        app.processEvents()
+        assert len(gateway.sent) == 1
+        assert gateway.sent[0][1] == "first line"
+
+        window.prompt_input.setText("line one")
+        QTest.keyClick(
+            window.prompt_input,
+            Qt.Key.Key_Return,
+            Qt.KeyboardModifier.ShiftModifier,
+        )
+        window.prompt_input.insertPlainText("line two")
+        assert window.prompt_input.text() == "line one\nline two"
+    finally:
+        window.close()
+        assert pool.waitForDone(2_000)
+
+
 def test_window_enables_composer_and_renders_persisted_thread() -> None:
     app = _app()
     gateway = _Gateway()
