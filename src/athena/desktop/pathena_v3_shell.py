@@ -269,7 +269,7 @@ class PathenaV3ShellController(QObject):
             meta_layout.addWidget(context_button)
 
         meta.setMinimumWidth(620)
-        meta.setMaximumWidth(1180)
+        meta.setMaximumWidth(1120)
         meta.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         meta_row = QHBoxLayout()
         meta_row.setContentsMargins(0, 0, 0, 0)
@@ -304,7 +304,7 @@ class PathenaV3ShellController(QObject):
         stage_layout.addWidget(window.evidence_chain)
 
         stage.setMinimumWidth(620)
-        stage.setMaximumWidth(1180)
+        stage.setMaximumWidth(1120)
         stage.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         stage_row = QHBoxLayout()
         stage_row.setContentsMargins(0, 0, 0, 0)
@@ -321,8 +321,8 @@ class PathenaV3ShellController(QObject):
         composer_layout.setSpacing(8)
 
         window.prompt_input.setParent(composer)
-        window.prompt_input.setMinimumHeight(56)
-        window.prompt_input.setMaximumHeight(96)
+        window.prompt_input.setMinimumHeight(48)
+        window.prompt_input.setMaximumHeight(84)
         window.prompt_input.setPlaceholderText("Ask, investigate, build…")
         window.prompt_input.show()
         composer_layout.addWidget(window.prompt_input, 1)
@@ -340,7 +340,7 @@ class PathenaV3ShellController(QObject):
         window.send_button.show()
         composer_layout.addWidget(window.send_button)
         composer.setMinimumWidth(620)
-        composer.setMaximumWidth(1180)
+        composer.setMaximumWidth(1120)
         composer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         composer_row = QHBoxLayout()
         composer_row.setContentsMargins(0, 0, 0, 0)
