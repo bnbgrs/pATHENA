@@ -9,6 +9,7 @@ from athena.desktop.lmstudio_runtime import (
     _CommandStep,
     _accepted_model_load_id,
     _coerce_idle_minutes,
+    _endpoint,
     _endpoint_port,
     _find_lms,
     _model_verification_action,
@@ -43,6 +44,20 @@ def test_endpoint_port_accepts_only_loopback_http(url: str, expected: int) -> No
 def test_endpoint_port_rejects_unsafe_or_invalid_targets(url: str) -> None:
     with pytest.raises(ValueError):
         _endpoint_port(url)
+
+
+@pytest.mark.parametrize(
+    ("url", "expected"),
+    [
+        ("http://127.0.0.1:1234", ("127.0.0.1", 1234)),
+        ("http://localhost:4321", ("127.0.0.1", 4321)),
+        ("http://[::1]:7777", ("::1", 7777)),
+    ],
+)
+def test_endpoint_bind_matches_configured_loopback(
+    url: str, expected: tuple[str, int]
+) -> None:
+    assert _endpoint(url) == expected
 
 
 def test_process_command_preserves_arguments_for_native_executable() -> None:
