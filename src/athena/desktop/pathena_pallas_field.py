@@ -36,6 +36,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from shiboken6 import isValid
 
 from athena.api.contracts import GroundedChatResponse
 from athena.desktop.api_controller import DesktopApiController
@@ -711,10 +712,18 @@ class PallasGroundedFieldController(QObject):
             field.set_empty(self._state_detail)
 
     def _live_fields(self) -> tuple[PallasSemanticField, ...]:
-        return tuple(field for field in self._fields if field.parent() is not None)
+        return tuple(
+            field
+            for field in self._fields
+            if isValid(field) and field.parent() is not None
+        )
 
     def _live_workspaces(self) -> tuple[PallasWorkspace, ...]:
-        return tuple(self._workspaces)
+        return tuple(
+            workspace
+            for workspace in self._workspaces
+            if isValid(workspace)
+        )
 
     def _remove_workspace(
         self,
