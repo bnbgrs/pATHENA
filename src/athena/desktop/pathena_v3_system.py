@@ -51,7 +51,7 @@ class PathenaV3SystemController(QObject):
         command_header.setContentsMargins(0, 0, 0, 0)
         command_header.setSpacing(10)
 
-        command_label = QLabel("LOCAL SYSTEM")
+        command_label = QLabel("THIS DEVICE")
         command_label.setObjectName("v3Kicker")
         command_header.addWidget(command_label)
         command_header.addStretch(1)
@@ -73,7 +73,7 @@ class PathenaV3SystemController(QObject):
         health_header.setContentsMargins(2, 0, 2, 0)
         health_header.setSpacing(8)
 
-        health_label = QLabel("RUNTIME HEALTH")
+        health_label = QLabel("SYSTEM HEALTH")
         health_label.setObjectName("v3Kicker")
         health_header.addWidget(health_label)
         health_header.addStretch(1)
@@ -111,7 +111,7 @@ class PathenaV3SystemController(QObject):
         activity_layout.setContentsMargins(18, 16, 18, 16)
         activity_layout.setSpacing(9)
 
-        events_title = QLabel("Activity")
+        events_title = QLabel("Recent activity")
         events_title.setObjectName("v3SectionTitle")
         activity_layout.addWidget(events_title)
         workspace.recent_events.setParent(activity)
@@ -119,7 +119,7 @@ class PathenaV3SystemController(QObject):
         workspace.recent_events.show()
         activity_layout.addWidget(workspace.recent_events)
 
-        diagnostics_title = QLabel("Checks & recovery")
+        diagnostics_title = QLabel("Diagnostics & recovery")
         diagnostics_title.setObjectName("v3SectionTitle")
         activity_layout.addWidget(diagnostics_title)
 
