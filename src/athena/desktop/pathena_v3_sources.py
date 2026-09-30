@@ -7,7 +7,7 @@ from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QSplitter, QVBoxLayou
 from shiboken6 import isValid
 
 from athena.desktop.files_workspace import FilesWorkspace
-from athena.desktop.pathena_v3_components import V3EmptyState
+from athena.desktop.pathena_v3_components import V3ActionHost, V3EmptyState
 
 
 class PathenaV3SourcesController(QObject):
@@ -38,7 +38,7 @@ class PathenaV3SourcesController(QObject):
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(14)
 
-        command = QFrame()
+        command = V3ActionHost()
         command.setObjectName("v3SourcesCommand")
         command.setAccessibleName("Source library controls")
         command_layout = QVBoxLayout(command)
@@ -102,6 +102,11 @@ class PathenaV3SourcesController(QObject):
             button.raise_()
             button.update()
         command_layout.addLayout(actions)
+        command.bind_actions(
+            workspace.refresh_button,
+            workspace.process_button,
+            workspace.import_button,
+        )
         root.addWidget(command)
 
         splitter.setParent(workspace)
