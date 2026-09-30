@@ -144,6 +144,13 @@ QPushButton#v3CommandButton:hover {
     border-color: #3B4652;
 }
 
+QPushButton#v3CommandButton[compact="true"] {
+    min-width: 70px;
+    max-width: 70px;
+    padding: 7px 9px;
+    text-align: center;
+}
+
 QLabel#v3RuntimeDot {
     color: #78D1C5;
     font-size: 9pt;
