@@ -184,8 +184,6 @@ QTabWidget#systemOperationsTabs {
 QTabWidget#systemOperationsTabs::pane {
     background: transparent;
     border: none;
-    border-top: 1px solid #202532;
-    top: -1px;
 }
 
 QTabWidget#systemOperationsTabs QTabBar::tab {
