@@ -14,6 +14,7 @@ from athena.desktop.app import create_application
 from athena.desktop.files_workspace import FilesWorkspace
 from athena.desktop.jobs_workspace import JobsWorkspace
 from athena.desktop.pathena_jobs_experience_2800 import install_jobs_experience
+from athena.desktop.pathena_v3_components import V3ActionHost
 from athena.desktop.pathena_research_experience_2500 import install_research_experience
 from athena.desktop.pathena_v3_jobs import install_v3_jobs_workspace
 from athena.desktop.pathena_v3_research import install_v3_research_workspace
@@ -54,6 +55,7 @@ def test_research_polish_keeps_real_controls_and_clear_action_hierarchy() -> Non
         brief = workspace.findChild(QFrame, "v3ResearchBrief")
         splitter = workspace.findChild(QSplitter, "v3ResearchSplit")
         assert brief is not None
+        assert isinstance(brief, V3ActionHost)
         assert brief.accessibleName() == "Research brief"
         assert workspace.query_input.accessibleName() == "Research question"
         assert workspace.start_button.property("v3PrimaryAction") is True
@@ -87,6 +89,7 @@ def test_jobs_and_sources_polish_group_status_before_actions() -> None:
         jobs_command = jobs.findChild(QFrame, "v3JobsCommand")
         jobs_split = jobs.findChild(QSplitter, "v3JobsSplit")
         assert jobs_command is not None
+        assert isinstance(jobs_command, V3ActionHost)
         assert jobs_command.accessibleName() == "Background work controls"
         assert jobs.resume_button.property("v3PrimaryAction") is not True
         assert jobs.wake_button.text() == "Run now"
@@ -119,6 +122,7 @@ def test_jobs_and_sources_polish_group_status_before_actions() -> None:
         sources_command = sources.findChild(QFrame, "v3SourcesCommand")
         sources_split = sources.findChild(QSplitter, "v3SourcesSplit")
         assert sources_command is not None
+        assert isinstance(sources_command, V3ActionHost)
         assert sources_command.accessibleName() == "Source library controls"
         assert sources.refresh_button.accessibleName() == "Refresh source library"
         assert sources.process_button.accessibleName() == "Process selected source"
