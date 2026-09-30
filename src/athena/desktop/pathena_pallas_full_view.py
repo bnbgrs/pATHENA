@@ -199,6 +199,8 @@ class PallasFullViewController(QObject):
         epistemic = str(getattr(node, "epistemic_status", "") or "")
         confidence = getattr(node, "confidence", None)
         cited = bool(getattr(node, "cited", False))
+        node_id = str(getattr(node, "node_id", "") or "")
+        living_state = self._living_controller.engine.states.get(node_id)
 
         kind_label.setText(kind)
         title_label.setText(f"{glyph} {title}".strip())
@@ -214,6 +216,12 @@ class PallasFullViewController(QObject):
             lines.append(f"Epistemic state  {epistemic}")
         if isinstance(confidence, (int, float)) and not isinstance(confidence, bool):
             lines.append(f"Confidence  {confidence:.2f}")
+        if living_state is not None:
+            lines.append(
+                "Living field  "
+                f"{living_state.vitality:.0%} vitality · "
+                f"{living_state.age_seconds:.1f}s runtime age"
+            )
         body_label.setText("\n".join(lines))
 
     def _claim_inspector_context(self) -> None:
@@ -408,7 +416,19 @@ class PallasFullViewController(QObject):
         active = diagnostics.get("active", 0)
         nodes = diagnostics.get("nodes", 0)
         lens = str(diagnostics.get("lens", "semantic")).upper()
-        status.setText(f"FIELD • {fps} FPS • {active}/{nodes} ACTIVE • {lens}")
+        added = int(diagnostics.get("delta_added", 0) or 0)
+        removed = int(diagnostics.get("delta_removed", 0) or 0)
+        updated = int(diagnostics.get("delta_updated", 0) or 0)
+        edge_delta = int(diagnostics.get("delta_edges", 0) or 0)
+        activity = ""
+        if added or removed or updated or edge_delta:
+            activity = (
+                f" • Δ +{added} −{removed} ~{updated}"
+                + (f" · {edge_delta} EDGE" if edge_delta else "")
+            )
+        status.setText(
+            f"FIELD • {fps} FPS • {active}/{nodes} ACTIVE • {lens}{activity}"
+        )
 
     @Slot()
     def dispose(self) -> None:
