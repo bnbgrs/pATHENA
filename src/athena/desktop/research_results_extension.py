@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from shiboken6 import isValid
 
 from athena.desktop.research_review import (
     ResearchReviewError,
@@ -169,12 +170,17 @@ class ResearchResultsExtension(QObject):
     def _selected_job_state(self) -> str:
         if self._tearing_down:
             return ""
+        workspace = self.workspace
+        jobs = getattr(workspace, "jobs", None)
+        if not isValid(workspace) or jobs is None or not isValid(jobs):
+            self._begin_teardown()
+            return ""
         try:
-            row = self.workspace.jobs.currentRow()
+            row = jobs.currentRow()
             if row < 0:
                 return ""
-            item = self.workspace.jobs.item(row)
-            if item is None:
+            item = jobs.item(row)
+            if item is None or not isValid(item):
                 return ""
             text = item.text().strip()
         except RuntimeError:
