@@ -28,13 +28,13 @@ from athena.desktop.pathena_window import PathenaMainWindow
 
 _PAGE_NAMES = ("Chat", "Knowledge", "Research", "Jobs", "Sources", "System", "Settings")
 _PAGE_HINTS = (
-    "Think, write and work with local intelligence.",
-    "Browse durable knowledge, claims and provenance.",
-    "Turn questions into evidence-backed research.",
-    "Track background work and recoverable execution.",
-    "Inspect imported material and source lineage.",
-    "See runtime health, storage and local security state.",
-    "Tune local models and inference behavior.",
+    "Chat with local models and grounded knowledge.",
+    "Browse reviewed knowledge, claims, decisions and sources.",
+    "Turn questions into structured, evidence-backed research.",
+    "Track background work, progress and recoverable execution.",
+    "Import, process and inspect local source material.",
+    "Check this device, storage, connectivity and local security.",
+    "Choose local models and tune how they respond.",
 )
 _PAGE_ICONS = ("chat", "knowledge", "research", "jobs", "sources", "system", "settings")
 
