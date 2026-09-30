@@ -329,6 +329,12 @@ class PallasFullViewController(QObject):
         status.setAccessibleName("PALLAS living field status")
         toolbar.addWidget(status, 1)
 
+        fit_button = QPushButton("FIT", topbar)
+        fit_button.setObjectName("pallasFitButton")
+        fit_button.setAccessibleName("Fit all PALLAS nodes")
+        fit_button.setToolTip("Reset pan and zoom to show the complete living graph")
+        toolbar.addWidget(fit_button)
+
         buttons: dict[str, QPushButton] = {}
         for lens in ("semantic", "age", "vitality"):
             button = QPushButton(lens.upper(), topbar)
@@ -352,6 +358,22 @@ class PallasFullViewController(QObject):
         workspace.setProperty("pathenaPallasShellHosted", True)
         workspace.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         workspace.field.canvas.setBackgroundBrush(QBrush(QColor(V3_BG)))
+        fit_button.clicked.connect(workspace.field.fit_all)
+
+        legend = QLabel(
+            "△ SOURCE   ◆ CLAIM   ■ KNOWLEDGE   ◇ HYPOTHESIS   "
+            "● MEMORY   × CONFLICT   ≈ UNCERTAIN",
+            host,
+        )
+        legend.setObjectName("pallasSemanticLegend")
+        legend.setProperty("role", "dim")
+        legend.setWordWrap(True)
+        legend.setAccessibleName("PALLAS semantic glyph legend")
+        legend.setAccessibleDescription(
+            "Triangle source, diamond claim, square knowledge, hollow diamond "
+            "hypothesis, circle memory, cross conflict, approximately uncertain."
+        )
+        outer.addWidget(legend)
 
         content = QHBoxLayout()
         content.setContentsMargins(0, 0, 0, 0)
