@@ -246,7 +246,14 @@ class PallasFullViewController(QObject):
         toolbar = QHBoxLayout(topbar)
         toolbar.setContentsMargins(14, 9, 10, 9)
         toolbar.setSpacing(6)
-        status = QLabel("LIVING • 30 FPS • SEMANTIC", topbar)
+        back_button = QPushButton("Back", topbar)
+        back_button.setObjectName("pallasBackButton")
+        back_button.setAccessibleName("Back to current workspace")
+        back_button.setToolTip("Return to the current pATHENA workspace")
+        back_button.clicked.connect(self.close_workspace)
+        toolbar.addWidget(back_button)
+
+        status = QLabel("FIELD • 30 FPS • SEMANTIC", topbar)
         status.setObjectName("pallasLivingStatus")
         status.setProperty("role", "dim")
         status.setAccessibleName("PALLAS living field status")
@@ -257,6 +264,7 @@ class PallasFullViewController(QObject):
             button = QPushButton(lens.upper(), topbar)
             button.setObjectName(f"pallasLens{lens.title()}Button")
             button.setAccessibleName(f"PALLAS {lens} lens")
+            button.setToolTip(f"Show the {lens} lens")
             button.setCheckable(True)
             button.setChecked(lens == self._living_controller.lens)
             button.clicked.connect(
@@ -282,7 +290,8 @@ class PallasFullViewController(QObject):
 
         inspector = QFrame(host)
         inspector.setObjectName("v3PallasInspector")
-        inspector.setFixedWidth(328)
+        inspector.setMinimumWidth(286)
+        inspector.setMaximumWidth(340)
         inspector.setAccessibleName("PALLAS selection inspector")
         inspector_layout = QVBoxLayout(inspector)
         inspector_layout.setContentsMargins(20, 20, 20, 20)
@@ -307,6 +316,7 @@ class PallasFullViewController(QObject):
             Qt.TextInteractionFlag.TextSelectableByMouse
             | Qt.TextInteractionFlag.TextSelectableByKeyboard
         )
+        inspector_body.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         inspector_layout.addWidget(inspector_body)
         inspector_layout.addStretch(1)
 
@@ -398,7 +408,7 @@ class PallasFullViewController(QObject):
         active = diagnostics.get("active", 0)
         nodes = diagnostics.get("nodes", 0)
         lens = str(diagnostics.get("lens", "semantic")).upper()
-        status.setText(f"LIVING • {fps} FPS • {active}/{nodes} ACTIVE • {lens}")
+        status.setText(f"FIELD • {fps} FPS • {active}/{nodes} ACTIVE • {lens}")
 
     @Slot()
     def dispose(self) -> None:
