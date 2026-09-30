@@ -35,6 +35,10 @@ class ResearchResultsExtension(QObject):
         self._operation_job_id: str | None = None
         self._buffer = ""
         self._selected_proposal_id: str | None = None
+        self._tearing_down = False
+
+        workspace.destroyed.connect(self._begin_teardown)
+        workspace.jobs.destroyed.connect(self._begin_teardown)
 
         self.process = QProcess(self)
         self.process.setProcessChannelMode(QProcess.ProcessChannelMode.MergedChannels)
@@ -138,17 +142,44 @@ class ResearchResultsExtension(QObject):
         layout.addLayout(decision_row)
         splitter.insertWidget(max(0, old_index), container)
 
+    def _begin_teardown(self, *_args: object) -> None:
+        self._tearing_down = True
+        timer = getattr(self, "refresh_timer", None)
+        if isinstance(timer, QTimer):
+            timer.stop()
+
     def _busy(self) -> bool:
-        return self.process.state() != QProcess.ProcessState.NotRunning
+        if self._tearing_down:
+            return False
+        try:
+            return self.process.state() != QProcess.ProcessState.NotRunning
+        except RuntimeError:
+            self._begin_teardown()
+            return False
 
     def _selected_job_id(self) -> str | None:
-        return self.workspace._selected_job_id
+        if self._tearing_down:
+            return None
+        try:
+            return self.workspace._selected_job_id
+        except RuntimeError:
+            self._begin_teardown()
+            return None
 
     def _selected_job_state(self) -> str:
-        row = self.workspace.jobs.currentRow()
-        if row < 0:
+        if self._tearing_down:
             return ""
-        text = self.workspace.jobs.item(row).text().strip()
+        try:
+            row = self.workspace.jobs.currentRow()
+            if row < 0:
+                return ""
+            item = self.workspace.jobs.item(row)
+            if item is None:
+                return ""
+            text = item.text().strip()
+        except RuntimeError:
+            self._begin_teardown()
+            return ""
         return text.split(None, 1)[0].casefold() if text else ""
 
     @staticmethod
@@ -191,33 +222,46 @@ class ResearchResultsExtension(QObject):
         self._sync_job_actions()
 
     def _sync_job_actions(self) -> None:
-        has_job = bool(self._selected_job_id())
-        terminal_success = self._selected_job_state() == "completed"
-        enabled = has_job and terminal_success and not self._busy()
-        self.result_button.setEnabled(enabled)
-        self.propose_button.setEnabled(enabled)
-        self.refresh_proposals_button.setEnabled(enabled)
+        if self._tearing_down:
+            return
+        try:
+            has_job = bool(self._selected_job_id())
+            terminal_success = self._selected_job_state() == "completed"
+            enabled = has_job and terminal_success and not self._busy()
+            self.result_button.setEnabled(enabled)
+            self.propose_button.setEnabled(enabled)
+            self.refresh_proposals_button.setEnabled(enabled)
 
-        terminal = self._selected_job_state() in {"completed", "failed", "cancelled"}
-        if terminal:
-            self.workspace.cancel_button.setEnabled(False)
+            terminal = self._selected_job_state() in {"completed", "failed", "cancelled"}
+            if terminal:
+                self.workspace.cancel_button.setEnabled(False)
+        except RuntimeError:
+            self._begin_teardown()
+            return
 
         self._sync_proposal_actions()
 
     def _sync_proposal_actions(self) -> None:
-        row = self.proposal_list.currentRow()
-        if row < 0:
-            pending = False
-            proposal_type = ""
-        else:
-            item = self.proposal_list.item(row)
-            pending = item.data(Qt.ItemDataRole.UserRole + 1) == "pending"
-            proposal_type = str(item.data(Qt.ItemDataRole.UserRole + 2) or "")
-        enabled = pending and not self._busy()
-        can_accept = enabled and proposal_type != "contradiction"
-        self.accept_button.setEnabled(can_accept)
-        self.accept_separate_button.setEnabled(can_accept)
-        self.reject_button.setEnabled(enabled)
+        if self._tearing_down:
+            return
+        try:
+            row = self.proposal_list.currentRow()
+            if row < 0:
+                pending = False
+                proposal_type = ""
+            else:
+                item = self.proposal_list.item(row)
+                pending = item is not None and item.data(Qt.ItemDataRole.UserRole + 1) == "pending"
+                proposal_type = "" if item is None else str(
+                    item.data(Qt.ItemDataRole.UserRole + 2) or ""
+                )
+            enabled = pending and not self._busy()
+            can_accept = enabled and proposal_type != "contradiction"
+            self.accept_button.setEnabled(can_accept)
+            self.accept_separate_button.setEnabled(can_accept)
+            self.reject_button.setEnabled(enabled)
+        except RuntimeError:
+            self._begin_teardown()
 
     @Slot()
     def load_result(self) -> None:
@@ -463,16 +507,30 @@ class ResearchResultsExtension(QObject):
             item.setHidden(bool(terms) and not all(term in haystack for term in terms))
 
     def _base_process_finished(self, *_args: object) -> None:
+        if self._tearing_down:
+            return
         QTimer.singleShot(0, self._sync_job_actions)
-        QTimer.singleShot(0, lambda: self._apply_job_filter(self.job_filter.text()))
+        QTimer.singleShot(0, self._refresh_current_filter)
+
+    def _refresh_current_filter(self) -> None:
+        if self._tearing_down:
+            return
+        try:
+            self._apply_job_filter(self.job_filter.text())
+        except RuntimeError:
+            self._begin_teardown()
 
     @Slot()
     def _periodic_refresh(self) -> None:
-        if (
-            self.workspace.isVisible()
-            and not self.workspace._busy()
-            and not self._busy()
-        ):
+        if self._tearing_down:
+            return
+        try:
+            visible = self.workspace.isVisible()
+            workspace_busy = self.workspace._busy()
+        except RuntimeError:
+            self._begin_teardown()
+            return
+        if visible and not workspace_busy and not self._busy():
             self.workspace.refresh()
 
 
