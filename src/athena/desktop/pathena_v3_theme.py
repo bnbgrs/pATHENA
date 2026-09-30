@@ -134,7 +134,6 @@ QPushButton#v3CommandButton {
     border: 1px solid #252C39;
     border-radius: 11px;
     padding: 7px 11px;
-    min-width: 174px;
     text-align: left;
 }
 
@@ -145,8 +144,6 @@ QPushButton#v3CommandButton:hover {
 }
 
 QPushButton#v3CommandButton[compact="true"] {
-    min-width: 70px;
-    max-width: 70px;
     padding: 7px 9px;
     text-align: center;
 }
