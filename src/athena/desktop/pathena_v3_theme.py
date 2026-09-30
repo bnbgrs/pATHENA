@@ -70,7 +70,7 @@ QToolButton[v3Nav="true"] {
     border: 1px solid transparent;
     border-radius: 11px;
     padding: 4px 1px 3px 1px;
-    font-size: 7.6pt;
+    font-size: 8pt;
     font-weight: 620;
 }
 
@@ -93,7 +93,9 @@ QToolButton[v3Nav="true"][active="true"] {
 }
 
 QToolButton[v3Nav="true"][active="true"]:focus {
-    border: 1px solid #78D1C5;
+    background: #14181D;
+    border: 1px solid #3B4652;
+    border-left: 2px solid #78D1C5;
 }
 
 QFrame#v3RailDivider {
@@ -118,7 +120,7 @@ QLabel#v3PageTitle {
 
 QLabel#v3PageHint {
     color: #77818B;
-    font-size: 8.7pt;
+    font-size: 9pt;
 }
 
 QFrame#v3WorkbarActions {
@@ -187,7 +189,13 @@ QFrame#v3ChatMeta {
     border-radius: 0;
 }
 
-QLabel#v3MetaLabel,
+QLabel#v3MetaLabel {
+    color: #8B949E;
+    font-size: 8.5pt;
+    font-weight: 600;
+    letter-spacing: 0px;
+}
+
 QLabel#v3Kicker {
     color: #77818B;
     font-size: 8pt;
@@ -242,13 +250,14 @@ QFrame#emptyStatePanel {
 
 QLabel#emptyStateTitle {
     color: #F1F3F5;
-    font-size: 15pt;
-    font-weight: 650;
+    font-size: 17pt;
+    font-weight: 680;
+    letter-spacing: -0.25px;
 }
 
 QLabel#emptyStateBody {
-    color: #98A1B1;
-    font-size: 9.5pt;
+    color: #A5ACB4;
+    font-size: 10pt;
 }
 
 QFrame#v3Composer {
@@ -267,7 +276,7 @@ QPlainTextEdit#promptInput {
     background: transparent;
     border: 0;
     padding: 8px 6px;
-    font-size: 10.5pt;
+    font-size: 11pt;
     selection-background-color: #3B7779;
 }
 
