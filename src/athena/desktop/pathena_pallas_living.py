@@ -76,6 +76,7 @@ class PallasLivingEngine:
         self._repulsion_pairs: tuple[tuple[str, str, float], ...] = ()
         self._conflict_repulsion_pairs: tuple[tuple[str, str], ...] = ()
         self._semantic_pairs: tuple[tuple[str, str, float], ...] = ()
+        self._world_radius = self.config.world_radius
         self.visual_focus_id: str | None = None
         self.tick = 0
 
@@ -91,6 +92,7 @@ class PallasLivingEngine:
         self._repulsion_pairs = ()
         self._conflict_repulsion_pairs = ()
         self._semantic_pairs = ()
+        self._world_radius = self.config.world_radius
         self.visual_focus_id = None
         self.tick = 0
 
@@ -223,6 +225,15 @@ class PallasLivingEngine:
         self._repulsion_pairs = tuple(repulsion_pairs)
         self._conflict_repulsion_pairs = tuple(conflict_repulsion_pairs)
         self._semantic_pairs = tuple(semantic_pairs)
+        occupied_radius = max(
+            (math.hypot(state.x, state.y) for state in self.states.values()),
+            default=0.0,
+        )
+        radius_margin = max(self.config.edge_rest_length * 0.35, 32.0)
+        self._world_radius = max(
+            self.config.world_radius,
+            occupied_radius + radius_margin,
+        )
         if self.visual_focus_id not in ids:
             self.visual_focus_id = None
 
@@ -335,8 +346,8 @@ class PallasLivingEngine:
             state.x += state.vx * dt
             state.y += state.vy * dt
             radius = math.hypot(state.x, state.y)
-            if radius > c.world_radius:
-                scale = c.world_radius / radius
+            if radius > self._world_radius:
+                scale = self._world_radius / radius
                 state.x *= scale
                 state.y *= scale
                 state.vx *= -0.25
@@ -407,6 +418,7 @@ class PallasLivingEngine:
             "repulsion_pairs": len(self._repulsion_pairs),
             "conflict_repulsion_pairs": len(self._conflict_repulsion_pairs),
             "edges": 0 if self.snapshot is None else len(self.snapshot.edges),
+            "world_radius": self._world_radius,
             "visual_focus": self.visual_focus_id or "",
             "tick": self.tick,
         }
