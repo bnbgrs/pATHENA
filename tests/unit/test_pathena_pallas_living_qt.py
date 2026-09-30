@@ -365,6 +365,13 @@ def test_qt_bridge_rejects_invalid_snapshot_without_crashing_timer_path(
             workspace.field.property("pathenaPallasLivingError")
         )
 
+        living._tick()  # noqa: SLF001
+        repeated = diagnostics[-1]
+        assert isinstance(repeated, dict)
+        assert "missing node" in str(repeated["validation_error"])
+        assert living.engine.snapshot is None
+        assert living._rejected_snapshot == invalid  # noqa: SLF001
+
         empty = PallasGraphSnapshot(
             graph_id="graph:living-qt-empty",
             nodes=(),
@@ -380,6 +387,7 @@ def test_qt_bridge_rejects_invalid_snapshot_without_crashing_timer_path(
         assert isinstance(cleared, dict)
         assert cleared["field_state"] == "empty"
         assert cleared["validation_error"] == ""
+        assert living._rejected_snapshot is None  # noqa: SLF001
         assert grounded.field.property("pathenaPallasLivingError") == ""
         assert workspace.field.property("pathenaPallasLivingError") == ""
     finally:
