@@ -247,6 +247,15 @@ def test_qt_bridge_publishes_structural_activity_delta(
         assert latest["delta_updated"] == 0
         assert latest["delta_edges"] == 1
         assert latest["focus_changed"] is False
+
+        living._delta_pulse_remaining = 0.0  # noqa: SLF001
+        living._tick()  # noqa: SLF001
+        expired = diagnostics[-1]
+        assert isinstance(expired, dict)
+        assert expired["delta_added"] == 0
+        assert expired["delta_removed"] == 0
+        assert expired["delta_updated"] == 0
+        assert expired["delta_edges"] == 0
     finally:
         living.stop()
         delete(window)
