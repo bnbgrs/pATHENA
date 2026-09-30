@@ -100,6 +100,9 @@ class PallasLivingEngine:
         seed_positions: Mapping[str, tuple[float, float]] | None = None,
     ) -> None:
         seeds = seed_positions or {}
+        previous_nodes = self._node_by_id
+        previous_tokens = self._semantic_tokens
+        previous_semantic_pairs = self._semantic_pairs
         ids = {node.node_id for node in snapshot.nodes}
         self.states = {
             node_id: state
@@ -122,9 +125,21 @@ class PallasLivingEngine:
             )
         self._node_order = tuple(sorted(snapshot.nodes, key=lambda item: item.node_id))
         self._node_by_id = {node.node_id: node for node in self._node_order}
-        self._semantic_tokens = {
-            node.node_id: _tokens(node) for node in self._node_order
-        }
+        semantic_changed_ids: set[str] = set()
+        semantic_tokens: dict[str, frozenset[str]] = {}
+        for node in self._node_order:
+            previous = previous_nodes.get(node.node_id)
+            if (
+                previous is not None
+                and previous.title == node.title
+                and previous.summary == node.summary
+                and node.node_id in previous_tokens
+            ):
+                semantic_tokens[node.node_id] = previous_tokens[node.node_id]
+            else:
+                semantic_tokens[node.node_id] = _tokens(node)
+                semantic_changed_ids.add(node.node_id)
+        self._semantic_tokens = semantic_tokens
 
         neighbor_sets: dict[str, set[str]] = {
             node.node_id: set() for node in self._node_order
@@ -148,7 +163,37 @@ class PallasLivingEngine:
         self._conflict_pairs = frozenset(conflict_pairs)
         self._spring_pairs = tuple(spring_pairs)
 
-        semantic_pairs: list[tuple[str, str, float]] = []
+        semantic_pairs = [
+            pair
+            for pair in previous_semantic_pairs
+            if pair[0] in ids
+            and pair[1] in ids
+            and pair[0] not in semantic_changed_ids
+            and pair[1] not in semantic_changed_ids
+        ]
+        recomputed_semantic_pairs: set[tuple[str, str]] = set()
+        for changed_id in sorted(semantic_changed_ids):
+            changed_tokens = self._semantic_tokens.get(changed_id, frozenset())
+            for other in self._node_order:
+                if other.node_id == changed_id:
+                    continue
+                left_id, right_id = sorted((changed_id, other.node_id))
+                pair_key = (left_id, right_id)
+                if pair_key in recomputed_semantic_pairs:
+                    continue
+                recomputed_semantic_pairs.add(pair_key)
+                similarity = _token_similarity(
+                    changed_tokens
+                    if left_id == changed_id
+                    else self._semantic_tokens.get(left_id, frozenset()),
+                    changed_tokens
+                    if right_id == changed_id
+                    else self._semantic_tokens.get(right_id, frozenset()),
+                )
+                if similarity >= self.config.semantic_threshold:
+                    semantic_pairs.append((left_id, right_id, similarity))
+        semantic_pairs.sort(key=lambda pair: (pair[0], pair[1]))
+
         repulsion_pairs: list[tuple[str, str, float]] = []
         conflict_repulsion_pairs: list[tuple[str, str]] = []
         contradiction_ratio = (
@@ -156,7 +201,6 @@ class PallasLivingEngine:
             / max(self.config.global_repulsion, 1e-9)
         )
         for index, left in enumerate(self._node_order):
-            left_tokens = self._semantic_tokens.get(left.node_id, frozenset())
             for right in self._node_order[index + 1 :]:
                 pair = frozenset((left.node_id, right.node_id))
                 repulsion_pairs.append(
@@ -176,12 +220,6 @@ class PallasLivingEngine:
                     conflict_repulsion_pairs.append(
                         (left.node_id, right.node_id)
                     )
-                similarity = _token_similarity(
-                    left_tokens,
-                    self._semantic_tokens.get(right.node_id, frozenset()),
-                )
-                if similarity >= self.config.semantic_threshold:
-                    semantic_pairs.append((left.node_id, right.node_id, similarity))
         self._repulsion_pairs = tuple(repulsion_pairs)
         self._conflict_repulsion_pairs = tuple(conflict_repulsion_pairs)
         self._semantic_pairs = tuple(semantic_pairs)
