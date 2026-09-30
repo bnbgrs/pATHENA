@@ -73,6 +73,12 @@ jobs:
           python-version: "3.12"
           check-latest: false
 
+      - name: Install desktop runtime libraries
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y libegl1
+
       - name: Install locked focused-test environment
         shell: pwsh
         run: |
