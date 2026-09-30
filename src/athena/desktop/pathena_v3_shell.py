@@ -544,6 +544,12 @@ class PathenaV3ShellController(QObject):
         self._density_compact = compact
 
         self._header.set_compact(compact)
+        self._command_button.setProperty("compact", compact)
+        self._command_button.setText("Ctrl K" if compact else "Command   Ctrl K")
+        command_style = self._command_button.style()
+        if command_style is not None:
+            command_style.unpolish(self._command_button)
+            command_style.polish(self._command_button)
         rail = self._rail
         if rail is not None:
             rail.setFixedWidth(72 if compact else 78)
