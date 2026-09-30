@@ -74,6 +74,7 @@ class PathenaV3ResearchController(QObject):
         workspace.start_button.setText("Research")
         workspace.start_button.setProperty("v3PrimaryAction", True)
         workspace.start_button.setMinimumWidth(96)
+        workspace.start_button.setFixedHeight(38)
         workspace.start_button.show()
         query_row.addWidget(workspace.start_button)
 
