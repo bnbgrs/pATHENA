@@ -158,8 +158,9 @@ def test_system_polish_preserves_truthful_runtime_widgets() -> None:
         assert health is not None
         assert health.accessibleName() == "Runtime health overview"
         assert workspace.detail.wordWrap()
-        assert workspace.security_posture.minimumWidth() == 280
-        assert workspace.security_posture.maximumWidth() == 360
+        assert workspace.security_posture.accessibleName() == "Security posture"
+        assert workspace.security_posture.minimumWidth() == 0
+        assert workspace.security_posture.maximumWidth() == 16777215
     finally:
         _destroy_widgets(app, workspace)
 
@@ -169,6 +170,8 @@ def test_workspace_theme_has_consistent_primary_focus_and_list_treatment() -> No
     assert 'QPushButton[v3PrimaryAction="true"]:disabled' in PATHENA_V3_STYLESHEET
     assert 'QPushButton[v3DestructiveAction="true"]' in PATHENA_V3_STYLESHEET
     assert 'QPushButton[v3DestructiveAction="true"]:disabled' in PATHENA_V3_STYLESHEET
+    assert 'QPushButton[v3QuietDanger="true"]' in PATHENA_V3_STYLESHEET
+    assert "QFrame#v3SettingsRuntimeSection" in PATHENA_V3_STYLESHEET
     assert "QListWidget#researchJobList::item:selected" in PATHENA_V3_STYLESHEET
     assert "QListWidget#sourceList::item:selected" in PATHENA_V3_STYLESHEET
     assert "QPushButton#pallasBackButton:focus" in PATHENA_V3_STYLESHEET
