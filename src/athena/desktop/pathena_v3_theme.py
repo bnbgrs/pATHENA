@@ -901,6 +901,24 @@ QLabel#v3KnowledgeMeta {
     font-size: 8pt;
 }
 
+QLabel#v3ProgressLabel {
+    color: #77818B;
+    font-size: 8pt;
+}
+
+QProgressBar#v3ActivityProgress {
+    background: #20272D;
+    border: none;
+    border-radius: 2px;
+    min-height: 4px;
+    max-height: 5px;
+}
+
+QProgressBar#v3ActivityProgress::chunk {
+    background: #78D1C5;
+    border-radius: 2px;
+}
+
 QTabWidget#v3KnowledgeTabs::pane {
     background: #11151D;
     border: 1px solid #252C39;
