@@ -273,6 +273,7 @@ def test_clear_resets_cached_living_topology() -> None:
     assert diagnostics["semantic_pairs"] == 0
     assert diagnostics["edges"] == 0
 
+
 def test_visual_focus_is_presentation_only_and_resets_when_node_disappears() -> None:
     focus = _node("focus", kind=PallasNodeKind.FOCUS)
     selected = _node("selected", kind=PallasNodeKind.CLAIM)
