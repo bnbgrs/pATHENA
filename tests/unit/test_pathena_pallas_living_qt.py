@@ -376,6 +376,10 @@ def test_qt_bridge_rejects_invalid_snapshot_without_crashing_timer_path(
         grounded.apply_snapshot(empty)
         living._tick()  # noqa: SLF001
 
+        cleared = diagnostics[-1]
+        assert isinstance(cleared, dict)
+        assert cleared["field_state"] == "empty"
+        assert cleared["validation_error"] == ""
         assert grounded.field.property("pathenaPallasLivingError") == ""
         assert workspace.field.property("pathenaPallasLivingError") == ""
     finally:
