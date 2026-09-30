@@ -169,6 +169,29 @@ class PallasFullViewController(QObject):
         panel = self._window.findChild(QFrame, "inspector")
         return panel if isinstance(panel, QFrame) else None
 
+    def _relationship_lines(self, node_id: str) -> tuple[str, ...]:
+        snapshot = self._grounded_controller.field.snapshot
+        if snapshot is None or not node_id:
+            return ()
+        nodes = {node.node_id: node for node in snapshot.nodes}
+        relationships: list[str] = []
+        for edge in snapshot.edges:
+            if edge.source_id == node_id:
+                other = nodes.get(edge.target_id)
+                if other is not None:
+                    relation = edge.relation.replace("_", " ")
+                    relationships.append(
+                        f"→ {relation} · {other.glyph} {other.title}"
+                    )
+            elif edge.target_id == node_id:
+                other = nodes.get(edge.source_id)
+                if other is not None:
+                    relation = edge.relation.replace("_", " ")
+                    relationships.append(
+                        f"← {relation} · {other.glyph} {other.title}"
+                    )
+        return tuple(relationships)
+
     @Slot(object)
     def _sync_v3_inspector(self, selection: object | None) -> None:
         """Render the selected semantic object in the dedicated V3 PALLAS inspector."""
@@ -222,6 +245,14 @@ class PallasFullViewController(QObject):
                 f"{living_state.vitality:.0%} vitality · "
                 f"{living_state.age_seconds:.1f}s runtime age"
             )
+        relationships = self._relationship_lines(node_id)
+        if relationships:
+            visible_relationships = relationships[:6]
+            lines.extend(("", f"Relationships  {len(relationships)}"))
+            lines.extend(visible_relationships)
+            remaining = len(relationships) - len(visible_relationships)
+            if remaining:
+                lines.append(f"+{remaining} more explicit relationships")
         body_label.setText("\n".join(lines))
 
     def _claim_inspector_context(self) -> None:
