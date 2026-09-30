@@ -237,7 +237,20 @@ jobs:
             --actual-dir $actualRoot `
             --baseline-bundle $baseline `
             --diff-dir $diffRoot
-          if ($LASTEXITCODE -ne 0) { throw "Visual regression detected." }
+          if ($LASTEXITCODE -ne 0) {
+            $proposal = Join-Path (Get-Location) "artifacts\visual-baseline-proposal.json"
+            uv run --locked --extra desktop --no-sync python scripts/compare_pathena_ui_snapshots.py `
+              --actual-dir $actualRoot `
+              --baseline-bundle $proposal `
+              --diff-dir $diffRoot `
+              --write-baseline `
+              --candidate-sha $env:CANDIDATE_SHA
+            if ($LASTEXITCODE -ne 0) { throw "Visual baseline proposal generation failed." }
+            Write-Host "===== BEGIN VISUAL BASELINE PROPOSAL ====="
+            Get-Content $proposal -Raw
+            Write-Host "===== END VISUAL BASELINE PROPOSAL ====="
+            throw "Visual regression detected; exact-head baseline proposal uploaded for review."
+          }
 
       - name: Upload actual, diff, and baseline proposal artifacts
         if: always()
