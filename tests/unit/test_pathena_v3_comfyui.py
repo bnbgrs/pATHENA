@@ -72,7 +72,7 @@ def test_v3_comfyui_is_shell_hosted_and_restores_selected_route() -> None:
         )
         assert shell._pallas_button.property("active") is False
         assert title.text() == "ComfyUI"
-        assert hint.text() == "Local image and video workflows · loopback only."
+        assert hint.text() == "Run local image and video workflows on this device."
         assert controller.close_button.isVisible()
         inner_title = controller.dialog.findChild(QLabel, "comfyUiTitle")
         assert inner_title is not None
