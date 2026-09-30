@@ -256,6 +256,9 @@ class PallasLivingQtController(QObject):
         diagnostics["delta_added"] = 0 if delta is None else len(delta.added_node_ids)
         diagnostics["delta_removed"] = 0 if delta is None else len(delta.removed_node_ids)
         diagnostics["delta_updated"] = 0 if delta is None else len(delta.updated_node_ids)
+        diagnostics["delta_revisions"] = (
+            0 if delta is None else len(delta.revision_changed_node_ids)
+        )
         diagnostics["delta_edges"] = (
             0
             if delta is None
