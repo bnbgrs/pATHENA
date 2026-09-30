@@ -541,7 +541,7 @@ class ComfyUiController(QObject):
         if callable(transient_opened):
             transient_opened(
                 "ComfyUI",
-                "Local image and video workflows · loopback only.",
+                "Run local image and video workflows on this device.",
             )
             return
         header = getattr(self._shell, "_header", None)
@@ -628,7 +628,7 @@ class ComfyUiController(QObject):
         except ComfyUiError as exc:
             self.check_button.setText("Retry connection")
             self._set_status("error", str(exc))
-            self._set_vram_unavailable("VRAM · unavailable while ComfyUI is disconnected.")
+            self._set_vram_unavailable("GPU memory · unavailable while ComfyUI is disconnected.")
             return False
         self.check_button.setText("Check again")
         version = f" · ComfyUI {health.version}" if health.version else ""
@@ -683,10 +683,10 @@ class ComfyUiController(QObject):
             return False
         self._set_status(
             "success",
-            "VRAM release requested · ComfyUI will unload models and free memory when safe.",
+            "GPU memory release requested · ComfyUI will unload models when safe.",
         )
         self.resource_status.setText(
-            "VRAM release requested · check the local endpoint again for measured memory."
+            "GPU memory release requested · check the connection again for measured memory."
         )
         self.dialog.setProperty("pathenaComfyUiVramReleaseRequested", True)
         return True
@@ -696,11 +696,11 @@ class ComfyUiController(QObject):
         free = health.vram_free_bytes
         if total is None or free is None:
             self._set_vram_unavailable(
-                "VRAM · unavailable from this local ComfyUI system_stats response."
+                "GPU memory · unavailable from this local ComfyUI status response."
             )
             return
         used = max(total - free, 0)
-        text = f"VRAM · {_format_gib(used)} used · {_format_gib(free)} free · {_format_gib(total)} total"
+        text = f"GPU memory · {_format_gib(used)} used · {_format_gib(free)} free · {_format_gib(total)} total"
         self.resource_status.setText(text)
         self.resource_status.setAccessibleDescription(text)
         self.dialog.setProperty("pathenaComfyUiVramAvailable", True)
