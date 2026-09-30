@@ -7,7 +7,7 @@ from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QSplitter, QVBoxLayou
 from shiboken6 import isValid
 
 from athena.desktop.jobs_workspace import JobsWorkspace
-from athena.desktop.pathena_v3_components import V3EmptyState
+from athena.desktop.pathena_v3_components import V3ActionHost, V3EmptyState
 
 
 class PathenaV3JobsController(QObject):
@@ -38,7 +38,7 @@ class PathenaV3JobsController(QObject):
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(14)
 
-        command = QFrame()
+        command = V3ActionHost()
         command.setObjectName("v3JobsCommand")
         command.setAccessibleName("Background work controls")
         command_layout = QVBoxLayout(command)
@@ -122,6 +122,13 @@ class PathenaV3JobsController(QObject):
             button.raise_()
             button.update()
         command_layout.addLayout(actions)
+        command.bind_actions(
+            workspace.refresh_button,
+            workspace.pause_button,
+            workspace.resume_button,
+            workspace.wake_button,
+            workspace.cancel_button,
+        )
         root.addWidget(command)
 
         splitter.setParent(workspace)
