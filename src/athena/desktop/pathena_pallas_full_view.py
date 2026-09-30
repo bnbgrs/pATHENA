@@ -243,7 +243,7 @@ class PallasFullViewController(QObject):
             lines.append(
                 "Living field  "
                 f"{living_state.vitality:.0%} vitality · "
-                f"{living_state.age_seconds:.1f}s runtime age"
+                f"{living_state.age_seconds:.1f}s field age"
             )
         relationships = self._relationship_lines(node_id)
         if relationships:
