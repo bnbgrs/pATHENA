@@ -349,3 +349,34 @@ def test_relationship_cache_refreshes_for_same_graph_id_content_change() -> None
     full_view.dispose()
     window.close()
 
+def test_full_view_status_tracks_nonready_grounded_state() -> None:
+    app, window, grounded, full_view = _surface()
+    grounded.apply_snapshot(_snapshot())
+    full_view.open_workspace()
+    living = full_view.living_controller
+    living._timer.stop()  # noqa: SLF001
+    try:
+        living._tick()  # noqa: SLF001
+        app.processEvents()
+        status = window.findChild(QLabel, "pallasLivingStatus")
+        assert status is not None
+        assert "ACTIVE" in status.text()
+
+        empty = PallasGraphSnapshot(
+            graph_id="grounded-run:empty",
+            nodes=(),
+            edges=(),
+            focus_id=None,
+            status="empty",
+            status_detail="No grounded context is available.",
+        )
+        grounded.apply_snapshot(empty)
+        living._tick()  # noqa: SLF001
+        app.processEvents()
+
+        assert status.text() == "FIELD • NO GROUNDED CONTEXT"
+        assert "idle until a ready grounded graph" in status.toolTip()
+    finally:
+        full_view.dispose()
+        window.close()
+
