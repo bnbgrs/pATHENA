@@ -43,8 +43,8 @@ class PathenaV3KnowledgeController(QObject):
         search_layout.setSpacing(8)
 
         workspace.search_input.setParent(search_bar)
-        workspace.search_input.setPlaceholderText("Search knowledge, claims and provenance")
-        workspace.search_input.setAccessibleName("Search durable knowledge")
+        workspace.search_input.setPlaceholderText("Search knowledge, claims, decisions, or sources")
+        workspace.search_input.setAccessibleName("Search knowledge library")
         workspace.search_input.setMinimumWidth(300)
         workspace.search_input.show()
         search_layout.addWidget(workspace.search_input, 1)
@@ -52,7 +52,7 @@ class PathenaV3KnowledgeController(QObject):
         workspace.open_chat_button.setParent(search_bar)
         workspace.open_chat_button.setText("Use in chat")
         workspace.open_chat_button.setAccessibleName("Use selected knowledge in chat")
-        workspace.open_chat_button.setToolTip("Open the selected durable knowledge in Chat")
+        workspace.open_chat_button.setToolTip("Use the selected knowledge as context in Chat")
         workspace.open_chat_button.setProperty("v3PrimaryAction", True)
         workspace.open_chat_button.show()
         search_layout.addWidget(workspace.open_chat_button)
@@ -137,6 +137,10 @@ class PathenaV3KnowledgeController(QObject):
         browser_layout = QVBoxLayout(browser)
         browser_layout.setContentsMargins(12, 10, 12, 12)
         browser_layout.setSpacing(8)
+
+        workspace.obsidian_export_button.setText("Export to Obsidian")
+        workspace.history_button.setText("History")
+        workspace.claim_history_button.setText("History")
 
         workspace.browser_status.setParent(browser)
         workspace.browser_status.setObjectName("v3KnowledgeBrowserStatus")
