@@ -137,7 +137,7 @@ class PallasLivingQtController(QObject):
             self._bindings.clear()
             self._engine.clear()
             self._snapshot = None
-            for current in self._live_fields():
+            for current in self._mounted_fields():
                 current.setProperty("pathenaPallasLivingError", "")
             if self._timer.interval() != self._idle_interval_ms:
                 self._timer.setInterval(self._idle_interval_ms)
@@ -159,7 +159,7 @@ class PallasLivingQtController(QObject):
                 self._bindings.clear()
                 self._engine.clear()
                 self._snapshot = snapshot
-                for current in self._live_fields():
+                for current in self._mounted_fields():
                     current.setProperty("pathenaPallasLivingError", str(exc))
                 self.diagnostics_changed.emit(
                     {
@@ -174,7 +174,7 @@ class PallasLivingQtController(QObject):
             selection = getattr(self._grounded_controller, "_selection", None)
             self._apply_selection_focus(selection)
             self._snapshot = snapshot
-            for current in self._live_fields():
+            for current in self._mounted_fields():
                 current.setProperty("pathenaPallasLivingError", "")
             self._bindings.clear()
 
@@ -233,11 +233,18 @@ class PallasLivingQtController(QObject):
             self._delta_pulse_remaining - target_interval / 1000.0,
         )
 
-    def _live_fields(self) -> tuple[PallasSemanticField, ...]:
+    def _mounted_fields(self) -> tuple[PallasSemanticField, ...]:
         return tuple(
             field
             for field in self._grounded_controller._live_fields()  # noqa: SLF001
-            if isValid(field) and field.snapshot is not None
+            if isValid(field)
+        )
+
+    def _live_fields(self) -> tuple[PallasSemanticField, ...]:
+        return tuple(
+            field
+            for field in self._mounted_fields()
+            if field.snapshot is not None
         )
 
     def _ensure_binding(
