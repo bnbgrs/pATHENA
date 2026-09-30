@@ -66,8 +66,8 @@ class PathenaV3KnowledgeController(QObject):
 
         workspace.refresh_button.setParent(search_bar)
         workspace.refresh_button.setText("Sync")
-        workspace.refresh_button.setAccessibleName("Sync canonical knowledge state")
-        workspace.refresh_button.setToolTip("Sync canonical knowledge state from the local Core")
+        workspace.refresh_button.setAccessibleName("Sync knowledge state")
+        workspace.refresh_button.setToolTip("Sync the latest local knowledge state")
         workspace.refresh_button.show()
         search_layout.addWidget(workspace.refresh_button)
         root.addWidget(search_bar)
@@ -83,7 +83,7 @@ class PathenaV3KnowledgeController(QObject):
         identity_header.setContentsMargins(0, 0, 0, 0)
         identity_header.setSpacing(10)
 
-        library_label = QLabel("DURABLE LIBRARY")
+        library_label = QLabel("KNOWLEDGE LIBRARY")
         library_label.setObjectName("v3Kicker")
         identity_header.addWidget(library_label)
 
@@ -97,7 +97,7 @@ class PathenaV3KnowledgeController(QObject):
         workspace.summary.setParent(identity)
         workspace.summary.setObjectName("v3KnowledgeSummary")
         workspace.summary.setText(
-            "Reviewed memory, claims, decisions and provenance stay together."
+            "Reviewed knowledge, claims, decisions and their sources stay together."
         )
         workspace.summary.setWordWrap(True)
         workspace.summary.show()
