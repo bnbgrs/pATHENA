@@ -212,6 +212,15 @@ def test_empty_state_copy_refreshes_after_disconnected_to_ready_transition() -> 
     assert body is not None
     assert title.text() == "Starting local workspace"
 
+    # A late legacy chat-state update must not become a second visible
+    # owner after the V3 empty-state panel has taken over.
+    raw.setText("Getting pATHENA ready")
+    raw.show()
+    assert raw.isVisible()
+    controller.sync()
+    assert raw.isHidden()
+    assert title.text() == "Starting local workspace"
+
     window._core_transport_ready = True
     controller.sync()
 
