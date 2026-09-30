@@ -65,19 +65,19 @@ class KnowledgeWorkspace(QWidget):
         )
         self.summary.setObjectName("settingsHelp")
         self.summary.setWordWrap(True)
-        self.source = QLabel("SOURCE CHAT  —")
+        self.source = QLabel("Source conversation · —")
         self.source.setProperty("role", "section")
-        self.runtime = QLabel("CORE  —  /  CHATS  —")
+        self.runtime = QLabel("Local service · —   Conversations · —")
         self.runtime.setObjectName("settingsHelp")
         self.browser_status = QLabel("Loading canonical memory …")
         self.browser_status.setObjectName("settingsHelp")
 
-        self.open_chat_button = QPushButton("OPEN SOURCE CHAT")
+        self.open_chat_button = QPushButton("Open conversation")
         self.open_chat_button.setObjectName("newChatButton")
         self.open_chat_button.setEnabled(False)
         self.open_chat_button.clicked.connect(self._open_source_chat)
 
-        self.refresh_button = QPushButton("REFRESH CORE")
+        self.refresh_button = QPushButton("Sync")
         self.refresh_button.setObjectName("newChatButton")
         self.refresh_button.setEnabled(controller is not None)
         if controller is not None:
@@ -358,12 +358,12 @@ class KnowledgeWorkspace(QWidget):
         if not isinstance(payload, DesktopApiSnapshot):
             return
         self.runtime.setText(
-            f"CORE  {payload.health.core_status.upper()}  /  CHATS  {len(payload.chats)}"
+            f"Local service · {payload.health.core_status.title()}   Conversations · {len(payload.chats)}"
         )
 
     def apply_failure(self, message: str) -> None:
-        self.runtime.setText("CORE  DISCONNECTED  /  CHATS  —")
-        self.state.setText("CORE UNAVAILABLE")
+        self.runtime.setText("Local service · Disconnected   Conversations · —")
+        self.state.setText("LOCAL SERVICE UNAVAILABLE")
         self.summary.setText(message)
 
     def apply_extraction(self, payload: object) -> None:
@@ -372,12 +372,12 @@ class KnowledgeWorkspace(QWidget):
         self._source_chat_id = payload.chat_id
         self.open_chat_button.setEnabled(True)
         self.source.setText(
-            "SOURCE CHAT  "
+            "Source conversation · "
             + payload.chat_id[:8].upper()
-            + "  /  MESSAGE  "
+            + "   Message · "
             + payload.message_id[:8].upper()
         )
-        self.state.setText("PREFLIGHT / PENDING")
+        self.state.setText("REVIEW PENDING")
         self.summary.setText(
             f"Run {payload.processing_run_id[:8].upper()} · {len(payload.knowledge_units)} "
             f"Knowledge · {len(payload.claims)} Claims · {len(payload.relations)} Relations"
@@ -430,13 +430,13 @@ class KnowledgeWorkspace(QWidget):
         if not isinstance(payload, KnowledgeReviewResponse):
             return
         if payload.ready_to_accept:
-            self.state.setText("REVIEW COMPLETE / READY")
+            self.state.setText("REVIEW COMPLETE")
         elif payload.blocked_reason == "canonical_merge_candidates":
-            self.state.setText("DECISION REQUIRED / CANONICAL MERGE")
+            self.state.setText("DECISION REQUIRED")
         elif payload.blocked_reason == "extractor_merge_candidates":
-            self.state.setText("BLOCKED / EXTRACTOR MERGE")
+            self.state.setText("BLOCKED · EXTRACTION")
         else:
-            self.state.setText("BLOCKED / REVIEW REQUIRED")
+            self.state.setText("BLOCKED · REVIEW REQUIRED")
 
         decisions = tuple(payload.knowledge_decisions) + tuple(payload.claim_decisions)
         if decisions:
