@@ -79,8 +79,9 @@ class PallasLivingQtController(QObject):
         self._timer = QTimer(self)
         self._timer.setTimerType(Qt.TimerType.PreciseTimer)
         self._active_interval_ms = round(1000 / self._engine.config.fps)
+        self._compact_interval_ms = round(1000 / 15)
         self._idle_interval_ms = 250
-        self._timer.setInterval(self._active_interval_ms)
+        self._timer.setInterval(self._compact_interval_ms)
         self._timer.timeout.connect(self._tick)
         grounded_controller.selection_changed.connect(self._apply_selection_focus)
         self._apply_selection_focus(
@@ -164,13 +165,23 @@ class PallasLivingQtController(QObject):
             self._bindings.clear()
 
         fields = self._live_fields()
+        visible = tuple(current for current in fields if current.isVisible())
+        full_visible = any(
+            current.property("pathenaPallasMode") == "full"
+            for current in visible
+        )
         target_interval = (
             self._active_interval_ms
-            if any(current.isVisible() for current in fields)
+            if full_visible
+            else self._compact_interval_ms
+            if visible
             else self._idle_interval_ms
         )
         if self._timer.interval() != target_interval:
             self._timer.setInterval(target_interval)
+        current_target_fps = round(1000 / max(target_interval, 1))
+        for current in fields:
+            current.setProperty("pathenaPallasTargetFps", current_target_fps)
         live_ids = {id(current) for current in fields}
         for stale_id in tuple(self._bindings):
             if stale_id not in live_ids:
@@ -178,14 +189,14 @@ class PallasLivingQtController(QObject):
         for current in fields:
             self._ensure_binding(current, snapshot)
 
-        self._engine.step()
+        self._engine.step(target_interval / 1000.0)
         for binding in tuple(self._bindings.values()):
             if isValid(binding.field):
                 self._apply_binding(binding)
         diagnostics: dict[str, object] = {
             key: value for key, value in self._engine.diagnostics().items()
         }
-        diagnostics["fps_target"] = int(self._engine.config.fps)
+        diagnostics["fps_target"] = current_target_fps
         diagnostics["lens"] = self._lens
         delta = self._last_delta
         diagnostics["delta_added"] = 0 if delta is None else len(delta.added_node_ids)
@@ -224,7 +235,10 @@ class PallasLivingQtController(QObject):
         self._bindings[id(field)] = self._bind_field(field, snapshot, token)
         field.setProperty("pathenaPallasLiving", True)
         field.setProperty("pathenaPallasLivingRenderer", "force-ca-v1")
-        field.setProperty("pathenaPallasTargetFps", int(self._engine.config.fps))
+        field.setProperty(
+            "pathenaPallasTargetFps",
+            round(1000 / max(self._timer.interval(), 1)),
+        )
         field.setProperty("pathenaPallasLens", self._lens)
 
     def _bind_field(
