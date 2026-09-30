@@ -6,7 +6,7 @@ from PySide6.QtCore import QObject
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QSplitter, QVBoxLayout, QWidget
 from shiboken6 import isValid
 
-from athena.desktop.pathena_v3_components import V3EmptyState
+from athena.desktop.pathena_v3_components import V3ActionHost, V3EmptyState
 from athena.desktop.research_results_extension import ResearchResultsExtension
 from athena.desktop.research_workspace import ResearchWorkspace
 
@@ -42,7 +42,7 @@ class PathenaV3ResearchController(QObject):
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(14)
 
-        brief = QFrame()
+        brief = V3ActionHost()
         brief.setObjectName("v3ResearchBrief")
         brief.setAccessibleName("Research brief")
         brief_layout = QVBoxLayout(brief)
@@ -125,6 +125,11 @@ class PathenaV3ResearchController(QObject):
         workspace.refresh_button.update()
         state_row.addWidget(workspace.refresh_button)
         brief_layout.addLayout(state_row)
+        brief.bind_actions(
+            workspace.start_button,
+            workspace.cancel_button,
+            workspace.refresh_button,
+        )
         root.addWidget(brief)
 
         splitter.setParent(workspace)
