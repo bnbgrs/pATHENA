@@ -168,6 +168,18 @@ class PallasLivingQtController(QObject):
                 current.setProperty("pathenaPallasLivingError", "")
             if self._timer.interval() != self._idle_interval_ms:
                 self._timer.setInterval(self._idle_interval_ms)
+            field_state = str(field.property("pathenaUiState") or "empty")
+            self.diagnostics_changed.emit(
+                {
+                    "nodes": 0,
+                    "active": 0,
+                    "fps_target": round(1000 / self._idle_interval_ms),
+                    "cadence_mode": "background",
+                    "lens": self._lens,
+                    "field_state": field_state,
+                    "validation_error": "",
+                }
+            )
             return
 
         if snapshot != self._snapshot:
@@ -193,6 +205,7 @@ class PallasLivingQtController(QObject):
                         "nodes": len(snapshot.nodes),
                         "active": 0,
                         "lens": self._lens,
+                        "field_state": "ready",
                         "validation_error": str(exc),
                     }
                 )
@@ -248,6 +261,7 @@ class PallasLivingQtController(QObject):
             "full" if full_visible else "compact" if visible else "background"
         )
         diagnostics["lens"] = self._lens
+        diagnostics["field_state"] = "ready"
         delta = (
             self._last_delta
             if self._delta_pulse_remaining > 0.0
