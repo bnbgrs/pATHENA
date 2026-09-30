@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from PySide6.QtCore import QObject, Qt, Slot
+from PySide6.QtCore import QEvent, QObject, Qt, Slot
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -50,10 +50,14 @@ class PathenaV3ShellController(QObject):
         self._nav_buttons: dict[int, V3NavigationButton] = {}
         self._legacy_shell: QWidget | None = None
         self._inspector: QFrame | None = None
+        self._rail: QFrame | None = None
+        self._workspace_layout: QVBoxLayout | None = None
+        self._density_compact: bool | None = None
         self._header = V3WorkspaceHeader("Chat", _PAGE_HINTS[0])
         self._command_button = QPushButton("Command   Ctrl K")
         self._pallas_button = V3NavigationButton("PALLAS", icon_name="pallas")
         self._build()
+        window.installEventFilter(self)
         window.navigation.currentRowChanged.connect(self._sync_navigation)
         self._sync_navigation(max(0, window.navigation.currentRow()))
 
@@ -72,10 +76,7 @@ class PathenaV3ShellController(QObject):
     def finalize(self) -> None:
         self._replace_settings_page()
         self._window.setStyleSheet(PATHENA_V3_STYLESHEET)
-        self._window.chat_selector.setMinimumWidth(190)
-        self._window.chat_selector.setMaximumWidth(360)
-        self._window.model_selector.setMinimumWidth(170)
-        self._window.model_selector.setMaximumWidth(280)
+        self._apply_density(self._window.width())
         self._window.prompt_input.show()
         self._window.ground_button.show()
         self._window.send_button.setFixedSize(44, 44)
@@ -136,6 +137,7 @@ class PathenaV3ShellController(QObject):
         rail = QFrame()
         rail.setObjectName("v3Rail")
         rail.setFixedWidth(78)
+        self._rail = rail
 
         layout = QVBoxLayout(rail)
         layout.setContentsMargins(7, 16, 7, 14)
@@ -212,6 +214,7 @@ class PathenaV3ShellController(QObject):
         layout = QVBoxLayout(workspace)
         layout.setContentsMargins(24, 18, 24, 24)
         layout.setSpacing(0)
+        self._workspace_layout = layout
 
         self._replace_chat_page()
 
@@ -246,14 +249,20 @@ class PathenaV3ShellController(QObject):
         meta_layout.addWidget(conversation_label)
 
         window.chat_selector.setParent(meta)
+        window.chat_selector.setAccessibleName("Conversation")
+        window.chat_selector.setToolTip("Select conversation")
         meta_layout.addWidget(window.chat_selector, 1)
 
         window.new_chat_button.setParent(meta)
         window.new_chat_button.setText("New")
+        window.new_chat_button.setAccessibleName("New conversation")
+        window.new_chat_button.setToolTip("Start a new conversation")
         meta_layout.addWidget(window.new_chat_button)
 
         window.delete_chat_button.setParent(meta)
         window.delete_chat_button.setText("Delete")
+        window.delete_chat_button.setAccessibleName("Delete conversation")
+        window.delete_chat_button.setToolTip("Delete the selected conversation")
         meta_layout.addWidget(window.delete_chat_button)
 
         meta_layout.addSpacing(12)
@@ -262,12 +271,16 @@ class PathenaV3ShellController(QObject):
         meta_layout.addWidget(model_label)
 
         window.model_selector.setParent(meta)
+        window.model_selector.setAccessibleName("Local model")
+        window.model_selector.setToolTip("Select the local model used for chat")
         meta_layout.addWidget(window.model_selector)
 
         context_button = getattr(window, "context_button", None)
         if isinstance(context_button, QPushButton):
             context_button.setParent(meta)
             context_button.setText("Context")
+            context_button.setAccessibleName("Conversation context")
+            context_button.setToolTip("Show or hide conversation context")
             meta_layout.addWidget(context_button)
 
         meta.setMinimumWidth(620)
@@ -485,8 +498,8 @@ class PathenaV3ShellController(QObject):
 
         runtime = QFrame()
         runtime.setObjectName("v3RuntimeCard")
-        runtime.setMinimumWidth(370)
-        runtime.setMaximumWidth(390)
+        runtime.setMinimumWidth(330)
+        runtime.setMaximumWidth(360)
         runtime_layout = QVBoxLayout(runtime)
         runtime_layout.setContentsMargins(20, 20, 20, 20)
         runtime_layout.setSpacing(10)
@@ -518,6 +531,42 @@ class PathenaV3ShellController(QObject):
         old_settings.setObjectName("legacySettingsPage")
         old_settings.setParent(self._legacy_shell)
         old_settings.hide()
+
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:  # noqa: N802
+        if watched is self._window and event.type() == QEvent.Type.Resize:
+            self._apply_density(self._window.width())
+        return super().eventFilter(watched, event)
+
+    def _apply_density(self, width: int) -> None:
+        compact = width < 1280
+        if self._density_compact is compact:
+            return
+        self._density_compact = compact
+
+        self._header.set_compact(compact)
+        rail = self._rail
+        if rail is not None:
+            rail.setFixedWidth(72 if compact else 78)
+
+        for button in (*self._nav_buttons.values(), self._pallas_button):
+            button.set_compact(compact)
+
+        workspace_layout = self._workspace_layout
+        if workspace_layout is not None:
+            if compact:
+                workspace_layout.setContentsMargins(18, 14, 18, 18)
+            else:
+                workspace_layout.setContentsMargins(24, 18, 24, 24)
+
+        self._window.chat_selector.setMinimumWidth(150 if compact else 190)
+        self._window.chat_selector.setMaximumWidth(300 if compact else 360)
+        self._window.model_selector.setMinimumWidth(145 if compact else 170)
+        self._window.model_selector.setMaximumWidth(240 if compact else 280)
+
+        for label in self._window.findChildren(QLabel, "v3MetaLabel"):
+            label.setVisible(not compact)
+
+        self._window.status_text.setMaximumWidth(220 if compact else 360)
 
     @Slot(int)
     def _sync_navigation(self, index: int) -> None:
@@ -561,6 +610,7 @@ class PathenaV3ShellController(QObject):
             self._window.navigation.currentRowChanged.disconnect(self._sync_navigation)
         except (RuntimeError, TypeError):
             pass
+        self._window.removeEventFilter(self)
         self._command_callback = None
         self._pallas_callback = None
 
