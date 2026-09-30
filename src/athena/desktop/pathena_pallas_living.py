@@ -123,7 +123,10 @@ class PallasLivingEngine:
         }
         conflict_pairs: set[frozenset[str]] = set()
         for edge in snapshot.edges:
-            if edge.source_id not in self._node_by_id or edge.target_id not in self._node_by_id:
+            if (
+                edge.source_id not in self._node_by_id
+                or edge.target_id not in self._node_by_id
+            ):
                 continue
             neighbor_sets[edge.source_id].add(edge.target_id)
             neighbor_sets[edge.target_id].add(edge.source_id)
