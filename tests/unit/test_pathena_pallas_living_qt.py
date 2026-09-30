@@ -176,6 +176,7 @@ def test_qt_bridge_stops_and_clears_state_when_primary_field_is_disposed(
     assert living.engine.states == {}
     delete(window)
 
+
 def _updated_snapshot_same_graph_id() -> PallasGraphSnapshot:
     focus = _node("focus", PallasNodeKind.FOCUS)
     claim = _node("claim", PallasNodeKind.CLAIM)
@@ -231,8 +232,9 @@ def test_qt_bridge_publishes_structural_activity_delta(
     living.diagnostics_changed.connect(diagnostics.append)
     try:
         living._tick()  # noqa: SLF001
-        assert isinstance(diagnostics[-1], dict)
-        assert diagnostics[-1]["delta_added"] == 0
+        first = diagnostics[-1]
+        assert isinstance(first, dict)
+        assert first["delta_added"] == 0
 
         grounded.apply_snapshot(_updated_snapshot_same_graph_id())
         living._tick()  # noqa: SLF001
