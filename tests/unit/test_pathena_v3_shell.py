@@ -161,6 +161,10 @@ def test_v3_finalize_reuses_real_settings_controls() -> None:
     assert settings is not None
     assert settings.objectName() == "v3SettingsPage"
     assert all(settings.isAncestorOf(control) for control in real_controls)
+    runtime_section = settings.findChild(QFrame, "v3SettingsRuntimeSection")
+    assert runtime_section is not None
+    assert runtime_section.accessibleName() == "Local runtime status"
+    assert settings.findChild(QFrame, "v3RuntimeCard") is None
     assert window.pages.count() == 7
 
     window.navigation.setCurrentRow(6)
