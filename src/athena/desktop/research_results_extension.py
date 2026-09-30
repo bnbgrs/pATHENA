@@ -174,8 +174,6 @@ class ResearchResultsExtension(QObject):
             if row < 0:
                 return ""
             item = self.workspace.jobs.item(row)
-            if item is None:
-                return ""
             text = item.text().strip()
         except RuntimeError:
             self._begin_teardown()
