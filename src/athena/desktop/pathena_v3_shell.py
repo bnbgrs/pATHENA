@@ -191,6 +191,7 @@ class PathenaV3ShellController(QObject):
 
     def _build_header(self) -> QWidget:
         self._command_button.setObjectName("v3CommandButton")
+        self._command_button.setMinimumWidth(174)
         self._command_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self._command_button.setEnabled(False)
         self._command_button.setAccessibleName("Open command palette")
@@ -546,6 +547,12 @@ class PathenaV3ShellController(QObject):
         self._header.set_compact(compact)
         self._command_button.setProperty("compact", compact)
         self._command_button.setText("Ctrl K" if compact else "Command   Ctrl K")
+        if compact:
+            self._command_button.setMinimumWidth(70)
+            self._command_button.setMaximumWidth(70)
+        else:
+            self._command_button.setMinimumWidth(174)
+            self._command_button.setMaximumWidth(16777215)
         command_style = self._command_button.style()
         if command_style is not None:
             command_style.unpolish(self._command_button)
