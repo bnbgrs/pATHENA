@@ -49,14 +49,6 @@ class PathenaV3KnowledgeController(QObject):
         workspace.search_input.show()
         search_layout.addWidget(workspace.search_input, 1)
 
-        workspace.open_chat_button.setParent(search_bar)
-        workspace.open_chat_button.setText("Use in chat")
-        workspace.open_chat_button.setAccessibleName("Use selected knowledge in chat")
-        workspace.open_chat_button.setToolTip("Open the selected durable knowledge in Chat")
-        workspace.open_chat_button.setProperty("v3PrimaryAction", True)
-        workspace.open_chat_button.show()
-        search_layout.addWidget(workspace.open_chat_button)
-
         workspace.refresh_knowledge_button.setParent(search_bar)
         workspace.refresh_knowledge_button.setText("Refresh")
         workspace.refresh_knowledge_button.setAccessibleName("Refresh knowledge library")
@@ -70,6 +62,14 @@ class PathenaV3KnowledgeController(QObject):
         workspace.refresh_button.setToolTip("Sync canonical knowledge state from the local Core")
         workspace.refresh_button.show()
         search_layout.addWidget(workspace.refresh_button)
+
+        workspace.open_chat_button.setParent(search_bar)
+        workspace.open_chat_button.setText("Use in chat")
+        workspace.open_chat_button.setAccessibleName("Use selected knowledge in chat")
+        workspace.open_chat_button.setToolTip("Open the selected durable knowledge in Chat")
+        workspace.open_chat_button.setProperty("v3PrimaryAction", True)
+        workspace.open_chat_button.show()
+        search_layout.addWidget(workspace.open_chat_button)
         root.addWidget(search_bar)
 
         identity = QFrame()
