@@ -226,7 +226,7 @@ class SystemWorkspace(QWidget):
         self.recovery = SystemRecoveryPanel()
 
         self.recent_events = QLabel(
-            "No activity history is available from the current local service."
+            "Activity history is unavailable from the current local service; no activity history is invented."
         )
         self.recent_events.setObjectName("systemRecentEventsEmpty")
         self.recent_events.setWordWrap(True)
