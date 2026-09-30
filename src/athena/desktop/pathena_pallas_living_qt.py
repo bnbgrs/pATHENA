@@ -82,6 +82,10 @@ class PallasLivingQtController(QObject):
         self._idle_interval_ms = 250
         self._timer.setInterval(self._active_interval_ms)
         self._timer.timeout.connect(self._tick)
+        grounded_controller.selection_changed.connect(self._apply_selection_focus)
+        self._apply_selection_focus(
+            getattr(grounded_controller, "_selection", None)  # noqa: SLF001
+        )
         self._timer.start()
 
     @property
@@ -110,6 +114,12 @@ class PallasLivingQtController(QObject):
         self._activity.reset()
         self._last_delta = None
 
+    @Slot(object)
+    def _apply_selection_focus(self, selection: object | None) -> None:
+        node = getattr(selection, "node", None)
+        node_id = str(getattr(node, "node_id", "") or "")
+        self._engine.set_visual_focus(node_id or None)
+
     @Slot()
     def _tick(self) -> None:
         field = self._grounded_controller.field
@@ -130,9 +140,27 @@ class PallasLivingQtController(QObject):
                 item.node_id: (item.x, item.y)
                 for item in deterministic_layout(snapshot)
             }
-            self._last_delta = self._activity.observe(snapshot)
+            try:
+                self._last_delta = self._activity.observe(snapshot)
+            except ValueError as exc:
+                self._bindings.clear()
+                self._engine.clear()
+                self._snapshot = snapshot
+                field.setProperty("pathenaPallasLivingError", str(exc))
+                self.diagnostics_changed.emit(
+                    {
+                        "nodes": len(snapshot.nodes),
+                        "active": 0,
+                        "lens": self._lens,
+                        "validation_error": str(exc),
+                    }
+                )
+                return
             self._engine.reconcile(snapshot, seeds)
+            selection = getattr(self._grounded_controller, "_selection", None)
+            self._apply_selection_focus(selection)
             self._snapshot = snapshot
+            field.setProperty("pathenaPallasLivingError", "")
             self._bindings.clear()
 
         fields = self._live_fields()
@@ -169,6 +197,7 @@ class PallasLivingQtController(QObject):
             else len(delta.added_edges) + len(delta.removed_edges)
         )
         diagnostics["focus_changed"] = False if delta is None else delta.focus_changed
+        diagnostics["validation_error"] = ""
         self.diagnostics_changed.emit(diagnostics)
 
     def _live_fields(self) -> tuple[PallasSemanticField, ...]:
