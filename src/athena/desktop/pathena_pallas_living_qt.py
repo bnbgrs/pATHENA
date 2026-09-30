@@ -207,6 +207,13 @@ class PallasLivingQtController(QObject):
 
         fields = self._live_fields()
         visible = tuple(current for current in fields if current.isVisible())
+        render_fields = (
+            visible
+            if visible
+            else fields
+            if not self._grounded_controller.window.isVisible()
+            else ()
+        )
         full_visible = any(
             current.property("pathenaPallasMode") == "full"
             for current in visible
@@ -221,11 +228,11 @@ class PallasLivingQtController(QObject):
         current_target_fps = round(1000 / max(target_interval, 1))
         for current in fields:
             current.setProperty("pathenaPallasTargetFps", current_target_fps)
-        live_ids = {id(current) for current in fields}
+        rendered_ids = {id(current) for current in render_fields}
         for stale_id in tuple(self._bindings):
-            if stale_id not in live_ids:
+            if stale_id not in rendered_ids:
                 del self._bindings[stale_id]
-        for current in fields:
+        for current in render_fields:
             self._ensure_binding(current, snapshot)
 
         self._engine.step(target_interval / 1000.0)
@@ -236,6 +243,7 @@ class PallasLivingQtController(QObject):
             key: value for key, value in self._engine.diagnostics().items()
         }
         diagnostics["fps_target"] = current_target_fps
+        diagnostics["rendered_fields"] = len(render_fields)
         diagnostics["cadence_mode"] = (
             "full" if full_visible else "compact" if visible else "background"
         )
