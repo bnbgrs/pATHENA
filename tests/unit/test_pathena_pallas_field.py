@@ -6,12 +6,19 @@ from collections.abc import Iterator
 import pytest
 from PySide6.QtCore import Qt
 from PySide6.QtTest import QTest
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QGraphicsLineItem
 
-from athena.desktop.pathena_pallas_field import PallasSelection, PallasSemanticField
+from athena.desktop.pathena_pallas_field import (
+    PALLAS_EDGE_RELATION_DATA_KEY,
+    PALLAS_EDGE_SOURCE_DATA_KEY,
+    PALLAS_EDGE_TARGET_DATA_KEY,
+    PallasSelection,
+    PallasSemanticField,
+)
 from athena.desktop.pathena_pallas_semantic import (
     PallasGraphSnapshot,
     PallasNodeKind,
+    PallasSemanticEdge,
     PallasSemanticNode,
 )
 
@@ -150,3 +157,99 @@ def test_compact_and_full_fields_share_keyboard_selection_semantics(
         for field in (full, compact):
             field.close()
             field.deleteLater()
+
+
+def test_living_scene_bounds_expand_without_shrinking(
+    qapp: QApplication,
+) -> None:
+    field = _ready_field(qapp)
+    try:
+        before = field.scene.sceneRect()
+        claim = field._items["claim"]  # noqa: SLF001
+        claim.setPos(before.right() + 180.0, before.bottom() + 120.0)
+
+        assert field.expand_scene_to_items() is True
+        expanded = field.scene.sceneRect()
+        assert expanded.contains(claim.sceneBoundingRect())
+        assert expanded.width() >= before.width()
+        assert expanded.height() >= before.height()
+
+        assert field.expand_scene_to_items() is False
+        assert field.scene.sceneRect() == expanded
+    finally:
+        field.close()
+        field.deleteLater()
+
+def test_fit_all_restores_automatic_overview_after_manual_view_change(
+    qapp: QApplication,
+) -> None:
+    field = _ready_field(qapp)
+    try:
+        claim = field._items["claim"]  # noqa: SLF001
+        claim.setPos(320.0, 220.0)
+        field.canvas.scale(1.8, 1.8)
+        field.canvas._auto_fit = False  # noqa: SLF001
+
+        field.fit_all()
+        qapp.processEvents()
+
+        assert field.canvas._auto_fit is True  # noqa: SLF001
+        assert field.scene.sceneRect().contains(claim.sceneBoundingRect())
+        assert field.canvas.transform().m11() > 0
+    finally:
+        field.close()
+        field.deleteLater()
+
+def test_rendered_edges_retain_exact_semantic_identity(
+    qapp: QApplication,
+) -> None:
+    field = PallasSemanticField()
+    try:
+        base = _snapshot()
+        edge = PallasSemanticEdge("focus", "claim", "supports")
+        field.set_snapshot(
+            PallasGraphSnapshot(
+                graph_id=base.graph_id,
+                nodes=base.nodes,
+                edges=(edge,),
+                focus_id=base.focus_id,
+                status=base.status,
+                status_detail=base.status_detail,
+            )
+        )
+        qapp.processEvents()
+
+        lines = [
+            item
+            for item in field.scene.items()
+            if isinstance(item, QGraphicsLineItem)
+        ]
+        assert len(lines) == 1
+        line = lines[0]
+        assert line.data(PALLAS_EDGE_SOURCE_DATA_KEY) == "focus"
+        assert line.data(PALLAS_EDGE_TARGET_DATA_KEY) == "claim"
+        assert line.data(PALLAS_EDGE_RELATION_DATA_KEY) == "supports"
+    finally:
+        field.close()
+        field.deleteLater()
+
+def test_keyboard_f_restores_fit_without_changing_selection(
+    qapp: QApplication,
+) -> None:
+    field = _ready_field(qapp)
+    try:
+        assert field.focus_node("claim")
+        selected_before = field.property("pathenaPallasSelectionId")
+        field.canvas.scale(1.7, 1.7)
+        field.canvas._auto_fit = False  # noqa: SLF001
+
+        QTest.keyClick(field.canvas, Qt.Key.Key_F)
+        qapp.processEvents()
+
+        assert field.canvas._auto_fit is True  # noqa: SLF001
+        assert field.property("pathenaPallasSelectionId") == selected_before
+        assert "F to fit all nodes" in field.canvas.accessibleDescription()
+    finally:
+        field.close()
+        field.deleteLater()
+

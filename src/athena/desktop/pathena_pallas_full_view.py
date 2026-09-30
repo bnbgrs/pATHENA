@@ -21,6 +21,7 @@ from athena.desktop.pathena_pallas_field import (
     PallasWorkspace,
 )
 from athena.desktop.pathena_pallas_living_qt import PallasLivingQtController
+from athena.desktop.pathena_pallas_semantic import PallasGraphSnapshot
 from athena.desktop.pathena_v3_theme import V3_BG
 
 
@@ -53,6 +54,9 @@ class PallasFullViewController(QObject):
         self._v3_inspector_kind: QLabel | None = None
         self._v3_inspector_title: QLabel | None = None
         self._v3_inspector_body: QLabel | None = None
+        self._last_inspector_living_signature: tuple[str, int, int] | None = None
+        self._relationship_snapshot: PallasGraphSnapshot | None = None
+        self._relationship_cache: dict[str, tuple[str, ...]] = {}
         center = window.findChild(QFrame, "conversation")
         reference_body = window.findChild(QFrame, "referenceBody")
         body_layout = reference_body.layout() if reference_body is not None else None
@@ -169,6 +173,42 @@ class PallasFullViewController(QObject):
         panel = self._window.findChild(QFrame, "inspector")
         return panel if isinstance(panel, QFrame) else None
 
+    def _refresh_relationship_cache(self) -> None:
+        snapshot = self._grounded_controller.field.snapshot
+        if snapshot == self._relationship_snapshot:
+            return
+        self._relationship_snapshot = snapshot
+        if snapshot is None:
+            self._relationship_cache = {}
+            return
+
+        nodes = {node.node_id: node for node in snapshot.nodes}
+        relationships: dict[str, list[str]] = {
+            node_id: [] for node_id in nodes
+        }
+        for edge in snapshot.edges:
+            source = nodes.get(edge.source_id)
+            target = nodes.get(edge.target_id)
+            if source is None or target is None:
+                continue
+            relation = edge.relation.replace("_", " ")
+            relationships[source.node_id].append(
+                f"→ {relation} · {target.glyph} {target.title}"
+            )
+            relationships[target.node_id].append(
+                f"← {relation} · {source.glyph} {source.title}"
+            )
+        self._relationship_cache = {
+            node_id: tuple(lines)
+            for node_id, lines in relationships.items()
+        }
+
+    def _relationship_lines(self, node_id: str) -> tuple[str, ...]:
+        if not node_id:
+            return ()
+        self._refresh_relationship_cache()
+        return self._relationship_cache.get(node_id, ())
+
     @Slot(object)
     def _sync_v3_inspector(self, selection: object | None) -> None:
         """Render the selected semantic object in the dedicated V3 PALLAS inspector."""
@@ -181,6 +221,7 @@ class PallasFullViewController(QObject):
         node = getattr(selection, "node", None)
         graph_id = str(getattr(selection, "graph_id", "") or "")
         if node is None:
+            self._last_inspector_living_signature = None
             kind_label.setText("SELECTION")
             title_label.setText("Nothing selected")
             body_label.setText(
@@ -199,6 +240,8 @@ class PallasFullViewController(QObject):
         epistemic = str(getattr(node, "epistemic_status", "") or "")
         confidence = getattr(node, "confidence", None)
         cited = bool(getattr(node, "cited", False))
+        node_id = str(getattr(node, "node_id", "") or "")
+        living_state = self._living_controller.engine.states.get(node_id)
 
         kind_label.setText(kind)
         title_label.setText(f"{glyph} {title}".strip())
@@ -214,7 +257,50 @@ class PallasFullViewController(QObject):
             lines.append(f"Epistemic state  {epistemic}")
         if isinstance(confidence, (int, float)) and not isinstance(confidence, bool):
             lines.append(f"Confidence  {confidence:.2f}")
+        if living_state is not None:
+            vitality_percent = round(living_state.vitality * 100)
+            field_age_seconds = int(living_state.age_seconds)
+            self._last_inspector_living_signature = (
+                node_id,
+                vitality_percent,
+                field_age_seconds,
+            )
+            lines.append(
+                "Living field  "
+                f"{vitality_percent}% vitality · "
+                f"{field_age_seconds}s field age"
+            )
+        else:
+            self._last_inspector_living_signature = None
+        relationships = self._relationship_lines(node_id)
+        if relationships:
+            visible_relationships = relationships[:6]
+            lines.extend(("", f"Relationships  {len(relationships)}"))
+            lines.extend(visible_relationships)
+            remaining = len(relationships) - len(visible_relationships)
+            if remaining:
+                lines.append(f"+{remaining} more explicit relationships")
         body_label.setText("\n".join(lines))
+
+    def _refresh_inspector_living_readout(self) -> None:
+        selection = getattr(self._grounded_controller, "_selection", None)
+        node = getattr(selection, "node", None)
+        node_id = str(getattr(node, "node_id", "") or "")
+        if not node_id:
+            if self._last_inspector_living_signature is not None:
+                self._sync_v3_inspector(selection)
+            return
+        state = self._living_controller.engine.states.get(node_id)
+        if state is None:
+            signature = None
+        else:
+            signature = (
+                node_id,
+                round(state.vitality * 100),
+                int(state.age_seconds),
+            )
+        if signature != self._last_inspector_living_signature:
+            self._sync_v3_inspector(selection)
 
     def _claim_inspector_context(self) -> None:
         inspector = self._pallas_inspector()
@@ -259,12 +345,33 @@ class PallasFullViewController(QObject):
         status.setAccessibleName("PALLAS living field status")
         toolbar.addWidget(status, 1)
 
+        fit_button = QPushButton("FIT", topbar)
+        fit_button.setObjectName("pallasFitButton")
+        fit_button.setAccessibleName("Fit all PALLAS nodes")
+        fit_button.setToolTip("Reset pan and zoom to show the complete living graph")
+        toolbar.addWidget(fit_button)
+
+        lens_help = {
+            "semantic": (
+                "Show canonical semantic glyphs. Living movement never creates "
+                "semantic graph edges."
+            ),
+            "age": (
+                "Show living field age. This is simulation time, not source or "
+                "document age."
+            ),
+            "vitality": (
+                "Show cellular vitality. This is presentation activity, not "
+                "epistemic confidence."
+            ),
+        }
         buttons: dict[str, QPushButton] = {}
         for lens in ("semantic", "age", "vitality"):
             button = QPushButton(lens.upper(), topbar)
             button.setObjectName(f"pallasLens{lens.title()}Button")
             button.setAccessibleName(f"PALLAS {lens} lens")
-            button.setToolTip(f"Show the {lens} lens")
+            button.setAccessibleDescription(lens_help[lens])
+            button.setToolTip(lens_help[lens])
             button.setCheckable(True)
             button.setChecked(lens == self._living_controller.lens)
             button.clicked.connect(
@@ -282,6 +389,23 @@ class PallasFullViewController(QObject):
         workspace.setProperty("pathenaPallasShellHosted", True)
         workspace.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         workspace.field.canvas.setBackgroundBrush(QBrush(QColor(V3_BG)))
+        fit_button.clicked.connect(workspace.field.fit_all)
+
+        legend = QLabel(
+            "◉ FOCUS   △ SOURCE   ◆ CLAIM   ■ KNOWLEDGE   ◇ HYPOTHESIS   "
+            "● MEMORY   × CONFLICT   ≈ UNCERTAIN",
+            host,
+        )
+        legend.setObjectName("pallasSemanticLegend")
+        legend.setProperty("role", "dim")
+        legend.setWordWrap(True)
+        legend.setAccessibleName("PALLAS semantic glyph legend")
+        legend.setAccessibleDescription(
+            "Bullseye focus, triangle source, diamond claim, square knowledge, "
+            "hollow diamond hypothesis, circle memory, cross conflict, approximately "
+            "uncertain."
+        )
+        outer.addWidget(legend)
 
         content = QHBoxLayout()
         content.setContentsMargins(0, 0, 0, 0)
@@ -404,11 +528,80 @@ class PallasFullViewController(QObject):
             or not isinstance(diagnostics, dict)
         ):
             return
+        validation_error = str(diagnostics.get("validation_error", "") or "")
+        if validation_error:
+            self._refresh_inspector_living_readout()
+            status.setText("FIELD • LIVING PAUSED • SNAPSHOT REJECTED")
+            status.setToolTip(validation_error)
+            status.setAccessibleDescription(
+                "PALLAS living presentation is paused because the graph snapshot "
+                f"was rejected: {validation_error}"
+            )
+            return
+
+        field_state = str(diagnostics.get("field_state", "ready") or "ready").casefold()
+        if field_state != "ready":
+            labels = {
+                "loading": "FIELD • RESOLVING GROUNDED CONTEXT",
+                "error": "FIELD • GROUNDED CONTEXT UNAVAILABLE",
+                "empty": "FIELD • NO GROUNDED CONTEXT",
+            }
+            status.setText(labels.get(field_state, f"FIELD • {field_state.upper()}"))
+            status.setToolTip(
+                "Living presentation is idle until a ready grounded graph is available."
+            )
+            status.setAccessibleDescription(
+                f"PALLAS living field is {field_state}; no living graph is being rendered."
+            )
+            self._refresh_inspector_living_readout()
+            return
+
         fps = diagnostics.get("fps_target", 30)
         active = diagnostics.get("active", 0)
         nodes = diagnostics.get("nodes", 0)
         lens = str(diagnostics.get("lens", "semantic")).upper()
-        status.setText(f"FIELD • {fps} FPS • {active}/{nodes} ACTIVE • {lens}")
+        mean_vitality = float(diagnostics.get("mean_vitality", 0.0) or 0.0)
+        mean_speed = float(diagnostics.get("mean_speed", 0.0) or 0.0)
+        semantic_pairs = int(diagnostics.get("semantic_pairs", 0) or 0)
+        explicit_edges = int(diagnostics.get("edges", 0) or 0)
+        cadence_mode = str(diagnostics.get("cadence_mode", "full") or "full")
+        added = int(diagnostics.get("delta_added", 0) or 0)
+        removed = int(diagnostics.get("delta_removed", 0) or 0)
+        updated = int(diagnostics.get("delta_updated", 0) or 0)
+        revisions = int(diagnostics.get("delta_revisions", 0) or 0)
+        edge_delta = int(diagnostics.get("delta_edges", 0) or 0)
+        focus_changed = bool(diagnostics.get("focus_changed", False))
+        activity = ""
+        if added or removed or updated or edge_delta:
+            activity = (
+                f" • Δ +{added} −{removed} ~{updated}"
+                + (f" · {edge_delta} EDGE" if edge_delta else "")
+            )
+        status.setText(
+            f"FIELD • {fps} FPS • {active}/{nodes} ACTIVE • {lens}{activity}"
+        )
+        change_detail = ""
+        if added or removed or updated or revisions or edge_delta or focus_changed:
+            change_detail = (
+                "\nLast graph change · "
+                f"+{added} −{removed} ~{updated} nodes · "
+                f"{revisions} revisions · {edge_delta} edges · "
+                f"focus {'changed' if focus_changed else 'stable'}"
+            )
+        status.setToolTip(
+            f"{cadence_mode} cadence · {fps} FPS\n"
+            f"{active}/{nodes} active · mean vitality {mean_vitality:.0%}\n"
+            f"mean motion {mean_speed:.2f} · {explicit_edges} explicit edges · "
+            f"{semantic_pairs} visual semantic-attraction pairs"
+            f"{change_detail}"
+        )
+        status.setAccessibleDescription(
+            f"PALLAS living field at {fps} frames per second; "
+            f"{active} of {nodes} nodes active; {lens.casefold()} lens. "
+            "Vitality and semantic attraction are presentation signals, not "
+            "epistemic confidence or invented graph relationships."
+        )
+        self._refresh_inspector_living_readout()
 
     @Slot()
     def dispose(self) -> None:
@@ -438,6 +631,9 @@ class PallasFullViewController(QObject):
         self._v3_inspector_kind = None
         self._v3_inspector_title = None
         self._v3_inspector_body = None
+        self._last_inspector_living_signature = None
+        self._relationship_snapshot = None
+        self._relationship_cache.clear()
 
 
 def install_pallas_full_view(

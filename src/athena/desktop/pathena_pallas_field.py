@@ -36,6 +36,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from shiboken6 import isValid
 
 from athena.api.contracts import GroundedChatResponse
 from athena.desktop.api_controller import DesktopApiController
@@ -76,6 +77,10 @@ _MEMORY = QColor("#A8C5A2")
 _CONFLICT = QColor(V3_DANGER)
 _UNCERTAIN = QColor(V3_WARNING)
 
+PALLAS_EDGE_SOURCE_DATA_KEY = 7401
+PALLAS_EDGE_TARGET_DATA_KEY = 7402
+PALLAS_EDGE_RELATION_DATA_KEY = 7403
+
 
 @dataclass(frozen=True, slots=True)
 class PallasSelection:
@@ -108,6 +113,12 @@ class _PallasCanvas(QGraphicsView):
         self._zoom = 1.0
         self._auto_fit = True
         if not bounds.isEmpty():
+            self.fitInView(bounds, Qt.AspectRatioMode.KeepAspectRatio)
+            self._zoom = self.transform().m11()
+
+    def fit_scene_if_auto(self, bounds: QRectF) -> None:
+        """Expand the automatic camera only while the user has not zoomed manually."""
+        if self._auto_fit and not bounds.isEmpty():
             self.fitInView(bounds, Qt.AspectRatioMode.KeepAspectRatio)
             self._zoom = self.transform().m11()
 
@@ -149,6 +160,10 @@ class _PallasCanvas(QGraphicsView):
                     return
             if key == Qt.Key.Key_Escape:
                 field.clear_selection()
+                event.accept()
+                return
+            if key == Qt.Key.Key_F:
+                field.fit_all()
                 event.accept()
                 return
         super().keyPressEvent(event)
@@ -314,6 +329,9 @@ class PallasSemanticField(QWidget):
             if source is None or target is None:
                 continue
             line = QGraphicsLineItem(source.x(), source.y(), target.x(), target.y())
+            line.setData(PALLAS_EDGE_SOURCE_DATA_KEY, edge.source_id)
+            line.setData(PALLAS_EDGE_TARGET_DATA_KEY, edge.target_id)
+            line.setData(PALLAS_EDGE_RELATION_DATA_KEY, edge.relation)
             line.setPen(QPen(_BORDER, 1.0))
             line.setToolTip(edge.relation.replace("_", " "))
             line.setZValue(-1.0)
@@ -337,11 +355,35 @@ class PallasSemanticField(QWidget):
         self.canvas.reset_view(bounds)
         self.canvas.setAccessibleName("PALLAS semantic graph")
         self.canvas.setAccessibleDescription(
-            f"{snapshot.status_detail} Use arrow keys to move focus, Enter or Space to select, and Escape to clear selection."
+            f"{snapshot.status_detail} Use arrow keys to move focus, Enter or Space "
+            "to select, Escape to clear selection, and F to fit all nodes."
         )
         self.setAccessibleDescription(snapshot.status_detail)
         if snapshot.focus_id is not None:
             self.focus_node(snapshot.focus_id)
+
+    def expand_scene_to_items(self, padding: float = 24.0) -> bool:
+        """Grow scene bounds for living nodes without shrinking or resetting manual zoom."""
+        item_bounds = self.scene.itemsBoundingRect()
+        if item_bounds.isEmpty():
+            return False
+        item_bounds = item_bounds.adjusted(-padding, -padding, padding, padding)
+        current = self.scene.sceneRect()
+        if not current.isEmpty() and current.contains(item_bounds):
+            return False
+        expanded = item_bounds if current.isEmpty() else current.united(item_bounds)
+        self.scene.setSceneRect(expanded)
+        self.canvas.fit_scene_if_auto(expanded)
+        return True
+
+    @Slot()
+    def fit_all(self) -> None:
+        """Return to an automatic overview of every currently rendered node."""
+        bounds = self.scene.itemsBoundingRect().adjusted(-24, -24, 24, 24)
+        if bounds.isEmpty():
+            return
+        self.scene.setSceneRect(bounds)
+        self.canvas.reset_view(bounds)
 
     def focus_node(self, node_id: str) -> bool:
         item = self._items.get(node_id)
@@ -670,10 +712,18 @@ class PallasGroundedFieldController(QObject):
             field.set_empty(self._state_detail)
 
     def _live_fields(self) -> tuple[PallasSemanticField, ...]:
-        return tuple(field for field in self._fields if field.parent() is not None)
+        return tuple(
+            field
+            for field in self._fields
+            if isValid(field) and field.parent() is not None
+        )
 
     def _live_workspaces(self) -> tuple[PallasWorkspace, ...]:
-        return tuple(self._workspaces)
+        return tuple(
+            workspace
+            for workspace in self._workspaces
+            if isValid(workspace)
+        )
 
     def _remove_workspace(
         self,

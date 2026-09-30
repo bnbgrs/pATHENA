@@ -78,4 +78,38 @@ def test_reconcile_refreshes_cached_tokens_after_snapshot_change(monkeypatch) ->
     refreshed_right = _node("right", "wind storage")
     engine.reconcile(_snapshot(left, refreshed_right))
 
-    assert calls == ["left", "right"]
+    assert calls == ["right"]
+
+def test_reconcile_reuses_tokens_for_non_text_node_changes(monkeypatch) -> None:
+    original = living_module._tokens  # noqa: SLF001
+    calls: list[str] = []
+
+    def counted(node: PallasSemanticNode) -> frozenset[str]:
+        calls.append(node.node_id)
+        return original(node)
+
+    monkeypatch.setattr(living_module, "_tokens", counted)
+    left = _node("left", "solar battery")
+    right = _node("right", "battery storage")
+    engine = PallasLivingEngine()
+    engine.reconcile(_snapshot(left, right))
+    semantic_pairs_before = engine.diagnostics()["semantic_pairs"]
+
+    calls.clear()
+    revised_right = PallasSemanticNode(
+        node_id=right.node_id,
+        kind=right.kind,
+        entity_type=right.entity_type,
+        entity_id=right.entity_id,
+        revision_id="revision-right-2",
+        title=right.title,
+        summary=right.summary,
+        epistemic_status="reviewed",
+        cited=False,
+        confidence=0.77,
+    )
+    engine.reconcile(_snapshot(left, revised_right))
+
+    assert calls == []
+    assert engine.diagnostics()["semantic_pairs"] == semantic_pairs_before
+
