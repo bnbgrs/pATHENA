@@ -204,7 +204,7 @@ def test_dialog_projects_measured_vram_and_reference_hierarchy(
     assert controller.status.text() == "Connected · ComfyUI test-local · 1 device."
     assert controller.status.property("pathenaUiState") == "success"
     assert controller.resource_status.text() == (
-        "VRAM · 6.0 GiB used · 18.0 GiB free · 24.0 GiB total"
+        "GPU memory · 6.0 GiB used · 18.0 GiB free · 24.0 GiB total"
     )
     assert dialog.property("pathenaComfyUiVramAvailable") is True
     assert [
