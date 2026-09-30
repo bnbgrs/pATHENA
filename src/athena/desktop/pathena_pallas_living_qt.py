@@ -76,6 +76,8 @@ class PallasLivingQtController(QObject):
         self._snapshot: PallasGraphSnapshot | None = None
         self._activity = PallasActivityTracker()
         self._last_delta: PallasSnapshotDelta | None = None
+        self._delta_pulse_seconds = 4.0
+        self._delta_pulse_remaining = 0.0
         self._lens = "semantic"
         self._bindings: dict[int, _FieldBinding] = {}
         self._timer = QTimer(self)
@@ -116,6 +118,7 @@ class PallasLivingQtController(QObject):
         self._snapshot = None
         self._activity.reset()
         self._last_delta = None
+        self._delta_pulse_remaining = 0.0
 
     @Slot(object)
     def _apply_selection_focus(self, selection: object | None) -> None:
@@ -145,6 +148,11 @@ class PallasLivingQtController(QObject):
             }
             try:
                 self._last_delta = self._activity.observe(snapshot)
+                self._delta_pulse_remaining = (
+                    self._delta_pulse_seconds
+                    if self._last_delta is not None and not self._last_delta.is_empty
+                    else 0.0
+                )
             except ValueError as exc:
                 self._bindings.clear()
                 self._engine.clear()
@@ -200,7 +208,11 @@ class PallasLivingQtController(QObject):
         }
         diagnostics["fps_target"] = current_target_fps
         diagnostics["lens"] = self._lens
-        delta = self._last_delta
+        delta = (
+            self._last_delta
+            if self._delta_pulse_remaining > 0.0
+            else None
+        )
         diagnostics["delta_added"] = 0 if delta is None else len(delta.added_node_ids)
         diagnostics["delta_removed"] = 0 if delta is None else len(delta.removed_node_ids)
         diagnostics["delta_updated"] = 0 if delta is None else len(delta.updated_node_ids)
@@ -212,6 +224,10 @@ class PallasLivingQtController(QObject):
         diagnostics["focus_changed"] = False if delta is None else delta.focus_changed
         diagnostics["validation_error"] = ""
         self.diagnostics_changed.emit(diagnostics)
+        self._delta_pulse_remaining = max(
+            0.0,
+            self._delta_pulse_remaining - target_interval / 1000.0,
+        )
 
     def _live_fields(self) -> tuple[PallasSemanticField, ...]:
         return tuple(
