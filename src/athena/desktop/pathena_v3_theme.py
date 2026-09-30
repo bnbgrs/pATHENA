@@ -235,6 +235,22 @@ QWidget#chatMessages {
     border: none;
 }
 
+QFrame#emptyStatePanel {
+    background: transparent;
+    border: none;
+}
+
+QLabel#emptyStateTitle {
+    color: #F1F3F5;
+    font-size: 15pt;
+    font-weight: 650;
+}
+
+QLabel#emptyStateBody {
+    color: #98A1B1;
+    font-size: 9.5pt;
+}
+
 QFrame#v3Composer {
     background: #111718;
     border: 1px solid #293638;
