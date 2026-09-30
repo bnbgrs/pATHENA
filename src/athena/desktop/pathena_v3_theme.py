@@ -668,6 +668,13 @@ QPushButton#fileImportButton:focus {
     border-color: #F1F3F5;
 }
 
+QPushButton#researchStartButton:disabled,
+QPushButton#fileImportButton:disabled {
+    color: #77818B;
+    background: #182021;
+    border-color: #293638;
+}
+
 QPushButton#researchRefreshButton,
 QPushButton#researchCancelButton,
 QPushButton#fileRefreshButton,
@@ -1235,6 +1242,12 @@ QPushButton#comfyUiQueueWorkflow {
 QPushButton#comfyUiQueueWorkflow:hover {
     background: #9BE3D9;
     border-color: #9BE3D9;
+}
+
+QPushButton#comfyUiQueueWorkflow:disabled {
+    color: #77818B;
+    background: #182021;
+    border-color: #293638;
 }
 
 QPushButton#comfyUiReleaseVram {
