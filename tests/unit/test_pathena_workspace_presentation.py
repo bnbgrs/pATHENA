@@ -190,6 +190,15 @@ def test_dynamic_workspace_copy_stays_humanized_without_duplicate_sync_timers() 
         _sync_dynamic_workspace_copy(window)
         assert state.text() == "Ready to add"
         assert runtime.text() == "Core unavailable"
+
+        workspace.setObjectName("v3KnowledgeWorkspace")
+        state.setText("PREFLIGHT / PENDING")
+        runtime.setText("CORE  READY  /  CHATS  2")
+        source.setText("SOURCE CHAT  ABCDEF12  /  MESSAGE  12345678")
+        _sync_dynamic_workspace_copy(window)
+        assert state.text() == "Checking…"
+        assert runtime.text() == "Core ready · 2 conversations"
+        assert source.text() == "From conversation · selected message"
     finally:
         window.close()
         app.processEvents()
