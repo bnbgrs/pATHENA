@@ -53,7 +53,7 @@ QFrame#v3Workspace {
 QFrame#v3Rail {
     background: #0D1014;
     border: none;
-    border-right: 1px solid #202532;
+    border-right: 1px solid #20272D;
 }
 
 QLabel#v3Mark {
@@ -65,7 +65,7 @@ QLabel#v3Mark {
 }
 
 QToolButton[v3Nav="true"] {
-    color: #8992A2;
+    color: #89929A;
     background: transparent;
     border: 1px solid transparent;
     border-radius: 11px;
@@ -129,9 +129,9 @@ QFrame#v3WorkbarActions {
 }
 
 QPushButton#v3CommandButton {
-    color: #98A1B1;
-    background: #11151D;
-    border: 1px solid #252C39;
+    color: #99A3AB;
+    background: #11151A;
+    border: 1px solid #282F35;
     border-radius: 11px;
     padding: 7px 11px;
     text-align: left;
@@ -303,7 +303,7 @@ QPushButton#sendButton:hover {
 }
 
 QPushButton#sendButton:disabled {
-    color: #626C7D;
+    color: #646E76;
     background: #29313A;
 }
 
@@ -347,7 +347,7 @@ QComboBox#chatSelector:focus {
 }
 
 QComboBox#modelSelector {
-    background: #11151D;
+    background: #11151A;
     border-color: #252C33;
 }
 
@@ -397,8 +397,8 @@ QListWidget#researchProposalList,
 QListWidget#durableJobList,
 QListWidget#sourceList {
     color: #F1F3F5;
-    background: #11151D;
-    border: 1px solid #252C39;
+    background: #11151A;
+    border: 1px solid #282F35;
     border-radius: 14px;
     padding: 6px;
 }
@@ -426,8 +426,8 @@ QPlainTextEdit#researchDetails,
 QPlainTextEdit#jobDetails,
 QPlainTextEdit#sourceDetails {
     color: #F1F3F5;
-    background: #11151D;
-    border: 1px solid #252C39;
+    background: #11151A;
+    border: 1px solid #282F35;
     border-radius: 14px;
     padding: 15px;
 }
@@ -520,7 +520,7 @@ QLabel#v3RuntimeCardTitle {
 
 QLabel#v3RuntimeCardHint,
 QWidget#v3SettingsRuntimePanel {
-    color: #9099A9;
+    color: #9099A1;
 }
 
 QWidget#v3SettingsPage {
@@ -537,9 +537,9 @@ QWidget#v3SettingsForm {
 
 QFrame#inspector,
 QFrame#v3PallasInspector {
-    background: #11151D;
+    background: #11151A;
     border: none;
-    border-left: 1px solid #252C39;
+    border-left: 1px solid #282F35;
 }
 
 QLabel#inspectorTitle,
@@ -574,7 +574,7 @@ QWidget#pallasSemanticField {
 
 QFrame#v3PallasTopbar {
     background: #0D1014;
-    border: 1px solid #202532;
+    border: 1px solid #20272D;
     border-radius: 14px;
 }
 
@@ -586,7 +586,7 @@ QLabel#pallasSemanticSelection {
 }
 
 QLabel#pallasSemanticLegend {
-    color: #687284;
+    color: #68727A;
     font-family: "Cascadia Mono";
     font-size: 8pt;
     letter-spacing: 0.2px;
@@ -669,9 +669,9 @@ QPushButton:focus {
 }
 
 QPushButton:disabled {
-    color: #626C7D;
-    background: #11151D;
-    border-color: #252C39;
+    color: #646E76;
+    background: #11151A;
+    border-color: #282F35;
 }
 
 /* Semantic workspace actions stay legible after legacy object-name refinement. */
@@ -733,9 +733,9 @@ QPushButton#fileProcessButton:focus {
 
 QPushButton#researchCancelButton:disabled,
 QPushButton#fileProcessButton:disabled {
-    color: #687284;
-    background: #11151D;
-    border-color: #252C39;
+    color: #68727A;
+    background: #11151A;
+    border-color: #282F35;
 }
 
 QPushButton#sendButton:disabled {
@@ -871,7 +871,7 @@ QLabel#v3SchedulerStatus,
 QLabel#v3SourcesStatus,
 QLabel#v3SystemDetail,
 QLabel#v3RuntimeCardHint {
-    color: #98A1B1;
+    color: #99A3AB;
     font-size: 8.8pt;
 }
 
@@ -887,8 +887,8 @@ QLabel#v3KnowledgeMeta {
 }
 
 QTabWidget#v3KnowledgeTabs::pane {
-    background: #11151D;
-    border: 1px solid #252C39;
+    background: #11151A;
+    border: 1px solid #282F35;
     border-radius: 14px;
     top: -1px;
 }
@@ -958,7 +958,7 @@ QFrame#v3KnowledgeSearch {
 QFrame#v3KnowledgeIdentity {
     background: transparent;
     border: none;
-    border-bottom: 1px solid #202532;
+    border-bottom: 1px solid #20272D;
 }
 
 QLabel#v3WorkspaceLead {
@@ -1013,9 +1013,9 @@ QListWidget#semanticReviewList,
 QListWidget#researchJobList,
 QListWidget#durableJobList,
 QListWidget#sourceList {
-    color: #C6CDD9;
-    background: #11151D;
-    border: 1px solid #252C39;
+    color: #C9CED2;
+    background: #11151A;
+    border: 1px solid #282F35;
     border-radius: 12px;
     padding: 6px;
     outline: 0;
@@ -1058,16 +1058,16 @@ QWidget#semanticReviewDetails,
 QWidget#researchDetails,
 QWidget#jobDetails,
 QWidget#sourceDetails {
-    color: #D6DCE7;
-    background: #11151D;
-    border: 1px solid #252C39;
+    color: #D9DDDF;
+    background: #11151A;
+    border: 1px solid #282F35;
     border-radius: 12px;
 }
 
 QSplitter#v3ResearchSplit::handle,
 QSplitter#v3JobsSplit::handle,
 QSplitter#v3SourcesSplit::handle {
-    background: #202532;
+    background: #20272D;
     width: 1px;
     margin: 0 7px;
 }
@@ -1075,11 +1075,11 @@ QSplitter#v3SourcesSplit::handle {
 QFrame#v3SystemActivity,
 QFrame#v3SecurityPosture,
 QFrame[v3HealthTile="true"] {
-    border-color: #252C39;
+    border-color: #282F35;
 }
 
 QPushButton#pallasBackButton {
-    color: #C6CDD9;
+    color: #C9CED2;
     background: #14181D;
     border: 1px solid #29313A;
     border-radius: 9px;
@@ -1104,7 +1104,7 @@ QWidget#helpWorkspace,
 QDialog#comfyUiDialog {
     color: #F1F3F5;
     background: #0D1014;
-    border: 1px solid #343D4E;
+    border: 1px solid #343B42;
     border-radius: 18px;
 }
 
@@ -1240,8 +1240,8 @@ QLabel#helpDialogIntro {
 
 QPlainTextEdit#helpText {
     color: #DCD7E0;
-    background: #11151D;
-    border: 1px solid #252C39;
+    background: #11151A;
+    border: 1px solid #282F35;
     border-radius: 14px;
     padding: 16px;
     font-family: "Segoe UI Variable", "Segoe UI", sans-serif;
@@ -1259,8 +1259,8 @@ QDialog#comfyUiDialog[pathenaShellHosted="true"] {
 
 QFrame#comfyUiPanel,
 QFrame#comfyUiActivityPanel {
-    background: #11151D;
-    border: 1px solid #252C39;
+    background: #11151A;
+    border: 1px solid #282F35;
     border-radius: 14px;
 }
 
@@ -1286,7 +1286,7 @@ QLabel#comfyUiFieldLabel {
 
 QLineEdit#comfyUiEndpoint,
 QLineEdit#comfyUiWorkflowPath {
-    color: #D6DCE7;
+    color: #D9DDDF;
     background: #0D1116;
     border: 1px solid #29313A;
     border-radius: 10px;
@@ -1337,7 +1337,7 @@ QPushButton#comfyUiQueueWorkflow:disabled {
 }
 
 QPushButton#comfyUiReleaseVram {
-    color: #C6CDD9;
+    color: #C9CED2;
     background: #14181D;
     border-color: #29313A;
 }
@@ -1346,6 +1346,40 @@ QPushButton#comfyUiReleaseVram:hover {
     color: #F1F3F5;
     background: #1A2026;
     border-color: #3B4652;
+}
+
+/* --- Final coherence: quieter settings/system/chat chrome ------------- */
+
+QFrame#v3SettingsRuntimeSection {
+    background: transparent;
+    border: none;
+    border-top: 1px solid #20272D;
+    border-radius: 0;
+}
+
+QFrame#v3SystemActivity,
+QFrame#v3SecurityPosture {
+    background: transparent;
+    border: none;
+    border-top: 1px solid #20272D;
+    border-radius: 0;
+}
+
+QPushButton[v3QuietDanger="true"] {
+    color: #858F99;
+    background: transparent;
+    border: 1px solid transparent;
+}
+
+QPushButton[v3QuietDanger="true"]:hover {
+    color: #F2C2C2;
+    background: #21171C;
+    border-color: #443039;
+}
+
+QPushButton[v3QuietDanger="true"]:focus {
+    color: #D8A3A3;
+    border-color: #5D434B;
 }
 
 /* --- Editorial empty states ------------------------------------------- */
@@ -1363,7 +1397,7 @@ QLabel#v3EmptyTitle {
 }
 
 QLabel#v3EmptyBody {
-    color: #98A1B1;
+    color: #99A3AB;
     font-size: 9.5pt;
 }
 """
