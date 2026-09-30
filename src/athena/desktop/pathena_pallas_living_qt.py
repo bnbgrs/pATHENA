@@ -359,6 +359,9 @@ class PallasLivingQtController(QObject):
             if source is not None and target is not None:
                 line.setLine(source[0], source[1], target[0], target[1])
 
+        if self._engine.tick % 8 == 0:
+            binding.field.expand_scene_to_items()
+
 
 def _nearest_seed_line(
     lines: list[QGraphicsLineItem],
