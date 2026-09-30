@@ -173,3 +173,23 @@ def test_living_scene_bounds_expand_without_shrinking(
         field.close()
         field.deleteLater()
 
+def test_fit_all_restores_automatic_overview_after_manual_view_change(
+    qapp: QApplication,
+) -> None:
+    field = _ready_field(qapp)
+    try:
+        claim = field._items["claim"]  # noqa: SLF001
+        claim.setPos(320.0, 220.0)
+        field.canvas.scale(1.8, 1.8)
+        field.canvas._auto_fit = False  # noqa: SLF001
+
+        field.fit_all()
+        qapp.processEvents()
+
+        assert field.canvas._auto_fit is True  # noqa: SLF001
+        assert field.scene.sceneRect().contains(claim.sceneBoundingRect())
+        assert field.canvas.transform().m11() > 0
+    finally:
+        field.close()
+        field.deleteLater()
+
