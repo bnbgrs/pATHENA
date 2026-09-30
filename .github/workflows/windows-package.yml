@@ -307,3 +307,4 @@ jobs:
             ${{ env.MANIFEST_PATH }}
           if-no-files-found: error
           retention-days: 14
+# build trigger 2026-09-30 19:24 Europe/Berlin — app source remains identical to 9a51d638cc48c2b4141abe7ea730aaf585217ebd
