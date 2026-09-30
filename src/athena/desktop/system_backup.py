@@ -23,7 +23,6 @@ from PySide6.QtWidgets import (
 from athena.desktop.pathena_v3_theme import (
     V3_ACCENT,
     V3_BG,
-    V3_BORDER,
     V3_SURFACE_HOVER,
     V3_TEXT,
     V3_TEXT_DIM,
