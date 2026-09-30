@@ -282,19 +282,19 @@ class PathenaStartupExperience(QObject):
         *, title: QLabel, body: QLabel, raw_text: str, core_ready: bool
     ) -> None:
         if not core_ready:
-            title.setText("Starting local workspace")
+            title.setText("Preparing your workspace")
             body.setText(
-                "Connecting to local services. Chat, knowledge, research and sources "
-                "stay on this machine."
+                "Connecting to local services. Your chats, knowledge, research and sources "
+                "remain on this machine."
             )
         elif raw_text.startswith("Conversation deleted"):
             title.setText("Conversation deleted")
             body.setText("The local workspace is ready for a new conversation.")
         else:
-            title.setText("Start a conversation")
+            title.setText("What are you working on?")
             body.setText(
-                "Ask, research, or work with your local knowledge. Add sources when "
-                "you need evidence."
+                "Ask a question, start research, or work from your local knowledge. Add sources "
+                "when you need evidence."
             )
 
     @staticmethod
