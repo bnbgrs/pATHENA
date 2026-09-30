@@ -327,7 +327,9 @@ def _sync_research_presentation(window: QWidget) -> None:
         return
     cancel = research.findChild(QPushButton, "researchCancelButton")
     if cancel is not None:
-        cancel.setVisible(cancel.isEnabled())
+        cancel.setVisible(
+            True if research.property("pathenaV3Composed") is True else cancel.isEnabled()
+        )
 
 
 def _sync_jobs_presentation(window: QWidget) -> None:
@@ -335,6 +337,7 @@ def _sync_jobs_presentation(window: QWidget) -> None:
     if jobs is None:
         return
 
+    v3_owns_actions = jobs.property("pathenaV3Composed") is True
     for object_name in (
         "jobPauseButton",
         "jobResumeButton",
@@ -343,7 +346,7 @@ def _sync_jobs_presentation(window: QWidget) -> None:
     ):
         button = jobs.findChild(QPushButton, object_name)
         if button is not None:
-            button.setVisible(button.isEnabled())
+            button.setVisible(True if v3_owns_actions else button.isEnabled())
 
     for label in jobs.findChildren(QLabel):
         text = label.text()
@@ -363,7 +366,9 @@ def _sync_files_presentation(window: QWidget) -> None:
         return
     process = files.findChild(QPushButton, "fileProcessButton")
     if process is not None:
-        process.setVisible(process.isEnabled())
+        process.setVisible(
+            True if files.property("pathenaV3Composed") is True else process.isEnabled()
+        )
 
 
 def _sync_system_presentation(window: QWidget) -> None:
