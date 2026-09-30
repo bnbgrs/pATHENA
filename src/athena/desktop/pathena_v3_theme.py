@@ -80,9 +80,9 @@ QToolButton[v3Nav="true"]:hover {
 }
 
 QToolButton[v3Nav="true"]:focus {
-    color: #F1F3F5;
-    background: #1A2026;
-    border-color: #78D1C5;
+    color: #D7DBDF;
+    background: #14181D;
+    border-color: #3B4652;
 }
 
 QToolButton[v3Nav="true"][active="true"] {
