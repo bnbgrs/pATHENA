@@ -65,7 +65,7 @@ class _SystemStatusRow(QFrame):
         copy.addWidget(heading)
         copy.addWidget(self.description)
 
-        self.value = QLabel("Awaiting snapshot")
+        self.value = QLabel("Waiting for status")
         self.value.setObjectName("settingsValue")
         self.value.setAlignment(
             Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
@@ -232,7 +232,7 @@ class SystemWorkspace(QWidget):
         self.recent_events.setWordWrap(True)
         set_pathena_ui_state(self.recent_events, "empty")
 
-        self.detail = QLabel("Waiting for local status.")
+        self.detail = QLabel("Waiting for local status…")
         self.detail.setObjectName("systemDetail")
         self.detail.setWordWrap(True)
         self.detail.setTextInteractionFlags(
