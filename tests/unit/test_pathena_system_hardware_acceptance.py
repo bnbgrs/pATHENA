@@ -111,7 +111,7 @@ def test_system_hardware_panel_loads_existing_machine_report(tmp_path: Path) -> 
     assert panel.status.text() == "PASS"
     assert panel.property("pathenaHardwareAcceptanceStatus") == "PASS"
     assert panel.detail.property("pathenaHardwareAcceptanceReport") == str(report)
-    assert panel.run_button.text() == "RUN CHECK"
+    assert panel.run_button.text() == "Run check"
 
 
 def test_system_workspace_exposes_compact_target_hardware_panel() -> None:
@@ -119,5 +119,7 @@ def test_system_workspace_exposes_compact_target_hardware_panel() -> None:
     workspace = SystemWorkspace(None)
 
     assert workspace.hardware_acceptance.objectName() == "systemHardwareAcceptance"
+    assert workspace.hardware_acceptance.accessibleName() == "Hardware acceptance check"
+    assert workspace.hardware_acceptance.run_button.accessibleName() == "Run hardware check"
     assert workspace.hardware_acceptance.property("pathenaTargetHardwareAcceptance") is True
     assert workspace.hardware_acceptance.status.text() in {"NOT RUN", "PASS", "FAIL", "INVALID"}
