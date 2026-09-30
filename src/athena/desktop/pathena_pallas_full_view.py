@@ -412,6 +412,12 @@ class PallasFullViewController(QObject):
             or not isinstance(diagnostics, dict)
         ):
             return
+        validation_error = str(diagnostics.get("validation_error", "") or "")
+        if validation_error:
+            status.setText("FIELD • LIVING PAUSED • SNAPSHOT REJECTED")
+            status.setToolTip(validation_error)
+            return
+        status.setToolTip("")
         fps = diagnostics.get("fps_target", 30)
         active = diagnostics.get("active", 0)
         nodes = diagnostics.get("nodes", 0)
