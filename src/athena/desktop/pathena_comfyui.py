@@ -339,7 +339,7 @@ class ComfyUiController(QObject):
         title_row.addWidget(self.close_button)
         outer.addLayout(title_row)
 
-        intro = QLabel("Local image + video workflow · loopback only")
+        intro = QLabel("Run local image and video workflows without leaving this device")
         intro.setWordWrap(True)
         intro.setProperty("role", "muted")
         intro.setVisible(self._workspace is None)
@@ -382,14 +382,14 @@ class ComfyUiController(QObject):
         self.endpoint.setAccessibleName("ComfyUI local endpoint")
         connection_layout.addWidget(self.endpoint)
 
-        self.status = QLabel("Not checked · local endpoint has not been probed.")
+        self.status = QLabel("Connection not checked yet.")
         self.status.setObjectName("comfyUiStatus")
         self.status.setWordWrap(True)
         self.status.setProperty("pathenaUiState", "empty")
         self.status.setAccessibleName("ComfyUI connection status")
         connection_layout.addWidget(self.status)
 
-        self.resource_status = QLabel("VRAM · unavailable until the local endpoint is checked.")
+        self.resource_status = QLabel("GPU memory appears after the connection is checked.")
         self.resource_status.setObjectName("comfyUiResourceStatus")
         self.resource_status.setWordWrap(True)
         self.resource_status.setProperty("role", "muted")
@@ -409,7 +409,7 @@ class ComfyUiController(QObject):
         workflow_layout.addWidget(workflow_label)
 
         workflow_hint = QLabel(
-            "Choose an API-format workflow. pATHENA queues it to the local ComfyUI server."
+            "Choose a ComfyUI API workflow, then run it on the local ComfyUI server."
         )
         workflow_hint.setObjectName("comfyUiPanelHint")
         workflow_hint.setWordWrap(True)
@@ -418,7 +418,7 @@ class ComfyUiController(QObject):
         self.workflow_field = QLineEdit()
         self.workflow_field.setObjectName("comfyUiWorkflowPath")
         self.workflow_field.setReadOnly(True)
-        self.workflow_field.setPlaceholderText("No API workflow selected")
+        self.workflow_field.setPlaceholderText("No workflow selected")
         self.workflow_field.setAccessibleName("ComfyUI API workflow")
         self.browse_button = QPushButton("Choose workflow…")
         self.browse_button.setObjectName("comfyUiBrowseWorkflow")
@@ -432,7 +432,7 @@ class ComfyUiController(QObject):
 
         workflow_actions = QHBoxLayout()
         workflow_actions.setContentsMargins(0, 0, 0, 0)
-        self.queue_button = QPushButton("Queue workflow")
+        self.queue_button = QPushButton("Run workflow")
         self.queue_button.setObjectName("comfyUiQueueWorkflow")
         self.queue_button.setEnabled(False)
         self.queue_button.clicked.connect(self.queue_selected_workflow)
@@ -456,7 +456,7 @@ class ComfyUiController(QObject):
         activity_label.setObjectName("comfyUiSectionTitle")
         activity_layout.addWidget(activity_label)
 
-        self.job_status = QLabel("No ComfyUI job tracked in this session.")
+        self.job_status = QLabel("No workflow is running in this session.")
         self.job_status.setObjectName("comfyUiJobStatus")
         self.job_status.setWordWrap(True)
         self.job_status.setProperty("pathenaUiState", "empty")
@@ -473,11 +473,11 @@ class ComfyUiController(QObject):
         operations = QHBoxLayout()
         operations.setContentsMargins(0, 0, 0, 0)
         operations.setSpacing(8)
-        self.refresh_job_button = QPushButton("Refresh job")
+        self.refresh_job_button = QPushButton("Refresh status")
         self.refresh_job_button.setObjectName("comfyUiRefreshJob")
         self.refresh_job_button.setEnabled(False)
         self.refresh_job_button.clicked.connect(self.refresh_prompt_status)
-        self.release_vram_button = QPushButton("Release VRAM")
+        self.release_vram_button = QPushButton("Free GPU memory")
         self.release_vram_button.setObjectName("comfyUiReleaseVram")
         self.release_vram_button.clicked.connect(self.release_vram)
         operations.addWidget(self.refresh_job_button)
@@ -619,7 +619,7 @@ class ComfyUiController(QObject):
         self.receipt.clear()
         self._set_status(
             "ready",
-            f"Workflow ready · {len(workflow)} nodes · queueing stays local.",
+            f"Workflow ready · {len(workflow)} nodes · runs locally.",
         )
 
     def check_connection(self) -> bool:
@@ -651,10 +651,10 @@ class ComfyUiController(QObject):
             return False
         self.last_prompt_id = receipt.prompt_id
         self.refresh_job_button.setEnabled(True)
-        self._set_status("success", "Workflow queued in local ComfyUI.")
+        self._set_status("success", "Workflow sent to local ComfyUI.")
         self.receipt.setText(f"Prompt ID · {receipt.prompt_id}")
         self.receipt.setProperty("pathenaComfyUiPromptId", receipt.prompt_id)
-        self._set_job_status("pending", "Queued · refresh to read the live ComfyUI state.")
+        self._set_job_status("pending", "Queued locally · refresh to read the current state.")
         return True
 
     def refresh_prompt_status(self) -> bool:
@@ -667,10 +667,10 @@ class ComfyUiController(QObject):
             self._set_job_status("error", str(exc))
             return False
         labels = {
-            "pending": "Pending in ComfyUI queue.",
-            "running": "Running in ComfyUI.",
-            "completed": "Completed in ComfyUI history.",
-            "unknown": "Not present in current ComfyUI queue or history.",
+            "pending": "Waiting in the local queue.",
+            "running": "Running locally in ComfyUI.",
+            "completed": "Completed.",
+            "unknown": "No longer present in the current queue or history.",
         }
         self._set_job_status(state.state, labels[state.state])
         return True
