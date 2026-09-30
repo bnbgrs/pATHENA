@@ -210,8 +210,8 @@ def test_dialog_projects_measured_vram_and_reference_hierarchy(
     assert [
         label.text()
         for label in dialog.findChildren(QLabel)
-        if label.objectName() == "comfyUiSectionLabel"
-    ] == ["CONNECTION", "WORKFLOW", "ACTIVITY"]
+        if label.objectName() == "comfyUiSectionTitle"
+    ] == ["Connection", "Workflow", "Activity"]
     assert controller.queue_button.isEnabled()
 
     controller.deleteLater()
