@@ -21,6 +21,7 @@ from athena.desktop.pathena_pallas_field import (
     PallasWorkspace,
 )
 from athena.desktop.pathena_pallas_living_qt import PallasLivingQtController
+from athena.desktop.pathena_pallas_semantic import PallasGraphSnapshot
 from athena.desktop.pathena_v3_theme import V3_BG
 
 
@@ -54,6 +55,8 @@ class PallasFullViewController(QObject):
         self._v3_inspector_title: QLabel | None = None
         self._v3_inspector_body: QLabel | None = None
         self._last_inspector_living_signature: tuple[str, int, int] | None = None
+        self._relationship_snapshot: PallasGraphSnapshot | None = None
+        self._relationship_cache: dict[str, tuple[str, ...]] = {}
         center = window.findChild(QFrame, "conversation")
         reference_body = window.findChild(QFrame, "referenceBody")
         body_layout = reference_body.layout() if reference_body is not None else None
@@ -170,28 +173,41 @@ class PallasFullViewController(QObject):
         panel = self._window.findChild(QFrame, "inspector")
         return panel if isinstance(panel, QFrame) else None
 
-    def _relationship_lines(self, node_id: str) -> tuple[str, ...]:
+    def _refresh_relationship_cache(self) -> None:
         snapshot = self._grounded_controller.field.snapshot
-        if snapshot is None or not node_id:
-            return ()
+        if snapshot == self._relationship_snapshot:
+            return
+        self._relationship_snapshot = snapshot
+        if snapshot is None:
+            self._relationship_cache = {}
+            return
+
         nodes = {node.node_id: node for node in snapshot.nodes}
-        relationships: list[str] = []
+        relationships: dict[str, list[str]] = {
+            node_id: [] for node_id in nodes
+        }
         for edge in snapshot.edges:
-            if edge.source_id == node_id:
-                other = nodes.get(edge.target_id)
-                if other is not None:
-                    relation = edge.relation.replace("_", " ")
-                    relationships.append(
-                        f"→ {relation} · {other.glyph} {other.title}"
-                    )
-            elif edge.target_id == node_id:
-                other = nodes.get(edge.source_id)
-                if other is not None:
-                    relation = edge.relation.replace("_", " ")
-                    relationships.append(
-                        f"← {relation} · {other.glyph} {other.title}"
-                    )
-        return tuple(relationships)
+            source = nodes.get(edge.source_id)
+            target = nodes.get(edge.target_id)
+            if source is None or target is None:
+                continue
+            relation = edge.relation.replace("_", " ")
+            relationships[source.node_id].append(
+                f"→ {relation} · {target.glyph} {target.title}"
+            )
+            relationships[target.node_id].append(
+                f"← {relation} · {source.glyph} {source.title}"
+            )
+        self._relationship_cache = {
+            node_id: tuple(lines)
+            for node_id, lines in relationships.items()
+        }
+
+    def _relationship_lines(self, node_id: str) -> tuple[str, ...]:
+        if not node_id:
+            return ()
+        self._refresh_relationship_cache()
+        return self._relationship_cache.get(node_id, ())
 
     @Slot(object)
     def _sync_v3_inspector(self, selection: object | None) -> None:
@@ -559,6 +575,8 @@ class PallasFullViewController(QObject):
         self._v3_inspector_title = None
         self._v3_inspector_body = None
         self._last_inspector_living_signature = None
+        self._relationship_snapshot = None
+        self._relationship_cache.clear()
 
 
 def install_pallas_full_view(
