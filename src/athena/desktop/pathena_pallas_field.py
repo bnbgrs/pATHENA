@@ -76,6 +76,10 @@ _MEMORY = QColor("#A8C5A2")
 _CONFLICT = QColor(V3_DANGER)
 _UNCERTAIN = QColor(V3_WARNING)
 
+PALLAS_EDGE_SOURCE_DATA_KEY = 7401
+PALLAS_EDGE_TARGET_DATA_KEY = 7402
+PALLAS_EDGE_RELATION_DATA_KEY = 7403
+
 
 @dataclass(frozen=True, slots=True)
 class PallasSelection:
@@ -320,6 +324,9 @@ class PallasSemanticField(QWidget):
             if source is None or target is None:
                 continue
             line = QGraphicsLineItem(source.x(), source.y(), target.x(), target.y())
+            line.setData(PALLAS_EDGE_SOURCE_DATA_KEY, edge.source_id)
+            line.setData(PALLAS_EDGE_TARGET_DATA_KEY, edge.target_id)
+            line.setData(PALLAS_EDGE_RELATION_DATA_KEY, edge.relation)
             line.setPen(QPen(_BORDER, 1.0))
             line.setToolTip(edge.relation.replace("_", " "))
             line.setZValue(-1.0)
