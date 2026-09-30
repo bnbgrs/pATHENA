@@ -332,7 +332,7 @@ class PallasLivingEngine:
         age = 0.0 if state is None else state.age_seconds
         return age_glyph(age, self.config.aging_horizon_seconds)
 
-    def diagnostics(self) -> dict[str, float | int]:
+    def diagnostics(self) -> dict[str, float | int | str]:
         values = tuple(self.states.values())
         mean_vitality = (
             0.0
