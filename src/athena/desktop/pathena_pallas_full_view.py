@@ -392,7 +392,7 @@ class PallasFullViewController(QObject):
         fit_button.clicked.connect(workspace.field.fit_all)
 
         legend = QLabel(
-            "△ SOURCE   ◆ CLAIM   ■ KNOWLEDGE   ◇ HYPOTHESIS   "
+            "◉ FOCUS   △ SOURCE   ◆ CLAIM   ■ KNOWLEDGE   ◇ HYPOTHESIS   "
             "● MEMORY   × CONFLICT   ≈ UNCERTAIN",
             host,
         )
@@ -401,8 +401,9 @@ class PallasFullViewController(QObject):
         legend.setWordWrap(True)
         legend.setAccessibleName("PALLAS semantic glyph legend")
         legend.setAccessibleDescription(
-            "Triangle source, diamond claim, square knowledge, hollow diamond "
-            "hypothesis, circle memory, cross conflict, approximately uncertain."
+            "Bullseye focus, triangle source, diamond claim, square knowledge, "
+            "hollow diamond hypothesis, circle memory, cross conflict, approximately "
+            "uncertain."
         )
         outer.addWidget(legend)
 
