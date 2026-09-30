@@ -126,6 +126,7 @@ class V3WorkspaceHeader(QFrame):
         self.setFixedHeight(68)
 
         layout = QHBoxLayout(self)
+        self._layout = layout
         layout.setContentsMargins(28, 10, 24, 10)
         layout.setSpacing(14)
 
@@ -158,6 +159,12 @@ class V3WorkspaceHeader(QFrame):
     def set_compact(self, compact: bool) -> None:
         self.setFixedHeight(58 if compact else 68)
         self.hint_label.setVisible(not compact)
+        if compact:
+            self._layout.setContentsMargins(18, 7, 16, 7)
+            self._layout.setSpacing(10)
+        else:
+            self._layout.setContentsMargins(28, 10, 24, 10)
+            self._layout.setSpacing(14)
 
 
 class V3Pill(QLabel):
@@ -252,9 +259,9 @@ class V3ActionHost(QFrame):
                 border = QColor("#78D1C5" if focused else "#29313A")
                 foreground = QColor("#F1F3F5" if hovered else "#A5ACB4")
             else:
-                background = QColor("#11151D")
-                border = QColor("#252C39")
-                foreground = QColor("#626C7D")
+                background = QColor("#11151A")
+                border = QColor("#282F35")
+                foreground = QColor("#646E76")
 
             painter.setPen(QPen(border, 1.0))
             painter.setBrush(background)
