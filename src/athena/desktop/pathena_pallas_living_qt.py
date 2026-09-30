@@ -137,6 +137,8 @@ class PallasLivingQtController(QObject):
             self._bindings.clear()
             self._engine.clear()
             self._snapshot = None
+            for current in self._live_fields():
+                current.setProperty("pathenaPallasLivingError", "")
             if self._timer.interval() != self._idle_interval_ms:
                 self._timer.setInterval(self._idle_interval_ms)
             return
@@ -157,7 +159,8 @@ class PallasLivingQtController(QObject):
                 self._bindings.clear()
                 self._engine.clear()
                 self._snapshot = snapshot
-                field.setProperty("pathenaPallasLivingError", str(exc))
+                for current in self._live_fields():
+                    current.setProperty("pathenaPallasLivingError", str(exc))
                 self.diagnostics_changed.emit(
                     {
                         "nodes": len(snapshot.nodes),
@@ -171,7 +174,8 @@ class PallasLivingQtController(QObject):
             selection = getattr(self._grounded_controller, "_selection", None)
             self._apply_selection_focus(selection)
             self._snapshot = snapshot
-            field.setProperty("pathenaPallasLivingError", "")
+            for current in self._live_fields():
+                current.setProperty("pathenaPallasLivingError", "")
             self._bindings.clear()
 
         fields = self._live_fields()
