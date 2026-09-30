@@ -307,3 +307,5 @@ jobs:
             ${{ env.MANIFEST_PATH }}
           if-no-files-found: error
           retention-days: 14
+
+# build trigger: V3 + headless LM Studio runtime 2026-09-30
