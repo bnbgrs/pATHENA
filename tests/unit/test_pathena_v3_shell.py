@@ -5,7 +5,7 @@ import os
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QApplication, QFrame, QPlainTextEdit, QToolButton
+from PySide6.QtWidgets import QApplication, QFrame, QLabel, QPlainTextEdit, QToolButton
 
 from athena.desktop.pathena_v3_shell import install_v3_shell
 from athena.desktop.pathena_v3_theme import PATHENA_V3_STYLESHEET
@@ -213,7 +213,7 @@ def test_v3_shell_keeps_core_chat_controls_visible_at_minimum_desktop_size() -> 
         assert controller._pallas_button.width() == 58
         assert all(
             label.isHidden()
-            for label in window.findChildren(type(controller._header.title_label), "v3MetaLabel")
+            for label in window.findChildren(QLabel, "v3MetaLabel")
         )
         assert window.chat_selector.minimumWidth() == 150
         assert window.model_selector.minimumWidth() == 145
@@ -227,7 +227,7 @@ def test_v3_shell_keeps_core_chat_controls_visible_at_minimum_desktop_size() -> 
         assert controller._pallas_button.width() == 64
         assert all(
             label.isVisible()
-            for label in window.findChildren(type(controller._header.title_label), "v3MetaLabel")
+            for label in window.findChildren(QLabel, "v3MetaLabel")
         )
         assert window.chat_selector.minimumWidth() == 190
         assert window.model_selector.minimumWidth() == 170
