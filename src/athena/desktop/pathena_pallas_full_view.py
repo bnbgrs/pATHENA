@@ -447,6 +447,10 @@ class PallasFullViewController(QObject):
         if validation_error:
             status.setText("FIELD • LIVING PAUSED • SNAPSHOT REJECTED")
             status.setToolTip(validation_error)
+            status.setAccessibleDescription(
+                "PALLAS living presentation is paused because the graph snapshot "
+                f"was rejected: {validation_error}"
+            )
             return
         status.setToolTip("")
         fps = diagnostics.get("fps_target", 30)
@@ -465,6 +469,10 @@ class PallasFullViewController(QObject):
             )
         status.setText(
             f"FIELD • {fps} FPS • {active}/{nodes} ACTIVE • {lens}{activity}"
+        )
+        status.setAccessibleDescription(
+            f"PALLAS living field at {fps} frames per second; "
+            f"{active} of {nodes} nodes active; {lens.casefold()} lens."
         )
 
     @Slot()
