@@ -81,14 +81,14 @@ def test_icon_navigation_exposes_human_page_names_to_accessibility() -> None:
 
 def test_disabled_composer_no_longer_looks_primary() -> None:
     assert "QPushButton#sendButton:disabled" in _STARTUP_STYLESHEET
-    assert "background: #252E43" in _STARTUP_STYLESHEET
+    assert "background: #20292A" in _STARTUP_STYLESHEET
     assert "QLineEdit#promptInput:disabled" in _STARTUP_STYLESHEET
 
 
 def test_quiet_workspace_contract_remains_effect_free() -> None:
     lowered = _STARTUP_STYLESHEET.lower()
     assert "#f26a21" not in lowered
-    assert "#252e43" in lowered
+    assert "#20292a" in lowered
     assert "glow" not in lowered
     assert "shadow" not in lowered
     assert "gradient" not in lowered
@@ -172,7 +172,7 @@ def test_disconnected_startup_copy_keeps_core_infrastructure_in_background() -> 
     assert send.accessibleDescription() == send.toolTip()
     title = messages.findChild(QLabel, "emptyStateTitle")
     assert title is not None
-    assert title.text() == "Getting pATHENA ready"
+    assert title.text() == "Starting local workspace"
 
 
 def test_ready_status_refreshes_accessibility_description_from_current_truth() -> None:
@@ -210,7 +210,7 @@ def test_empty_state_copy_refreshes_after_disconnected_to_ready_transition() -> 
     body = messages.findChild(QLabel, "emptyStateBody")
     assert title is not None
     assert body is not None
-    assert title.text() == "Getting pATHENA ready"
+    assert title.text() == "Starting local workspace"
 
     window._core_transport_ready = True
     controller.sync()
@@ -222,7 +222,7 @@ def test_empty_state_copy_refreshes_after_disconnected_to_ready_transition() -> 
     assert body.alignment() & Qt.AlignmentFlag.AlignLeft
     panel = messages.findChild(QFrame, "emptyStatePanel")
     assert panel is not None
-    assert panel.minimumHeight() == 116
+    assert panel.minimumHeight() == 100
 
 
 def test_empty_state_width_tracks_available_chat_space_without_exceeding_cap() -> None:
