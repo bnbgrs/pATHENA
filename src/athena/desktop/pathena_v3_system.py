@@ -111,15 +111,15 @@ class PathenaV3SystemController(QObject):
         activity_layout.setContentsMargins(18, 16, 18, 16)
         activity_layout.setSpacing(9)
 
-        events_title = QLabel("Recent events")
+        events_title = QLabel("Activity")
         events_title.setObjectName("v3SectionTitle")
         activity_layout.addWidget(events_title)
         workspace.recent_events.setParent(activity)
         workspace.recent_events.setWordWrap(True)
         workspace.recent_events.show()
-        activity_layout.addWidget(workspace.recent_events, 1)
+        activity_layout.addWidget(workspace.recent_events)
 
-        diagnostics_title = QLabel("Diagnostics & recovery")
+        diagnostics_title = QLabel("Checks & recovery")
         diagnostics_title.setObjectName("v3SectionTitle")
         activity_layout.addWidget(diagnostics_title)
 
@@ -130,6 +130,7 @@ class PathenaV3SystemController(QObject):
         workspace.recovery.setParent(activity)
         workspace.recovery.show()
         activity_layout.addWidget(workspace.recovery)
+        activity_layout.addStretch(1)
         lower.addWidget(activity, 1)
 
         workspace.security_posture.setParent(canvas)
