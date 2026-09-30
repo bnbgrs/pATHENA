@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from PySide6.QtCore import QCoreApplication, QEvent
 from PySide6.QtWidgets import QApplication
-from shiboken6 import isValid
+from shiboken6 import delete, isValid
 
 from athena.desktop.app import create_application
 from athena.desktop.pathena_pallas_field import (
@@ -146,3 +146,15 @@ def test_destroyed_full_workspace_is_removed_without_late_signal_failure() -> No
     assert controller._live_workspaces() == ()
     controller._set_state("error", "Core disconnected")
     window.close()
+
+def test_deleted_primary_field_is_not_reported_as_live() -> None:
+    app, window, controller = _surface()
+    field = controller.field
+
+    delete(field)
+    app.processEvents()
+
+    assert not isValid(field)
+    assert controller._live_fields() == ()
+    window.close()
+
