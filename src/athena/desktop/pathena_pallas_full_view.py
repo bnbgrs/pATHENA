@@ -549,7 +549,9 @@ class PallasFullViewController(QObject):
         added = int(diagnostics.get("delta_added", 0) or 0)
         removed = int(diagnostics.get("delta_removed", 0) or 0)
         updated = int(diagnostics.get("delta_updated", 0) or 0)
+        revisions = int(diagnostics.get("delta_revisions", 0) or 0)
         edge_delta = int(diagnostics.get("delta_edges", 0) or 0)
+        focus_changed = bool(diagnostics.get("focus_changed", False))
         activity = ""
         if added or removed or updated or edge_delta:
             activity = (
@@ -559,11 +561,20 @@ class PallasFullViewController(QObject):
         status.setText(
             f"FIELD • {fps} FPS • {active}/{nodes} ACTIVE • {lens}{activity}"
         )
+        change_detail = ""
+        if added or removed or updated or revisions or edge_delta or focus_changed:
+            change_detail = (
+                "\nLast graph change · "
+                f"+{added} −{removed} ~{updated} nodes · "
+                f"{revisions} revisions · {edge_delta} edges · "
+                f"focus {'changed' if focus_changed else 'stable'}"
+            )
         status.setToolTip(
             f"{cadence_mode} cadence · {fps} FPS\n"
             f"{active}/{nodes} active · mean vitality {mean_vitality:.0%}\n"
             f"mean motion {mean_speed:.2f} · {explicit_edges} explicit edges · "
             f"{semantic_pairs} visual semantic-attraction pairs"
+            f"{change_detail}"
         )
         status.setAccessibleDescription(
             f"PALLAS living field at {fps} frames per second; "
