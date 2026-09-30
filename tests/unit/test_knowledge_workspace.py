@@ -106,7 +106,7 @@ def test_vault_dialog_cancel_is_explicit_no_write_state(
     _FakeFileDialog.selected = ""
     try:
         workspace.begin_obsidian_export()
-        assert "CANCELLED" in workspace.obsidian_status.text()
+        assert "cancelled" in workspace.obsidian_status.text().casefold()
         assert "No files were changed" in workspace.obsidian_status.text()
         assert workspace._obsidian_operation == ""
     finally:
@@ -138,7 +138,7 @@ def test_conflict_preview_requires_explicit_replace_action(
             }
         )
         assert calls == [("export", True)]
-        assert "PREVIEW CONFLICT" in workspace.obsidian_status.text()
+        assert "preview · conflict" in workspace.obsidian_status.text().casefold()
     finally:
         workspace.deleteLater()
 
@@ -168,7 +168,7 @@ def test_preview_cancel_never_starts_export(
             }
         )
         assert calls == []
-        assert "CANCELLED" in workspace.obsidian_status.text()
+        assert "cancelled" in workspace.obsidian_status.text().casefold()
         assert "No files were changed" in workspace.obsidian_status.text()
     finally:
         workspace.deleteLater()
