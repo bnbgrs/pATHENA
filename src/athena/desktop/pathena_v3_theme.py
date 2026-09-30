@@ -831,8 +831,8 @@ QFrame#v3SecurityPosture {
 }
 
 QFrame#v3ResearchBrief {
-    background: #121722;
-    border-color: #252C39;
+    background: #10161A;
+    border-color: #263137;
 }
 
 QFrame#v3JobsCommand,
@@ -842,6 +842,11 @@ QFrame#v3SystemCommand {
     border: none;
     border-bottom: 1px solid #20272D;
     border-radius: 0;
+}
+
+QFrame#v3JobsCommand,
+QFrame#v3SourcesCommand {
+    min-height: 44px;
 }
 
 QLabel#v3KnowledgeState {
@@ -864,6 +869,12 @@ QLabel#v3SystemDetail,
 QLabel#v3RuntimeCardHint {
     color: #98A1B1;
     font-size: 8.8pt;
+}
+
+QLabel#v3JobsStatus,
+QLabel#v3SchedulerStatus,
+QLabel#v3SourcesStatus {
+    color: #858F99;
 }
 
 QLabel#v3KnowledgeMeta {
