@@ -18,6 +18,10 @@ from PySide6.QtWidgets import (
 )
 from shiboken6 import isValid
 
+from athena.desktop.pathena_pallas_delta import (
+    PallasActivityTracker,
+    PallasSnapshotDelta,
+)
 from athena.desktop.pathena_pallas_field import (
     PallasGroundedFieldController,
     PallasSemanticField,
@@ -67,7 +71,9 @@ class PallasLivingQtController(QObject):
         super().__init__(parent or grounded_controller)
         self._grounded_controller = grounded_controller
         self._engine = PallasLivingEngine()
-        self._graph_id: str | None = None
+        self._snapshot: PallasGraphSnapshot | None = None
+        self._activity = PallasActivityTracker()
+        self._last_delta: PallasSnapshotDelta | None = None
         self._lens = "semantic"
         self._bindings: dict[int, _FieldBinding] = {}
         self._timer = QTimer(self)
@@ -100,7 +106,9 @@ class PallasLivingQtController(QObject):
         self._timer.stop()
         self._bindings.clear()
         self._engine.clear()
-        self._graph_id = None
+        self._snapshot = None
+        self._activity.reset()
+        self._last_delta = None
 
     @Slot()
     def _tick(self) -> None:
@@ -112,18 +120,19 @@ class PallasLivingQtController(QObject):
         if snapshot is None or snapshot.status != "ready" or not snapshot.nodes:
             self._bindings.clear()
             self._engine.clear()
-            self._graph_id = None
+            self._snapshot = None
             if self._timer.interval() != self._idle_interval_ms:
                 self._timer.setInterval(self._idle_interval_ms)
             return
 
-        if snapshot.graph_id != self._graph_id:
+        if snapshot != self._snapshot:
             seeds = {
                 item.node_id: (item.x, item.y)
                 for item in deterministic_layout(snapshot)
             }
+            self._last_delta = self._activity.observe(snapshot)
             self._engine.reconcile(snapshot, seeds)
-            self._graph_id = snapshot.graph_id
+            self._snapshot = snapshot
             self._bindings.clear()
 
         fields = self._live_fields()
@@ -150,6 +159,16 @@ class PallasLivingQtController(QObject):
         }
         diagnostics["fps_target"] = int(self._engine.config.fps)
         diagnostics["lens"] = self._lens
+        delta = self._last_delta
+        diagnostics["delta_added"] = 0 if delta is None else len(delta.added_node_ids)
+        diagnostics["delta_removed"] = 0 if delta is None else len(delta.removed_node_ids)
+        diagnostics["delta_updated"] = 0 if delta is None else len(delta.updated_node_ids)
+        diagnostics["delta_edges"] = (
+            0
+            if delta is None
+            else len(delta.added_edges) + len(delta.removed_edges)
+        )
+        diagnostics["focus_changed"] = False if delta is None else delta.focus_changed
         self.diagnostics_changed.emit(diagnostics)
 
     def _live_fields(self) -> tuple[PallasSemanticField, ...]:
