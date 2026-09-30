@@ -308,7 +308,7 @@ class PathenaStartupExperience(QObject):
         body.setFixedWidth(max(1, panel_width - 56))
 
     def _polish_empty_state(self, *, core_ready: bool) -> None:
-        messages = self.chat_messages
+        messages = getattr(self, "chat_messages", None)
         if messages is None:
             return
         raw = messages.findChild(QLabel, "emptyChatState")
