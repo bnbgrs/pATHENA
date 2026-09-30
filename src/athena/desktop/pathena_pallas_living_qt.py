@@ -291,8 +291,7 @@ class PallasLivingQtController(QObject):
                 font = QFont("Segoe UI Symbol")
                 font.setPixelSize(8)
                 age_item.setFont(font)
-                bounds = node_item.boundingRect()
-                age_item.setPos(bounds.right() - 1, bounds.bottom() - 8)
+                _position_age_marker(node_item, age_item)
                 age_item.setZValue(4.0)
             ages[node_id] = age_item
         return _FieldBinding(
@@ -332,6 +331,8 @@ class PallasLivingQtController(QObject):
                         else age
                     )
                     age_item.setText(marker)
+                if age_item is not None:
+                    _position_age_marker(item, age_item)
                 item.setOpacity(
                     0.38 + 0.62 * state.vitality
                     if self._lens == "vitality"
@@ -374,6 +375,18 @@ def _nearest_seed_line(
         if best is None or score < best[0]:
             best = (score, item)
     return None if best is None else best[1]
+
+
+def _position_age_marker(
+    item: QGraphicsItem,
+    marker: QGraphicsSimpleTextItem,
+) -> None:
+    parent_bounds = item.boundingRect()
+    marker_bounds = marker.boundingRect()
+    marker.setPos(
+        -marker_bounds.width() / 2,
+        parent_bounds.bottom() + 2,
+    )
 
 
 def _age_child(item: QGraphicsItem) -> QGraphicsSimpleTextItem | None:
