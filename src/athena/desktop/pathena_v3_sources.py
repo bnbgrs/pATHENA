@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import QObject
-from PySide6.QtWidgets import QHBoxLayout, QLabel, QSplitter, QVBoxLayout, QWidget
+from PySide6.QtCore import QObject, Qt
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QProgressBar, QSplitter, QVBoxLayout, QWidget
 from shiboken6 import isValid
 
 from athena.desktop.files_workspace import FilesWorkspace
@@ -58,6 +58,22 @@ class PathenaV3SourcesController(QObject):
         workspace.status.setWordWrap(False)
         workspace.status.show()
         state_row.addWidget(workspace.status)
+
+        self.progress_label = QLabel("")
+        self.progress_label.setObjectName("v3ProgressLabel")
+        self.progress_label.setAccessibleName("Selected source processing status")
+        self.progress_label.hide()
+        state_row.addWidget(self.progress_label)
+
+        self.progress = QProgressBar()
+        self.progress.setObjectName("v3ActivityProgress")
+        self.progress.setAccessibleName("Selected source processing activity")
+        self.progress.setTextVisible(False)
+        self.progress.setRange(0, 0)
+        self.progress.setFixedWidth(116)
+        self.progress.setFixedHeight(5)
+        self.progress.hide()
+        state_row.addWidget(self.progress)
         state_row.addStretch(1)
         command_layout.addLayout(state_row)
 
@@ -133,7 +149,9 @@ class PathenaV3SourcesController(QObject):
         model.rowsInserted.connect(self._sync_empty_state)
         model.rowsRemoved.connect(self._sync_empty_state)
         model.modelReset.connect(self._sync_empty_state)
+        workspace.sources.currentItemChanged.connect(self._sync_progress)
         self._sync_empty_state()
+        self._sync_progress()
         workspace.setProperty("pathenaV3Composed", True)
 
     def _sync_empty_state(self, *_args: object) -> None:
@@ -144,6 +162,30 @@ class PathenaV3SourcesController(QObject):
         splitter = self.workspace.sources.parentWidget()
         if isinstance(splitter, QSplitter):
             splitter.setVisible(not is_empty)
+        self._sync_progress()
+
+    def _sync_progress(self, *_args: object) -> None:
+        if not isValid(self.workspace) or not isValid(self.workspace.sources):
+            return
+        current = self.workspace.sources.currentItem()
+        if current is None:
+            self.progress.hide()
+            self.progress_label.hide()
+            return
+        readiness = str(current.data(Qt.ItemDataRole.UserRole + 1) or "").casefold()
+        job_state = str(current.data(Qt.ItemDataRole.UserRole + 3) or "").casefold()
+        state = job_state if job_state and job_state != "-" else readiness
+        active = state in {"queued", "waiting", "running", "cancel_requested"}
+        paused = state == "paused"
+        if not active and not paused:
+            self.progress.hide()
+            self.progress_label.hide()
+            return
+        label = state.replace("_", " ").title()
+        self.progress_label.setText(label)
+        self.progress_label.setAccessibleDescription(label)
+        self.progress_label.show()
+        self.progress.setVisible(active)
 
 
 def install_v3_sources_workspace(workspace: FilesWorkspace) -> PathenaV3SourcesController:
