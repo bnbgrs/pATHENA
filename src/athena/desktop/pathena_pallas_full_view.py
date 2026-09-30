@@ -351,12 +351,27 @@ class PallasFullViewController(QObject):
         fit_button.setToolTip("Reset pan and zoom to show the complete living graph")
         toolbar.addWidget(fit_button)
 
+        lens_help = {
+            "semantic": (
+                "Show canonical semantic glyphs. Living movement never creates "
+                "semantic graph edges."
+            ),
+            "age": (
+                "Show living field age. This is simulation time, not source or "
+                "document age."
+            ),
+            "vitality": (
+                "Show cellular vitality. This is presentation activity, not "
+                "epistemic confidence."
+            ),
+        }
         buttons: dict[str, QPushButton] = {}
         for lens in ("semantic", "age", "vitality"):
             button = QPushButton(lens.upper(), topbar)
             button.setObjectName(f"pallasLens{lens.title()}Button")
             button.setAccessibleName(f"PALLAS {lens} lens")
-            button.setToolTip(f"Show the {lens} lens")
+            button.setAccessibleDescription(lens_help[lens])
+            button.setToolTip(lens_help[lens])
             button.setCheckable(True)
             button.setChecked(lens == self._living_controller.lens)
             button.clicked.connect(
@@ -522,11 +537,15 @@ class PallasFullViewController(QObject):
                 f"was rejected: {validation_error}"
             )
             return
-        status.setToolTip("")
         fps = diagnostics.get("fps_target", 30)
         active = diagnostics.get("active", 0)
         nodes = diagnostics.get("nodes", 0)
         lens = str(diagnostics.get("lens", "semantic")).upper()
+        mean_vitality = float(diagnostics.get("mean_vitality", 0.0) or 0.0)
+        mean_speed = float(diagnostics.get("mean_speed", 0.0) or 0.0)
+        semantic_pairs = int(diagnostics.get("semantic_pairs", 0) or 0)
+        explicit_edges = int(diagnostics.get("edges", 0) or 0)
+        cadence_mode = str(diagnostics.get("cadence_mode", "full") or "full")
         added = int(diagnostics.get("delta_added", 0) or 0)
         removed = int(diagnostics.get("delta_removed", 0) or 0)
         updated = int(diagnostics.get("delta_updated", 0) or 0)
@@ -540,9 +559,17 @@ class PallasFullViewController(QObject):
         status.setText(
             f"FIELD • {fps} FPS • {active}/{nodes} ACTIVE • {lens}{activity}"
         )
+        status.setToolTip(
+            f"{cadence_mode} cadence · {fps} FPS\n"
+            f"{active}/{nodes} active · mean vitality {mean_vitality:.0%}\n"
+            f"mean motion {mean_speed:.2f} · {explicit_edges} explicit edges · "
+            f"{semantic_pairs} visual semantic-attraction pairs"
+        )
         status.setAccessibleDescription(
             f"PALLAS living field at {fps} frames per second; "
-            f"{active} of {nodes} nodes active; {lens.casefold()} lens."
+            f"{active} of {nodes} nodes active; {lens.casefold()} lens. "
+            "Vitality and semantic attraction are presentation signals, not "
+            "epistemic confidence or invented graph relationships."
         )
         self._refresh_inspector_living_readout()
 
