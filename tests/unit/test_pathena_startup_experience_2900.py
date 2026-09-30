@@ -216,7 +216,7 @@ def test_empty_state_copy_refreshes_after_disconnected_to_ready_transition() -> 
     # owner after the V3 empty-state panel has taken over.
     raw.setText("Getting pATHENA ready")
     raw.show()
-    assert raw.isVisible()
+    assert not raw.isHidden()
     controller.sync()
     assert raw.isHidden()
     assert title.text() == "Starting local workspace"
