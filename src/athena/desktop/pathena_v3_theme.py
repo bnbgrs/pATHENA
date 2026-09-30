@@ -412,9 +412,9 @@ QTabWidget#v2KnowledgeTabs QTabBar::tab:selected {
 /* --- Settings ---------------------------------------------------------- */
 
 QFrame#v3ControlRow {
-    background: transparent;
-    border: none;
-    border-bottom: 1px solid #2A3140;
+    background: #11151D;
+    border: 1px solid #202532;
+    border-radius: 12px;
 }
 
 QLabel#v3ControlTitle,
@@ -447,8 +447,8 @@ QFrame#v2FormControl {
 }
 
 QFrame#v3ControlRow:hover {
-    background: #111722;
-    border-bottom-color: #39445A;
+    background: #141925;
+    border-color: #39445A;
 }
 
 QFrame#v3RuntimeCard {
@@ -847,6 +847,142 @@ QLabel#v3SettingsIntro {
 QWidget#v3SettingsRuntimePanel {
     background: transparent;
     border: none;
+}
+
+
+QFrame#v3KnowledgeSearch {
+    background: #121722;
+    border: 1px solid #252C39;
+    border-radius: 14px;
+}
+
+QFrame#v3KnowledgeIdentity {
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid #202532;
+}
+
+QLabel#v3WorkspaceLead {
+    color: #A3AAB7;
+    font-size: 9.2pt;
+}
+
+QPushButton[v3PrimaryAction="true"] {
+    color: #0D1016;
+    background: #7C9CFF;
+    border: 1px solid #7C9CFF;
+    font-weight: 680;
+}
+
+QPushButton[v3PrimaryAction="true"]:hover {
+    color: #0D1016;
+    background: #99AFFF;
+    border-color: #99AFFF;
+}
+
+QPushButton[v3PrimaryAction="true"]:focus {
+    border-color: #F2F4F8;
+}
+
+QPushButton[v3DestructiveAction="true"] {
+    color: #D8A3A3;
+    background: #151922;
+    border-color: #443039;
+}
+
+QPushButton[v3DestructiveAction="true"]:hover {
+    color: #F2C2C2;
+    background: #21171C;
+    border-color: #72505C;
+}
+
+QListWidget#persistentKnowledgeList,
+QListWidget#persistentClaimList,
+QListWidget#semanticReviewList,
+QListWidget#researchJobList,
+QListWidget#durableJobList,
+QListWidget#sourceList {
+    color: #C6CDD9;
+    background: #11151D;
+    border: 1px solid #252C39;
+    border-radius: 12px;
+    padding: 6px;
+    outline: 0;
+}
+
+QListWidget#persistentKnowledgeList::item,
+QListWidget#persistentClaimList::item,
+QListWidget#semanticReviewList::item,
+QListWidget#researchJobList::item,
+QListWidget#durableJobList::item,
+QListWidget#sourceList::item {
+    padding: 9px 10px;
+    margin: 1px 0;
+    border-radius: 8px;
+}
+
+QListWidget#persistentKnowledgeList::item:hover,
+QListWidget#persistentClaimList::item:hover,
+QListWidget#semanticReviewList::item:hover,
+QListWidget#researchJobList::item:hover,
+QListWidget#durableJobList::item:hover,
+QListWidget#sourceList::item:hover {
+    color: #F2F4F8;
+    background: #1B202B;
+}
+
+QListWidget#persistentKnowledgeList::item:selected,
+QListWidget#persistentClaimList::item:selected,
+QListWidget#semanticReviewList::item:selected,
+QListWidget#researchJobList::item:selected,
+QListWidget#durableJobList::item:selected,
+QListWidget#sourceList::item:selected {
+    color: #F2F4F8;
+    background: #1E2A42;
+}
+
+QWidget#persistentKnowledgeDetails,
+QWidget#persistentClaimDetails,
+QWidget#semanticReviewDetails,
+QWidget#researchDetails,
+QWidget#jobDetails,
+QWidget#sourceDetails {
+    color: #D6DCE7;
+    background: #11151D;
+    border: 1px solid #252C39;
+    border-radius: 12px;
+}
+
+QSplitter#v3ResearchSplit::handle,
+QSplitter#v3JobsSplit::handle,
+QSplitter#v3SourcesSplit::handle {
+    background: #202532;
+    width: 1px;
+    margin: 0 7px;
+}
+
+QFrame#v3SystemActivity,
+QFrame#v3SecurityPosture,
+QFrame[v3HealthTile="true"] {
+    border-color: #252C39;
+}
+
+QPushButton#pallasBackButton {
+    color: #C6CDD9;
+    background: #151922;
+    border: 1px solid #2A3140;
+    border-radius: 9px;
+    padding: 6px 11px;
+}
+
+QPushButton#pallasBackButton:hover {
+    color: #F2F4F8;
+    background: #1B202B;
+    border-color: #3B4558;
+}
+
+QPushButton#pallasBackButton:focus {
+    border-color: #7C9CFF;
 }
 
 /* --- Commands, help and local tools ------------------------------------ */
