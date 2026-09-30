@@ -57,7 +57,7 @@ _STARTUP_REFINEMENTS: tuple[str, ...] = (
     "clarify first-run hierarchy",
     "preserve local-state truth",
     "tighten spatial rhythm",
-    "reserve cobalt for actionable intent",
+    "reserve accent for actionable intent",
 )
 
 UI_REFINEMENT_TASKS_2801_2900: tuple[str, ...] = tuple(
@@ -72,13 +72,13 @@ QFrame#composer {
     border: none;
 }
 QLabel#emptyStateEyebrow {
-    color: #7E8797;
+    color: #77818B;
     font-size: 9px;
     font-weight: 650;
     letter-spacing: 1px;
 }
 QLabel#emptyStateTitle {
-    color: #F2F4F8;
+    color: #F1F3F5;
     font-size: 20px;
     font-weight: 650;
 }
@@ -91,26 +91,26 @@ QFrame#emptyStatePanel {
     border: none;
 }
 QPushButton#sendButton:disabled {
-    color: #92A0C4;
-    background: #252E43;
-    border: 1px solid #36435F;
+    color: #AEBFBD;
+    background: #20292A;
+    border: 1px solid #334143;
 }
 QPushButton#groundButton:disabled {
-    color: #768196;
-    background: #171D28;
-    border: 1px solid #2C3546;
+    color: #7F8D8D;
+    background: #141A1B;
+    border: 1px solid #2B3738;
 }
 QPlainTextEdit#promptInput:disabled,
 QLineEdit#promptInput:disabled {
-    color: #7E8797;
+    color: #77818B;
     background: transparent;
     border: none;
 }
 QComboBox#chatSelector:disabled,
 QComboBox#modelSelector:disabled {
-    color: #70798A;
-    background: #121722;
-    border-color: #252C39;
+    color: #77818B;
+    background: #11151D;
+    border-color: #252C33;
 }
 QLabel#localStatus {
     color: #7E8797;
@@ -282,10 +282,10 @@ class PathenaStartupExperience(QObject):
         *, title: QLabel, body: QLabel, raw_text: str, core_ready: bool
     ) -> None:
         if not core_ready:
-            title.setText("Getting pATHENA ready")
+            title.setText("Starting local workspace")
             body.setText(
-                "pATHENA reconnects automatically. Chat, knowledge, research and "
-                "files remain local while the workspace comes online."
+                "Connecting to local services. Chat, knowledge, research and sources "
+                "stay on this machine."
             )
         elif raw_text.startswith("Conversation deleted"):
             title.setText("Conversation deleted")
@@ -293,8 +293,8 @@ class PathenaStartupExperience(QObject):
         else:
             title.setText("Start a conversation")
             body.setText(
-                "Ask, explore, or work with your local knowledge. Sources and evidence "
-                "stay available on demand instead of occupying the workspace by default."
+                "Ask, research, or work with your local knowledge. Add sources when "
+                "you need evidence."
             )
 
     @staticmethod
@@ -335,7 +335,7 @@ class PathenaStartupExperience(QObject):
 
         panel = QFrame(messages)
         panel.setObjectName("emptyStatePanel")
-        panel.setMinimumHeight(116)
+        panel.setMinimumHeight(100)
         panel.setSizePolicy(
             QSizePolicy.Policy.Fixed,
             QSizePolicy.Policy.Minimum,
@@ -344,10 +344,11 @@ class PathenaStartupExperience(QObject):
         panel_layout.setContentsMargins(18, 16, 18, 16)
         panel_layout.setSpacing(7)
 
-        eyebrow = QLabel("LOCAL-FIRST WORKSPACE", panel)
+        eyebrow = QLabel("LOCAL WORKSPACE", panel)
         eyebrow.setObjectName("emptyStateEyebrow")
         eyebrow.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         eyebrow.setMinimumHeight(16)
+        eyebrow.hide()
 
         title = QLabel(panel)
         title.setObjectName("emptyStateTitle")
@@ -359,7 +360,7 @@ class PathenaStartupExperience(QObject):
         body.setObjectName("emptyStateBody")
         body.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
         body.setWordWrap(True)
-        body.setMinimumHeight(50)
+        body.setMinimumHeight(38)
 
         self._sync_empty_state_width(messages=messages, panel=panel, body=body)
         self._sync_empty_state_copy(
