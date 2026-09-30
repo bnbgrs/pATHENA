@@ -66,6 +66,11 @@ def test_v3_comfyui_is_shell_hosted_and_restores_selected_route() -> None:
         assert inspector.isHidden()
         assert window.navigation.currentRow() == 6
         assert window.pages.currentIndex() == selected_page
+        assert all(
+            button.property("active") is False
+            for button in shell._nav_buttons.values()
+        )
+        assert shell._pallas_button.property("active") is False
         assert title.text() == "ComfyUI"
         assert hint.text() == "Local image and video workflows · loopback only."
         assert controller.close_button.isVisible()
@@ -112,6 +117,7 @@ def test_v3_comfyui_is_shell_hosted_and_restores_selected_route() -> None:
         assert not controller.dialog.isVisible()
         assert window.navigation.currentRow() == 6
         assert window.pages.currentIndex() == selected_page
+        assert shell._nav_buttons[6].property("active") is True
         assert title.text() == "Settings"
         assert hint.text() != "Local image and video workflows · loopback only."
     finally:
