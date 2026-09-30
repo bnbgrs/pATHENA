@@ -73,7 +73,7 @@ class PathenaV3SystemController(QObject):
         health_header.setContentsMargins(2, 0, 2, 0)
         health_header.setSpacing(8)
 
-        health_label = QLabel("SYSTEM HEALTH")
+        health_label = QLabel("OVERVIEW")
         health_label.setObjectName("v3Kicker")
         health_header.addWidget(health_label)
         health_header.addStretch(1)
@@ -100,7 +100,7 @@ class PathenaV3SystemController(QObject):
             health_layout.addWidget(row, index // 2, index % 2)
         layout.addWidget(health)
 
-        lower = QHBoxLayout()
+        lower = QVBoxLayout()
         lower.setContentsMargins(0, 0, 0, 0)
         lower.setSpacing(14)
 
@@ -119,7 +119,7 @@ class PathenaV3SystemController(QObject):
         workspace.recent_events.show()
         activity_layout.addWidget(workspace.recent_events)
 
-        diagnostics_title = QLabel("Diagnostics & recovery")
+        diagnostics_title = QLabel("Recovery & checks")
         diagnostics_title.setObjectName("v3SectionTitle")
         activity_layout.addWidget(diagnostics_title)
 
@@ -135,8 +135,9 @@ class PathenaV3SystemController(QObject):
 
         workspace.security_posture.setParent(canvas)
         workspace.security_posture.setObjectName("v3SecurityPosture")
-        workspace.security_posture.setMinimumWidth(280)
-        workspace.security_posture.setMaximumWidth(360)
+        workspace.security_posture.setAccessibleName("Security posture")
+        workspace.security_posture.setMinimumWidth(0)
+        workspace.security_posture.setMaximumWidth(16777215)
         workspace.security_posture.show()
         lower.addWidget(workspace.security_posture)
         layout.addLayout(lower, 1)
