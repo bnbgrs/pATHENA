@@ -150,3 +150,25 @@ def test_compact_and_full_fields_share_keyboard_selection_semantics(
         for field in (full, compact):
             field.close()
             field.deleteLater()
+
+def test_living_scene_bounds_expand_without_shrinking(
+    qapp: QApplication,
+) -> None:
+    field = _ready_field(qapp)
+    try:
+        before = field.scene.sceneRect()
+        claim = field._items["claim"]  # noqa: SLF001
+        claim.setPos(before.right() + 180.0, before.bottom() + 120.0)
+
+        assert field.expand_scene_to_items() is True
+        expanded = field.scene.sceneRect()
+        assert expanded.contains(claim.sceneBoundingRect())
+        assert expanded.width() >= before.width()
+        assert expanded.height() >= before.height()
+
+        assert field.expand_scene_to_items() is False
+        assert field.scene.sceneRect() == expanded
+    finally:
+        field.close()
+        field.deleteLater()
+
