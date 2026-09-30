@@ -94,8 +94,14 @@ def test_open_workspace_reuses_one_synchronized_full_surface() -> None:
     legend = window.findChild(QLabel, "pallasSemanticLegend")
     assert back_button is not None and back_button.isVisible()
     assert back_button.accessibleName() == "Back to current workspace"
+    vitality_button = window.findChild(QPushButton, "pallasLensVitalityButton")
+    age_button = window.findChild(QPushButton, "pallasLensAgeButton")
     assert fit_button is not None and fit_button.isVisible()
     assert fit_button.accessibleName() == "Fit all PALLAS nodes"
+    assert vitality_button is not None
+    assert "not epistemic confidence" in vitality_button.toolTip()
+    assert age_button is not None
+    assert "not source or document age" in age_button.toolTip()
     assert legend is not None and legend.isVisible()
     assert "△ SOURCE" in legend.text()
     assert "× CONFLICT" in legend.text()
@@ -279,6 +285,8 @@ def test_living_cadence_tracks_compact_and_full_workspace_visibility() -> None:
         assert workspace.field.property("pathenaPallasTargetFps") == 30
         assert status is not None
         assert "30 FPS" in status.text()
+        assert "explicit edges" in status.toolTip()
+        assert "presentation signals" in status.accessibleDescription()
     finally:
         full_view.dispose()
         window.close()
