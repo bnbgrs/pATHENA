@@ -469,3 +469,33 @@ def test_stop_disconnects_selection_focus_lifecycle(qapp: QApplication) -> None:
     finally:
         delete(window)
 
+def test_lens_change_drops_stale_scene_binding_before_next_tick(
+    qapp: QApplication,
+) -> None:
+    window = QWidget()
+    grounded = _grounded_controller(window)
+    living = PallasLivingQtController(grounded)
+    living._timer.stop()  # noqa: SLF001
+    try:
+        living._tick()  # noqa: SLF001
+        qapp.processEvents()
+        assert id(grounded.field) in living._bindings  # noqa: SLF001
+
+        grounded.apply_snapshot(_updated_snapshot_same_graph_id())
+        qapp.processEvents()
+
+        living.set_lens("age")
+
+        assert living.lens == "age"
+        assert grounded.field.property("pathenaPallasLens") == "age"
+        assert id(grounded.field) not in living._bindings  # noqa: SLF001
+
+        living._tick()  # noqa: SLF001
+        qapp.processEvents()
+
+        assert id(grounded.field) in living._bindings  # noqa: SLF001
+        assert grounded.field.property("pathenaPallasLens") == "age"
+    finally:
+        living.stop()
+        delete(window)
+
