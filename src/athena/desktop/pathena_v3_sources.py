@@ -40,43 +40,58 @@ class PathenaV3SourcesController(QObject):
 
         command = QFrame()
         command.setObjectName("v3SourcesCommand")
-        layout = QHBoxLayout(command)
-        layout.setContentsMargins(14, 10, 14, 10)
-        layout.setSpacing(8)
+        command.setAccessibleName("Source library controls")
+        command_layout = QVBoxLayout(command)
+        command_layout.setContentsMargins(16, 12, 16, 12)
+        command_layout.setSpacing(8)
+
+        state_row = QHBoxLayout()
+        state_row.setContentsMargins(0, 0, 0, 0)
+        state_row.setSpacing(10)
 
         label = QLabel("LOCAL SOURCES")
         label.setObjectName("v3Kicker")
-        layout.addWidget(label)
+        state_row.addWidget(label)
 
         workspace.status.setParent(command)
         workspace.status.setObjectName("v3SourcesStatus")
+        workspace.status.setWordWrap(False)
         workspace.status.show()
-        layout.addWidget(workspace.status)
-        layout.addStretch(1)
+        state_row.addWidget(workspace.status)
+        state_row.addStretch(1)
+        command_layout.addLayout(state_row)
+
+        actions = QHBoxLayout()
+        actions.setContentsMargins(0, 0, 0, 0)
+        actions.setSpacing(8)
+        actions.addStretch(1)
 
         workspace.refresh_button.setParent(command)
         workspace.refresh_button.setText("Refresh")
         workspace.refresh_button.show()
-        layout.addWidget(workspace.refresh_button)
+        actions.addWidget(workspace.refresh_button)
 
         workspace.process_button.setParent(command)
         workspace.process_button.setText("Process")
         workspace.process_button.show()
-        layout.addWidget(workspace.process_button)
+        actions.addWidget(workspace.process_button)
 
         workspace.import_button.setParent(command)
         workspace.import_button.setText("Import")
+        workspace.import_button.setProperty("v3PrimaryAction", True)
         workspace.import_button.show()
-        layout.addWidget(workspace.import_button)
+        actions.addWidget(workspace.import_button)
+        command_layout.addLayout(actions)
         root.addWidget(command)
 
         splitter.setParent(workspace)
         splitter.setObjectName("v3SourcesSplit")
+        splitter.setAccessibleName("Source list and source details")
         splitter.setChildrenCollapsible(False)
         splitter.setStretchFactor(0, 1)
         splitter.setStretchFactor(1, 3)
-        workspace.sources.setMinimumWidth(240)
-        workspace.sources.setMaximumWidth(400)
+        workspace.sources.setMinimumWidth(260)
+        workspace.sources.setMaximumWidth(380)
         workspace.sources.show()
         workspace.details.show()
         splitter.show()
@@ -85,7 +100,7 @@ class PathenaV3SourcesController(QObject):
         self.empty_state = V3EmptyState(
             "Sources",
             "Build a local evidence library",
-            "Import a document to preserve the source and make its processed content available to pATHENA.",
+            "Import material once, then preserve its lineage while pATHENA processes it locally.",
         )
         self.empty_state.setAccessibleName("Sources empty state")
         root.addWidget(self.empty_state, 1)
