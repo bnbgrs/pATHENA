@@ -433,6 +433,8 @@ class SystemBackupExtension(QObject):
         self.tabs = QTabWidget()
         self.tabs.setObjectName("systemOperationsTabs")
         self.tabs.setAccessibleName("System overview and backups")
+        self.tabs.tabBar().setObjectName("systemOperationsTabBar")
+        self.tabs.tabBar().setDrawBase(False)
         self.backup = BackupWorkspace()
         pages.removeWidget(runtime)
         self.tabs.addTab(runtime, "Overview")
