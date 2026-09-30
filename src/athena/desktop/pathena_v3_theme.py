@@ -180,9 +180,10 @@ QWidget#v3ChatPage {
 }
 
 QFrame#v3ChatMeta {
-    background: #101419;
-    border: 1px solid #252C32;
-    border-radius: 12px;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid #20272D;
+    border-radius: 0;
 }
 
 QLabel#v3MetaLabel,
@@ -234,13 +235,14 @@ QWidget#chatMessages {
 }
 
 QFrame#v3Composer {
-    background: #12191A;
-    border: 1px solid #315052;
+    background: #111718;
+    border: 1px solid #293638;
     border-radius: 18px;
 }
 
 QFrame#v3Composer:focus-within {
-    border-color: #78D1C5;
+    background: #12191A;
+    border-color: #5DAEA5;
 }
 
 QPlainTextEdit#promptInput {
@@ -300,6 +302,29 @@ QPushButton#groundButton:checked {
     color: #DDF5F1;
     background: #13292B;
     border-color: #2C5D61;
+}
+
+QComboBox#chatSelector {
+    background: transparent;
+    border-color: transparent;
+    font-weight: 620;
+}
+
+QComboBox#chatSelector:hover,
+QComboBox#chatSelector:focus {
+    background: #14181D;
+    border-color: #29313A;
+}
+
+QComboBox#modelSelector {
+    background: #11151D;
+    border-color: #252C33;
+}
+
+QPushButton#newChatButton,
+QPushButton#deleteChatButton,
+QPushButton#contextToggle {
+    padding: 6px 8px;
 }
 
 /* --- Shared workspaces ------------------------------------------------- */
@@ -411,9 +436,10 @@ QTabWidget#v2KnowledgeTabs QTabBar::tab:selected {
 /* --- Settings ---------------------------------------------------------- */
 
 QFrame#v3ControlRow {
-    background: #11151D;
-    border: 1px solid #202532;
-    border-radius: 12px;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid #20272D;
+    border-radius: 0;
 }
 
 QLabel#v3ControlTitle,
@@ -446,14 +472,14 @@ QFrame#v2FormControl {
 }
 
 QFrame#v3ControlRow:hover {
-    background: #141925;
-    border-color: #39445A;
+    background: #0F1317;
+    border-bottom-color: #2A333B;
 }
 
 QFrame#v3RuntimeCard {
-    background: #121722;
-    border: 1px solid #252C39;
-    border-radius: 16px;
+    background: #11151A;
+    border: 1px solid #242B31;
+    border-radius: 14px;
 }
 
 QLabel#v3RuntimeCardTitle {
@@ -664,15 +690,15 @@ QPushButton#fileProcessButton:disabled {
 }
 
 QPushButton#sendButton:disabled {
-    color: #B9D5D1;
-    background: #203536;
-    border: 1px solid #33595A;
+    color: #AEBFBD;
+    background: #20292A;
+    border: 1px solid #334143;
 }
 
 QPushButton#groundButton:disabled {
-    color: #879A9B;
-    background: #172323;
-    border-color: #355052;
+    color: #7F8D8D;
+    background: #141A1B;
+    border-color: #2B3738;
 }
 
 QCheckBox {
@@ -754,8 +780,8 @@ QFrame#v3SystemCommand,
 QFrame#v3RuntimeCard,
 QFrame#v3SystemActivity,
 QFrame#v3SecurityPosture {
-    background: #14181D;
-    border: 1px solid #29313A;
+    background: #11151A;
+    border: 1px solid #242B31;
     border-radius: 14px;
 }
 
