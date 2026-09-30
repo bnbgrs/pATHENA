@@ -49,6 +49,17 @@ _CONFLICT_REL = frozenset(
 )
 
 
+def _cadence_interval_ms(*, full_visible: bool, visible: bool, nodes: int) -> int:
+    """Choose presentation cadence without dropping semantic graph facts."""
+    if not visible:
+        return 250
+    if full_visible:
+        fps = 30 if nodes <= 96 else 24 if nodes <= 180 else 18 if nodes <= 320 else 12
+    else:
+        fps = 15 if nodes <= 140 else 10 if nodes <= 320 else 6
+    return round(1000 / fps)
+
+
 @dataclass(slots=True)
 class _FieldBinding:
     field: PallasSemanticField
@@ -88,6 +99,8 @@ class PallasLivingQtController(QObject):
         self._timer.setInterval(self._compact_interval_ms)
         self._timer.timeout.connect(self._tick)
         grounded_controller.selection_changed.connect(self._apply_selection_focus)
+        self._selection_connected = True
+        self._stopped = False
         self._apply_selection_focus(
             getattr(grounded_controller, "_selection", None)  # noqa: SLF001
         )
@@ -112,7 +125,18 @@ class PallasLivingQtController(QObject):
                 self._apply_binding(binding)
 
     def stop(self) -> None:
+        if self._stopped:
+            return
+        self._stopped = True
         self._timer.stop()
+        if self._selection_connected:
+            try:
+                self._grounded_controller.selection_changed.disconnect(
+                    self._apply_selection_focus
+                )
+            except (RuntimeError, TypeError):
+                pass
+            self._selection_connected = False
         self._bindings.clear()
         self._engine.clear()
         self._snapshot = None
@@ -184,12 +208,10 @@ class PallasLivingQtController(QObject):
             current.property("pathenaPallasMode") == "full"
             for current in visible
         )
-        target_interval = (
-            self._active_interval_ms
-            if full_visible
-            else self._compact_interval_ms
-            if visible
-            else self._idle_interval_ms
+        target_interval = _cadence_interval_ms(
+            full_visible=full_visible,
+            visible=bool(visible),
+            nodes=len(snapshot.nodes),
         )
         if self._timer.interval() != target_interval:
             self._timer.setInterval(target_interval)
@@ -211,6 +233,9 @@ class PallasLivingQtController(QObject):
             key: value for key, value in self._engine.diagnostics().items()
         }
         diagnostics["fps_target"] = current_target_fps
+        diagnostics["cadence_mode"] = (
+            "full" if full_visible else "compact" if visible else "background"
+        )
         diagnostics["lens"] = self._lens
         delta = (
             self._last_delta
