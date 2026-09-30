@@ -341,6 +341,18 @@ def test_vitality_marker_geometry_tracks_dynamic_text_width(
         assert marker.pos().y() == pytest.approx(
             item.boundingRect().bottom() + 2
         )
+
+        living.set_lens("age")
+        qapp.processEvents()
+
+        assert marker.text() == "◆"
+        assert marker.pos().x() == pytest.approx(
+            -marker.boundingRect().width() / 2
+        )
+        assert marker.pos().y() == pytest.approx(
+            item.boundingRect().bottom() + 2
+        )
+        assert "field age" in marker.toolTip()
     finally:
         living.stop()
         delete(window)
