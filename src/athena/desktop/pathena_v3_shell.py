@@ -244,7 +244,7 @@ class PathenaV3ShellController(QObject):
         meta_layout.setContentsMargins(10, 7, 10, 7)
         meta_layout.setSpacing(6)
 
-        conversation_label = QLabel("THREAD")
+        conversation_label = QLabel("Conversation")
         conversation_label.setObjectName("v3MetaLabel")
         meta_layout.addWidget(conversation_label)
 
@@ -266,7 +266,7 @@ class PathenaV3ShellController(QObject):
         meta_layout.addWidget(window.delete_chat_button)
 
         meta_layout.addSpacing(12)
-        model_label = QLabel("MODEL")
+        model_label = QLabel("Model")
         model_label.setObjectName("v3MetaLabel")
         meta_layout.addWidget(model_label)
 
