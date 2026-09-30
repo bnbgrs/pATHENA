@@ -40,47 +40,75 @@ class PathenaV3JobsController(QObject):
 
         command = QFrame()
         command.setObjectName("v3JobsCommand")
-        layout = QHBoxLayout(command)
-        layout.setContentsMargins(14, 10, 14, 10)
-        layout.setSpacing(8)
+        command.setAccessibleName("Background work controls")
+        command_layout = QVBoxLayout(command)
+        command_layout.setContentsMargins(16, 12, 16, 12)
+        command_layout.setSpacing(8)
 
-        label = QLabel("QUEUE")
+        state_row = QHBoxLayout()
+        state_row.setContentsMargins(0, 0, 0, 0)
+        state_row.setSpacing(10)
+
+        label = QLabel("BACKGROUND WORK")
         label.setObjectName("v3Kicker")
-        layout.addWidget(label)
+        state_row.addWidget(label)
 
         workspace.status.setParent(command)
         workspace.status.setObjectName("v3JobsStatus")
         workspace.status.setWordWrap(False)
-        workspace.status.setMinimumWidth(150)
+        workspace.status.setMinimumWidth(140)
         workspace.status.show()
-        layout.addWidget(workspace.status)
+        state_row.addWidget(workspace.status)
 
         workspace.scheduler_status.setParent(command)
         workspace.scheduler_status.setObjectName("v3SchedulerStatus")
         workspace.scheduler_status.show()
-        layout.addWidget(workspace.scheduler_status)
-        layout.addStretch(1)
+        state_row.addWidget(workspace.scheduler_status)
+        state_row.addStretch(1)
+        command_layout.addLayout(state_row)
 
-        for button, text in (
-            (workspace.refresh_button, "Refresh"),
-            (workspace.pause_button, "Pause"),
-            (workspace.resume_button, "Resume"),
-            (workspace.wake_button, "Wake"),
-            (workspace.cancel_button, "Cancel"),
-        ):
-            button.setParent(command)
-            button.setText(text)
-            button.show()
-            layout.addWidget(button)
+        actions = QHBoxLayout()
+        actions.setContentsMargins(0, 0, 0, 0)
+        actions.setSpacing(8)
+        actions.addStretch(1)
+
+        workspace.refresh_button.setParent(command)
+        workspace.refresh_button.setText("Refresh")
+        workspace.refresh_button.show()
+        actions.addWidget(workspace.refresh_button)
+
+        workspace.pause_button.setParent(command)
+        workspace.pause_button.setText("Pause")
+        workspace.pause_button.show()
+        actions.addWidget(workspace.pause_button)
+
+        workspace.resume_button.setParent(command)
+        workspace.resume_button.setText("Resume")
+        workspace.resume_button.setProperty("v3PrimaryAction", True)
+        workspace.resume_button.show()
+        actions.addWidget(workspace.resume_button)
+
+        workspace.wake_button.setParent(command)
+        workspace.wake_button.setText("Wake")
+        workspace.wake_button.show()
+        actions.addWidget(workspace.wake_button)
+
+        workspace.cancel_button.setParent(command)
+        workspace.cancel_button.setText("Cancel")
+        workspace.cancel_button.setProperty("v3DestructiveAction", True)
+        workspace.cancel_button.show()
+        actions.addWidget(workspace.cancel_button)
+        command_layout.addLayout(actions)
         root.addWidget(command)
 
         splitter.setParent(workspace)
         splitter.setObjectName("v3JobsSplit")
+        splitter.setAccessibleName("Job queue and job details")
         splitter.setChildrenCollapsible(False)
         splitter.setStretchFactor(0, 1)
         splitter.setStretchFactor(1, 3)
-        workspace.jobs.setMinimumWidth(240)
-        workspace.jobs.setMaximumWidth(400)
+        workspace.jobs.setMinimumWidth(260)
+        workspace.jobs.setMaximumWidth(380)
         workspace.jobs.show()
         workspace.details.show()
         splitter.show()
