@@ -301,3 +301,41 @@ def test_visual_focus_is_presentation_only_and_resets_when_node_disappears() -> 
     assert engine.visual_focus_id is None
     assert engine.snapshot is without_selected
     assert without_selected.focus_id == "focus"
+
+def test_world_radius_expands_to_preserve_large_seed_layout() -> None:
+    left = _node("left")
+    right = _node("right")
+    engine = PallasLivingEngine(
+        PallasLivingConfig(
+            center_pull=0.0,
+            focus_pull=0.0,
+            temporal_drift=0.0,
+            global_repulsion=0.0,
+            semantic_attraction=0.0,
+            edge_spring=0.0,
+            world_radius=420.0,
+        )
+    )
+    graph = _snapshot((left, right))
+    engine.reconcile(
+        graph,
+        {
+            "left": (-650.0, 0.0),
+            "right": (650.0, 0.0),
+        },
+    )
+
+    radius = float(engine.diagnostics()["world_radius"])
+    assert radius > 650.0
+
+    engine.step()
+    left_position = engine.position("left")
+    right_position = engine.position("right")
+    assert left_position is not None
+    assert right_position is not None
+    assert abs(left_position[0]) > 600.0
+    assert abs(right_position[0]) > 600.0
+
+    engine.clear()
+    assert engine.diagnostics()["world_radius"] == 420.0
+
