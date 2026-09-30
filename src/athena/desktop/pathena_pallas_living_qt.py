@@ -23,6 +23,9 @@ from athena.desktop.pathena_pallas_delta import (
     PallasSnapshotDelta,
 )
 from athena.desktop.pathena_pallas_field import (
+    PALLAS_EDGE_RELATION_DATA_KEY,
+    PALLAS_EDGE_SOURCE_DATA_KEY,
+    PALLAS_EDGE_TARGET_DATA_KEY,
     PallasGroundedFieldController,
     PallasSemanticField,
 )
@@ -72,7 +75,7 @@ class _FieldBinding:
 
 
 class PallasLivingQtController(QObject):
-    """Share one 30 FPS living state across compact and full PALLAS views."""
+    """Share one adaptive living state across compact and full PALLAS views."""
 
     diagnostics_changed = Signal(object)
 
@@ -311,16 +314,31 @@ class PallasLivingQtController(QObject):
             for item in field.scene.items()
             if isinstance(item, QGraphicsLineItem) and item.parentItem() is None
         ]
+        tagged: dict[tuple[str, str, str], list[QGraphicsLineItem]] = {}
+        fallback: list[QGraphicsLineItem] = []
+        for line_item in available:
+            source_id = line_item.data(PALLAS_EDGE_SOURCE_DATA_KEY)
+            target_id = line_item.data(PALLAS_EDGE_TARGET_DATA_KEY)
+            relation = line_item.data(PALLAS_EDGE_RELATION_DATA_KEY)
+            if all(isinstance(value, str) and value for value in (source_id, target_id, relation)):
+                tagged.setdefault((source_id, target_id, relation), []).append(line_item)
+            else:
+                fallback.append(line_item)
+
         mapped: list[tuple[QGraphicsLineItem, str, str]] = []
         for edge in snapshot.edges:
-            source = seeds.get(edge.source_id)
-            target = seeds.get(edge.target_id)
-            if source is None or target is None:
-                continue
-            line = _nearest_seed_line(available, source, target)
+            key = (edge.source_id, edge.target_id, edge.relation)
+            tagged_matches = tagged.get(key, [])
+            line = tagged_matches.pop(0) if tagged_matches else None
             if line is None:
-                continue
-            available.remove(line)
+                source = seeds.get(edge.source_id)
+                target = seeds.get(edge.target_id)
+                if source is None or target is None:
+                    continue
+                line = _nearest_seed_line(fallback, source, target)
+                if line is None:
+                    continue
+                fallback.remove(line)
             conflict = edge.relation.casefold() in _CONFLICT_REL
             line.setPen(
                 QPen(
