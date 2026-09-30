@@ -126,6 +126,7 @@ class V3WorkspaceHeader(QFrame):
         self.setFixedHeight(68)
 
         layout = QHBoxLayout(self)
+        self._layout = layout
         layout.setContentsMargins(28, 10, 24, 10)
         layout.setSpacing(14)
 
@@ -158,6 +159,12 @@ class V3WorkspaceHeader(QFrame):
     def set_compact(self, compact: bool) -> None:
         self.setFixedHeight(58 if compact else 68)
         self.hint_label.setVisible(not compact)
+        if compact:
+            self._layout.setContentsMargins(18, 7, 16, 7)
+            self._layout.setSpacing(10)
+        else:
+            self._layout.setContentsMargins(28, 10, 24, 10)
+            self._layout.setSpacing(14)
 
 
 class V3Pill(QLabel):
