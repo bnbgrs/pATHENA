@@ -293,6 +293,7 @@ def test_qt_bridge_rejects_invalid_snapshot_without_crashing_timer_path(
 ) -> None:
     window = QWidget()
     grounded = _grounded_controller(window)
+    workspace = grounded.create_workspace(window)
     living = PallasLivingQtController(grounded)
     living._timer.stop()  # noqa: SLF001
     diagnostics: list[object] = []
@@ -322,6 +323,23 @@ def test_qt_bridge_rejects_invalid_snapshot_without_crashing_timer_path(
         assert "missing node" in str(
             grounded.field.property("pathenaPallasLivingError")
         )
+        assert "missing node" in str(
+            workspace.field.property("pathenaPallasLivingError")
+        )
+
+        empty = PallasGraphSnapshot(
+            graph_id="graph:living-qt-empty",
+            nodes=(),
+            edges=(),
+            focus_id=None,
+            status="empty",
+            status_detail="No current grounded context.",
+        )
+        grounded.apply_snapshot(empty)
+        living._tick()  # noqa: SLF001
+
+        assert grounded.field.property("pathenaPallasLivingError") == ""
+        assert workspace.field.property("pathenaPallasLivingError") == ""
     finally:
         living.stop()
         delete(window)
