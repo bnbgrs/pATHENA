@@ -436,20 +436,20 @@ class PathenaV3ShellController(QObject):
         intro_row.addWidget(local_pill, 0, Qt.AlignmentFlag.AlignTop)
         page_layout.addLayout(intro_row)
 
-        content = QHBoxLayout()
-        content.setContentsMargins(0, 0, 0, 0)
-        content.setSpacing(18)
-
         scroll = QScrollArea()
         scroll.setObjectName("v3SettingsScroll")
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.Shape.NoFrame)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setWidgetAlignment(
+            Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop
+        )
 
         form = QWidget()
         form.setObjectName("v3SettingsForm")
+        form.setMaximumWidth(940)
         form_layout = QVBoxLayout(form)
-        form_layout.setContentsMargins(0, 0, 10, 24)
+        form_layout.setContentsMargins(0, 0, 12, 28)
         form_layout.setSpacing(10)
 
         model_row = V3ControlRow(
@@ -492,21 +492,16 @@ class PathenaV3ShellController(QObject):
         reasoning_row.control_layout.addStretch(1)
         reasoning_row.add_control(window.thinking_checkbox)
         form_layout.addWidget(reasoning_row)
-        form_layout.addStretch(1)
-
-        scroll.setWidget(form)
-        content.addWidget(scroll, 1)
 
         runtime = QFrame()
-        runtime.setObjectName("v3RuntimeCard")
-        runtime.setMinimumWidth(330)
-        runtime.setMaximumWidth(360)
+        runtime.setObjectName("v3SettingsRuntimeSection")
+        runtime.setAccessibleName("Local runtime status")
         runtime_layout = QVBoxLayout(runtime)
-        runtime_layout.setContentsMargins(20, 20, 20, 20)
-        runtime_layout.setSpacing(10)
+        runtime_layout.setContentsMargins(18, 18, 18, 18)
+        runtime_layout.setSpacing(8)
 
         runtime_title = QLabel("Runtime")
-        runtime_title.setObjectName("v3RuntimeCardTitle")
+        runtime_title.setObjectName("v3SectionTitle")
         runtime_layout.addWidget(runtime_title)
 
         runtime_hint = QLabel("Live state reported by the local Core.")
@@ -519,9 +514,12 @@ class PathenaV3ShellController(QObject):
             runtime_panel.setObjectName("v3SettingsRuntimePanel")
             runtime_layout.addWidget(runtime_panel)
 
-        runtime_layout.addStretch(1)
-        content.addWidget(runtime, 0, Qt.AlignmentFlag.AlignTop)
-        page_layout.addLayout(content, 1)
+        form_layout.addSpacing(12)
+        form_layout.addWidget(runtime)
+        form_layout.addStretch(1)
+
+        scroll.setWidget(form)
+        page_layout.addWidget(scroll, 1)
 
         current_index = pages.currentIndex()
         pages.removeWidget(old_settings)
