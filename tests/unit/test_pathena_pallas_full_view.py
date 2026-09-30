@@ -103,6 +103,7 @@ def test_open_workspace_reuses_one_synchronized_full_surface() -> None:
     assert age_button is not None
     assert "not source or document age" in age_button.toolTip()
     assert legend is not None and legend.isVisible()
+    assert "◉ FOCUS" in legend.text()
     assert "△ SOURCE" in legend.text()
     assert "× CONFLICT" in legend.text()
     assert first_workspace.field.property("pathenaPallasMode") == "full"
