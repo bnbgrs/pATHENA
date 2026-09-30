@@ -7,6 +7,7 @@ import pytest
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 pytest.importorskip("PySide6")
 
+from PySide6.QtCore import QCoreApplication, QEvent
 from PySide6.QtWidgets import QApplication, QFrame, QSplitter
 
 from athena.desktop.app import create_application
@@ -24,6 +25,18 @@ from athena.desktop.system_workspace import SystemWorkspace
 
 def _app() -> QApplication:
     return create_application(["pathena-v3-workspace-polish-test"])
+
+
+def _destroy_widgets(app: QApplication, *widgets: object) -> None:
+    for widget in widgets:
+        close = getattr(widget, "close", None)
+        if callable(close):
+            close()
+        delete_later = getattr(widget, "deleteLater", None)
+        if callable(delete_later):
+            delete_later()
+    QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+    app.processEvents()
 
 
 def test_research_polish_keeps_real_controls_and_clear_action_hierarchy() -> None:
@@ -49,7 +62,7 @@ def test_research_polish_keeps_real_controls_and_clear_action_hierarchy() -> Non
         assert controller.empty_state.accessibleName() == "Research empty state"
     finally:
         results.refresh_timer.stop()
-        workspace.close()
+        _destroy_widgets(app, workspace)
 
 
 def test_jobs_and_sources_polish_group_status_before_actions() -> None:
@@ -89,8 +102,7 @@ def test_jobs_and_sources_polish_group_status_before_actions() -> None:
         assert sources_split.accessibleName() == "Source list and source details"
         assert sources_controller.empty_state.accessibleName() == "Sources empty state"
     finally:
-        jobs.close()
-        sources.close()
+        _destroy_widgets(app, jobs, sources)
 
 
 def test_system_polish_preserves_truthful_runtime_widgets() -> None:
@@ -111,7 +123,7 @@ def test_system_polish_preserves_truthful_runtime_widgets() -> None:
         assert workspace.security_posture.minimumWidth() == 280
         assert workspace.security_posture.maximumWidth() == 360
     finally:
-        workspace.close()
+        _destroy_widgets(app, workspace)
 
 
 def test_workspace_theme_has_consistent_primary_focus_and_list_treatment() -> None:
