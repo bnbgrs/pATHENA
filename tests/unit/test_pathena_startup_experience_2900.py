@@ -172,7 +172,7 @@ def test_disconnected_startup_copy_keeps_core_infrastructure_in_background() -> 
     assert send.accessibleDescription() == send.toolTip()
     title = messages.findChild(QLabel, "emptyStateTitle")
     assert title is not None
-    assert title.text() == "Starting local workspace"
+    assert title.text() == "Preparing your workspace"
 
 
 def test_ready_status_refreshes_accessibility_description_from_current_truth() -> None:
@@ -210,7 +210,7 @@ def test_empty_state_copy_refreshes_after_disconnected_to_ready_transition() -> 
     body = messages.findChild(QLabel, "emptyStateBody")
     assert title is not None
     assert body is not None
-    assert title.text() == "Starting local workspace"
+    assert title.text() == "Preparing your workspace"
 
     # A late legacy chat-state update must not become a second visible
     # owner after the V3 empty-state panel has taken over.
@@ -219,12 +219,12 @@ def test_empty_state_copy_refreshes_after_disconnected_to_ready_transition() -> 
     assert not raw.isHidden()
     controller.sync()
     assert raw.isHidden()
-    assert title.text() == "Starting local workspace"
+    assert title.text() == "Preparing your workspace"
 
     window._core_transport_ready = True
     controller.sync()
 
-    assert title.text() == "Start a conversation"
+    assert title.text() == "What are you working on?"
     assert "reconnect" not in body.text().casefold()
     assert "local knowledge" in body.text().casefold()
     assert title.alignment() & Qt.AlignmentFlag.AlignLeft
