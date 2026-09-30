@@ -530,6 +530,16 @@ QLabel#pallasSemanticSelection {
     font-size: 9pt;
 }
 
+QLabel#pallasSemanticLegend {
+    color: #687284;
+    font-family: "Cascadia Mono";
+    font-size: 8pt;
+    letter-spacing: 0.2px;
+    padding: 0 4px;
+}
+
+QPushButton#pallasBackButton,
+QPushButton#pallasFitButton,
 QPushButton#pallasLensSemanticButton,
 QPushButton#pallasLensAgeButton,
 QPushButton#pallasLensVitalityButton {
@@ -541,6 +551,8 @@ QPushButton#pallasLensVitalityButton {
     border-radius: 9px;
 }
 
+QPushButton#pallasBackButton:hover,
+QPushButton#pallasFitButton:hover,
 QPushButton#pallasLensSemanticButton:hover,
 QPushButton#pallasLensAgeButton:hover,
 QPushButton#pallasLensVitalityButton:hover {
