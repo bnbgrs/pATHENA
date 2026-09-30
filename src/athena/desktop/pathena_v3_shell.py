@@ -191,6 +191,7 @@ class PathenaV3ShellController(QObject):
 
     def _build_header(self) -> QWidget:
         self._command_button.setObjectName("v3CommandButton")
+        self._command_button.setMinimumWidth(174)
         self._command_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self._command_button.setEnabled(False)
         self._command_button.setAccessibleName("Open command palette")
@@ -241,7 +242,7 @@ class PathenaV3ShellController(QObject):
         meta.setObjectName("v3ChatMeta")
         meta.setAccessibleName("Conversation controls")
         meta_layout = QHBoxLayout(meta)
-        meta_layout.setContentsMargins(10, 7, 10, 7)
+        meta_layout.setContentsMargins(8, 5, 8, 8)
         meta_layout.setSpacing(6)
 
         conversation_label = QLabel("Conversation")
@@ -264,6 +265,7 @@ class PathenaV3ShellController(QObject):
         window.delete_chat_button.setText("Delete")
         window.delete_chat_button.setAccessibleName("Delete conversation")
         window.delete_chat_button.setToolTip("Delete the selected conversation")
+        window.delete_chat_button.setProperty("v3QuietDanger", True)
         meta_layout.addWidget(window.delete_chat_button)
 
         meta_layout.addSpacing(12)
@@ -547,6 +549,19 @@ class PathenaV3ShellController(QObject):
         self._density_compact = compact
 
         self._header.set_compact(compact)
+        self._command_button.setProperty("compact", compact)
+        self._command_button.setText("Ctrl K" if compact else "Command   Ctrl K")
+        if compact:
+            self._command_button.setMinimumWidth(70)
+            self._command_button.setMaximumWidth(70)
+        else:
+            self._command_button.setMinimumWidth(174)
+            self._command_button.setMaximumWidth(16777215)
+        command_style = self._command_button.style()
+        if command_style is not None:
+            command_style.unpolish(self._command_button)
+            command_style.polish(self._command_button)
+
         rail = self._rail
         if rail is not None:
             rail.setFixedWidth(72 if compact else 78)
