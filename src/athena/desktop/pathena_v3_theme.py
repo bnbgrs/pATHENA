@@ -1233,6 +1233,48 @@ QDialog#comfyUiDialog {
     background: #090B0E;
 }
 
+QDialog#comfyUiDialog[pathenaShellHosted="true"] {
+    border: none;
+    border-radius: 0;
+}
+
+QFrame#comfyUiPanel,
+QFrame#comfyUiActivityPanel {
+    background: #11151D;
+    border: 1px solid #252C39;
+    border-radius: 14px;
+}
+
+QFrame#comfyUiActivityPanel {
+    background: #0F1318;
+}
+
+QLabel#comfyUiSectionTitle {
+    color: #F1F3F5;
+    font-size: 11pt;
+    font-weight: 680;
+}
+
+QLabel#comfyUiPanelHint,
+QLabel#comfyUiFieldLabel {
+    color: #8E98A3;
+    font-size: 9pt;
+}
+
+QLabel#comfyUiFieldLabel {
+    font-weight: 600;
+}
+
+QLineEdit#comfyUiEndpoint,
+QLineEdit#comfyUiWorkflowPath {
+    color: #D6DCE7;
+    background: #0D1116;
+    border: 1px solid #29313A;
+    border-radius: 10px;
+    padding: 8px 10px;
+    min-height: 22px;
+}
+
 QLabel#comfyUiSectionLabel {
     color: #77818B;
     font-size: 8pt;
@@ -1276,9 +1318,15 @@ QPushButton#comfyUiQueueWorkflow:disabled {
 }
 
 QPushButton#comfyUiReleaseVram {
-    color: #F0D18A;
-    background: #292518;
-    border-color: #4D4326;
+    color: #C6CDD9;
+    background: #14181D;
+    border-color: #29313A;
+}
+
+QPushButton#comfyUiReleaseVram:hover {
+    color: #F1F3F5;
+    background: #1A2026;
+    border-color: #3B4652;
 }
 
 /* --- Editorial empty states ------------------------------------------- */
