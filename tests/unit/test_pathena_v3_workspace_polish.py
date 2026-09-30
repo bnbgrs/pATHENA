@@ -67,7 +67,11 @@ def test_jobs_and_sources_polish_group_status_before_actions() -> None:
         jobs_split = jobs.findChild(QSplitter, "v3JobsSplit")
         assert jobs_command is not None
         assert jobs_command.accessibleName() == "Background work controls"
-        assert jobs.resume_button.property("v3PrimaryAction") is True
+        assert jobs.resume_button.property("v3PrimaryAction") is not True
+        assert jobs.wake_button.text() == "Run now"
+        assert jobs.wake_button.accessibleName() == "Run background work now"
+        assert jobs.wake_button.property("v3PrimaryAction") is True
+        assert jobs.cancel_button.accessibleName() == "Cancel selected job"
         assert jobs.cancel_button.property("v3DestructiveAction") is True
         assert jobs_split is not None
         assert jobs_split.accessibleName() == "Job queue and job details"
@@ -77,6 +81,9 @@ def test_jobs_and_sources_polish_group_status_before_actions() -> None:
         sources_split = sources.findChild(QSplitter, "v3SourcesSplit")
         assert sources_command is not None
         assert sources_command.accessibleName() == "Source library controls"
+        assert sources.refresh_button.accessibleName() == "Refresh source library"
+        assert sources.process_button.accessibleName() == "Process selected source"
+        assert sources.import_button.accessibleName() == "Import local source"
         assert sources.import_button.property("v3PrimaryAction") is True
         assert sources_split is not None
         assert sources_split.accessibleName() == "Source list and source details"
@@ -109,7 +116,9 @@ def test_system_polish_preserves_truthful_runtime_widgets() -> None:
 
 def test_workspace_theme_has_consistent_primary_focus_and_list_treatment() -> None:
     assert 'QPushButton[v3PrimaryAction="true"]' in PATHENA_V3_STYLESHEET
+    assert 'QPushButton[v3PrimaryAction="true"]:disabled' in PATHENA_V3_STYLESHEET
     assert 'QPushButton[v3DestructiveAction="true"]' in PATHENA_V3_STYLESHEET
+    assert 'QPushButton[v3DestructiveAction="true"]:disabled' in PATHENA_V3_STYLESHEET
     assert "QListWidget#researchJobList::item:selected" in PATHENA_V3_STYLESHEET
     assert "QListWidget#sourceList::item:selected" in PATHENA_V3_STYLESHEET
     assert "QPushButton#pallasBackButton:focus" in PATHENA_V3_STYLESHEET
