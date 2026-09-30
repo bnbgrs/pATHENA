@@ -251,3 +251,67 @@ def test_qt_bridge_publishes_structural_activity_delta(
         living.stop()
         delete(window)
 
+def test_qt_bridge_tracks_real_selection_as_visual_focus(
+    qapp: QApplication,
+) -> None:
+    window = QWidget()
+    grounded = _grounded_controller(window)
+    living = PallasLivingQtController(grounded)
+    living._timer.stop()  # noqa: SLF001
+    try:
+        living._tick()  # noqa: SLF001
+        snapshot = living.engine.snapshot
+        assert snapshot is not None
+
+        assert grounded.field.focus_node("claim")
+        qapp.processEvents()
+
+        assert living.engine.visual_focus_id == "claim"
+        assert living.engine.snapshot is snapshot
+        assert snapshot.focus_id == "focus"
+
+        grounded.field.clear_selection()
+        qapp.processEvents()
+        assert living.engine.visual_focus_id is None
+    finally:
+        living.stop()
+        delete(window)
+
+
+def test_qt_bridge_rejects_invalid_snapshot_without_crashing_timer_path(
+    qapp: QApplication,
+) -> None:
+    window = QWidget()
+    grounded = _grounded_controller(window)
+    living = PallasLivingQtController(grounded)
+    living._timer.stop()  # noqa: SLF001
+    diagnostics: list[object] = []
+    living.diagnostics_changed.connect(diagnostics.append)
+    try:
+        living._tick()  # noqa: SLF001
+        assert living.engine.snapshot is not None
+
+        focus = _node("focus", PallasNodeKind.FOCUS)
+        claim = _node("claim", PallasNodeKind.CLAIM)
+        invalid = PallasGraphSnapshot(
+            graph_id="graph:living-qt-invalid",
+            nodes=(focus, claim),
+            edges=(PallasSemanticEdge("focus", "missing", "cites"),),
+            focus_id="focus",
+            status="ready",
+            status_detail="Invalid graph for regression coverage.",
+        )
+        grounded.apply_snapshot(invalid)
+        living._tick()  # noqa: SLF001
+        qapp.processEvents()
+
+        latest = diagnostics[-1]
+        assert isinstance(latest, dict)
+        assert "missing node" in str(latest["validation_error"])
+        assert living.engine.snapshot is None
+        assert "missing node" in str(
+            grounded.field.property("pathenaPallasLivingError")
+        )
+    finally:
+        living.stop()
+        delete(window)
