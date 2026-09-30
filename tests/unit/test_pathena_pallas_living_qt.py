@@ -315,3 +315,31 @@ def test_qt_bridge_rejects_invalid_snapshot_without_crashing_timer_path(
     finally:
         living.stop()
         delete(window)
+
+def test_vitality_marker_geometry_tracks_dynamic_text_width(
+    qapp: QApplication,
+) -> None:
+    window = QWidget()
+    grounded = _grounded_controller(window)
+    living = PallasLivingQtController(grounded)
+    living._timer.stop()  # noqa: SLF001
+    try:
+        living._tick()  # noqa: SLF001
+        binding = living._bindings[id(grounded.field)]  # noqa: SLF001
+        marker = binding.age_items["claim"]
+        item = grounded.field._items["claim"]  # noqa: SLF001
+
+        living.set_lens("vitality")
+        qapp.processEvents()
+
+        assert marker.text().endswith("%")
+        assert marker.pos().x() == pytest.approx(
+            -marker.boundingRect().width() / 2
+        )
+        assert marker.pos().y() == pytest.approx(
+            item.boundingRect().bottom() + 2
+        )
+    finally:
+        living.stop()
+        delete(window)
+
