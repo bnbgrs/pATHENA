@@ -114,7 +114,7 @@ class KnowledgeWorkspace(QWidget):
         self.obsidian_export_button.clicked.connect(self.begin_obsidian_export)
 
         self.obsidian_status = QLabel(
-            "Obsidian export · Select knowledge, then choose a local vault."
+            "Obsidian export · Select knowledge, then choose a local vault to preview."
         )
         self.obsidian_status.setObjectName("settingsHelp")
         self.obsidian_status.setWordWrap(True)
