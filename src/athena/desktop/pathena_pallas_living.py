@@ -73,6 +73,7 @@ class PallasLivingEngine:
         self._neighbors: dict[str, frozenset[str]] = {}
         self._conflict_pairs: frozenset[frozenset[str]] = frozenset()
         self._semantic_pairs: tuple[tuple[str, str, float], ...] = ()
+        self.visual_focus_id: str | None = None
         self.tick = 0
 
     def clear(self) -> None:
@@ -84,6 +85,7 @@ class PallasLivingEngine:
         self._neighbors.clear()
         self._conflict_pairs = frozenset()
         self._semantic_pairs = ()
+        self.visual_focus_id = None
         self.tick = 0
 
     def reconcile(
@@ -148,10 +150,16 @@ class PallasLivingEngine:
                 if similarity >= self.config.semantic_threshold:
                     semantic_pairs.append((left.node_id, right.node_id, similarity))
         self._semantic_pairs = tuple(semantic_pairs)
+        if self.visual_focus_id not in ids:
+            self.visual_focus_id = None
 
         self.snapshot = snapshot
         if not had_state:
             self.tick = 0
+
+    def set_visual_focus(self, node_id: str | None) -> None:
+        """Bias presentation toward a selected real node without changing graph facts."""
+        self.visual_focus_id = node_id
 
     def step(self, dt: float | None = None) -> None:
         graph = self.snapshot
@@ -203,10 +211,19 @@ class PallasLivingEngine:
             node_id: state.vitality for node_id, state in self.states.items()
         }
         active = {node_id: state.active for node_id, state in self.states.items()}
+        presentation_focus = (
+            self.visual_focus_id
+            if self.visual_focus_id in self.states
+            else graph.focus_id
+        )
         damping = c.damping ** (dt * c.fps)
         for node in nodes:
             state = self.states[node.node_id]
-            pull = c.focus_pull if node.node_id == graph.focus_id else c.center_pull
+            pull = (
+                c.focus_pull
+                if node.node_id == presentation_focus
+                else c.center_pull
+            )
             phase = _phase(node.node_id)
             temporal = state.age_seconds * 0.13 + self.tick * 0.021
             force[node.node_id][0] += (
@@ -225,7 +242,7 @@ class PallasLivingEngine:
             else:
                 target = 0.62 if alive >= 2 else 0.08
             target += 0.12 if node.cited else 0.0
-            target += 0.14 if node.node_id == graph.focus_id else 0.0
+            target += 0.14 if node.node_id == presentation_focus else 0.0
             if node.confidence is not None:
                 target += 0.10 * max(0.0, min(1.0, node.confidence))
             if linked:
@@ -256,7 +273,7 @@ class PallasLivingEngine:
                 scale = c.max_speed / speed
                 state.vx *= scale
                 state.vy *= scale
-            if node.node_id == graph.focus_id:
+            if node.node_id == presentation_focus:
                 state.vx *= 0.72
                 state.vy *= 0.72
             state.x += state.vx * dt
@@ -331,6 +348,7 @@ class PallasLivingEngine:
             "max_speed": 0.0 if not speeds else max(speeds),
             "semantic_pairs": len(self._semantic_pairs),
             "edges": 0 if self.snapshot is None else len(self.snapshot.edges),
+            "visual_focus": self.visual_focus_id or "",
             "tick": self.tick,
         }
 
