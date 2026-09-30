@@ -14,8 +14,8 @@ from athena.desktop.app import create_application
 from athena.desktop.files_workspace import FilesWorkspace
 from athena.desktop.jobs_workspace import JobsWorkspace
 from athena.desktop.pathena_jobs_experience_2800 import install_jobs_experience
-from athena.desktop.pathena_v3_components import V3ActionHost
 from athena.desktop.pathena_research_experience_2500 import install_research_experience
+from athena.desktop.pathena_v3_components import V3ActionHost
 from athena.desktop.pathena_v3_jobs import install_v3_jobs_workspace
 from athena.desktop.pathena_v3_research import install_v3_research_workspace
 from athena.desktop.pathena_v3_sources import install_v3_sources_workspace
