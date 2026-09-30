@@ -13,6 +13,8 @@ from PySide6.QtWidgets import QApplication, QFrame, QSplitter
 from athena.desktop.app import create_application
 from athena.desktop.files_workspace import FilesWorkspace
 from athena.desktop.jobs_workspace import JobsWorkspace
+from athena.desktop.pathena_jobs_experience_2800 import install_jobs_experience
+from athena.desktop.pathena_research_experience_2500 import install_research_experience
 from athena.desktop.pathena_v3_jobs import install_v3_jobs_workspace
 from athena.desktop.pathena_v3_research import install_v3_research_workspace
 from athena.desktop.pathena_v3_sources import install_v3_sources_workspace
@@ -43,6 +45,7 @@ def test_research_polish_keeps_real_controls_and_clear_action_hierarchy() -> Non
     app = _app()
     workspace = ResearchWorkspace()
     results = install_research_results_extension(workspace)
+    experience = install_research_experience(workspace, results)
     try:
         controller = install_v3_research_workspace(workspace, results)
         workspace.show()
@@ -60,6 +63,10 @@ def test_research_polish_keeps_real_controls_and_clear_action_hierarchy() -> Non
         assert workspace.jobs.minimumWidth() == 260
         assert workspace.jobs.maximumWidth() == 360
         assert controller.empty_state.accessibleName() == "Research empty state"
+
+        workspace.cancel_button.setEnabled(False)
+        experience.sync()
+        assert not workspace.cancel_button.isHidden()
     finally:
         results.refresh_timer.stop()
         _destroy_widgets(app, workspace)
@@ -69,6 +76,7 @@ def test_jobs_and_sources_polish_group_status_before_actions() -> None:
     app = _app()
     jobs = JobsWorkspace()
     sources = FilesWorkspace()
+    jobs_experience = install_jobs_experience(jobs)
     try:
         jobs_controller = install_v3_jobs_workspace(jobs)
         sources_controller = install_v3_sources_workspace(sources)
@@ -89,6 +97,24 @@ def test_jobs_and_sources_polish_group_status_before_actions() -> None:
         assert jobs_split is not None
         assert jobs_split.accessibleName() == "Job queue and job details"
         assert jobs_controller.empty_state.accessibleName() == "Jobs empty state"
+
+        for button in (
+            jobs.pause_button,
+            jobs.resume_button,
+            jobs.wake_button,
+            jobs.cancel_button,
+        ):
+            button.setEnabled(False)
+        jobs_experience._sync_actions()
+        assert all(
+            not button.isHidden()
+            for button in (
+                jobs.pause_button,
+                jobs.resume_button,
+                jobs.wake_button,
+                jobs.cancel_button,
+            )
+        )
 
         sources_command = sources.findChild(QFrame, "v3SourcesCommand")
         sources_split = sources.findChild(QSplitter, "v3SourcesSplit")
