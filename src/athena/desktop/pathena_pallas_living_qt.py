@@ -270,6 +270,9 @@ class PallasLivingQtController(QObject):
             self._timer.setInterval(target_interval)
         current_target_fps = round(1000 / max(target_interval, 1))
         for current in fields:
+            current.setProperty("pathenaPallasLiving", True)
+            current.setProperty("pathenaPallasLivingRenderer", "force-ca-v1")
+            current.setProperty("pathenaPallasLens", self._lens)
             current.setProperty("pathenaPallasTargetFps", current_target_fps)
         rendered_ids = {id(current) for current in render_fields}
         for stale_id in tuple(self._bindings):
