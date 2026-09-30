@@ -389,6 +389,7 @@ class FilesWorkspace(QWidget):
             item.setData(Qt.ItemDataRole.UserRole, source_id)
             item.setData(Qt.ItemDataRole.UserRole + 1, readiness)
             item.setData(Qt.ItemDataRole.UserRole + 2, processable == "yes")
+            item.setData(Qt.ItemDataRole.UserRole + 3, job_state)
             self.sources.addItem(item)
             if selected == source_id:
                 item_to_select = item
