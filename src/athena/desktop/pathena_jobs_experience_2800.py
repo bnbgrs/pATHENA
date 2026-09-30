@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from shiboken6 import isValid
 
 from athena.desktop.jobs_workspace import JobsWorkspace
 from athena.desktop.pathena_design_tokens import PALETTE, RADII
@@ -301,10 +302,13 @@ class PathenaJobsExperience(QObject):
         QTimer.singleShot(0, self._post_process_sync)
 
     def _post_process_sync(self) -> None:
-        if self.workspace._operation == "show":
+        workspace = self.workspace
+        if not isValid(self) or not isValid(workspace) or not isValid(workspace.details):
+            return
+        if workspace._operation == "show":
             self._humanize_details()
         else:
-            text = self.workspace.details.toPlainText()
+            text = workspace.details.toPlainText()
             if text.startswith("JOB "):
                 self._humanize_details()
         self._sync_actions()
