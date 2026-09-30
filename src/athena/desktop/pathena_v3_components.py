@@ -95,7 +95,9 @@ class V3NavigationButton(QToolButton):
         self.setIcon(self._icons[False])
         self.setIconSize(QSize(22, 22))
         self.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextUnderIcon)
-        self.setFixedSize(64, 56)
+        self._regular_size = QSize(64, 56)
+        self._compact_size = QSize(58, 52)
+        self.setFixedSize(self._regular_size)
         self.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         self.setToolTip(label)
         self.setAccessibleName(f"Open {label}")
@@ -110,6 +112,9 @@ class V3NavigationButton(QToolButton):
             style.unpolish(self)
             style.polish(self)
         self.update()
+
+    def set_compact(self, compact: bool) -> None:
+        self.setFixedSize(self._compact_size if compact else self._regular_size)
 
 
 class V3WorkspaceHeader(QFrame):
@@ -149,6 +154,10 @@ class V3WorkspaceHeader(QFrame):
     def set_context(self, title: str, hint: str) -> None:
         self.title_label.setText(title)
         self.hint_label.setText(hint)
+
+    def set_compact(self, compact: bool) -> None:
+        self.setFixedHeight(58 if compact else 68)
+        self.hint_label.setVisible(not compact)
 
 
 class V3Pill(QLabel):
@@ -228,13 +237,13 @@ class V3ComposerFrame(QFrame):
                 border = QColor("#2C5D61")
                 foreground = QColor("#DDF5F1")
             elif ground.isEnabled():
-                background = QColor("#14181D")
-                border = QColor("#29313A")
+                background = QColor("#13181D")
+                border = QColor("#2A3138")
                 foreground = QColor("#A5ACB4")
             else:
-                background = QColor("#172323")
-                border = QColor("#355052")
-                foreground = QColor("#879A9B")
+                background = QColor("#141A1B")
+                border = QColor("#2B3738")
+                foreground = QColor("#7F8D8D")
             painter.setPen(QPen(border, 1.0))
             painter.setBrush(background)
             painter.drawRoundedRect(rect, 9, 9)
@@ -257,9 +266,9 @@ class V3ComposerFrame(QFrame):
                 border = QColor("#78D1C5")
                 foreground = QColor("#0D1014")
             else:
-                background = QColor("#203536")
-                border = QColor("#33595A")
-                foreground = QColor("#B9D5D1")
+                background = QColor("#20292A")
+                border = QColor("#334143")
+                foreground = QColor("#AEBFBD")
             painter.setPen(QPen(border, 1.0))
             painter.setBrush(background)
             painter.drawRoundedRect(rect, diameter / 2.0, diameter / 2.0)
@@ -335,7 +344,7 @@ class V3ControlRow(QFrame):
         self.control_layout = QHBoxLayout(self.control_host)
         self.control_layout.setContentsMargins(0, 0, 0, 0)
         self.control_layout.setSpacing(8)
-        self.control_host.setMinimumWidth(300)
+        self.control_host.setMinimumWidth(260)
         layout.addWidget(self.control_host)
 
     def add_control(self, widget: QWidget, stretch: int = 0) -> None:
