@@ -44,47 +44,65 @@ class PathenaV3ResearchController(QObject):
 
         brief = QFrame()
         brief.setObjectName("v3ResearchBrief")
+        brief.setAccessibleName("Research brief")
         brief_layout = QVBoxLayout(brief)
-        brief_layout.setContentsMargins(16, 14, 16, 14)
+        brief_layout.setContentsMargins(18, 15, 18, 15)
         brief_layout.setSpacing(9)
 
         kicker = QLabel("RESEARCH BRIEF")
         kicker.setObjectName("v3Kicker")
         brief_layout.addWidget(kicker)
 
+        lead = QLabel(
+            "Frame one question, then follow the run from discovery through evidence and review."
+        )
+        lead.setObjectName("v3WorkspaceLead")
+        lead.setWordWrap(True)
+        brief_layout.addWidget(lead)
+
         query_row = QHBoxLayout()
         query_row.setContentsMargins(0, 0, 0, 0)
         query_row.setSpacing(8)
         workspace.query_input.setParent(brief)
         workspace.query_input.setPlaceholderText("What do you want to understand?")
+        workspace.query_input.setAccessibleName("Research question")
+        workspace.query_input.setMinimumHeight(38)
         workspace.query_input.show()
         query_row.addWidget(workspace.query_input, 1)
 
         workspace.start_button.setParent(brief)
         workspace.start_button.setText("Research")
+        workspace.start_button.setProperty("v3PrimaryAction", True)
         workspace.start_button.show()
         query_row.addWidget(workspace.start_button)
 
         workspace.cancel_button.setParent(brief)
         workspace.cancel_button.setText("Cancel")
+        workspace.cancel_button.setProperty("v3DestructiveAction", True)
         workspace.cancel_button.show()
         query_row.addWidget(workspace.cancel_button)
         brief_layout.addLayout(query_row)
 
         state_row = QHBoxLayout()
         state_row.setContentsMargins(0, 0, 0, 0)
-        state_row.setSpacing(10)
+        state_row.setSpacing(8)
+
+        state_label = QLabel("STATUS")
+        state_label.setObjectName("v3Kicker")
+        state_row.addWidget(state_label)
+
         workspace.status.setParent(brief)
         workspace.status.setObjectName("v3ResearchStatus")
         workspace.status.setWordWrap(False)
-        workspace.status.setMinimumWidth(180)
+        workspace.status.setMinimumWidth(160)
         workspace.status.show()
         state_row.addWidget(workspace.status)
         state_row.addStretch(1)
 
         self.results.job_filter.setParent(brief)
         self.results.job_filter.setPlaceholderText("Filter runs")
-        self.results.job_filter.setMaximumWidth(260)
+        self.results.job_filter.setAccessibleName("Filter research runs")
+        self.results.job_filter.setMaximumWidth(240)
         self.results.job_filter.show()
         state_row.addWidget(self.results.job_filter)
 
@@ -97,11 +115,12 @@ class PathenaV3ResearchController(QObject):
 
         splitter.setParent(workspace)
         splitter.setObjectName("v3ResearchSplit")
+        splitter.setAccessibleName("Research runs and result")
         splitter.setChildrenCollapsible(False)
         splitter.setStretchFactor(0, 1)
         splitter.setStretchFactor(1, 3)
-        workspace.jobs.setMinimumWidth(230)
-        workspace.jobs.setMaximumWidth(390)
+        workspace.jobs.setMinimumWidth(260)
+        workspace.jobs.setMaximumWidth(360)
         workspace.jobs.show()
         splitter.show()
         root.addWidget(splitter, 1)
@@ -109,7 +128,7 @@ class PathenaV3ResearchController(QObject):
         self.empty_state = V3EmptyState(
             "Research",
             "Start with a question",
-            "pATHENA keeps each research run, evidence trail and review decision together.",
+            "Each run keeps its evidence trail, result and review decisions together.",
         )
         self.empty_state.setAccessibleName("Research empty state")
         root.addWidget(self.empty_state, 1)
