@@ -36,6 +36,7 @@ from athena.desktop.knowledge_review import (
     parse_knowledge_entity_review,
     render_knowledge_entity_review,
 )
+from athena.desktop.pathena_ui_refinement_600 import set_pathena_ui_state
 
 
 class KnowledgeWorkspace(QWidget):
@@ -777,6 +778,9 @@ class KnowledgeWorkspace(QWidget):
     ) -> None:
         self._knowledge_operation = operation
         self._knowledge_buffer = ""
+        target = self._detail_target_for_operation(operation)
+        if target is not None:
+            set_pathena_ui_state(target, "busy")
         self.browser_status.setText(label + " …")
         self.refresh_knowledge_button.setEnabled(False)
         self.history_button.setEnabled(False)
@@ -834,8 +838,10 @@ class KnowledgeWorkspace(QWidget):
         if exit_code != 0:
             self.browser_status.setText(f"Canonical memory command failed (exit {exit_code}).")
             target = self._detail_target_for_operation(operation)
-            if target is not None and output and not target.toPlainText():
-                target.setPlainText(output)
+            if target is not None:
+                set_pathena_ui_state(target, "error")
+                if output and not target.toPlainText():
+                    target.setPlainText(output)
             return
 
         if operation in {"show", "claim-show"}:
@@ -845,6 +851,7 @@ class KnowledgeWorkspace(QWidget):
                     review = parse_knowledge_entity_review(output)
                 except KnowledgeReviewError as exc:
                     target.setProperty("pathenaKnowledgeReviewState", "error")
+                    set_pathena_ui_state(target, "error")
                     target.setPlainText(
                         f"PERSISTED DETAIL UNAVAILABLE\n{exc}\n\nRaw command output:\n{output}"
                     )
@@ -853,6 +860,7 @@ class KnowledgeWorkspace(QWidget):
                 target.setPlainText(render_knowledge_entity_review(review))
                 target.setProperty("pathenaKnowledgeReviewState", "ready")
                 target.setProperty("pathenaKnowledgeEntityId", review.entity_id)
+                set_pathena_ui_state(target, "success")
 
         if operation == "list":
             self._render_knowledge_list(output)
@@ -872,12 +880,15 @@ class KnowledgeWorkspace(QWidget):
         elif operation == "show":
             self.browser_status.setText("Current Knowledge revision and provenance loaded.")
         elif operation == "history":
+            set_pathena_ui_state(self.knowledge_details, "success")
             self.browser_status.setText("Immutable Knowledge history loaded.")
         elif operation == "claim-show":
             self.browser_status.setText("Current Claim evidence and provenance loaded.")
         elif operation == "claim-history":
+            set_pathena_ui_state(self.claim_details, "success")
             self.browser_status.setText("Immutable Claim history loaded.")
         elif operation == "review-show":
+            set_pathena_ui_state(self.review_details, "success")
             self.browser_status.setText("Pending contradiction decision loaded.")
         elif operation in {"review-accept", "review-reject"}:
             self._selected_review_id = None
