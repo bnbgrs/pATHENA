@@ -124,10 +124,13 @@ class PallasLivingQtController(QObject):
         if normalized not in _LENSES:
             raise ValueError(f"Unsupported PALLAS lens: {lens!r}")
         self._lens = normalized
-        for binding in tuple(self._bindings.values()):
-            if isValid(binding.field):
-                binding.field.setProperty("pathenaPallasLens", normalized)
-                self._apply_binding(binding)
+        for field in self._mounted_fields():
+            field.setProperty("pathenaPallasLens", normalized)
+        for binding_id, binding in tuple(self._bindings.items()):
+            if not self._binding_is_current(binding):
+                self._bindings.pop(binding_id, None)
+                continue
+            self._apply_binding(binding)
 
     def stop(self) -> None:
         if self._stopped:
@@ -276,9 +279,11 @@ class PallasLivingQtController(QObject):
             self._ensure_binding(current, snapshot)
 
         self._engine.step(target_interval / 1000.0)
-        for binding in tuple(self._bindings.values()):
-            if isValid(binding.field):
-                self._apply_binding(binding)
+        for binding_id, binding in tuple(self._bindings.items()):
+            if not self._binding_is_current(binding):
+                self._bindings.pop(binding_id, None)
+                continue
+            self._apply_binding(binding)
         diagnostics: dict[str, object] = {
             key: value for key, value in self._engine.diagnostics().items()
         }
@@ -326,6 +331,18 @@ class PallasLivingQtController(QObject):
             for field in self._mounted_fields()
             if field.snapshot is not None
         )
+
+    def _binding_is_current(self, binding: _FieldBinding) -> bool:
+        field = binding.field
+        if not isValid(field):
+            return False
+        snapshot = field.snapshot
+        if snapshot is None or snapshot.graph_id != binding.graph_id:
+            return False
+        current_token = tuple(
+            sorted(id(item) for item in field._items.values())  # noqa: SLF001
+        )
+        return current_token == binding.item_token
 
     def _ensure_binding(
         self,
