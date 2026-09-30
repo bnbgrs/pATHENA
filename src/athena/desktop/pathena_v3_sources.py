@@ -68,16 +68,22 @@ class PathenaV3SourcesController(QObject):
 
         workspace.refresh_button.setParent(command)
         workspace.refresh_button.setText("Refresh")
+        workspace.refresh_button.setAccessibleName("Refresh source library")
+        workspace.refresh_button.setToolTip("Refresh imported source state")
         workspace.refresh_button.show()
         actions.addWidget(workspace.refresh_button)
 
         workspace.process_button.setParent(command)
         workspace.process_button.setText("Process")
+        workspace.process_button.setAccessibleName("Process selected source")
+        workspace.process_button.setToolTip("Process the selected source into local evidence")
         workspace.process_button.show()
         actions.addWidget(workspace.process_button)
 
         workspace.import_button.setParent(command)
         workspace.import_button.setText("Import")
+        workspace.import_button.setAccessibleName("Import local source")
+        workspace.import_button.setToolTip("Import material into the local source library")
         workspace.import_button.setProperty("v3PrimaryAction", True)
         workspace.import_button.show()
         actions.addWidget(workspace.import_button)
