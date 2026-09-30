@@ -236,3 +236,32 @@ def test_full_view_uses_dedicated_v3_inspector_without_exposing_legacy_panel() -
     inspector.dispose()
     full_view.dispose()
     window.close()
+
+def test_living_cadence_tracks_compact_and_full_workspace_visibility() -> None:
+    app, window, grounded, full_view = _surface()
+    grounded.apply_snapshot(_snapshot())
+    living = full_view.living_controller
+    living._timer.stop()  # noqa: SLF001 - deterministic cadence regression
+    try:
+        living._tick()  # noqa: SLF001
+        app.processEvents()
+
+        assert living._timer.interval() == living._compact_interval_ms  # noqa: SLF001
+        assert grounded.field.property("pathenaPallasTargetFps") == 15
+
+        full_view.open_workspace()
+        app.processEvents()
+        living._tick()  # noqa: SLF001
+        app.processEvents()
+
+        workspace = full_view.workspace
+        status = window.findChild(QLabel, "pallasLivingStatus")
+        assert workspace is not None
+        assert living._timer.interval() == living._active_interval_ms  # noqa: SLF001
+        assert workspace.field.property("pathenaPallasTargetFps") == 30
+        assert status is not None
+        assert "30 FPS" in status.text()
+    finally:
+        full_view.dispose()
+        window.close()
+
