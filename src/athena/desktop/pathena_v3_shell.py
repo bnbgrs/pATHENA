@@ -582,6 +582,17 @@ class PathenaV3ShellController(QObject):
         if inspector is not None and index != 0:
             inspector.hide()
 
+    def transient_opened(self, title: str, hint: str) -> None:
+        """Give a shell-hosted temporary workspace unambiguous visual ownership."""
+        for button in self._nav_buttons.values():
+            button.set_active(False)
+        self._pallas_button.set_active(False)
+        self._header.set_context(title, hint)
+
+    def transient_closed(self) -> None:
+        """Restore the selected durable route after a temporary workspace closes."""
+        self._sync_navigation(max(0, self._window.navigation.currentRow()))
+
     @Slot()
     def pallas_opened(self) -> None:
         for button in self._nav_buttons.values():
