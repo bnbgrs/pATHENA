@@ -251,6 +251,7 @@ def test_qt_bridge_publishes_structural_activity_delta(
         living.stop()
         delete(window)
 
+
 def test_qt_bridge_tracks_real_selection_as_visual_focus(
     qapp: QApplication,
 ) -> None:
@@ -315,6 +316,7 @@ def test_qt_bridge_rejects_invalid_snapshot_without_crashing_timer_path(
     finally:
         living.stop()
         delete(window)
+
 
 def test_vitality_marker_geometry_tracks_dynamic_text_width(
     qapp: QApplication,
