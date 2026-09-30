@@ -68,12 +68,22 @@ class PallasLivingEngine:
         self.snapshot: PallasGraphSnapshot | None = None
         self.states: dict[str, PallasLivingNodeState] = {}
         self._semantic_tokens: dict[str, frozenset[str]] = {}
+        self._node_order: tuple[PallasSemanticNode, ...] = ()
+        self._node_by_id: dict[str, PallasSemanticNode] = {}
+        self._neighbors: dict[str, frozenset[str]] = {}
+        self._conflict_pairs: frozenset[frozenset[str]] = frozenset()
+        self._semantic_pairs: tuple[tuple[str, str, float], ...] = ()
         self.tick = 0
 
     def clear(self) -> None:
         self.snapshot = None
         self.states.clear()
         self._semantic_tokens.clear()
+        self._node_order = ()
+        self._node_by_id.clear()
+        self._neighbors.clear()
+        self._conflict_pairs = frozenset()
+        self._semantic_pairs = ()
         self.tick = 0
 
     def reconcile(
@@ -102,9 +112,40 @@ class PallasLivingEngine:
                 float(y),
                 vitality=1.0 if node.node_id == snapshot.focus_id else 0.82,
             )
+        self._node_order = tuple(sorted(snapshot.nodes, key=lambda item: item.node_id))
+        self._node_by_id = {node.node_id: node for node in self._node_order}
         self._semantic_tokens = {
-            node.node_id: _tokens(node) for node in snapshot.nodes
+            node.node_id: _tokens(node) for node in self._node_order
         }
+
+        neighbor_sets: dict[str, set[str]] = {
+            node.node_id: set() for node in self._node_order
+        }
+        conflict_pairs: set[frozenset[str]] = set()
+        for edge in snapshot.edges:
+            if edge.source_id not in self._node_by_id or edge.target_id not in self._node_by_id:
+                continue
+            neighbor_sets[edge.source_id].add(edge.target_id)
+            neighbor_sets[edge.target_id].add(edge.source_id)
+            if edge.relation.casefold() in _CONFLICT_REL:
+                conflict_pairs.add(frozenset((edge.source_id, edge.target_id)))
+        self._neighbors = {
+            node_id: frozenset(linked) for node_id, linked in neighbor_sets.items()
+        }
+        self._conflict_pairs = frozenset(conflict_pairs)
+
+        semantic_pairs: list[tuple[str, str, float]] = []
+        for index, left in enumerate(self._node_order):
+            left_tokens = self._semantic_tokens.get(left.node_id, frozenset())
+            for right in self._node_order[index + 1 :]:
+                similarity = _token_similarity(
+                    left_tokens,
+                    self._semantic_tokens.get(right.node_id, frozenset()),
+                )
+                if similarity >= self.config.semantic_threshold:
+                    semantic_pairs.append((left.node_id, right.node_id, similarity))
+        self._semantic_pairs = tuple(semantic_pairs)
+
         self.snapshot = snapshot
         if not had_state:
             self.tick = 0
@@ -115,23 +156,17 @@ class PallasLivingEngine:
             return
         c = self.config
         dt = 1.0 / c.fps if dt is None else min(max(float(dt), 1 / 240), 0.1)
-        nodes = tuple(sorted(graph.nodes, key=lambda item: item.node_id))
-        by_id = {node.node_id: node for node in nodes}
+        nodes = self._node_order
+        by_id = self._node_by_id
         force: dict[str, list[float]] = {
             node.node_id: [0.0, 0.0] for node in nodes
         }
-        neighbors: dict[str, set[str]] = {
-            node.node_id: set() for node in nodes
-        }
-        conflict_pairs: set[frozenset[str]] = set()
+        neighbors = self._neighbors
+        conflict_pairs = self._conflict_pairs
 
         for edge in graph.edges:
             if edge.source_id not in by_id or edge.target_id not in by_id:
                 continue
-            neighbors[edge.source_id].add(edge.target_id)
-            neighbors[edge.target_id].add(edge.source_id)
-            if edge.relation.casefold() in _CONFLICT_REL:
-                conflict_pairs.add(frozenset((edge.source_id, edge.target_id)))
             self._pair_force(edge.source_id, edge.target_id, force, spring=True)
 
         for index, left in enumerate(nodes):
@@ -143,17 +178,14 @@ class PallasLivingEngine:
                     else 1.0
                 )
                 self._pair_force(left.node_id, right.node_id, force, repulsion=ratio)
-                similarity = _token_similarity(
-                    self._semantic_tokens.get(left.node_id, frozenset()),
-                    self._semantic_tokens.get(right.node_id, frozenset()),
-                )
-                if similarity >= c.semantic_threshold:
-                    self._pair_force(
-                        left.node_id,
-                        right.node_id,
-                        force,
-                        attraction=similarity,
-                    )
+
+        for left_id, right_id, similarity in self._semantic_pairs:
+            self._pair_force(
+                left_id,
+                right_id,
+                force,
+                attraction=similarity,
+            )
 
         conflict_ids = {
             node.node_id for node in nodes if node.kind is PallasNodeKind.CONFLICT
@@ -287,10 +319,15 @@ class PallasLivingEngine:
             if not values
             else sum(state.vitality for state in values) / len(values)
         )
+        speeds = tuple(math.hypot(state.vx, state.vy) for state in values)
         return {
             "nodes": len(values),
             "active": sum(state.active for state in values),
             "mean_vitality": mean_vitality,
+            "mean_speed": 0.0 if not speeds else sum(speeds) / len(speeds),
+            "max_speed": 0.0 if not speeds else max(speeds),
+            "semantic_pairs": len(self._semantic_pairs),
+            "edges": 0 if self.snapshot is None else len(self.snapshot.edges),
             "tick": self.tick,
         }
 
