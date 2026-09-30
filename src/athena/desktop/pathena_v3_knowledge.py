@@ -37,18 +37,21 @@ class PathenaV3KnowledgeController(QObject):
 
         search_bar = QFrame()
         search_bar.setObjectName("v3KnowledgeSearch")
+        search_bar.setAccessibleName("Knowledge search and actions")
         search_layout = QHBoxLayout(search_bar)
-        search_layout.setContentsMargins(0, 0, 0, 0)
+        search_layout.setContentsMargins(14, 11, 12, 11)
         search_layout.setSpacing(8)
 
         workspace.search_input.setParent(search_bar)
-        workspace.search_input.setPlaceholderText("Search your knowledge")
-        workspace.search_input.setMinimumWidth(360)
+        workspace.search_input.setPlaceholderText("Search knowledge, claims and provenance")
+        workspace.search_input.setAccessibleName("Search durable knowledge")
+        workspace.search_input.setMinimumWidth(300)
         workspace.search_input.show()
         search_layout.addWidget(workspace.search_input, 1)
 
         workspace.open_chat_button.setParent(search_bar)
         workspace.open_chat_button.setText("Use in chat")
+        workspace.open_chat_button.setProperty("v3PrimaryAction", True)
         workspace.open_chat_button.show()
         search_layout.addWidget(workspace.open_chat_button)
 
@@ -59,40 +62,51 @@ class PathenaV3KnowledgeController(QObject):
 
         workspace.refresh_button.setParent(search_bar)
         workspace.refresh_button.setText("Core")
+        workspace.refresh_button.setToolTip("Refresh canonical state from the local Core")
         workspace.refresh_button.show()
         search_layout.addWidget(workspace.refresh_button)
         root.addWidget(search_bar)
 
         identity = QFrame()
         identity.setObjectName("v3KnowledgeIdentity")
-        identity_layout = QHBoxLayout(identity)
-        identity_layout.setContentsMargins(2, 2, 2, 2)
-        identity_layout.setSpacing(10)
+        identity.setAccessibleName("Knowledge library status")
+        identity_layout = QVBoxLayout(identity)
+        identity_layout.setContentsMargins(4, 2, 4, 2)
+        identity_layout.setSpacing(5)
+
+        identity_header = QHBoxLayout()
+        identity_header.setContentsMargins(0, 0, 0, 0)
+        identity_header.setSpacing(10)
 
         library_label = QLabel("DURABLE LIBRARY")
         library_label.setObjectName("v3Kicker")
-        identity_layout.addWidget(library_label)
+        identity_header.addWidget(library_label)
 
         workspace.state.setParent(identity)
         workspace.state.setObjectName("v3KnowledgeState")
         workspace.state.show()
-        identity_layout.addWidget(workspace.state)
-
-        workspace.summary.setParent(identity)
-        workspace.summary.setObjectName("v3KnowledgeSummary")
-        workspace.summary.setText("Reviewed memory, claims, decisions and provenance.")
-        workspace.summary.show()
-        identity_layout.addWidget(workspace.summary, 1)
+        identity_header.addWidget(workspace.state)
+        identity_header.addStretch(1)
 
         workspace.runtime.setParent(identity)
         workspace.runtime.setObjectName("v3KnowledgeMeta")
         workspace.runtime.show()
-        identity_layout.addWidget(workspace.runtime)
+        identity_header.addWidget(workspace.runtime)
 
         workspace.source.setParent(identity)
         workspace.source.setObjectName("v3KnowledgeMeta")
         workspace.source.show()
-        identity_layout.addWidget(workspace.source)
+        identity_header.addWidget(workspace.source)
+        identity_layout.addLayout(identity_header)
+
+        workspace.summary.setParent(identity)
+        workspace.summary.setObjectName("v3KnowledgeSummary")
+        workspace.summary.setText(
+            "Reviewed memory, claims, decisions and provenance stay together."
+        )
+        workspace.summary.setWordWrap(True)
+        workspace.summary.show()
+        identity_layout.addWidget(workspace.summary)
         root.addWidget(identity)
 
         for list_view in (
@@ -104,16 +118,18 @@ class PathenaV3KnowledgeController(QObject):
             list_view.setTextElideMode(Qt.TextElideMode.ElideRight)
             list_view.setUniformItemSizes(True)
 
-        workspace.browser_status.setParent(workspace)
-        workspace.browser_status.setObjectName("v3KnowledgeBrowserStatus")
-        workspace.browser_status.show()
-        root.addWidget(workspace.browser_status)
-
         browser = QFrame()
         browser.setObjectName("v3KnowledgeBrowser")
+        browser.setAccessibleName("Knowledge browser")
         browser_layout = QVBoxLayout(browser)
-        browser_layout.setContentsMargins(0, 0, 0, 0)
-        browser_layout.setSpacing(0)
+        browser_layout.setContentsMargins(12, 10, 12, 12)
+        browser_layout.setSpacing(8)
+
+        workspace.browser_status.setParent(browser)
+        workspace.browser_status.setObjectName("v3KnowledgeBrowserStatus")
+        workspace.browser_status.setWordWrap(True)
+        workspace.browser_status.show()
+        browser_layout.addWidget(workspace.browser_status)
 
         workspace.browser_tabs.setParent(browser)
         workspace.browser_tabs.setObjectName("v3KnowledgeTabs")
