@@ -248,8 +248,42 @@ def test_qt_bridge_publishes_structural_activity_delta(
         assert latest["delta_added"] == 1
         assert latest["delta_removed"] == 0
         assert latest["delta_updated"] == 0
+        assert latest["delta_revisions"] == 0
         assert latest["delta_edges"] == 1
         assert latest["focus_changed"] is False
+
+        updated = _updated_snapshot_same_graph_id()
+        focus, claim, knowledge = updated.nodes
+        revised_claim = PallasSemanticNode(
+            node_id=claim.node_id,
+            kind=claim.kind,
+            entity_type=claim.entity_type,
+            entity_id=claim.entity_id,
+            revision_id="revision-claim-2",
+            title=claim.title,
+            summary=claim.summary,
+            epistemic_status=claim.epistemic_status,
+            cited=claim.cited,
+        )
+        revised = PallasGraphSnapshot(
+            graph_id=updated.graph_id,
+            nodes=(focus, revised_claim, knowledge),
+            edges=updated.edges,
+            focus_id=updated.focus_id,
+            status=updated.status,
+            status_detail=updated.status_detail,
+        )
+        grounded.apply_snapshot(revised)
+        living._tick()  # noqa: SLF001
+        qapp.processEvents()
+
+        revision_delta = diagnostics[-1]
+        assert isinstance(revision_delta, dict)
+        assert revision_delta["delta_added"] == 0
+        assert revision_delta["delta_removed"] == 0
+        assert revision_delta["delta_updated"] == 1
+        assert revision_delta["delta_revisions"] == 1
+        assert revision_delta["delta_edges"] == 0
 
         living._delta_pulse_remaining = 0.0  # noqa: SLF001
         living._tick()  # noqa: SLF001
@@ -258,6 +292,7 @@ def test_qt_bridge_publishes_structural_activity_delta(
         assert expired["delta_added"] == 0
         assert expired["delta_removed"] == 0
         assert expired["delta_updated"] == 0
+        assert expired["delta_revisions"] == 0
         assert expired["delta_edges"] == 0
     finally:
         living.stop()
