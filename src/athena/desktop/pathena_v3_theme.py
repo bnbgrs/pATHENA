@@ -860,8 +860,8 @@ QFrame#v3SecurityPosture {
 }
 
 QFrame#v3ResearchBrief {
-    background: #121722;
-    border-color: #282F35;
+    background: #10161A;
+    border-color: #263137;
 }
 
 QFrame#v3JobsCommand,
