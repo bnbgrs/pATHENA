@@ -94,7 +94,9 @@ class PathenaV3JobsController(QObject):
         actions.addWidget(workspace.resume_button)
 
         workspace.wake_button.setParent(command)
+        workspace.wake_button.setObjectName("jobsRunNowButton")
         workspace.wake_button.setText("Run now")
+        workspace.wake_button.setMinimumWidth(78)
         workspace.wake_button.setAccessibleName("Run background work now")
         workspace.wake_button.setToolTip("Wake the scheduler and process ready work now")
         workspace.wake_button.setProperty("v3PrimaryAction", True)
@@ -108,6 +110,17 @@ class PathenaV3JobsController(QObject):
         workspace.cancel_button.setProperty("v3DestructiveAction", True)
         workspace.cancel_button.show()
         actions.addWidget(workspace.cancel_button)
+        for button in (
+            workspace.refresh_button,
+            workspace.pause_button,
+            workspace.resume_button,
+            workspace.wake_button,
+            workspace.cancel_button,
+        ):
+            button.ensurePolished()
+            button.show()
+            button.raise_()
+            button.update()
         command_layout.addLayout(actions)
         root.addWidget(command)
 
