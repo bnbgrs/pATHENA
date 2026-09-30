@@ -317,6 +317,9 @@ class PathenaStartupExperience(QObject):
 
         raw_text = raw.text().strip()
         if bool(raw.property("pathenaStartupReplaced")):
+            # Legacy chat-state updates may toggle this label after V3 has taken
+            # ownership. Keep one visible empty-state source of truth.
+            raw.hide()
             panel = messages.findChild(QFrame, "emptyStatePanel")
             title = messages.findChild(QLabel, "emptyStateTitle")
             body = messages.findChild(QLabel, "emptyStateBody")
