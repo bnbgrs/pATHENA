@@ -491,6 +491,13 @@ class ComfyUiController(QObject):
         inspector = getattr(self._shell, "_inspector", None)
         if isinstance(inspector, QFrame):
             inspector.hide()
+        transient_opened = getattr(self._shell, "transient_opened", None)
+        if callable(transient_opened):
+            transient_opened(
+                "ComfyUI",
+                "Local image and video workflows · loopback only.",
+            )
+            return
         header = getattr(self._shell, "_header", None)
         set_context = getattr(header, "set_context", None)
         if callable(set_context):
@@ -509,6 +516,10 @@ class ComfyUiController(QObject):
                 set_context = getattr(header, "set_context", None)
                 if callable(set_context):
                     set_context("PALLAS", "Living semantic workspace")
+            return
+        transient_closed = getattr(self._shell, "transient_closed", None)
+        if callable(transient_closed):
+            transient_closed()
             return
         sync_navigation = getattr(self._shell, "_sync_navigation", None)
         if callable(sync_navigation):
