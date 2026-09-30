@@ -251,8 +251,14 @@ def test_living_cadence_tracks_compact_and_full_workspace_visibility() -> None:
         living._tick()  # noqa: SLF001
         app.processEvents()
 
-        assert living._timer.interval() == living._compact_interval_ms  # noqa: SLF001
-        assert grounded.field.property("pathenaPallasTargetFps") == 15
+        expected_idle_interval = (
+            living._compact_interval_ms  # noqa: SLF001
+            if grounded.field.isVisible()
+            else living._idle_interval_ms  # noqa: SLF001
+        )
+        expected_idle_fps = round(1000 / expected_idle_interval)
+        assert living._timer.interval() == expected_idle_interval  # noqa: SLF001
+        assert grounded.field.property("pathenaPallasTargetFps") == expected_idle_fps
 
         full_view.open_workspace()
         app.processEvents()
