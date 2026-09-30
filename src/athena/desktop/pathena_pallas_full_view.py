@@ -53,6 +53,7 @@ class PallasFullViewController(QObject):
         self._v3_inspector_kind: QLabel | None = None
         self._v3_inspector_title: QLabel | None = None
         self._v3_inspector_body: QLabel | None = None
+        self._last_inspector_living_signature: tuple[str, int, int] | None = None
         center = window.findChild(QFrame, "conversation")
         reference_body = window.findChild(QFrame, "referenceBody")
         body_layout = reference_body.layout() if reference_body is not None else None
@@ -204,6 +205,7 @@ class PallasFullViewController(QObject):
         node = getattr(selection, "node", None)
         graph_id = str(getattr(selection, "graph_id", "") or "")
         if node is None:
+            self._last_inspector_living_signature = None
             kind_label.setText("SELECTION")
             title_label.setText("Nothing selected")
             body_label.setText(
@@ -240,11 +242,20 @@ class PallasFullViewController(QObject):
         if isinstance(confidence, (int, float)) and not isinstance(confidence, bool):
             lines.append(f"Confidence  {confidence:.2f}")
         if living_state is not None:
+            vitality_percent = round(living_state.vitality * 100)
+            field_age_seconds = int(living_state.age_seconds)
+            self._last_inspector_living_signature = (
+                node_id,
+                vitality_percent,
+                field_age_seconds,
+            )
             lines.append(
                 "Living field  "
-                f"{living_state.vitality:.0%} vitality · "
-                f"{living_state.age_seconds:.1f}s field age"
+                f"{vitality_percent}% vitality · "
+                f"{field_age_seconds}s field age"
             )
+        else:
+            self._last_inspector_living_signature = None
         relationships = self._relationship_lines(node_id)
         if relationships:
             visible_relationships = relationships[:6]
@@ -254,6 +265,26 @@ class PallasFullViewController(QObject):
             if remaining:
                 lines.append(f"+{remaining} more explicit relationships")
         body_label.setText("\n".join(lines))
+
+    def _refresh_inspector_living_readout(self) -> None:
+        selection = getattr(self._grounded_controller, "_selection", None)
+        node = getattr(selection, "node", None)
+        node_id = str(getattr(node, "node_id", "") or "")
+        if not node_id:
+            if self._last_inspector_living_signature is not None:
+                self._sync_v3_inspector(selection)
+            return
+        state = self._living_controller.engine.states.get(node_id)
+        if state is None:
+            signature = None
+        else:
+            signature = (
+                node_id,
+                round(state.vitality * 100),
+                int(state.age_seconds),
+            )
+        if signature != self._last_inspector_living_signature:
+            self._sync_v3_inspector(selection)
 
     def _claim_inspector_context(self) -> None:
         inspector = self._pallas_inspector()
@@ -445,6 +476,7 @@ class PallasFullViewController(QObject):
             return
         validation_error = str(diagnostics.get("validation_error", "") or "")
         if validation_error:
+            self._refresh_inspector_living_readout()
             status.setText("FIELD • LIVING PAUSED • SNAPSHOT REJECTED")
             status.setToolTip(validation_error)
             status.setAccessibleDescription(
@@ -474,6 +506,7 @@ class PallasFullViewController(QObject):
             f"PALLAS living field at {fps} frames per second; "
             f"{active} of {nodes} nodes active; {lens.casefold()} lens."
         )
+        self._refresh_inspector_living_readout()
 
     @Slot()
     def dispose(self) -> None:
@@ -503,6 +536,7 @@ class PallasFullViewController(QObject):
         self._v3_inspector_kind = None
         self._v3_inspector_title = None
         self._v3_inspector_body = None
+        self._last_inspector_living_signature = None
 
 
 def install_pallas_full_view(
