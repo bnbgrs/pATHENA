@@ -423,15 +423,15 @@ class PathenaV3ShellController(QObject):
         intro_row.setSpacing(12)
 
         intro = QLabel(
-            "Local inference is configured per model. Values below feed the existing "
-            "chat request path and stay on this machine."
+            "Configure how the selected local model responds. These settings stay on this "
+            "machine and apply to chat."
         )
         intro.setObjectName("v3SettingsIntro")
         intro.setWordWrap(True)
         intro.setMaximumWidth(700)
         intro_row.addWidget(intro, 1)
 
-        local_pill = V3Pill("LOCAL", tone="accent")
+        local_pill = V3Pill("ON DEVICE", tone="accent")
         intro_row.addWidget(local_pill, 0, Qt.AlignmentFlag.AlignTop)
         page_layout.addLayout(intro_row)
 
@@ -453,7 +453,7 @@ class PathenaV3ShellController(QObject):
 
         model_row = V3ControlRow(
             "Local model",
-            "The LM Studio model used for chat and its per-model inference values.",
+            "Choose the local model used for chat.",
         )
         window.settings_model_selector.setMinimumWidth(250)
         model_row.add_control(window.settings_model_selector, 1)
@@ -462,7 +462,7 @@ class PathenaV3ShellController(QObject):
 
         context_row = V3ControlRow(
             "Context window",
-            "Total request context available to the selected model.",
+            "How much conversation and source context the model can use.",
         )
         context_row.add_control(window.context_slider, 1)
         context_row.add_control(window.context_spin)
@@ -470,7 +470,7 @@ class PathenaV3ShellController(QObject):
 
         output_row = V3ControlRow(
             "Maximum output",
-            "Upper bound for generated tokens in a single response.",
+            "Maximum length of one generated response.",
         )
         output_row.add_control(window.max_output_slider, 1)
         output_row.add_control(window.max_output_spin)
@@ -478,7 +478,7 @@ class PathenaV3ShellController(QObject):
 
         temperature_row = V3ControlRow(
             "Temperature",
-            "Controls sampling variation without changing the model.",
+            "Lower values are steadier; higher values allow more variation.",
         )
         temperature_row.control_layout.addStretch(1)
         temperature_row.add_control(window.temperature_spin)
@@ -486,7 +486,7 @@ class PathenaV3ShellController(QObject):
 
         reasoning_row = V3ControlRow(
             "Reasoning",
-            "Use supported reasoning mode when the selected local model exposes it.",
+            "Enable deeper reasoning when the selected model supports it.",
         )
         reasoning_row.control_layout.addStretch(1)
         reasoning_row.add_control(window.thinking_checkbox)
@@ -508,7 +508,7 @@ class PathenaV3ShellController(QObject):
         runtime_title.setObjectName("v3RuntimeCardTitle")
         runtime_layout.addWidget(runtime_title)
 
-        runtime_hint = QLabel("Live state reported by the local Core.")
+        runtime_hint = QLabel("Live state from the local model service.")
         runtime_hint.setObjectName("v3RuntimeCardHint")
         runtime_hint.setWordWrap(True)
         runtime_layout.addWidget(runtime_hint)
