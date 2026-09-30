@@ -87,12 +87,13 @@ QToolButton[v3Nav="true"]:focus {
 
 QToolButton[v3Nav="true"][active="true"] {
     color: #F1F3F5;
-    background: #15292D;
-    border-color: #32686D;
+    background: #11191A;
+    border: 1px solid transparent;
+    border-left: 2px solid #78D1C5;
 }
 
 QToolButton[v3Nav="true"][active="true"]:focus {
-    border-color: #78D1C5;
+    border: 1px solid #78D1C5;
 }
 
 QFrame#v3RailDivider {
@@ -802,6 +803,15 @@ QFrame#v3ResearchBrief {
     border-color: #252C39;
 }
 
+QFrame#v3JobsCommand,
+QFrame#v3SourcesCommand,
+QFrame#v3SystemCommand {
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid #20272D;
+    border-radius: 0;
+}
+
 QLabel#v3KnowledgeState {
     color: #DDF5F1;
     background: #13292B;
@@ -888,9 +898,10 @@ QWidget#v3SettingsRuntimePanel {
 
 
 QFrame#v3KnowledgeSearch {
-    background: #121722;
-    border: 1px solid #252C39;
-    border-radius: 14px;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid #20272D;
+    border-radius: 0;
 }
 
 QFrame#v3KnowledgeIdentity {
