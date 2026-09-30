@@ -19,9 +19,9 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-_INK = QColor("#F3F0F5")
-_MUTED = QColor("#85818C")
-_ACTIVE = QColor("#7C9CFF")
+_INK = QColor("#F1F3F5")
+_MUTED = QColor("#7F8A91")
+_ACTIVE = QColor("#78D1C5")
 
 
 def _glyph_icon(name: str, *, active: bool) -> QIcon:
@@ -93,9 +93,9 @@ class V3NavigationButton(QToolButton):
         self.setProperty("v3Nav", True)
         self.setProperty("active", False)
         self.setIcon(self._icons[False])
-        self.setIconSize(QSize(23, 23))
+        self.setIconSize(QSize(22, 22))
         self.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextUnderIcon)
-        self.setFixedSize(68, 58)
+        self.setFixedSize(64, 56)
         self.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         self.setToolTip(label)
         self.setAccessibleName(f"Open {label}")
@@ -118,11 +118,11 @@ class V3WorkspaceHeader(QFrame):
     def __init__(self, title: str, hint: str) -> None:
         super().__init__()
         self.setObjectName("v3Workbar")
-        self.setFixedHeight(80)
+        self.setFixedHeight(68)
 
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(32, 13, 28, 13)
-        layout.setSpacing(16)
+        layout.setContentsMargins(28, 10, 24, 10)
+        layout.setSpacing(14)
 
         copy = QVBoxLayout()
         copy.setContentsMargins(0, 0, 0, 0)
@@ -224,17 +224,17 @@ class V3ComposerFrame(QFrame):
         if ground is not None and not ground.isHidden():
             rect = QRectF(ground.geometry()).adjusted(0.5, 0.5, -0.5, -0.5)
             if ground.isChecked():
-                background = QColor("#18213A")
-                border = QColor("#31457F")
-                foreground = QColor("#E3E9FF")
+                background = QColor("#13292B")
+                border = QColor("#2C5D61")
+                foreground = QColor("#DDF5F1")
             elif ground.isEnabled():
-                background = QColor("#151922")
-                border = QColor("#2A3140")
-                foreground = QColor("#A3AAB7")
+                background = QColor("#14181D")
+                border = QColor("#29313A")
+                foreground = QColor("#A5ACB4")
             else:
-                background = QColor("#151D2B")
-                border = QColor("#33405A")
-                foreground = QColor("#8C98B0")
+                background = QColor("#172323")
+                border = QColor("#355052")
+                foreground = QColor("#879A9B")
             painter.setPen(QPen(border, 1.0))
             painter.setBrush(background)
             painter.drawRoundedRect(rect, 9, 9)
@@ -253,13 +253,13 @@ class V3ComposerFrame(QFrame):
                 diameter,
             ).adjusted(0.5, 0.5, -0.5, -0.5)
             if send.isEnabled():
-                background = QColor("#7C9CFF")
-                border = QColor("#7C9CFF")
-                foreground = QColor("#0D1016")
+                background = QColor("#78D1C5")
+                border = QColor("#78D1C5")
+                foreground = QColor("#0D1014")
             else:
-                background = QColor("#27344F")
-                border = QColor("#40577F")
-                foreground = QColor("#C0CAE6")
+                background = QColor("#203536")
+                border = QColor("#33595A")
+                foreground = QColor("#B9D5D1")
             painter.setPen(QPen(border, 1.0))
             painter.setBrush(background)
             painter.drawRoundedRect(rect, diameter / 2.0, diameter / 2.0)
@@ -277,7 +277,7 @@ class V3EmptyState(QFrame):
         super().__init__()
         self.setObjectName("v3EmptyState")
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(36, 36, 36, 36)
+        layout.setContentsMargins(32, 32, 32, 32)
         layout.setSpacing(10)
         layout.addStretch(2)
 
@@ -312,8 +312,8 @@ class V3ControlRow(QFrame):
         super().__init__()
         self.setObjectName("v3ControlRow")
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(20, 17, 20, 17)
-        layout.setSpacing(24)
+        layout.setContentsMargins(18, 14, 18, 14)
+        layout.setSpacing(20)
 
         copy = QVBoxLayout()
         copy.setContentsMargins(0, 0, 0, 0)
