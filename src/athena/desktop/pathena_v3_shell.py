@@ -51,7 +51,7 @@ class PathenaV3ShellController(QObject):
         self._legacy_shell: QWidget | None = None
         self._inspector: QFrame | None = None
         self._header = V3WorkspaceHeader("Chat", _PAGE_HINTS[0])
-        self._command_button = QPushButton("Search or command   Ctrl K")
+        self._command_button = QPushButton("Command   Ctrl K")
         self._pallas_button = V3NavigationButton("PALLAS", icon_name="pallas")
         self._build()
         window.navigation.currentRowChanged.connect(self._sync_navigation)
@@ -72,10 +72,10 @@ class PathenaV3ShellController(QObject):
     def finalize(self) -> None:
         self._replace_settings_page()
         self._window.setStyleSheet(PATHENA_V3_STYLESHEET)
-        self._window.chat_selector.setMinimumWidth(210)
-        self._window.chat_selector.setMaximumWidth(420)
-        self._window.model_selector.setMinimumWidth(200)
-        self._window.model_selector.setMaximumWidth(340)
+        self._window.chat_selector.setMinimumWidth(190)
+        self._window.chat_selector.setMaximumWidth(360)
+        self._window.model_selector.setMinimumWidth(170)
+        self._window.model_selector.setMaximumWidth(280)
         self._window.prompt_input.show()
         self._window.ground_button.show()
         self._window.send_button.setFixedSize(44, 44)
@@ -135,20 +135,20 @@ class PathenaV3ShellController(QObject):
     def _build_rail(self) -> QWidget:
         rail = QFrame()
         rail.setObjectName("v3Rail")
-        rail.setFixedWidth(84)
+        rail.setFixedWidth(78)
 
         layout = QVBoxLayout(rail)
-        layout.setContentsMargins(8, 18, 8, 16)
-        layout.setSpacing(4)
+        layout.setContentsMargins(7, 16, 7, 14)
+        layout.setSpacing(3)
 
         mark = QLabel("P")
         mark.setObjectName("v3Mark")
-        mark.setFixedSize(34, 34)
+        mark.setFixedSize(32, 32)
         mark.setAlignment(Qt.AlignmentFlag.AlignCenter)
         mark.setToolTip("pATHENA")
         layout.addWidget(mark, 0, Qt.AlignmentFlag.AlignHCenter)
 
-        layout.addSpacing(14)
+        layout.addSpacing(12)
 
         for index in range(5):
             layout.addWidget(
@@ -210,7 +210,7 @@ class PathenaV3ShellController(QObject):
         workspace = QFrame()
         workspace.setObjectName("v3Workspace")
         layout = QVBoxLayout(workspace)
-        layout.setContentsMargins(30, 24, 30, 30)
+        layout.setContentsMargins(24, 18, 24, 24)
         layout.setSpacing(0)
 
         self._replace_chat_page()
@@ -232,13 +232,14 @@ class PathenaV3ShellController(QObject):
         chat.setObjectName("v3ChatPage")
         outer = QVBoxLayout(chat)
         outer.setContentsMargins(0, 0, 0, 0)
-        outer.setSpacing(12)
+        outer.setSpacing(10)
 
         meta = QFrame()
         meta.setObjectName("v3ChatMeta")
+        meta.setAccessibleName("Conversation controls")
         meta_layout = QHBoxLayout(meta)
-        meta_layout.setContentsMargins(12, 9, 12, 9)
-        meta_layout.setSpacing(7)
+        meta_layout.setContentsMargins(10, 7, 10, 7)
+        meta_layout.setSpacing(6)
 
         conversation_label = QLabel("THREAD")
         conversation_label.setObjectName("v3MetaLabel")
@@ -270,7 +271,7 @@ class PathenaV3ShellController(QObject):
             meta_layout.addWidget(context_button)
 
         meta.setMinimumWidth(620)
-        meta.setMaximumWidth(1120)
+        meta.setMaximumWidth(1040)
         meta.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         meta_row = QHBoxLayout()
         meta_row.setContentsMargins(0, 0, 0, 0)
@@ -282,8 +283,9 @@ class PathenaV3ShellController(QObject):
 
         stage = QFrame()
         stage.setObjectName("v3ConversationStage")
+        stage.setAccessibleName("Conversation workspace")
         stage_layout = QVBoxLayout(stage)
-        stage_layout.setContentsMargins(16, 14, 16, 14)
+        stage_layout.setContentsMargins(8, 8, 8, 8)
         stage_layout.setSpacing(10)
 
         conversation_row = QHBoxLayout()
@@ -305,7 +307,7 @@ class PathenaV3ShellController(QObject):
         stage_layout.addWidget(window.evidence_chain)
 
         stage.setMinimumWidth(620)
-        stage.setMaximumWidth(1120)
+        stage.setMaximumWidth(1040)
         stage.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         stage_row = QHBoxLayout()
         stage_row.setContentsMargins(0, 0, 0, 0)
@@ -317,14 +319,15 @@ class PathenaV3ShellController(QObject):
 
         composer = V3ComposerFrame()
         composer.setObjectName("v3Composer")
+        composer.setAccessibleName("Message composer")
         composer_layout = QHBoxLayout(composer)
-        composer_layout.setContentsMargins(16, 12, 12, 12)
+        composer_layout.setContentsMargins(14, 10, 10, 10)
         composer_layout.setSpacing(8)
 
         window.prompt_input.setParent(composer)
-        window.prompt_input.setMinimumHeight(52)
-        window.prompt_input.setMaximumHeight(90)
-        window.prompt_input.setPlaceholderText("Ask, investigate, build…")
+        window.prompt_input.setMinimumHeight(56)
+        window.prompt_input.setMaximumHeight(120)
+        window.prompt_input.setPlaceholderText("Ask, research, or build…")
         window.prompt_input.show()
         composer_layout.addWidget(window.prompt_input, 1)
 
@@ -340,7 +343,7 @@ class PathenaV3ShellController(QObject):
             "QPushButton:checked { color: rgba(0, 0, 0, 0); background: transparent; "
             "border-color: transparent; }"
         )
-        window.ground_button.setFixedHeight(36)
+        window.ground_button.setFixedHeight(38)
         composer_layout.addWidget(window.ground_button)
         window.ground_button.ensurePolished()
         window.ground_button.show()
@@ -367,8 +370,8 @@ class PathenaV3ShellController(QObject):
             ground_button=window.ground_button,
             send_button=window.send_button,
         )
-        composer.setMinimumWidth(620)
-        composer.setMaximumWidth(1120)
+        composer.setMinimumWidth(600)
+        composer.setMaximumWidth(1040)
         composer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         composer_row = QHBoxLayout()
         composer_row.setContentsMargins(0, 0, 0, 0)
