@@ -175,3 +175,77 @@ def test_qt_bridge_stops_and_clears_state_when_primary_field_is_disposed(
     assert living.engine.snapshot is None
     assert living.engine.states == {}
     delete(window)
+
+def _updated_snapshot_same_graph_id() -> PallasGraphSnapshot:
+    focus = _node("focus", PallasNodeKind.FOCUS)
+    claim = _node("claim", PallasNodeKind.CLAIM)
+    knowledge = _node("knowledge", PallasNodeKind.KNOWLEDGE)
+    return PallasGraphSnapshot(
+        graph_id="graph:living-qt-test",
+        nodes=(focus, claim, knowledge),
+        edges=(
+            PallasSemanticEdge(focus.node_id, claim.node_id, "cites"),
+            PallasSemanticEdge(focus.node_id, knowledge.node_id, "includes_context"),
+        ),
+        focus_id=focus.node_id,
+        status="ready",
+        status_detail="Three real grounded semantic nodes.",
+    )
+
+
+def test_qt_bridge_reconciles_snapshot_changes_even_when_graph_id_is_stable(
+    qapp: QApplication,
+) -> None:
+    window = QWidget()
+    grounded = _grounded_controller(window)
+    living = PallasLivingQtController(grounded)
+    living._timer.stop()  # noqa: SLF001
+    try:
+        living._tick()  # noqa: SLF001
+        original = living.engine.snapshot
+        assert original is not None
+        assert set(living.engine.states) == {"focus", "claim"}
+
+        updated = _updated_snapshot_same_graph_id()
+        assert updated.graph_id == original.graph_id
+        grounded.apply_snapshot(updated)
+        living._tick()  # noqa: SLF001
+        qapp.processEvents()
+
+        assert living.engine.snapshot == updated
+        assert set(living.engine.states) == {"focus", "claim", "knowledge"}
+        assert grounded.field.snapshot == updated
+    finally:
+        living.stop()
+        delete(window)
+
+
+def test_qt_bridge_publishes_structural_activity_delta(
+    qapp: QApplication,
+) -> None:
+    window = QWidget()
+    grounded = _grounded_controller(window)
+    living = PallasLivingQtController(grounded)
+    living._timer.stop()  # noqa: SLF001
+    diagnostics: list[object] = []
+    living.diagnostics_changed.connect(diagnostics.append)
+    try:
+        living._tick()  # noqa: SLF001
+        assert isinstance(diagnostics[-1], dict)
+        assert diagnostics[-1]["delta_added"] == 0
+
+        grounded.apply_snapshot(_updated_snapshot_same_graph_id())
+        living._tick()  # noqa: SLF001
+        qapp.processEvents()
+
+        latest = diagnostics[-1]
+        assert isinstance(latest, dict)
+        assert latest["delta_added"] == 1
+        assert latest["delta_removed"] == 0
+        assert latest["delta_updated"] == 0
+        assert latest["delta_edges"] == 1
+        assert latest["focus_changed"] is False
+    finally:
+        living.stop()
+        delete(window)
+
