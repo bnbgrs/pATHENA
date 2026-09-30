@@ -161,6 +161,10 @@ def test_v3_finalize_reuses_real_settings_controls() -> None:
     assert settings is not None
     assert settings.objectName() == "v3SettingsPage"
     assert all(settings.isAncestorOf(control) for control in real_controls)
+    runtime_section = settings.findChild(QFrame, "v3SettingsRuntimeSection")
+    assert runtime_section is not None
+    assert runtime_section.accessibleName() == "Local runtime status"
+    assert settings.findChild(QFrame, "v3RuntimeCard") is None
     assert window.pages.count() == 7
 
     window.navigation.setCurrentRow(6)
@@ -216,6 +220,9 @@ def test_v3_shell_keeps_core_chat_controls_visible_at_minimum_desktop_size() -> 
         assert rail.width() == 72
         assert controller._header.height() == 58
         assert controller._header.hint_label.isHidden()
+        assert controller._command_button.text() == "Ctrl K"
+        assert controller._command_button.property("compact") is True
+        assert controller._command_button.maximumWidth() == 70
         assert all(button.width() == 58 for button in controller._nav_buttons.values())
         assert controller._pallas_button.width() == 58
         assert all(
@@ -230,6 +237,9 @@ def test_v3_shell_keeps_core_chat_controls_visible_at_minimum_desktop_size() -> 
         assert rail.width() == 78
         assert controller._header.height() == 68
         assert controller._header.hint_label.isVisible()
+        assert controller._command_button.text() == "Command   Ctrl K"
+        assert controller._command_button.property("compact") is False
+        assert controller._command_button.minimumWidth() == 174
         assert all(button.width() == 64 for button in controller._nav_buttons.values())
         assert controller._pallas_button.width() == 64
         assert all(
