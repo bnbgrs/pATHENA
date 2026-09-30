@@ -64,6 +64,10 @@ def test_research_polish_keeps_real_controls_and_clear_action_hierarchy() -> Non
         assert workspace.jobs.maximumWidth() == 360
         assert controller.empty_state.accessibleName() == "Research empty state"
 
+        assert workspace.start_button.y() < workspace.cancel_button.y()
+        assert workspace.refresh_button.y() == workspace.cancel_button.y()
+        assert workspace.query_input.y() == workspace.start_button.y()
+
         workspace.cancel_button.setEnabled(False)
         experience.sync()
         assert not workspace.cancel_button.isHidden()
@@ -98,6 +102,9 @@ def test_jobs_and_sources_polish_group_status_before_actions() -> None:
         assert jobs_split.accessibleName() == "Job queue and job details"
         assert jobs_controller.empty_state.accessibleName() == "Jobs empty state"
 
+        assert jobs.refresh_button.y() == jobs.wake_button.y()
+        assert jobs.wake_button.y() == jobs.cancel_button.y()
+
         for button in (
             jobs.pause_button,
             jobs.resume_button,
@@ -127,6 +134,8 @@ def test_jobs_and_sources_polish_group_status_before_actions() -> None:
         assert sources_split is not None
         assert sources_split.accessibleName() == "Source list and source details"
         assert sources_controller.empty_state.accessibleName() == "Sources empty state"
+        assert sources.refresh_button.y() == sources.import_button.y()
+        assert sources.process_button.y() == sources.import_button.y()
     finally:
         _destroy_widgets(app, jobs, sources)
 
