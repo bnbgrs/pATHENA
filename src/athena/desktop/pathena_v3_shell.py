@@ -242,7 +242,7 @@ class PathenaV3ShellController(QObject):
         meta.setObjectName("v3ChatMeta")
         meta.setAccessibleName("Conversation controls")
         meta_layout = QHBoxLayout(meta)
-        meta_layout.setContentsMargins(10, 7, 10, 7)
+        meta_layout.setContentsMargins(8, 5, 8, 8)
         meta_layout.setSpacing(6)
 
         conversation_label = QLabel("Conversation")
@@ -264,6 +264,7 @@ class PathenaV3ShellController(QObject):
         window.delete_chat_button.setText("Delete")
         window.delete_chat_button.setAccessibleName("Delete conversation")
         window.delete_chat_button.setToolTip("Delete the selected conversation")
+        window.delete_chat_button.setProperty("v3QuietDanger", True)
         meta_layout.addWidget(window.delete_chat_button)
 
         meta_layout.addSpacing(12)
