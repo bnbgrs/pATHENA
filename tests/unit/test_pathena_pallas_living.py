@@ -199,6 +199,7 @@ def test_cellular_vitality_diffuses_only_across_real_edges() -> None:
     assert engine.states["right"].vitality > engine.states["isolated"].vitality
     assert graph.edges == (PallasSemanticEdge("left", "right", "cites"),)
 
+
 def test_reconcile_refreshes_cached_semantic_pairs_for_same_graph_id() -> None:
     left = _node("left", title="alpha", summary="isolated first topic")
     right = _node("right", title="beta", summary="different second topic")
