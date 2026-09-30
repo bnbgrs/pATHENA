@@ -161,6 +161,10 @@ class _PallasCanvas(QGraphicsView):
                 field.clear_selection()
                 event.accept()
                 return
+            if key == Qt.Key.Key_F:
+                field.fit_all()
+                event.accept()
+                return
         super().keyPressEvent(event)
 
 
@@ -350,7 +354,8 @@ class PallasSemanticField(QWidget):
         self.canvas.reset_view(bounds)
         self.canvas.setAccessibleName("PALLAS semantic graph")
         self.canvas.setAccessibleDescription(
-            f"{snapshot.status_detail} Use arrow keys to move focus, Enter or Space to select, and Escape to clear selection."
+            f"{snapshot.status_detail} Use arrow keys to move focus, Enter or Space "
+            "to select, Escape to clear selection, and F to fit all nodes."
         )
         self.setAccessibleDescription(snapshot.status_detail)
         if snapshot.focus_id is not None:
