@@ -151,6 +151,7 @@ def test_compact_and_full_fields_share_keyboard_selection_semantics(
             field.close()
             field.deleteLater()
 
+
 def test_living_scene_bounds_expand_without_shrinking(
     qapp: QApplication,
 ) -> None:
