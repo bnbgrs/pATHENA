@@ -56,6 +56,8 @@ class _FieldBinding:
     item_token: tuple[int, ...]
     edge_items: tuple[tuple[QGraphicsLineItem, str, str], ...]
     age_items: dict[str, QGraphicsSimpleTextItem]
+    nodes: dict[str, PallasSemanticNode]
+    glyph_items: dict[str, QGraphicsSimpleTextItem]
 
 
 class PallasLivingQtController(QObject):
@@ -277,12 +279,16 @@ class PallasLivingQtController(QObject):
             mapped.append((line, edge.source_id, edge.target_id))
 
         ages: dict[str, QGraphicsSimpleTextItem] = {}
+        glyphs: dict[str, QGraphicsSimpleTextItem] = {}
         nodes = {node.node_id: node for node in snapshot.nodes}
         for node_id, node_item in items.items():
             node = nodes.get(node_id)
             if node is None:
                 continue
-            _set_main_glyph(node_item, node, _display_glyph(node))
+            glyph_item = _main_glyph_child(node_item, node)
+            if glyph_item is not None:
+                glyphs[node_id] = glyph_item
+                _set_glyph_text(glyph_item, _display_glyph(node))
             age_item = _age_child(node_item)
             if age_item is None:
                 age_item = QGraphicsSimpleTextItem("·", node_item)
@@ -295,11 +301,13 @@ class PallasLivingQtController(QObject):
                 age_item.setZValue(4.0)
             ages[node_id] = age_item
         return _FieldBinding(
-            field,
-            snapshot.graph_id,
-            token,
-            tuple(mapped),
-            ages,
+            field=field,
+            graph_id=snapshot.graph_id,
+            item_token=token,
+            edge_items=tuple(mapped),
+            age_items=ages,
+            nodes=nodes,
+            glyph_items=glyphs,
         )
 
     def _apply_binding(self, binding: _FieldBinding) -> None:
@@ -307,7 +315,7 @@ class PallasLivingQtController(QObject):
         if snapshot is None:
             return
         items = binding.field._items  # noqa: SLF001
-        nodes = {node.node_id: node for node in snapshot.nodes}
+        nodes = binding.nodes
         for node_id, item in items.items():
             position = self._engine.position(node_id)
             state = self._engine.states.get(node_id)
@@ -317,13 +325,14 @@ class PallasLivingQtController(QObject):
             item.setPos(position[0], position[1])
             age = self._engine.age_glyph(node_id)
             age_item = binding.age_items.get(node_id)
+            glyph_item = binding.glyph_items.get(node_id)
             if self._lens == "age":
-                _set_main_glyph(item, node, age)
+                _set_glyph_text(glyph_item, age)
                 if age_item is not None:
                     age_item.setText(_display_glyph(node))
                 item.setOpacity(0.92)
             else:
-                _set_main_glyph(item, node, _display_glyph(node))
+                _set_glyph_text(glyph_item, _display_glyph(node))
                 if age_item is not None:
                     marker = (
                         f"{state.vitality:.0%}"
@@ -401,24 +410,32 @@ def _age_child(item: QGraphicsItem) -> QGraphicsSimpleTextItem | None:
     )
 
 
-def _set_main_glyph(
+def _main_glyph_child(
     item: QGraphicsItem,
     node: PallasSemanticNode,
+) -> QGraphicsSimpleTextItem | None:
+    candidates = {node.glyph, _display_glyph(node), *tuple("·:+oO░▒▓█")}
+    return next(
+        (
+            child
+            for child in item.childItems()
+            if isinstance(child, QGraphicsSimpleTextItem)
+            and child.data(_AGE_MARKER_KEY) != _AGE_MARKER_VALUE
+            and child.text() in candidates
+        ),
+        None,
+    )
+
+
+def _set_glyph_text(
+    item: QGraphicsSimpleTextItem | None,
     glyph: str,
 ) -> None:
-    candidates = {node.glyph, _display_glyph(node), *tuple("·:+oO░▒▓█")}
-    for child in item.childItems():
-        if not isinstance(child, QGraphicsSimpleTextItem):
-            continue
-        if (
-            child.data(_AGE_MARKER_KEY) == _AGE_MARKER_VALUE
-            or child.text() not in candidates
-        ):
-            continue
-        child.setText(glyph)
-        bounds = child.boundingRect()
-        child.setPos(-bounds.width() / 2, -bounds.height() / 2)
+    if item is None or item.text() == glyph:
         return
+    item.setText(glyph)
+    bounds = item.boundingRect()
+    item.setPos(-bounds.width() / 2, -bounds.height() / 2)
 
 
 def _display_glyph(node: PallasSemanticNode) -> str:
