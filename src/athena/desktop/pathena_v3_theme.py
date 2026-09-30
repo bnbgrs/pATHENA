@@ -176,6 +176,38 @@ QLabel#v3Pill[tone="accent"] {
     border-color: #2C5D61;
 }
 
+QTabWidget#systemOperationsTabs {
+    background: transparent;
+    border: none;
+}
+
+QTabWidget#systemOperationsTabs::pane {
+    background: transparent;
+    border: none;
+    border-top: 1px solid #202532;
+    top: -1px;
+}
+
+QTabWidget#systemOperationsTabs QTabBar::tab {
+    color: #77818B;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    padding: 9px 12px 8px 12px;
+    margin-right: 2px;
+    font-size: 8.5pt;
+    font-weight: 600;
+}
+
+QTabWidget#systemOperationsTabs QTabBar::tab:hover {
+    color: #D6DCE7;
+}
+
+QTabWidget#systemOperationsTabs QTabBar::tab:selected {
+    color: #F1F3F5;
+    border-bottom-color: #78D1C5;
+}
+
 /* --- Chat -------------------------------------------------------------- */
 
 QWidget#v3ChatPage {
