@@ -8,6 +8,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication, QFrame, QPlainTextEdit, QToolButton
 
 from athena.desktop.pathena_v3_shell import install_v3_shell
+from athena.desktop.pathena_v3_theme import PATHENA_V3_STYLESHEET
 from athena.desktop.pathena_window import PathenaMainWindow
 
 
@@ -30,13 +31,17 @@ def test_v3_shell_is_structurally_distinct_and_keeps_route_contract() -> None:
     assert shell.findChild(QFrame, "conversation") is not None
     assert shell.findChild(QFrame, "v2Sidebar") is None
 
+    assert controller._header.height() == 68
+    assert "#78D1C5" in PATHENA_V3_STYLESHEET
+    assert "#7C9CFF" not in PATHENA_V3_STYLESHEET
+
     rail = shell.findChild(QFrame, "v3Rail")
     assert rail is not None
-    assert 82 <= rail.width() <= 86
+    assert 76 <= rail.width() <= 80
     assert rail.minimumWidth() == rail.maximumWidth()
 
     nav_buttons = shell.findChildren(QToolButton, "v3NavButton")
-    assert all(button.width() <= rail.width() - 16 for button in nav_buttons)
+    assert all(button.width() <= rail.width() - 14 for button in nav_buttons)
     assert [button.text() for button in nav_buttons[:5]] == [
         "Chat",
         "Knowledge",
@@ -63,8 +68,8 @@ def test_v3_shell_is_structurally_distinct_and_keeps_route_contract() -> None:
     assert window.pages.widget(0).objectName() == "v3ChatPage"
     assert window.prompt_input.parent().objectName() == "v3Composer"
     assert isinstance(window.prompt_input, QPlainTextEdit)
-    assert window.prompt_input.minimumHeight() == 52
-    assert window.prompt_input.maximumHeight() == 90
+    assert window.prompt_input.minimumHeight() == 56
+    assert window.prompt_input.maximumHeight() == 120
     window.prompt_input.setText("first line\nsecond line")
     assert window.prompt_input.text() == "first line\nsecond line"
 
@@ -172,7 +177,7 @@ def test_v3_shell_keeps_core_chat_controls_visible_at_minimum_desktop_size() -> 
         assert window.model_selector.isVisible()
         assert window.chat_selector.isVisible()
         assert window.prompt_input.isVisible()
-        assert window.prompt_input.maximumHeight() == 90
+        assert window.prompt_input.maximumHeight() == 120
         assert window.ground_button.isVisible()
         assert window.send_button.isVisible()
         assert window.send_button.width() == 44
@@ -183,13 +188,14 @@ def test_v3_shell_keeps_core_chat_controls_visible_at_minimum_desktop_size() -> 
         assert "color: rgba(0, 0, 0, 0)" in window.send_button.styleSheet()
         assert window.ground_button.accessibleName() == "Ground message in local evidence"
         assert window.send_button.accessibleName() == "Send message"
+        assert composer.accessibleName() == "Message composer"
         assert "background: transparent" in window.send_button.styleSheet()
         assert "border: 0" in window.send_button.styleSheet()
         assert controller._nav_buttons[0].isVisible()
         assert controller._nav_buttons[6].isVisible()
         composer = window.prompt_input.parentWidget()
         assert composer is not None
-        assert composer.maximumWidth() == 1120
+        assert composer.maximumWidth() == 1040
         assert composer.width() <= window.width()
 
         window.prompt_input.setEnabled(True)
