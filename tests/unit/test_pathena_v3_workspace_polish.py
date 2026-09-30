@@ -7,8 +7,8 @@ import pytest
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 pytest.importorskip("PySide6")
 
-from PySide6.QtCore import QCoreApplication, QEvent
-from PySide6.QtWidgets import QApplication, QFrame, QSplitter
+from PySide6.QtCore import QCoreApplication, QEvent, Qt
+from PySide6.QtWidgets import QApplication, QFrame, QListWidgetItem, QSplitter
 
 from athena.desktop.app import create_application
 from athena.desktop.files_workspace import FilesWorkspace
@@ -71,6 +71,20 @@ def test_research_polish_keeps_real_controls_and_clear_action_hierarchy() -> Non
             workspace.query_input.geometry().center().y()
             == workspace.start_button.geometry().center().y()
         )
+        assert controller.progress.isHidden()
+
+        running = QListWidgetItem("RUNNING")
+        running.setData(Qt.ItemDataRole.UserRole + 1, "running")
+        running.setData(Qt.ItemDataRole.UserRole + 2, "discovery")
+        running.setData(Qt.ItemDataRole.UserRole + 3, 0.42)
+        workspace.jobs.blockSignals(True)
+        workspace.jobs.addItem(running)
+        workspace.jobs.setCurrentItem(running)
+        workspace.jobs.blockSignals(False)
+        controller._sync_progress()
+        assert controller.progress.isVisible()
+        assert "Discovery" in controller.progress_label.text()
+        assert "coverage 42%" in controller.progress_label.text()
 
         workspace.cancel_button.setEnabled(False)
         experience.sync()
@@ -106,6 +120,18 @@ def test_jobs_and_sources_polish_group_status_before_actions() -> None:
         assert jobs_split is not None
         assert jobs_split.accessibleName() == "Job queue and job details"
         assert jobs_controller.empty_state.accessibleName() == "Jobs empty state"
+        assert jobs_controller.progress.isHidden()
+
+        running_job = QListWidgetItem("RUNNING")
+        running_job.setData(Qt.ItemDataRole.UserRole + 1, "running")
+        running_job.setData(Qt.ItemDataRole.UserRole + 2, "extract")
+        jobs.jobs.blockSignals(True)
+        jobs.jobs.addItem(running_job)
+        jobs.jobs.setCurrentItem(running_job)
+        jobs.jobs.blockSignals(False)
+        jobs_controller._sync_progress()
+        assert jobs_controller.progress.isVisible()
+        assert "Extract" in jobs_controller.progress_label.text()
 
         for button in (
             jobs.pause_button,
@@ -137,6 +163,18 @@ def test_jobs_and_sources_polish_group_status_before_actions() -> None:
         assert sources_split is not None
         assert sources_split.accessibleName() == "Source list and source details"
         assert sources_controller.empty_state.accessibleName() == "Sources empty state"
+        assert sources_controller.progress.isHidden()
+
+        processing = QListWidgetItem("PROCESSING")
+        processing.setData(Qt.ItemDataRole.UserRole + 1, "processing")
+        processing.setData(Qt.ItemDataRole.UserRole + 3, "running")
+        sources.sources.blockSignals(True)
+        sources.sources.addItem(processing)
+        sources.sources.setCurrentItem(processing)
+        sources.sources.blockSignals(False)
+        sources_controller._sync_progress()
+        assert sources_controller.progress.isVisible()
+        assert sources_controller.progress_label.text() == "Running"
     finally:
         _destroy_widgets(app, jobs, sources)
 
@@ -173,3 +211,4 @@ def test_workspace_theme_has_consistent_primary_focus_and_list_treatment() -> No
     assert "QListWidget#researchJobList::item:selected" in PATHENA_V3_STYLESHEET
     assert "QListWidget#sourceList::item:selected" in PATHENA_V3_STYLESHEET
     assert "QPushButton#pallasBackButton:focus" in PATHENA_V3_STYLESHEET
+    assert "QProgressBar#v3ActivityProgress" in PATHENA_V3_STYLESHEET
