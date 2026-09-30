@@ -273,3 +273,24 @@ def test_clear_resets_cached_living_topology() -> None:
     assert diagnostics["semantic_pairs"] == 0
     assert diagnostics["edges"] == 0
 
+def test_visual_focus_is_presentation_only_and_resets_when_node_disappears() -> None:
+    focus = _node("focus", kind=PallasNodeKind.FOCUS)
+    selected = _node("selected", kind=PallasNodeKind.CLAIM)
+    graph = _snapshot((focus, selected), focus_id="focus")
+    engine = PallasLivingEngine()
+    engine.reconcile(graph)
+
+    engine.set_visual_focus("selected")
+    engine.step()
+
+    assert engine.visual_focus_id == "selected"
+    assert engine.snapshot is graph
+    assert graph.focus_id == "focus"
+    assert engine.diagnostics()["visual_focus"] == "selected"
+
+    without_selected = _snapshot((focus,), focus_id="focus")
+    engine.reconcile(without_selected)
+
+    assert engine.visual_focus_id is None
+    assert engine.snapshot is without_selected
+    assert without_selected.focus_id == "focus"
