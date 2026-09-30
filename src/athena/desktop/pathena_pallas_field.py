@@ -111,6 +111,12 @@ class _PallasCanvas(QGraphicsView):
             self.fitInView(bounds, Qt.AspectRatioMode.KeepAspectRatio)
             self._zoom = self.transform().m11()
 
+    def fit_scene_if_auto(self, bounds: QRectF) -> None:
+        """Expand the automatic camera only while the user has not zoomed manually."""
+        if self._auto_fit and not bounds.isEmpty():
+            self.fitInView(bounds, Qt.AspectRatioMode.KeepAspectRatio)
+            self._zoom = self.transform().m11()
+
     def resizeEvent(self, event: QResizeEvent) -> None:  # noqa: N802
         super().resizeEvent(event)
         bounds = self.sceneRect()
@@ -342,6 +348,20 @@ class PallasSemanticField(QWidget):
         self.setAccessibleDescription(snapshot.status_detail)
         if snapshot.focus_id is not None:
             self.focus_node(snapshot.focus_id)
+
+    def expand_scene_to_items(self, padding: float = 24.0) -> bool:
+        """Grow scene bounds for living nodes without shrinking or resetting manual zoom."""
+        item_bounds = self.scene.itemsBoundingRect()
+        if item_bounds.isEmpty():
+            return False
+        item_bounds = item_bounds.adjusted(-padding, -padding, padding, padding)
+        current = self.scene.sceneRect()
+        if not current.isEmpty() and current.contains(item_bounds):
+            return False
+        expanded = item_bounds if current.isEmpty() else current.united(item_bounds)
+        self.scene.setSceneRect(expanded)
+        self.canvas.fit_scene_if_auto(expanded)
+        return True
 
     def focus_node(self, node_id: str) -> bool:
         item = self._items.get(node_id)
