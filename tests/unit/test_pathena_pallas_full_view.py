@@ -241,6 +241,7 @@ def test_full_view_uses_dedicated_v3_inspector_without_exposing_legacy_panel() -
     full_view.dispose()
     window.close()
 
+
 def test_living_cadence_tracks_compact_and_full_workspace_visibility() -> None:
     app, window, grounded, full_view = _surface()
     grounded.apply_snapshot(_snapshot())
