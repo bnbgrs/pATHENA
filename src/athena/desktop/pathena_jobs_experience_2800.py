@@ -195,6 +195,10 @@ class PathenaJobsExperience(QObject):
     def __init__(self, workspace: JobsWorkspace) -> None:
         super().__init__(workspace)
         self.workspace = workspace
+        self._tearing_down = False
+        workspace.destroyed.connect(self._begin_teardown)
+        workspace.jobs.destroyed.connect(self._begin_teardown)
+        workspace.details.destroyed.connect(self._begin_teardown)
         self._install_stable_identities()
         self.filter_input = self._install_filter()
         self._configure_accessibility()
@@ -297,18 +301,28 @@ class PathenaJobsExperience(QObject):
         model.rowsInserted.connect(self._apply_current_filter)
         model.modelReset.connect(self._apply_current_filter)
 
+    def _begin_teardown(self, *_args: object) -> None:
+        self._tearing_down = True
+
     def _schedule_post_process_sync(self, *_args: object) -> None:
+        if self._tearing_down:
+            return
         QTimer.singleShot(0, self._post_process_sync)
 
     def _post_process_sync(self) -> None:
-        if self.workspace._operation == "show":
-            self._humanize_details()
-        else:
-            text = self.workspace.details.toPlainText()
-            if text.startswith("JOB "):
+        if self._tearing_down:
+            return
+        try:
+            if self.workspace._operation == "show":
                 self._humanize_details()
-        self._sync_actions()
-        self._apply_current_filter()
+            else:
+                text = self.workspace.details.toPlainText()
+                if text.startswith("JOB "):
+                    self._humanize_details()
+            self._sync_actions()
+            self._apply_current_filter()
+        except RuntimeError:
+            self._begin_teardown()
 
     def _humanize_details(self) -> None:
         raw = self.workspace.details.toPlainText()
@@ -342,23 +356,28 @@ class PathenaJobsExperience(QObject):
             item.setHidden(bool(terms) and not all(term in haystack for term in terms))
 
     def _sync_actions(self, *_args: object) -> None:
-        v3_owns_actions = self.workspace.property("pathenaV3Composed") is True
-        for button in (
-            self.workspace.pause_button,
-            self.workspace.resume_button,
-            self.workspace.wake_button,
-            self.workspace.cancel_button,
-        ):
-            button.setVisible(True if v3_owns_actions else button.isEnabled())
-        self.workspace.status.setWordWrap(True)
-        self.workspace.scheduler_status.setText(
-            self.workspace.scheduler_status.text()
-            .replace("SCHEDULER · ", "Scheduler · ")
-            .replace("RECOVERY PENDING", "Recovery pending")
-            .replace("ACTIVE", "Active")
-            .replace("STOPPING", "Stopping")
-            .replace("EXTERNAL", "External")
-        )
+        if self._tearing_down:
+            return
+        try:
+            v3_owns_actions = self.workspace.property("pathenaV3Composed") is True
+            for button in (
+                self.workspace.pause_button,
+                self.workspace.resume_button,
+                self.workspace.wake_button,
+                self.workspace.cancel_button,
+            ):
+                button.setVisible(True if v3_owns_actions else button.isEnabled())
+            self.workspace.status.setWordWrap(True)
+            self.workspace.scheduler_status.setText(
+                self.workspace.scheduler_status.text()
+                .replace("SCHEDULER · ", "Scheduler · ")
+                .replace("RECOVERY PENDING", "Recovery pending")
+                .replace("ACTIVE", "Active")
+                .replace("STOPPING", "Stopping")
+                .replace("EXTERNAL", "External")
+            )
+        except RuntimeError:
+            self._begin_teardown()
 
     def _tag_targets(self) -> None:
         for target in _TARGETS:
