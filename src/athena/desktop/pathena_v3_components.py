@@ -180,6 +180,92 @@ class V3Section(QFrame):
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
 
 
+class V3ActionHost(QFrame):
+    """Paint reliable V3 actions while real buttons retain behavior and semantics."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._actions: list[QPushButton] = []
+
+    def bind_actions(self, *buttons: QPushButton) -> None:
+        for button in self._actions:
+            button.removeEventFilter(self)
+        self._actions = list(buttons)
+        transparent = (
+            "QPushButton { color: rgba(0, 0, 0, 0); background: transparent; "
+            "border: 1px solid transparent; border-radius: 10px; padding: 7px 10px; } "
+            "QPushButton:hover, QPushButton:focus, QPushButton:disabled { "
+            "color: rgba(0, 0, 0, 0); background: transparent; "
+            "border-color: transparent; }"
+        )
+        for button in self._actions:
+            button.setStyleSheet(transparent)
+            button.installEventFilter(self)
+            button.ensurePolished()
+            button.show()
+            button.raise_()
+        self.update()
+
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:  # noqa: N802
+        if watched in self._actions and event.type() in {
+            QEvent.Type.EnabledChange,
+            QEvent.Type.Enter,
+            QEvent.Type.FocusIn,
+            QEvent.Type.FocusOut,
+            QEvent.Type.Hide,
+            QEvent.Type.Leave,
+            QEvent.Type.Move,
+            QEvent.Type.MouseButtonPress,
+            QEvent.Type.MouseButtonRelease,
+            QEvent.Type.Resize,
+            QEvent.Type.Show,
+            QEvent.Type.StyleChange,
+        }:
+            self.update()
+        return super().eventFilter(watched, event)
+
+    def paintEvent(self, event: QPaintEvent) -> None:  # noqa: N802
+        super().paintEvent(event)
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        for button in self._actions:
+            if button.isHidden():
+                continue
+            rect = QRectF(button.geometry()).adjusted(0.5, 0.5, -0.5, -0.5)
+            enabled = button.isEnabled()
+            primary = bool(button.property("v3PrimaryAction"))
+            destructive = bool(button.property("v3DestructiveAction"))
+            hovered = button.underMouse()
+            focused = button.hasFocus()
+
+            if primary and enabled:
+                background = QColor("#9BE3D9" if hovered else "#78D1C5")
+                border = QColor("#F1F3F5" if focused else "#78D1C5")
+                foreground = QColor("#0D1014")
+            elif destructive and enabled:
+                background = QColor("#24191B" if hovered else "#181315")
+                border = QColor("#F17878" if focused else "#513036")
+                foreground = QColor("#F2A2A2")
+            elif enabled:
+                background = QColor("#1A2026" if hovered else "#14181D")
+                border = QColor("#78D1C5" if focused else "#29313A")
+                foreground = QColor("#F1F3F5" if hovered else "#A5ACB4")
+            else:
+                background = QColor("#11151D")
+                border = QColor("#252C39")
+                foreground = QColor("#626C7D")
+
+            painter.setPen(QPen(border, 1.0))
+            painter.setBrush(background)
+            painter.drawRoundedRect(rect, 10, 10)
+            painter.setPen(foreground)
+            painter.setFont(button.font())
+            painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, button.text())
+
+        painter.end()
+
+
 class V3ComposerFrame(QFrame):
     """Composer surface with a paint fallback for action affordances.
 
