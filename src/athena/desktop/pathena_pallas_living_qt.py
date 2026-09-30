@@ -249,6 +249,13 @@ class PallasLivingQtController(QObject):
             self._bindings.clear()
 
         fields = self._live_fields()
+        current_target_fps = round(1000 / max(self._timer.interval(), 1))
+        for current in fields:
+            current.setProperty("pathenaPallasLiving", True)
+            current.setProperty("pathenaPallasLivingRenderer", "force-ca-v1")
+            current.setProperty("pathenaPallasLens", self._lens)
+            current.setProperty("pathenaPallasTargetFps", current_target_fps)
+
         visible = tuple(current for current in fields if current.isVisible())
         render_fields = (
             visible
