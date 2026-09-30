@@ -216,6 +216,9 @@ def test_v3_shell_keeps_core_chat_controls_visible_at_minimum_desktop_size() -> 
         assert rail.width() == 72
         assert controller._header.height() == 58
         assert controller._header.hint_label.isHidden()
+        assert controller._command_button.text() == "Ctrl K"
+        assert controller._command_button.property("compact") is True
+        assert controller._command_button.maximumWidth() == 70
         assert all(button.width() == 58 for button in controller._nav_buttons.values())
         assert controller._pallas_button.width() == 58
         assert all(
@@ -230,6 +233,8 @@ def test_v3_shell_keeps_core_chat_controls_visible_at_minimum_desktop_size() -> 
         assert rail.width() == 78
         assert controller._header.height() == 68
         assert controller._header.hint_label.isVisible()
+        assert controller._command_button.text() == "Command   Ctrl K"
+        assert controller._command_button.property("compact") is False
         assert all(button.width() == 64 for button in controller._nav_buttons.values())
         assert controller._pallas_button.width() == 64
         assert all(
