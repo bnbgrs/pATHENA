@@ -66,7 +66,10 @@ def test_research_polish_keeps_real_controls_and_clear_action_hierarchy() -> Non
 
         assert workspace.start_button.y() < workspace.cancel_button.y()
         assert workspace.refresh_button.y() == workspace.cancel_button.y()
-        assert workspace.query_input.y() == workspace.start_button.y()
+        assert (
+            workspace.query_input.geometry().center().y()
+            == workspace.start_button.geometry().center().y()
+        )
 
         workspace.cancel_button.setEnabled(False)
         experience.sync()
