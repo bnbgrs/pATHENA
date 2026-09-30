@@ -92,16 +92,6 @@ class PathenaV3KnowledgeController(QObject):
         workspace.state.show()
         identity_header.addWidget(workspace.state)
         identity_header.addStretch(1)
-
-        workspace.runtime.setParent(identity)
-        workspace.runtime.setObjectName("v3KnowledgeMeta")
-        workspace.runtime.show()
-        identity_header.addWidget(workspace.runtime)
-
-        workspace.source.setParent(identity)
-        workspace.source.setObjectName("v3KnowledgeMeta")
-        workspace.source.show()
-        identity_header.addWidget(workspace.source)
         identity_layout.addLayout(identity_header)
 
         workspace.summary.setParent(identity)
@@ -112,6 +102,24 @@ class PathenaV3KnowledgeController(QObject):
         workspace.summary.setWordWrap(True)
         workspace.summary.show()
         identity_layout.addWidget(workspace.summary)
+
+        identity_meta = QHBoxLayout()
+        identity_meta.setContentsMargins(0, 0, 0, 0)
+        identity_meta.setSpacing(12)
+
+        workspace.runtime.setParent(identity)
+        workspace.runtime.setObjectName("v3KnowledgeMeta")
+        workspace.runtime.setToolTip("Local service state and conversation count")
+        workspace.runtime.show()
+        identity_meta.addWidget(workspace.runtime)
+
+        workspace.source.setParent(identity)
+        workspace.source.setObjectName("v3KnowledgeMeta")
+        workspace.source.setToolTip("Source conversation for the current review")
+        workspace.source.show()
+        identity_meta.addWidget(workspace.source)
+        identity_meta.addStretch(1)
+        identity_layout.addLayout(identity_meta)
         root.addWidget(identity)
 
         for list_view in (
