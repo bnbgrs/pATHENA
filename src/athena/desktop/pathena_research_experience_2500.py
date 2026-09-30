@@ -413,7 +413,11 @@ class PathenaResearchExperience(QObject):
         has_proposals = self.extension.proposal_list.count() > 0
         has_selected_proposal = self.extension.proposal_list.currentItem() is not None
 
-        self.workspace.cancel_button.setVisible(self.workspace.cancel_button.isEnabled())
+        self.workspace.cancel_button.setVisible(
+            True
+            if self.workspace.property("pathenaV3Composed") is True
+            else self.workspace.cancel_button.isEnabled()
+        )
         self.extension.proposal_list.setVisible(has_proposals)
         self.extension.proposal_status.setVisible(has_job)
 
