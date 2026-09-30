@@ -538,6 +538,24 @@ class PallasFullViewController(QObject):
                 f"was rejected: {validation_error}"
             )
             return
+
+        field_state = str(diagnostics.get("field_state", "ready") or "ready").casefold()
+        if field_state != "ready":
+            labels = {
+                "loading": "FIELD • RESOLVING GROUNDED CONTEXT",
+                "error": "FIELD • GROUNDED CONTEXT UNAVAILABLE",
+                "empty": "FIELD • NO GROUNDED CONTEXT",
+            }
+            status.setText(labels.get(field_state, f"FIELD • {field_state.upper()}"))
+            status.setToolTip(
+                "Living presentation is idle until a ready grounded graph is available."
+            )
+            status.setAccessibleDescription(
+                f"PALLAS living field is {field_state}; no living graph is being rendered."
+            )
+            self._refresh_inspector_living_readout()
+            return
+
         fps = diagnostics.get("fps_target", 30)
         active = diagnostics.get("active", 0)
         nodes = diagnostics.get("nodes", 0)
