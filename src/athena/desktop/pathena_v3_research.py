@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import QObject
-from PySide6.QtWidgets import QHBoxLayout, QLabel, QSplitter, QVBoxLayout, QWidget
+from PySide6.QtCore import QObject, Qt
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QProgressBar, QSplitter, QVBoxLayout, QWidget
 from shiboken6 import isValid
 
 from athena.desktop.pathena_v3_components import V3ActionHost, V3EmptyState
@@ -107,6 +107,22 @@ class PathenaV3ResearchController(QObject):
         workspace.status.setMinimumWidth(160)
         workspace.status.show()
         state_row.addWidget(workspace.status)
+
+        self.progress_label = QLabel("")
+        self.progress_label.setObjectName("v3ProgressLabel")
+        self.progress_label.setAccessibleName("Research activity status")
+        self.progress_label.hide()
+        state_row.addWidget(self.progress_label)
+
+        self.progress = QProgressBar()
+        self.progress.setObjectName("v3ActivityProgress")
+        self.progress.setAccessibleName("Research activity")
+        self.progress.setTextVisible(False)
+        self.progress.setRange(0, 0)
+        self.progress.setFixedWidth(116)
+        self.progress.setFixedHeight(5)
+        self.progress.hide()
+        state_row.addWidget(self.progress)
         state_row.addStretch(1)
 
         self.results.job_filter.setParent(brief)
@@ -155,7 +171,9 @@ class PathenaV3ResearchController(QObject):
         model.rowsInserted.connect(self._sync_empty_state)
         model.rowsRemoved.connect(self._sync_empty_state)
         model.modelReset.connect(self._sync_empty_state)
+        workspace.jobs.currentItemChanged.connect(self._sync_progress)
         self._sync_empty_state()
+        self._sync_progress()
 
         self.results.result_button.setText("Open result")
         self.results.propose_button.setText("Propose knowledge")
@@ -173,6 +191,34 @@ class PathenaV3ResearchController(QObject):
         splitter = self.workspace.jobs.parentWidget()
         if isinstance(splitter, QSplitter):
             splitter.setVisible(not is_empty)
+        self._sync_progress()
+
+    def _sync_progress(self, *_args: object) -> None:
+        if not isValid(self.workspace) or not isValid(self.workspace.jobs):
+            return
+        current = self.workspace.jobs.currentItem()
+        if current is None:
+            self.progress.hide()
+            self.progress_label.hide()
+            return
+        state = str(current.data(Qt.ItemDataRole.UserRole + 1) or "").casefold()
+        stage = str(current.data(Qt.ItemDataRole.UserRole + 2) or "")
+        coverage = current.data(Qt.ItemDataRole.UserRole + 3)
+        active = state in {"queued", "waiting", "running", "cancel_requested"}
+        paused = state == "paused"
+        if not active and not paused:
+            self.progress.hide()
+            self.progress_label.hide()
+            return
+        label = state.replace("_", " ").title()
+        if stage and stage != "-":
+            label += f" · {stage.replace('_', ' ').title()}"
+        if isinstance(coverage, (int, float)) and not isinstance(coverage, bool):
+            label += f" · coverage {float(coverage) * 100:.0f}%"
+        self.progress_label.setText(label)
+        self.progress_label.setAccessibleDescription(label)
+        self.progress_label.show()
+        self.progress.setVisible(active)
 
 
 def install_v3_research_workspace(
