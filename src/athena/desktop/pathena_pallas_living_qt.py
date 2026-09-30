@@ -88,6 +88,8 @@ class PallasLivingQtController(QObject):
         self._grounded_controller = grounded_controller
         self._engine = PallasLivingEngine()
         self._snapshot: PallasGraphSnapshot | None = None
+        self._rejected_snapshot: PallasGraphSnapshot | None = None
+        self._validation_error = ""
         self._activity = PallasActivityTracker()
         self._last_delta: PallasSnapshotDelta | None = None
         self._delta_pulse_seconds = 4.0
@@ -143,6 +145,8 @@ class PallasLivingQtController(QObject):
         self._bindings.clear()
         self._engine.clear()
         self._snapshot = None
+        self._rejected_snapshot = None
+        self._validation_error = ""
         self._activity.reset()
         self._last_delta = None
         self._delta_pulse_remaining = 0.0
@@ -164,6 +168,8 @@ class PallasLivingQtController(QObject):
             self._bindings.clear()
             self._engine.clear()
             self._snapshot = None
+            self._rejected_snapshot = None
+            self._validation_error = ""
             for current in self._mounted_fields():
                 current.setProperty("pathenaPallasLivingError", "")
             if self._timer.interval() != self._idle_interval_ms:
@@ -178,6 +184,20 @@ class PallasLivingQtController(QObject):
                     "lens": self._lens,
                     "field_state": field_state,
                     "validation_error": "",
+                }
+            )
+            return
+
+        if snapshot == self._rejected_snapshot:
+            for current in self._mounted_fields():
+                current.setProperty("pathenaPallasLivingError", self._validation_error)
+            self.diagnostics_changed.emit(
+                {
+                    "nodes": len(snapshot.nodes),
+                    "active": 0,
+                    "lens": self._lens,
+                    "field_state": "ready",
+                    "validation_error": self._validation_error,
                 }
             )
             return
@@ -197,16 +217,21 @@ class PallasLivingQtController(QObject):
             except ValueError as exc:
                 self._bindings.clear()
                 self._engine.clear()
-                self._snapshot = snapshot
+                self._snapshot = None
+                self._rejected_snapshot = snapshot
+                self._validation_error = str(exc)
                 for current in self._mounted_fields():
-                    current.setProperty("pathenaPallasLivingError", str(exc))
+                    current.setProperty(
+                        "pathenaPallasLivingError",
+                        self._validation_error,
+                    )
                 self.diagnostics_changed.emit(
                     {
                         "nodes": len(snapshot.nodes),
                         "active": 0,
                         "lens": self._lens,
                         "field_state": "ready",
-                        "validation_error": str(exc),
+                        "validation_error": self._validation_error,
                     }
                 )
                 return
@@ -214,6 +239,8 @@ class PallasLivingQtController(QObject):
             selection = getattr(self._grounded_controller, "_selection", None)
             self._apply_selection_focus(selection)
             self._snapshot = snapshot
+            self._rejected_snapshot = None
+            self._validation_error = ""
             for current in self._mounted_fields():
                 current.setProperty("pathenaPallasLivingError", "")
             self._bindings.clear()
