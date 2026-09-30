@@ -252,7 +252,8 @@ class LMStudioRuntimeController(QObject):
             self.settings.endGroup()
         self.auto_start.setChecked(bool(auto_start))
         self.auto_load.setChecked(bool(auto_load))
-        self.idle_minutes.setValue(max(0, min(1440, int(idle_minutes))))
+        idle_value = idle_minutes if isinstance(idle_minutes, int) else 30
+        self.idle_minutes.setValue(max(0, min(1440, idle_value)))
         preferred = str(preferred_model_id).strip()
         self._preferred_model_id = preferred or None
 
