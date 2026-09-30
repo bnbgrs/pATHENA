@@ -855,7 +855,6 @@ QLabel#v3KnowledgeState {
 }
 
 QLabel#v3KnowledgeSummary,
-QLabel#v3KnowledgeMeta,
 QLabel#v3KnowledgeBrowserStatus,
 QLabel#v3ResearchStatus,
 QLabel#v3JobsStatus,
@@ -865,6 +864,11 @@ QLabel#v3SystemDetail,
 QLabel#v3RuntimeCardHint {
     color: #98A1B1;
     font-size: 8.8pt;
+}
+
+QLabel#v3KnowledgeMeta {
+    color: #6F7A84;
+    font-size: 8pt;
 }
 
 QTabWidget#v3KnowledgeTabs::pane {
