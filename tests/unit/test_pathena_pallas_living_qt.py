@@ -8,7 +8,10 @@ from PySide6.QtWidgets import QApplication, QWidget
 from shiboken6 import delete, isValid
 
 from athena.desktop.pathena_pallas_field import PallasGroundedFieldController
-from athena.desktop.pathena_pallas_living_qt import PallasLivingQtController
+from athena.desktop.pathena_pallas_living_qt import (
+    PallasLivingQtController,
+    _cadence_interval_ms,
+)
 from athena.desktop.pathena_pallas_semantic import (
     PallasGraphSnapshot,
     PallasNodeKind,
@@ -382,5 +385,40 @@ def test_vitality_marker_geometry_tracks_dynamic_text_width(
         assert "field age" in marker.toolTip()
     finally:
         living.stop()
+        delete(window)
+
+def test_cadence_scales_down_without_changing_graph_facts() -> None:
+    assert _cadence_interval_ms(full_visible=True, visible=True, nodes=20) == 33
+    assert _cadence_interval_ms(full_visible=True, visible=True, nodes=120) == 42
+    assert _cadence_interval_ms(full_visible=True, visible=True, nodes=240) == 56
+    assert _cadence_interval_ms(full_visible=True, visible=True, nodes=500) == 83
+    assert _cadence_interval_ms(full_visible=False, visible=True, nodes=20) == 67
+    assert _cadence_interval_ms(full_visible=False, visible=True, nodes=220) == 100
+    assert _cadence_interval_ms(full_visible=False, visible=True, nodes=500) == 167
+    assert _cadence_interval_ms(full_visible=False, visible=False, nodes=500) == 250
+
+
+def test_stop_disconnects_selection_focus_lifecycle(qapp: QApplication) -> None:
+    window = QWidget()
+    grounded = _grounded_controller(window)
+    living = PallasLivingQtController(grounded)
+    living._timer.stop()  # noqa: SLF001
+    try:
+        living._tick()  # noqa: SLF001
+        assert grounded.field.focus_node("claim")
+        qapp.processEvents()
+        assert living.engine.visual_focus_id == "claim"
+
+        living.stop()
+        assert living._selection_connected is False  # noqa: SLF001
+        assert living.engine.visual_focus_id is None
+
+        grounded.field.clear_selection()
+        grounded.field.focus_node("focus")
+        qapp.processEvents()
+
+        assert living.engine.visual_focus_id is None
+        living.stop()
+    finally:
         delete(window)
 
