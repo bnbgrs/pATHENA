@@ -77,7 +77,7 @@ def test_system_workspace_recent_events_does_not_invent_history() -> None:
     workspace = SystemWorkspace(None)
 
     assert "unavailable" in workspace.recent_events.text().lower()
-    assert "no durable activity feed" in workspace.recent_events.text().lower()
+    assert "no activity history" in workspace.recent_events.text().lower()
 
 
 def test_system_workspace_failure_keeps_unprobed_states_unavailable() -> None:
