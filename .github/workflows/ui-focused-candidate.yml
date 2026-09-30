@@ -26,6 +26,7 @@ jobs:
       QT_QPA_PLATFORM: offscreen
       QT_QUICK_BACKEND: software
       QT_OPENGL: software
+      PYTHONFAULTHANDLER: "1"
 
     steps:
       - name: Resolve exact worker head and base
@@ -89,5 +90,5 @@ jobs:
           $tests = @($tests | Sort-Object -Unique)
           Write-Host "Exact UI candidate tests:"
           $tests | ForEach-Object { Write-Host "  $_" }
-          uv run --locked --extra dev --extra desktop --no-sync pytest -q @tests
+          uv run --locked --extra dev --extra desktop --no-sync pytest -vv --maxfail=1 @tests
           if ($LASTEXITCODE -ne 0) { throw "Exact changed UI candidate contract failed." }
