@@ -287,9 +287,20 @@ def test_living_cadence_tracks_compact_and_full_workspace_visibility() -> None:
         assert "30 FPS" in status.text()
         assert "explicit edges" in status.toolTip()
         assert "presentation signals" in status.accessibleDescription()
+        assert id(workspace.field) in living._bindings  # noqa: SLF001
+
+        full_view.close_workspace()
+        app.processEvents()
+        living._tick()  # noqa: SLF001
+        app.processEvents()
+
+        assert id(workspace.field) not in living._bindings  # noqa: SLF001
+        if grounded.field.isVisible():
+            assert id(grounded.field) in living._bindings  # noqa: SLF001
     finally:
         full_view.dispose()
         window.close()
+
 
 def test_relationship_cache_refreshes_for_same_graph_id_content_change() -> None:
     app, window, grounded, full_view = _surface()
