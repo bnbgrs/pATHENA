@@ -250,6 +250,7 @@ class PathenaV3ShellController(QObject):
 
         window.chat_selector.setParent(meta)
         window.chat_selector.setAccessibleName("Conversation")
+        window.chat_selector.setPlaceholderText("No conversation yet")
         window.chat_selector.setToolTip("Select conversation")
         meta_layout.addWidget(window.chat_selector, 1)
 
@@ -272,6 +273,7 @@ class PathenaV3ShellController(QObject):
 
         window.model_selector.setParent(meta)
         window.model_selector.setAccessibleName("Local model")
+        window.model_selector.setPlaceholderText("Choose local model")
         window.model_selector.setToolTip("Select the local model used for chat")
         meta_layout.addWidget(window.model_selector)
 
