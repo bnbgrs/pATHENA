@@ -932,6 +932,12 @@ QPushButton[v3PrimaryAction="true"]:focus {
     border-color: #F1F3F5;
 }
 
+QPushButton[v3PrimaryAction="true"]:disabled {
+    color: #77818B;
+    background: #182021;
+    border-color: #293638;
+}
+
 QPushButton[v3DestructiveAction="true"] {
     color: #D8A3A3;
     background: #14181D;
@@ -942,6 +948,12 @@ QPushButton[v3DestructiveAction="true"]:hover {
     color: #F2C2C2;
     background: #21171C;
     border-color: #72505C;
+}
+
+QPushButton[v3DestructiveAction="true"]:disabled {
+    color: #6F6267;
+    background: transparent;
+    border-color: #2A2428;
 }
 
 QListWidget#persistentKnowledgeList,
