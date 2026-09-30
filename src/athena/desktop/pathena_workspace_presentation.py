@@ -265,6 +265,14 @@ def _humanize_item(widget_name: str, text: str) -> str | None:
     return None
 
 
+def _find_workspace(
+    window: QWidget,
+    legacy_name: str,
+    v3_name: str,
+) -> QWidget | None:
+    return window.findChild(QWidget, v3_name) or window.findChild(QWidget, legacy_name)
+
+
 def _sync_list_presentation(window: QWidget) -> None:
     for object_name in _LIST_MINIMUM_WIDTHS:
         widget = window.findChild(QListWidget, object_name)
@@ -282,7 +290,7 @@ def _sync_list_presentation(window: QWidget) -> None:
 
 
 def _sync_knowledge_copy(window: QWidget) -> None:
-    knowledge = window.findChild(QWidget, "knowledgeWorkspace")
+    knowledge = _find_workspace(window, "knowledgeWorkspace", "v3KnowledgeWorkspace")
     if knowledge is None:
         return
 
@@ -322,7 +330,7 @@ def _sync_knowledge_copy(window: QWidget) -> None:
 
 
 def _sync_research_presentation(window: QWidget) -> None:
-    research = window.findChild(QWidget, "researchWorkspace")
+    research = _find_workspace(window, "researchWorkspace", "v3ResearchWorkspace")
     if research is None:
         return
     cancel = research.findChild(QPushButton, "researchCancelButton")
@@ -333,7 +341,7 @@ def _sync_research_presentation(window: QWidget) -> None:
 
 
 def _sync_jobs_presentation(window: QWidget) -> None:
-    jobs = window.findChild(QWidget, "jobsWorkspace")
+    jobs = _find_workspace(window, "jobsWorkspace", "v3JobsWorkspace")
     if jobs is None:
         return
 
@@ -361,7 +369,7 @@ def _sync_jobs_presentation(window: QWidget) -> None:
 
 
 def _sync_files_presentation(window: QWidget) -> None:
-    files = window.findChild(QWidget, "filesWorkspace")
+    files = _find_workspace(window, "filesWorkspace", "v3SourcesWorkspace")
     if files is None:
         return
     process = files.findChild(QPushButton, "fileProcessButton")
@@ -372,7 +380,7 @@ def _sync_files_presentation(window: QWidget) -> None:
 
 
 def _sync_system_presentation(window: QWidget) -> None:
-    system = window.findChild(QWidget, "systemWorkspace")
+    system = _find_workspace(window, "systemWorkspace", "v3SystemWorkspace")
     if system is not None:
         for label in system.findChildren(QLabel, "settingsValue"):
             replacement = _SYSTEM_VALUE_REPLACEMENTS.get(label.text())
