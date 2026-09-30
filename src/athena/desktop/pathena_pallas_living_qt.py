@@ -340,16 +340,15 @@ class PallasLivingQtController(QObject):
                         else age
                     )
                     age_item.setText(marker)
-                if age_item is not None:
-                    _position_age_marker(item, age_item)
                 item.setOpacity(
                     0.38 + 0.62 * state.vitality
                     if self._lens == "vitality"
                     else 1.0
                 )
             if age_item is not None:
+                _position_age_marker(item, age_item)
                 age_item.setToolTip(
-                    f"runtime age {state.age_seconds:.1f}s · "
+                    f"field age {state.age_seconds:.1f}s · "
                     f"vitality {state.vitality:.0%}"
                 )
 
