@@ -248,6 +248,9 @@ def test_diagnostics_report_cached_topology_and_motion() -> None:
     diagnostics = engine.diagnostics()
     assert diagnostics["nodes"] == 2
     assert diagnostics["edges"] == 1
+    assert diagnostics["spring_pairs"] == 1
+    assert diagnostics["repulsion_pairs"] == 1
+    assert diagnostics["conflict_repulsion_pairs"] == 0
     assert isinstance(diagnostics["semantic_pairs"], int)
     assert float(diagnostics["mean_speed"]) >= 0.0
     assert float(diagnostics["max_speed"]) >= float(diagnostics["mean_speed"])
@@ -271,6 +274,9 @@ def test_clear_resets_cached_living_topology() -> None:
     diagnostics = engine.diagnostics()
     assert diagnostics["nodes"] == 0
     assert diagnostics["semantic_pairs"] == 0
+    assert diagnostics["spring_pairs"] == 0
+    assert diagnostics["repulsion_pairs"] == 0
+    assert diagnostics["conflict_repulsion_pairs"] == 0
     assert diagnostics["edges"] == 0
 
 
