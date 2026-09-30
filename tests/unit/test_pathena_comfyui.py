@@ -13,7 +13,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 pytest.importorskip("PySide6")
 
 from PySide6.QtCore import QObject
-from PySide6.QtWidgets import QApplication, QLabel, QWidget
+from PySide6.QtWidgets import QApplication, QFrame, QLabel, QWidget
 
 from athena.desktop.pathena_comfyui import (
     ComfyUiClient,
@@ -210,8 +210,10 @@ def test_dialog_projects_measured_vram_and_reference_hierarchy(
     assert [
         label.text()
         for label in dialog.findChildren(QLabel)
-        if label.objectName() == "comfyUiSectionLabel"
-    ] == ["CONNECTION", "WORKFLOW", "ACTIVITY"]
+        if label.objectName() == "comfyUiSectionTitle"
+    ] == ["Connection", "Workflow", "Activity"]
+    assert dialog.findChild(QFrame, "comfyUiPanel") is not None
+    assert dialog.findChild(QFrame, "comfyUiActivityPanel") is not None
     assert controller.queue_button.isEnabled()
 
     controller.deleteLater()
