@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import QObject, Qt
-from PySide6.QtWidgets import QHBoxLayout, QLabel, QProgressBar, QSplitter, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QListWidgetItem, QProgressBar, QSplitter, QVBoxLayout, QWidget
 from shiboken6 import isValid
 
 from athena.desktop.pathena_v3_components import V3ActionHost, V3EmptyState
@@ -202,7 +202,7 @@ class PathenaV3ResearchController(QObject):
     def _sync_progress(self, *_args: object) -> None:
         if not isValid(self.workspace) or not isValid(self.workspace.jobs):
             return
-        current = self.workspace.jobs.currentItem()
+        current: QListWidgetItem | None = self.workspace.jobs.currentItem()
         if current is None:
             self.progress.hide()
             self.progress_label.hide()
