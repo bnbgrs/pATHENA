@@ -220,6 +220,8 @@ def test_full_view_uses_dedicated_v3_inspector_without_exposing_legacy_panel() -
     assert not legacy_panel.isVisible()
     assert v3_title is not None and v3_title.text().endswith("Grounded response")
     assert v3_body is not None and "Graph  grounded-run:run-2" in v3_body.text()
+    assert "Relationships  1" in v3_body.text()
+    assert "→ cites · ◆ Supported claim" in v3_body.text()
 
     workspace = full_view.workspace
     assert workspace is not None
@@ -228,6 +230,8 @@ def test_full_view_uses_dedicated_v3_inspector_without_exposing_legacy_panel() -
 
     assert v3_title.text().endswith("Supported claim")
     assert "Confidence  0.91" in v3_body.text()
+    assert "Relationships  1" in v3_body.text()
+    assert "← cites · ◉ Grounded response" in v3_body.text()
     assert legacy_panel.property("pathenaPallasSelectionId") == "canonical_claim:claim-2"
     assert not legacy_panel.isVisible()
 
