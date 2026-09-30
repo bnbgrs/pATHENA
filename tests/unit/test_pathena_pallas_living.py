@@ -198,3 +198,77 @@ def test_cellular_vitality_diffuses_only_across_real_edges() -> None:
 
     assert engine.states["right"].vitality > engine.states["isolated"].vitality
     assert graph.edges == (PallasSemanticEdge("left", "right", "cites"),)
+
+def test_reconcile_refreshes_cached_semantic_pairs_for_same_graph_id() -> None:
+    left = _node("left", title="alpha", summary="isolated first topic")
+    right = _node("right", title="beta", summary="different second topic")
+    config = PallasLivingConfig(
+        semantic_threshold=0.3,
+        semantic_attraction=0.0,
+        global_repulsion=0.0,
+        edge_spring=0.0,
+        center_pull=0.0,
+        focus_pull=0.0,
+        temporal_drift=0.0,
+    )
+    engine = PallasLivingEngine(config)
+    engine.reconcile(_snapshot((left, right)))
+    assert engine.diagnostics()["semantic_pairs"] == 0
+
+    revised_left = _node(
+        "left",
+        title="battery storage",
+        summary="solar battery storage evidence",
+    )
+    revised_right = _node(
+        "right",
+        title="solar storage",
+        summary="battery solar storage system",
+    )
+    revised = _snapshot((revised_left, revised_right))
+    engine.reconcile(revised)
+
+    assert revised.graph_id == "test-graph"
+    assert semantic_similarity(revised_left, revised_right) >= config.semantic_threshold
+    assert engine.diagnostics()["semantic_pairs"] == 1
+
+
+def test_diagnostics_report_cached_topology_and_motion() -> None:
+    left = _node("left")
+    right = _node("right")
+    graph = _snapshot(
+        (left, right),
+        (PallasSemanticEdge("left", "right", "cites"),),
+    )
+    engine = PallasLivingEngine()
+    engine.reconcile(graph, {"left": (-60.0, 0.0), "right": (60.0, 0.0)})
+    engine.step()
+
+    diagnostics = engine.diagnostics()
+    assert diagnostics["nodes"] == 2
+    assert diagnostics["edges"] == 1
+    assert isinstance(diagnostics["semantic_pairs"], int)
+    assert float(diagnostics["mean_speed"]) >= 0.0
+    assert float(diagnostics["max_speed"]) >= float(diagnostics["mean_speed"])
+
+
+def test_clear_resets_cached_living_topology() -> None:
+    left = _node("left", title="solar battery", summary="solar battery storage")
+    right = _node("right", title="battery solar", summary="battery solar storage")
+    engine = PallasLivingEngine(PallasLivingConfig(semantic_threshold=0.1))
+    engine.reconcile(
+        _snapshot(
+            (left, right),
+            (PallasSemanticEdge("left", "right", "cites"),),
+        )
+    )
+    assert int(engine.diagnostics()["semantic_pairs"]) >= 1
+    assert engine.diagnostics()["edges"] == 1
+
+    engine.clear()
+
+    diagnostics = engine.diagnostics()
+    assert diagnostics["nodes"] == 0
+    assert diagnostics["semantic_pairs"] == 0
+    assert diagnostics["edges"] == 0
+
