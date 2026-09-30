@@ -9,7 +9,7 @@ pytest.importorskip("PySide6")
 
 from PySide6.QtCore import Qt
 from PySide6.QtTest import QTest
-from PySide6.QtWidgets import QApplication, QFrame, QLabel
+from PySide6.QtWidgets import QApplication, QFrame, QLabel, QPushButton
 
 from athena.desktop.app import create_application
 from athena.desktop.pathena_pallas_field import install_pallas_grounded_field
@@ -89,6 +89,9 @@ def test_open_workspace_reuses_one_synchronized_full_surface() -> None:
     assert first_host is not None and first_host.isVisible()
     assert first_host.property("pathenaPallasShellHosted") is True
     assert first_workspace.property("pathenaPallasShellHosted") is True
+    back_button = window.findChild(QPushButton, "pallasBackButton")
+    assert back_button is not None and back_button.isVisible()
+    assert back_button.accessibleName() == "Back to current workspace"
     assert first_workspace.field.property("pathenaPallasMode") == "full"
     assert first_workspace.field.snapshot == grounded.field.snapshot
     assert window.property("pathenaPallasShellOpen") is True
