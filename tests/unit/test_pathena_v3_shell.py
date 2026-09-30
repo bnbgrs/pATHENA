@@ -34,6 +34,8 @@ def test_v3_shell_is_structurally_distinct_and_keeps_route_contract() -> None:
     assert controller._header.height() == 68
     assert "#78D1C5" in PATHENA_V3_STYLESHEET
     assert "#7C9CFF" not in PATHENA_V3_STYLESHEET
+    assert "QFrame#v3ChatMeta {\n    background: transparent;" in PATHENA_V3_STYLESHEET
+    assert "QFrame#v3ControlRow {\n    background: transparent;" in PATHENA_V3_STYLESHEET
 
     rail = shell.findChild(QFrame, "v3Rail")
     assert rail is not None
@@ -176,6 +178,10 @@ def test_v3_shell_keeps_core_chat_controls_visible_at_minimum_desktop_size() -> 
         assert window.size().height() >= 720
         assert window.model_selector.isVisible()
         assert window.chat_selector.isVisible()
+        assert window.chat_selector.accessibleName() == "Conversation"
+        assert window.model_selector.accessibleName() == "Local model"
+        assert window.new_chat_button.accessibleName() == "New conversation"
+        assert window.delete_chat_button.accessibleName() == "Delete conversation"
         assert window.prompt_input.isVisible()
         assert window.prompt_input.maximumHeight() == 120
         assert window.ground_button.isVisible()
@@ -197,6 +203,34 @@ def test_v3_shell_keeps_core_chat_controls_visible_at_minimum_desktop_size() -> 
         assert composer.accessibleName() == "Message composer"
         assert composer.maximumWidth() == 1040
         assert composer.width() <= window.width()
+
+        rail = window.findChild(QFrame, "v3Rail")
+        assert rail is not None
+        assert rail.width() == 72
+        assert controller._header.height() == 58
+        assert controller._header.hint_label.isHidden()
+        assert all(button.width() == 58 for button in controller._nav_buttons.values())
+        assert controller._pallas_button.width() == 58
+        assert all(
+            label.isHidden()
+            for label in window.findChildren(type(controller._header.title_label), "v3MetaLabel")
+        )
+        assert window.chat_selector.minimumWidth() == 150
+        assert window.model_selector.minimumWidth() == 145
+
+        window.resize(1480, 900)
+        app.processEvents()
+        assert rail.width() == 78
+        assert controller._header.height() == 68
+        assert controller._header.hint_label.isVisible()
+        assert all(button.width() == 64 for button in controller._nav_buttons.values())
+        assert controller._pallas_button.width() == 64
+        assert all(
+            label.isVisible()
+            for label in window.findChildren(type(controller._header.title_label), "v3MetaLabel")
+        )
+        assert window.chat_selector.minimumWidth() == 190
+        assert window.model_selector.minimumWidth() == 170
 
         window.prompt_input.setEnabled(True)
         window.prompt_input.setFocus(Qt.FocusReason.TabFocusReason)
