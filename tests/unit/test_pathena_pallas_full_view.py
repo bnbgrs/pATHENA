@@ -283,3 +283,49 @@ def test_living_cadence_tracks_compact_and_full_workspace_visibility() -> None:
         full_view.dispose()
         window.close()
 
+def test_relationship_cache_refreshes_for_same_graph_id_content_change() -> None:
+    app, window, grounded, full_view = _surface()
+    grounded.apply_snapshot(_snapshot())
+    full_view.open_workspace()
+    workspace = full_view.workspace
+    body = window.findChild(QLabel, "v3PallasInspectorBody")
+    assert workspace is not None
+    assert body is not None
+
+    assert workspace.field.focus_node("canonical_claim:claim-2")
+    app.processEvents()
+    assert "Relationships  1" in body.text()
+
+    focus, claim = _snapshot().nodes
+    knowledge = PallasSemanticNode(
+        node_id="knowledge:unit-1",
+        kind=PallasNodeKind.KNOWLEDGE,
+        entity_type="knowledge_unit",
+        entity_id="unit-1",
+        revision_id="revision-unit-1",
+        title="Accepted knowledge",
+        summary="A durable knowledge unit.",
+        epistemic_status="accepted",
+        cited=False,
+    )
+    updated = PallasGraphSnapshot(
+        graph_id="grounded-run:run-2",
+        nodes=(focus, claim, knowledge),
+        edges=(
+            PallasSemanticEdge(focus.node_id, claim.node_id, "cites"),
+            PallasSemanticEdge(claim.node_id, knowledge.node_id, "supports"),
+        ),
+        focus_id=focus.node_id,
+        status="ready",
+        status_detail="Claim plus one explicit knowledge relationship.",
+    )
+    grounded.apply_snapshot(updated)
+    assert workspace.field.focus_node("canonical_claim:claim-2")
+    app.processEvents()
+
+    assert "Relationships  2" in body.text()
+    assert "→ supports · ■ Accepted knowledge" in body.text()
+
+    full_view.dispose()
+    window.close()
+
