@@ -233,3 +233,23 @@ def test_rendered_edges_retain_exact_semantic_identity(
         field.close()
         field.deleteLater()
 
+def test_keyboard_f_restores_fit_without_changing_selection(
+    qapp: QApplication,
+) -> None:
+    field = _ready_field(qapp)
+    try:
+        assert field.focus_node("claim")
+        selected_before = field.property("pathenaPallasSelectionId")
+        field.canvas.scale(1.7, 1.7)
+        field.canvas._auto_fit = False  # noqa: SLF001
+
+        QTest.keyClick(field.canvas, Qt.Key.Key_F)
+        qapp.processEvents()
+
+        assert field.canvas._auto_fit is True  # noqa: SLF001
+        assert field.property("pathenaPallasSelectionId") == selected_before
+        assert "F to fit all nodes" in field.canvas.accessibleDescription()
+    finally:
+        field.close()
+        field.deleteLater()
+
