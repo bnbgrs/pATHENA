@@ -363,6 +363,15 @@ class PallasSemanticField(QWidget):
         self.canvas.fit_scene_if_auto(expanded)
         return True
 
+    @Slot()
+    def fit_all(self) -> None:
+        """Return to an automatic overview of every currently rendered node."""
+        bounds = self.scene.itemsBoundingRect().adjusted(-24, -24, 24, 24)
+        if bounds.isEmpty():
+            return
+        self.scene.setSceneRect(bounds)
+        self.canvas.reset_view(bounds)
+
     def focus_node(self, node_id: str) -> bool:
         item = self._items.get(node_id)
         if item is None:
