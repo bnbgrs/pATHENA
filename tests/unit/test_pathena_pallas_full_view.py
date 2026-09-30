@@ -90,8 +90,15 @@ def test_open_workspace_reuses_one_synchronized_full_surface() -> None:
     assert first_host.property("pathenaPallasShellHosted") is True
     assert first_workspace.property("pathenaPallasShellHosted") is True
     back_button = window.findChild(QPushButton, "pallasBackButton")
+    fit_button = window.findChild(QPushButton, "pallasFitButton")
+    legend = window.findChild(QLabel, "pallasSemanticLegend")
     assert back_button is not None and back_button.isVisible()
     assert back_button.accessibleName() == "Back to current workspace"
+    assert fit_button is not None and fit_button.isVisible()
+    assert fit_button.accessibleName() == "Fit all PALLAS nodes"
+    assert legend is not None and legend.isVisible()
+    assert "△ SOURCE" in legend.text()
+    assert "× CONFLICT" in legend.text()
     assert first_workspace.field.property("pathenaPallasMode") == "full"
     assert first_workspace.field.snapshot == grounded.field.snapshot
     assert window.property("pathenaPallasShellOpen") is True
