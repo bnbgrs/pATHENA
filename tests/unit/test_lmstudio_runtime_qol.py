@@ -6,9 +6,9 @@ from pathlib import Path
 import pytest
 
 from athena.desktop.lmstudio_runtime import (
-    _CommandStep,
     _accepted_model_load_id,
     _coerce_idle_minutes,
+    _CommandStep,
     _endpoint,
     _endpoint_port,
     _find_lms,

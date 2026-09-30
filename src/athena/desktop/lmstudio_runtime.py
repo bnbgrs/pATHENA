@@ -34,6 +34,7 @@ _DEFAULT_BASE_URL: Final = "http://127.0.0.1:1234"
 _MODEL_VERIFY_INTERVAL_MS: Final = 750
 _MODEL_VERIFY_REFRESH_LIMIT: Final = 5
 _MODEL_LOAD_RETRY_LIMIT: Final = 1
+_COMMAND_TIMEOUT_MS: Final = 30_000
 
 
 @dataclass(frozen=True, slots=True)
@@ -212,6 +213,11 @@ class LMStudioRuntimeController(QObject):
         self._model_verify_timer.setSingleShot(True)
         self._model_verify_timer.setInterval(_MODEL_VERIFY_INTERVAL_MS)
         self._model_verify_timer.timeout.connect(controller.refresh)
+
+        self._command_timer = QTimer(self)
+        self._command_timer.setSingleShot(True)
+        self._command_timer.setInterval(_COMMAND_TIMEOUT_MS)
+        self._command_timer.timeout.connect(self._command_timed_out)
 
         self.process = QProcess(self)
         self.process.setProcessChannelMode(QProcess.ProcessChannelMode.MergedChannels)
@@ -626,12 +632,33 @@ class LMStudioRuntimeController(QObject):
             self._set_status(f"LM Studio runtime · command rejected · {exc}")
             return
         self.process.start(program, arguments)
+        self._command_timer.start()
+
+    @Slot()
+    def _command_timed_out(self) -> None:
+        step = self._active_step
+        if step is None:
+            return
+        self._steps.clear()
+        self._active_step = None
+        if step.operation == "model_load":
+            self._pending_model_id = None
+            self._verifying_model_id = None
+            self._model_verify_timer.stop()
+            self._model_verify_refreshes = 0
+            self._model_load_retries = 0
+        self.busy_changed.emit(False)
+        self._set_status(f"LM Studio runtime · {step.operation} timed out")
+        if self.process.state() != QProcess.ProcessState.NotRunning:
+            self.process.kill()
+        QTimer.singleShot(250, self.controller.refresh)
 
     @Slot(int, QProcess.ExitStatus)
     def _process_finished(self, exit_code: int, _exit_status: QProcess.ExitStatus) -> None:
         step = self._active_step
         if step is None:
             return
+        self._command_timer.stop()
         output = bytes(self.process.readAllStandardOutput().data()).decode(
             "utf-8", errors="replace"
         ).strip()
@@ -679,6 +706,9 @@ class LMStudioRuntimeController(QObject):
     @Slot(QProcess.ProcessError)
     def _process_error(self, error: QProcess.ProcessError) -> None:
         step = self._active_step
+        if step is None:
+            return
+        self._command_timer.stop()
         self._steps.clear()
         self._active_step = None
         self.busy_changed.emit(False)
