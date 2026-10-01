@@ -58,8 +58,13 @@ The schema already contains the required primitives (`revisions.parent_revision_
 
 `ChatService.fork_chat_from_message()` exposes the use case without adding Desktop/API controls in this slice.
 
+### Canonical fork-origin read path
+
+`ChatForkOrigin` plus `ChatRepository.get_fork_origin()` / `ChatService.get_fork_origin()` project the exact persisted source message and source revision for a forked chat. Normal chats return `None`; ambiguous or malformed fork provenance fails closed instead of choosing an arbitrary parent.
+
 ## Dateien
 
+- `src/athena/chat/models.py`
 - `src/athena/chat/repository.py`
 - `src/athena/chat/service.py`
 - `src/athena/chat/__init__.py`
@@ -74,9 +79,10 @@ The schema already contains the required primitives (`revisions.parent_revision_
 2. stale edit expectations fail without creating a successor revision;
 3. assistant messages cannot be rewritten through the user-edit path and gain no extra revision;
 4. fork copies exactly the prefix through the selected revision and retains exact per-message/source provenance;
-5. a stale fork source revision fails without creating a partial chat;
-6. protected chat/message/payload states fail closed for edit and fork without adding a revision or partial chat;
-7. a fork point from a different chat fails before any partial chat is created.
+5. the canonical fork-origin read path returns that exact source message/revision and returns `None` for an ordinary chat;
+6. a stale fork source revision fails without creating a partial chat;
+7. protected chat/message/payload states fail closed for edit and fork without adding a revision or partial chat;
+8. a fork point from a different chat fails before any partial chat is created.
 
 ## Validation
 
