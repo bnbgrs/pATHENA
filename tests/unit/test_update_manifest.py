@@ -110,6 +110,8 @@ def test_package_rejects_hash_mismatch_and_symlink(tmp_path: Path) -> None:
         pytest.param({"manifest_version": True}, id="manifest-version-bool"),
         pytest.param({"manifest_version": 2}, id="manifest-version-unsupported"),
         pytest.param({"app_version": ""}, id="app-version-empty"),
+        pytest.param({"app_version": "01.2.3"}, id="app-version-core-leading-zero"),
+        pytest.param({"app_version": "1.2.3-01"}, id="app-version-prerelease-leading-zero"),
         pytest.param({"package_name": "../athena.zip"}, id="package-name-traversal"),
         pytest.param({"package_size": True}, id="package-size-bool"),
         pytest.param({"package_size": 0}, id="package-size-zero"),
@@ -137,6 +139,23 @@ def test_direct_manifest_construction_rejects_invalid_runtime_values(
 
     with pytest.raises(UpdateVerificationError):
         UpdateManifest(**values)  # type: ignore[arg-type]
+
+
+def test_manifest_accepts_semver_prerelease_and_build_metadata() -> None:
+    package = b"signed package"
+    manifest = UpdateManifest(
+        channel=UpdateChannel.BETA,
+        app_version="1.2.3-beta.1+windows.x64",
+        package_name="athena-1.2.3-beta.1-windows-x64.zip",
+        package_size=len(package),
+        package_sha256=hashlib.sha256(package).hexdigest(),
+        minimum_schema_version=40,
+        maximum_schema_version=41,
+    )
+
+    parsed = UpdateManifest.from_bytes(manifest.to_bytes())
+
+    assert parsed.app_version == "1.2.3-beta.1+windows.x64"
 
 
 @pytest.mark.parametrize("schema_version", [True, False, 40.0, "40", None])
