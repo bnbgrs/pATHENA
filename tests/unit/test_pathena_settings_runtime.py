@@ -254,6 +254,48 @@ def test_model_settings_persist_across_real_window_recreation(tmp_path) -> None:
         app.processEvents()
 
 
+def test_settings_model_selector_restores_persisted_values(tmp_path) -> None:
+    app = _app()
+    first_model = _model("provider/model-a")
+    second_model = _model("provider/model-b")
+    settings = _settings(tmp_path)
+
+    settings.beginGroup(model_storage_group(second_model.backend_model_id))
+    settings.setValue("model_id", second_model.backend_model_id)
+    settings.setValue("context_tokens", 16_384)
+    settings.setValue("max_output_tokens", 1_024)
+    settings.setValue("temperature", 0.25)
+    settings.setValue("thinking", True)
+    settings.endGroup()
+    settings.sync()
+
+    window = PathenaMainWindow(api_controller=None)
+    runtime = install_settings_runtime(window, None, settings=settings)
+    try:
+        _apply(window, runtime, _snapshot(models=(first_model, second_model)))
+        assert window.model_selector.currentData() == first_model.backend_model_id
+
+        second_index = window.settings_model_selector.findData(
+            second_model.backend_model_id
+        )
+        assert second_index >= 0
+        window.settings_model_selector.setCurrentIndex(second_index)
+        window.settings_model_selector.activated.emit(second_index)
+
+        assert window.model_selector.currentData() == second_model.backend_model_id
+        assert window.settings_model_selector.currentData() == second_model.backend_model_id
+        assert window.context_spin.value() == 16_384
+        assert window.max_output_spin.value() == 1_024
+        assert window.temperature_spin.value() == pytest.approx(0.25)
+        assert window.thinking_checkbox.isChecked() is True
+        assert runtime.persistence_value.text() == "provider/model-b · restored locally"
+        assert runtime.persistence_value.property("pathenaUiState") == "success"
+        assert runtime.persistence_value.property("pathenaRuntimeFreshness") == "fresh"
+    finally:
+        window.close()
+        app.processEvents()
+
+
 def test_persisted_values_remain_scoped_to_exact_model_id(tmp_path) -> None:
     app = _app()
     first_model = _model("provider/model-a")
