@@ -138,3 +138,15 @@ Parallel dependency observed:
 
 Requalify the latest PR head, not the earlier 9ed47e63/12d41c86 intermediate heads.
 
+## Fresh-Develop synchronization
+
+During this run develop/pathena-next advanced from 67174198e1494fd4c8678aad60756c39ef5c160b to 467ef434236c320e4afe9d21a39c20a4a2b75728 by merging PR #329 (Chat cancellation Core/API control plane).
+
+The changed #329 files do not overlap this Jobs slice. This branch was therefore synchronized with Develop using a normal two-parent merge commit, not a rebase and not a force-push:
+
+- merge commit: c9faae52c01b57d627abb21cd57291f2d7edc8ac
+- compare versus 467ef434 after merge: 0 behind
+- remaining diff versus Develop: only this handoff, jobs_lifecycle.py, jobs_workspace.py, and test_pathena_jobs_lifecycle.py
+
+Use the current PR #344 head as the qualification target. Do not qualify the earlier 985fbe74 intermediate head.
+
