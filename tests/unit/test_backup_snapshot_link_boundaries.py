@@ -49,6 +49,12 @@ def test_verify_rejects_redirected_snapshot_control_file(
             expected_manifest_sha256=snapshot.manifest_sha256,
             expected_snapshot_id=snapshot.snapshot_id,
         )
+        assert not app.backup._verify_light_path(
+            target=tmp_path / "backup",
+            snapshot_root=snapshot_root,
+            expected_manifest_sha256=snapshot.manifest_sha256,
+            expected_snapshot_id=snapshot.snapshot_id,
+        )
     finally:
         app.stop()
 
@@ -289,3 +295,60 @@ def test_fsynced_metadata_rejects_reparse_destination_contract(
 
     with pytest.raises(FileExistsError, match="destination already exists"):
         backup_module._write_fsynced(destination, b"{}\n")
+
+
+def test_safe_existing_file_rejects_redirected_trusted_root(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = tmp_path / "backup-root"
+    root.mkdir()
+    candidate = root / "payload.bin"
+    candidate.write_bytes(b"payload")
+
+    monkeypatch.setattr(
+        backup_module,
+        "is_link_boundary",
+        lambda path: path == root,
+    )
+
+    with pytest.raises(
+        BackupRestoreError,
+        match="trusted root is not a stable real directory",
+    ):
+        backup_module._safe_existing_file(root, Path("payload.bin"))
+
+
+def test_legacy_target_identity_recovery_rejects_redirected_snapshot_root(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app, snapshot, snapshot_root = _create_snapshot(tmp_path)
+    target = tmp_path / "backup"
+    descriptor = target / app.backup.TARGET_DESCRIPTOR_NAME
+    descriptor.unlink()
+    with app.database.write_transaction() as connection:
+        connection.execute(
+            """
+            UPDATE backup_targets
+            SET identity_initialized = 0
+            WHERE target_id = ?
+            """,
+            (snapshot.target_id.bytes,),
+        )
+    record = app.backup.get_target(snapshot.target_id)
+    real_is_link_boundary = backup_module.is_link_boundary
+
+    def redirected(path: Path) -> bool:
+        return path == snapshot_root or real_is_link_boundary(path)
+
+    monkeypatch.setattr(backup_module, "is_link_boundary", redirected)
+    try:
+        with pytest.raises(
+            BackupRestoreError,
+            match="Legacy backup target contents",
+        ):
+            app.backup._assert_target_available(record, target)
+        assert app.backup.get_target(snapshot.target_id).status == "offline"
+    finally:
+        app.stop()
