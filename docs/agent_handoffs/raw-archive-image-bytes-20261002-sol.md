@@ -57,7 +57,7 @@ This branch intentionally does **not** claim that clipboard UI, API transport or
 
 ## Validierung
 
-Focused regression coverage is committed and the repository Quality workflow is running on the exact PR head. Local checkout/network execution is unavailable in this runner, so no fabricated local PASS is claimed.
+Focused regression coverage is committed and the repository Quality workflow is queued/running on the exact PR head. A source-code audit confirmed existing DOCX/HTML/PDF representation writers continue to select only their intended textual enum values; no exhaustive enum switch required changes. Local checkout/network execution is unavailable in this runner, so no fabricated local PASS is claimed.
 
 Previous current-Develop evidence observed before this work:
 - Windows path safety: PASS;
@@ -108,5 +108,5 @@ After this PR is green/integrated:
 - Capture commit: `35be6d182f16dcfd3faa7abdd024f18eb5d01d5e`
 - Bounded read commit: `154303e86032781d4163f9892d5e7acedd1079af`
 - Protected-read regression commit: `0f2c953dbce4b49a68e744cdf51d4b1d375acc5c`
-- Representation schema/domain alignment: pending commit from this handoff update
+- Representation schema/domain alignment: `db8bd6dbe47a92c5dab07f0227f2864305d69ff6`
 - Draft PR: #374
