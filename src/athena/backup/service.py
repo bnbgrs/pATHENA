@@ -4307,6 +4307,10 @@ def _manifest_matches_database(manifest: dict[str, Any], database_path: Path) ->
 
 
 def _safe_existing_file(root: Path, relative: Path) -> Path:
+    if is_link_boundary(root) or not root.is_dir():
+        raise BackupRestoreError(
+            f"Backup trusted root is not a stable real directory: {root}."
+        )
     root_resolved = root.resolve()
     candidate = root_resolved / relative
     if is_link_boundary(candidate):
