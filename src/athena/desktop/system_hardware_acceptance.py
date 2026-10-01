@@ -77,6 +77,7 @@ def project_hardware_acceptance_payload(
         raise ValueError("Hardware acceptance report is missing checks.")
 
     statuses: list[str] = []
+    failed_check_names: set[str] = set()
     failure_detail: str | None = None
     for index, raw_check in enumerate(checks, start=1):
         if not isinstance(raw_check, Mapping):
@@ -99,10 +100,21 @@ def project_hardware_acceptance_payload(
                 f"Hardware acceptance check {index} is missing detail."
             )
         statuses.append(status)
-        if status == "FAIL" and failure_detail is None:
-            failure_detail = detail.strip()
+        if status == "FAIL":
+            failed_check_names.add(name.strip())
+            if failure_detail is None:
+                failure_detail = detail.strip()
 
     complete_readiness = tuple(readiness.values())
+    if any(value is None for value in complete_readiness):
+        if (
+            complete_readiness != (None, None, None)
+            or overall
+            or "configuration" not in failed_check_names
+        ):
+            raise ValueError(
+                "Hardware acceptance report is missing readiness fields."
+            )
     if overall:
         if complete_readiness != (True, True, True):
             raise ValueError(
@@ -123,19 +135,28 @@ def project_hardware_acceptance_payload(
             )
 
     detected_raw = payload.get("detected_gpus")
-    detected = tuple(
-        value.strip()
+    if detected_raw is None:
+        detected: tuple[str, ...] = ()
+    elif not isinstance(detected_raw, list) or any(
+        not isinstance(value, str) or not value.strip()
         for value in detected_raw
-        if isinstance(value, str) and value.strip()
-    ) if isinstance(detected_raw, list) else ()
+    ):
+        raise ValueError(
+            "Hardware acceptance report detected_gpus must contain only non-empty text."
+        )
+    else:
+        detected = tuple(value.strip() for value in detected_raw)
     gpu_label = detected[0] if detected else "GPU unavailable"
 
     model_raw = payload.get("selected_model_id")
-    model_label = (
-        model_raw.strip()
-        if isinstance(model_raw, str) and model_raw.strip()
-        else "no loaded model"
-    )
+    if model_raw is None:
+        model_label = "no loaded model"
+    elif not isinstance(model_raw, str) or not model_raw.strip():
+        raise ValueError(
+            "Hardware acceptance report selected_model_id must be non-empty text."
+        )
+    else:
+        model_label = model_raw.strip()
 
     if overall:
         if not detected:
