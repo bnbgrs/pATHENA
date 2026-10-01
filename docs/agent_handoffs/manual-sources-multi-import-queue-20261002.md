@@ -45,7 +45,7 @@ single helper process sequentially.
 ## Dateien
 
 - `src/athena/desktop/files_workspace.py`
-- `tests/unit/test_files_workspace_import_queue.py`
+- `tests/unit/test_pathena_files_workspace_import_queue.py`
 - this handoff
 
 ## Tests
@@ -63,7 +63,7 @@ Covered contracts:
 5. QProcess FailedToStart advances to the next queued file;
 6. the native picker delegates multiple selected files into the queue.
 
-Exact-head GitHub CI is still required before this slice is integration-ready.
+The regression file now follows the repository `test_pathena_*.py` naming contract, so the exact-head UI Focused workflow executes this slice directly instead of only relying on the full Quality suite. Exact-head GitHub CI is still required before this slice is integration-ready.
 
 ## Parallel work / conflict risk
 
@@ -74,7 +74,9 @@ This branch deliberately avoids the active ownership areas:
 - LM Studio / Windows runtime work
 - Research UI #326, which was integrated immediately before this slice
 
-Primary conflict surface is only `src/athena/desktop/files_workspace.py`. UI/QA workers
+Primary conflict surface is only `src/athena/desktop/files_workspace.py`.
+
+Windows packaged execution additionally depends on PR #339, which restores the already-existing `athena.desktop.sources_cli` role in `pATHENA-Worker.exe`. #339 is disjoint from this branch; do not duplicate its packaging changes here. UI/QA workers
 should avoid unrelated edits to that file until this PR is qualified or explicitly
 superseded.
 
@@ -111,4 +113,9 @@ Product/test commits before this handoff:
 - `a7f0282f4399508952bc11049756bde6e18793e4` — accessibility / product polish
 - `9528eca73b23c4a44d2ea9e6ef638bccc01c1e57` — test cleanup
 
-PR: to be created after this handoff commit.
+PR: #336 `Sources: queue multi-file imports sequentially`.
+
+Additional test-discovery commits:
+
+- `72492b9db802daa97fe5d84ee8cace5a9ff11b99` — add queue coverage under the UI-focused test naming contract
+- `2d092a438598d0e72cfc43a50901c20661617a50` — remove the superseded non-focused test path
