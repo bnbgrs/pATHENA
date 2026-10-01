@@ -11,13 +11,13 @@
 
 ## Ausgangslage
 
-Five independent runtime-boundary defects remained in files not owned by the active Chat, Jobs, Sources, Backup, Knowledge, Settings, Windows, PALLAS or LM-Studio-Desktop bots:
+Six independent runtime-boundary defects remained in files not owned by the active Chat, Jobs, Sources, Backup, Knowledge, Settings, Windows, PALLAS or LM-Studio-Desktop bots:
 
 1. stable model identities admitted leading/trailing whitespace;
 2. LM Studio accepted noncanonical discovery/request/runtime instance identities;
 3. Protected-Content repository reads coerced persisted crypto fields instead of validating BLOB type/length;
 4. Personal Memory runtime domain values relied on annotations and accepted invalid enum/scalar types;
-5. external-access security grants coerced malformed persisted authorization state instead of failing closed.
+5. external-access security grants coerced malformed persisted authorization state instead of failing closed;\n6. plugin publisher trust roots relied on annotation types and could leak low-level type failures.
 
 The original slices were based on `67174198...`. Develop then advanced by the integrated Chat-cancellation stack to `467ef434...`. Since canonical Quality checks the branch head rather than a synthetic PR merge commit, these five disjoint slices were reapplied onto fresh Develop as one bounded candidate for current-base qualification.
 
@@ -78,6 +78,17 @@ Files:
 Files:
 - `src/athena/external/gateway.py`
 - `tests/unit/test_external_authorization_persistence_boundaries.py`
+
+### Plugin publisher trust-root runtime boundaries
+
+- `TrustedPluginPublisher` now rejects non-text key IDs and non-bytes Ed25519 public keys at construction rather than relying on annotation types or a later cryptography call;
+- canonical identity payload construction rejects non-text package digests with a plugin-domain error;
+- publisher verification requires a mapping for trust roots and a `TrustedPluginPublisher` value for the selected signer;
+- focused tests cover 32-character string public keys, non-text key IDs/digests, invalid trust-root containers and invalid trust-root entries.
+
+Files:
+- `src/athena/plugins/identity.py`
+- `tests/unit/test_plugin_publisher_identity.py`
 
 ## Verhalten danach
 
