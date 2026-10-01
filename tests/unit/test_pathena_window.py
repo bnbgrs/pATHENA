@@ -234,7 +234,7 @@ def test_reference_composer_exposes_stop_only_for_real_direct_send() -> None:
 
         assert window.send_button.isEnabled() is False
         assert window.send_button.text() == "…"
-        assert window.send_button.accessibleName() == "Generation in progress"
+        assert window.send_button.accessibleName() == "Chat operation in progress"
 
         window._chat_busy = False
         window._sync_composer_enabled()
