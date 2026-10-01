@@ -1049,49 +1049,68 @@ def _search_result(payload: dict[str, JsonValue]) -> SearchResultResponse:
             code="invalid_response",
         )
 
-    raw_protection = payload.get("protection")
-    if not isinstance(raw_protection, dict):
+    try:
+        raw_protection = payload.get("protection")
+        if not isinstance(raw_protection, dict):
+            raise CoreApiClientError(
+                "ATHENA Core Search protection is invalid.",
+                code="invalid_response",
+            )
+        protection = SearchProtectionResponse(
+            state=_required_str(raw_protection, "state"),
+            protection_scope_id=_optional_str(
+                raw_protection,
+                "protection_scope_id",
+            ),
+        )
+
+        raw_anchor = payload.get("source_anchor")
+        source_anchor: SearchSourceAnchorResponse | None
+        if raw_anchor is None:
+            source_anchor = None
+        elif isinstance(raw_anchor, dict):
+            source_anchor = SearchSourceAnchorResponse(
+                representation_id=_required_str(
+                    raw_anchor,
+                    "representation_id",
+                ),
+                start_offset=_required_int(
+                    raw_anchor,
+                    "start_offset",
+                ),
+                end_offset=_required_int(
+                    raw_anchor,
+                    "end_offset",
+                ),
+                quoted_sha256=_required_str(
+                    raw_anchor,
+                    "quoted_sha256",
+                ),
+            )
+        else:
+            raise CoreApiClientError(
+                "ATHENA Core Search source_anchor is invalid.",
+                code="invalid_response",
+            )
+
+        return SearchResultResponse(
+            result_ref=_required_str(payload, "result_ref"),
+            title=_optional_str(payload, "title"),
+            preview=_required_str(payload, "preview"),
+            entity_type=_required_str(payload, "entity_type"),
+            revision_id=_optional_str(payload, "revision_id"),
+            rank=_required_int(payload, "rank"),
+            retrieval_methods=tuple(cast(list[str], raw_methods)),
+            source_anchor=source_anchor,
+            protection=protection,
+        )
+    except CoreApiClientError:
+        raise
+    except (TypeError, ValueError) as exc:
         raise CoreApiClientError(
-            "ATHENA Core Search protection is invalid.",
+            "ATHENA Core returned an invalid Search result.",
             code="invalid_response",
-        )
-    protection = SearchProtectionResponse(
-        state=_required_str(raw_protection, "state"),
-        protection_scope_id=_optional_str(
-            raw_protection,
-            "protection_scope_id",
-        ),
-    )
-
-    raw_anchor = payload.get("source_anchor")
-    source_anchor: SearchSourceAnchorResponse | None
-    if raw_anchor is None:
-        source_anchor = None
-    elif isinstance(raw_anchor, dict):
-        source_anchor = SearchSourceAnchorResponse(
-            representation_id=_required_str(raw_anchor, "representation_id"),
-            start_offset=_required_int(raw_anchor, "start_offset"),
-            end_offset=_required_int(raw_anchor, "end_offset"),
-            quoted_sha256=_required_str(raw_anchor, "quoted_sha256"),
-        )
-    else:
-        raise CoreApiClientError(
-            "ATHENA Core Search source_anchor is invalid.",
-            code="invalid_response",
-        )
-
-    return SearchResultResponse(
-        result_ref=_required_str(payload, "result_ref"),
-        title=_optional_str(payload, "title"),
-        preview=_required_str(payload, "preview"),
-        entity_type=_required_str(payload, "entity_type"),
-        revision_id=_optional_str(payload, "revision_id"),
-        rank=_required_int(payload, "rank"),
-        retrieval_methods=tuple(cast(list[str], raw_methods)),
-        source_anchor=source_anchor,
-        protection=protection,
-    )
-
+        ) from exc
 
 def _health(payload: dict[str, JsonValue]) -> HealthResponse:
     return HealthResponse(
