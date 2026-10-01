@@ -312,11 +312,28 @@ def main(argv: Sequence[str] | None = None) -> int:
             grounded = window.property("pathenaPallasGroundedController")
             if not isinstance(grounded, PallasGroundedFieldController):
                 raise RuntimeError("Real PALLAS grounded controller is unavailable.")
-            grounded.apply_snapshot(diagnostic_pallas_snapshot())
             full_view = getattr(window, "_pathena_pallas_full_view_controller", None)
             if full_view is None or not callable(getattr(full_view, "open_workspace", None)):
                 raise RuntimeError("Real PALLAS full-view controller is unavailable.")
+            living = getattr(full_view, "living_controller", None)
+            living_timer = getattr(living, "_timer", None)
+            living_tick = getattr(living, "_tick", None)
+            if (
+                living_timer is None
+                or not callable(getattr(living_timer, "stop", None))
+                or not callable(living_tick)
+            ):
+                raise RuntimeError("PALLAS living capture controls are unavailable.")
+
+            # The product renderer is intentionally animated. A screenshot baseline
+            # cannot depend on whether the Windows runner happened to deliver one or
+            # several timer events before QWidget.grab(). Freeze the autonomous timer,
+            # then render exactly one real living-engine step after the full workspace
+            # has been mounted. Product behavior is unchanged outside this QA process.
+            living_timer.stop()
+            grounded.apply_snapshot(diagnostic_pallas_snapshot())
             full_view.open_workspace()
+            living_tick()
             app.processEvents()
             workspace = getattr(full_view, "workspace", None)
             host = getattr(full_view, "_host", None)
@@ -334,7 +351,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             if int(workspace.field.property("pathenaPallasNodeCount") or 0) != 5:
                 raise RuntimeError("PALLAS reference graph did not render all diagnostic nodes.")
             save_widget(window, ordinal=8, label="PALLAS", kind="full-pallas")
-            captures[-1]["fixture"] = "diagnostic semantic graph; presentation only"
+            captures[-1]["fixture"] = (
+                "diagnostic semantic graph; one deterministic living step; presentation only"
+            )
             captures[-1]["shell_hosted"] = True
         except Exception as exc:  # noqa: BLE001
             errors.append(f"PALLAS: {type(exc).__name__}: {exc}")
