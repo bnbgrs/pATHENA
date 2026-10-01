@@ -25,11 +25,13 @@ from athena.api.contracts import (
     ProviderHealthResponse,
     RememberedChatMessageResponse,
 )
+from athena.api.search_contracts import SearchResultResponse
 from athena.chat.send_identity import (
     assistant_message_id_for_operation,
     chat_id_for_operation,
 )
 from athena.common.ids import new_uuid7
+from athena.retrieval.universal import UniversalSearchEntityType
 
 
 class CoreApiGateway(Protocol):
@@ -40,6 +42,14 @@ class CoreApiGateway(Protocol):
     def provider_health(self) -> ProviderHealthResponse: ...
 
     def list_models(self) -> tuple[ModelResponse, ...]: ...
+
+    def universal_search(
+        self,
+        query: str,
+        *,
+        limit: int = 20,
+        entity_types: tuple[UniversalSearchEntityType, ...] | None = None,
+    ) -> tuple[SearchResultResponse, ...]: ...
 
     def news_profile(self) -> NewsProfileResponse: ...
 
@@ -179,6 +189,22 @@ class _RefreshOutcome:
     def __post_init__(self) -> None:
         if (self.snapshot is None) == (self.error is None):
             raise ValueError("Refresh outcome requires exactly one result kind.")
+
+
+@dataclass(frozen=True, slots=True)
+class _SearchOutcome:
+    request_id: int
+    query: str
+    results: tuple[SearchResultResponse, ...] | None = None
+    error: str | None = None
+
+    def __post_init__(self) -> None:
+        if self.request_id < 1:
+            raise ValueError("Search outcome request_id must be positive.")
+        if not self.query:
+            raise ValueError("Search outcome query must not be empty.")
+        if (self.results is None) == (self.error is None):
+            raise ValueError("Search outcome requires exactly one result kind.")
 
 
 @dataclass(frozen=True, slots=True)
@@ -1005,6 +1031,66 @@ class _RefreshTask(QRunnable):
             )
 
 
+class _SearchTask(QRunnable):
+    """Run one Core-backed universal search away from the Qt UI thread."""
+
+    def __init__(
+        self,
+        *,
+        gateway: CoreApiGateway,
+        request_id: int,
+        query: str,
+        limit: int,
+        outcomes: SimpleQueue[_SearchOutcome],
+        receiver: QObject,
+    ) -> None:
+        super().__init__()
+        self.gateway = gateway
+        self.request_id = request_id
+        self.query = query
+        self.limit = limit
+        self.outcomes = outcomes
+        self.receiver = receiver
+        self.setAutoDelete(False)
+
+    @Slot()
+    def run(self) -> None:
+        try:
+            results = self.gateway.universal_search(
+                self.query,
+                limit=self.limit,
+            )
+        except CoreApiClientError as exc:
+            outcome = _SearchOutcome(
+                request_id=self.request_id,
+                query=self.query,
+                error=str(exc),
+            )
+        except Exception:
+            outcome = _SearchOutcome(
+                request_id=self.request_id,
+                query=self.query,
+                error="ATHENA Core search failed.",
+            )
+        else:
+            outcome = _SearchOutcome(
+                request_id=self.request_id,
+                query=self.query,
+                results=results,
+            )
+
+        self.outcomes.put(outcome)
+        queued = QMetaObject.invokeMethod(
+            self.receiver,
+            "_drain_search_outcome",
+            Qt.ConnectionType.QueuedConnection,
+        )
+        if not queued:
+            raise RuntimeError(
+                "ATHENA desktop could not queue the search result."
+            )
+
+
 class DesktopApiController(QObject):
     """Run Core API work off the Qt UI thread and publish immutable results."""
 
@@ -1022,6 +1108,9 @@ class DesktopApiController(QObject):
     knowledge_merge_review_ready = Signal(object)
     chat_operation_failed = Signal(str, str)
     chat_busy_changed = Signal(bool)
+    search_ready = Signal(int, str, object)
+    search_failed = Signal(int, str, str)
+    search_state_changed = Signal(bool)
 
     def __init__(
         self,
@@ -1047,6 +1136,9 @@ class DesktopApiController(QObject):
         self._chat_busy = False
         self._chat_outcomes: SimpleQueue[_ChatOperationOutcome] = SimpleQueue()
         self._active_chat_task: _ChatTask | None = None
+        self._search_outcomes: SimpleQueue[_SearchOutcome] = SimpleQueue()
+        self._active_search_tasks: dict[int, _SearchTask] = {}
+        self._next_search_request_id = 1
 
     @property
     def refreshing(self) -> bool:
@@ -1055,6 +1147,43 @@ class DesktopApiController(QObject):
     @property
     def chat_busy(self) -> bool:
         return self._chat_busy
+
+    @property
+    def search_busy(self) -> bool:
+        return bool(self._active_search_tasks)
+
+    def search(
+        self,
+        query: str,
+        *,
+        limit: int = 30,
+    ) -> int:
+        if not isinstance(query, str):
+            raise TypeError("Desktop search query must be text.")
+        normalized = " ".join(query.split())
+        if not normalized:
+            raise ValueError("Desktop search query must not be empty.")
+        if isinstance(limit, bool) or not isinstance(limit, int):
+            raise TypeError("Desktop search limit must be an integer.")
+        if not 1 <= limit <= 100:
+            raise ValueError("Desktop search limit must be between 1 and 100.")
+
+        request_id = self._next_search_request_id
+        self._next_search_request_id += 1
+        task = _SearchTask(
+            gateway=self.gateway,
+            request_id=request_id,
+            query=normalized,
+            limit=limit,
+            outcomes=self._search_outcomes,
+            receiver=self,
+        )
+        was_busy = self.search_busy
+        self._active_search_tasks[request_id] = task
+        if not was_busy:
+            self.search_state_changed.emit(True)
+        self.thread_pool.start(task)
+        return request_id
 
     def load_chat(self, chat_id: str) -> None:
         if not chat_id or self._chat_busy:
@@ -1349,6 +1478,32 @@ class DesktopApiController(QObject):
             return
         self._refreshing = False
         self.refresh_state_changed.emit(False)
+
+    @Slot()
+    def _drain_search_outcome(self) -> None:
+        try:
+            try:
+                outcome = self._search_outcomes.get_nowait()
+            except Empty:
+                return
+
+            self._active_search_tasks.pop(outcome.request_id, None)
+            if outcome.error is not None:
+                self.search_failed.emit(
+                    outcome.request_id,
+                    outcome.query,
+                    outcome.error,
+                )
+            else:
+                assert outcome.results is not None
+                self.search_ready.emit(
+                    outcome.request_id,
+                    outcome.query,
+                    outcome.results,
+                )
+        finally:
+            if not self._active_search_tasks:
+                self.search_state_changed.emit(False)
 
     @Slot()
     def _drain_chat_outcome(self) -> None:
