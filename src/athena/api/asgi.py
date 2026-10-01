@@ -150,7 +150,7 @@ class CoreApiAsgiApp:
                 return
 
             if method == "POST" and path == "/api/v1/news/profile/enable":
-                await _require_empty_body(receive)
+                await _consume_empty_body(receive)
                 await _send_contract(
                     send,
                     self._facade.enable_news(),
@@ -159,7 +159,7 @@ class CoreApiAsgiApp:
                 return
 
             if method == "POST" and path == "/api/v1/news/profile/disable":
-                await _require_empty_body(receive)
+                await _consume_empty_body(receive)
                 await _send_contract(
                     send,
                     self._facade.disable_news(),
