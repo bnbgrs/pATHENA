@@ -55,10 +55,72 @@ def hardware_acceptance_launch_spec(
 def project_hardware_acceptance_payload(
     payload: Mapping[str, object],
 ) -> HardwareAcceptancePresentation:
-    """Project the machine report into a compact, evidence-preserving UI state."""
+    """Project one internally coherent machine report into an operator state."""
     overall = payload.get("overall_ready")
     if not isinstance(overall, bool):
         raise ValueError("Hardware acceptance report is missing overall_ready.")
+
+    readiness: dict[str, bool | None] = {}
+    for field in ("gpu_ready", "model_ready", "inference_ready"):
+        raw_value = payload.get(field)
+        if raw_value is None:
+            readiness[field] = None
+        elif isinstance(raw_value, bool):
+            readiness[field] = raw_value
+        else:
+            raise ValueError(
+                f"Hardware acceptance report field {field} must be boolean when present."
+            )
+
+    checks = payload.get("checks")
+    if not isinstance(checks, list) or not checks:
+        raise ValueError("Hardware acceptance report is missing checks.")
+
+    statuses: list[str] = []
+    failure_detail: str | None = None
+    for index, raw_check in enumerate(checks, start=1):
+        if not isinstance(raw_check, Mapping):
+            raise ValueError(
+                f"Hardware acceptance check {index} must be an object."
+            )
+        name = raw_check.get("name")
+        status = raw_check.get("status")
+        detail = raw_check.get("detail")
+        if not isinstance(name, str) or not name.strip():
+            raise ValueError(
+                f"Hardware acceptance check {index} is missing name."
+            )
+        if status not in {"PASS", "FAIL", "SKIP"}:
+            raise ValueError(
+                f"Hardware acceptance check {index} has invalid status."
+            )
+        if not isinstance(detail, str) or not detail.strip():
+            raise ValueError(
+                f"Hardware acceptance check {index} is missing detail."
+            )
+        statuses.append(status)
+        if status == "FAIL" and failure_detail is None:
+            failure_detail = detail.strip()
+
+    complete_readiness = tuple(readiness.values())
+    if overall:
+        if complete_readiness != (True, True, True):
+            raise ValueError(
+                "Hardware acceptance PASS contradicts readiness fields."
+            )
+        if any(status != "PASS" for status in statuses):
+            raise ValueError(
+                "Hardware acceptance PASS contradicts check statuses."
+            )
+    else:
+        if complete_readiness == (True, True, True):
+            raise ValueError(
+                "Hardware acceptance FAIL contradicts readiness fields."
+            )
+        if "FAIL" not in statuses:
+            raise ValueError(
+                "Hardware acceptance FAIL is missing a failed check."
+            )
 
     detected_raw = payload.get("detected_gpus")
     detected = tuple(
@@ -76,24 +138,20 @@ def project_hardware_acceptance_payload(
     )
 
     if overall:
+        if not detected:
+            raise ValueError(
+                "Hardware acceptance PASS is missing detected GPU evidence."
+            )
+        if model_label == "no loaded model":
+            raise ValueError(
+                "Hardware acceptance PASS is missing selected model evidence."
+            )
         return HardwareAcceptancePresentation(
             status="PASS",
             detail=f"{gpu_label} · {model_label} · live inference passed",
             state="success",
         )
 
-    checks = payload.get("checks")
-    failure_detail: str | None = None
-    if isinstance(checks, list):
-        for raw_check in checks:
-            if not isinstance(raw_check, Mapping):
-                continue
-            if raw_check.get("status") != "FAIL":
-                continue
-            raw_detail = raw_check.get("detail")
-            if isinstance(raw_detail, str) and raw_detail.strip():
-                failure_detail = raw_detail.strip()
-                break
     return HardwareAcceptancePresentation(
         status="FAIL",
         detail=failure_detail or "Target hardware acceptance did not pass.",
