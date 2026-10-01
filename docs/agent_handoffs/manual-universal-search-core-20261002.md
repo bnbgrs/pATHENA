@@ -46,6 +46,8 @@ vor Abschluss auf deterministisches AND über normalisierte Suchterme korrigiert
 - Mehrwortsuche der direkten SQL-Pfade verwendet AND-Semantik über Suchterme.
 - Protected Sources, Jobs und ResearchResults werden aus diesem unprotected
   Suchpfad ausgeschlossen.
+- Sources in einer laufenden `source_protection_transitions`-Transition werden
+  ebenfalls fail-closed ausgeschlossen, bevor Metadaten in Search gelangen.
 
 ### Core API / Transport
 
@@ -105,7 +107,7 @@ aktive UI-PR #337 derzeit `desktop/api_controller.py`,
 Implementiert sind fokussierte Regressionen für:
 
 - Cross-domain Aggregation.
-- Protection-Ausschluss.
+- Protection-Ausschluss inklusive Source-Protection-Transition-Fence.
 - Filter-/Limit-Validierung.
 - order-independent Multi-Term-Matching.
 - Core-Facade Capability/Wiring.
@@ -118,9 +120,10 @@ Lokaler Checkout/Testlauf war in diesem Runner nicht möglich: direkter Zugriff
 auf `github.com` scheitert hier an DNS-Auflösung. Daher wird **kein lokaler
 PASS** behauptet.
 
-Aktueller GitHub Actions Quality Run:
-`36939853971` für Head `77ed57990af97ddf29c73da7f4fed6fe2403dd2c`.
-Status beim ersten Schreiben dieses Handoffs: queued. Vor Run-Ende aktualisieren.
+Der finale GitHub-Actions-Status wird nach diesem letzten Handoff-Commit im
+Draft-PR #368 dokumentiert. Für den tatsächlichen Gate-Status ist der PR-Head
+maßgeblich; nach diesem Commit werden keine weiteren Code-/Dokument-Commits
+mehr erzeugt, damit der validierte SHA stabil bleibt.
 
 ## Bekannte Restprobleme / nächste Schritte
 
@@ -152,4 +155,4 @@ Status beim ersten Schreiben dieses Handoffs: queued. Vor Run-Ende aktualisieren
 - Branch: `feature/universal-search-core-20261002-sol`
 - Draft PR: #368 — `Search: add real cross-domain Core universal search`
 - PR: https://github.com/bnbgrs/pATHENA/pull/368
-- aktueller dokumentierter Head: `77ed57990af97ddf29c73da7f4fed6fe2403dd2c`
+- Handoff-Stand vor finalem Gate: `343a1985e7c5d05709f81fdb3b8e3077d0e60a7d`
