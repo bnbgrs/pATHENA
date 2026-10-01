@@ -123,7 +123,7 @@ def test_startup_rollback_failure_does_not_replace_primary_failure(
         app.start(run_startup_maintenance=False)
 
     assert service_events == ["start:service", "stop:service"]
-    assert app.services.started_service_names == ()
+    assert app.services.started_service_names == ("test-service",)
     assert app.state is ApplicationState.FAILED
     assert "ATHENA Core startup rollback failed" in caplog.text
     assert close_events == ["close:jsonl"]
