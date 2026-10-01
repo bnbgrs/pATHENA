@@ -347,6 +347,40 @@ def test_runtime_panel_never_turns_stale_or_missing_provider_into_ready(tmp_path
         app.processEvents()
 
 
+def test_settings_read_error_is_not_hidden_by_missing_model_identity(tmp_path) -> None:
+    class FailingSettings:
+        def beginGroup(self, _group: str) -> None:
+            return None
+
+        def endGroup(self) -> None:
+            return None
+
+        def value(self, _key: str, default=None):
+            return default
+
+        def status(self):
+            return QSettings.Status.FormatError
+
+    app = _app()
+    window = PathenaMainWindow(api_controller=None)
+    runtime = install_settings_runtime(window, None, settings=_settings(tmp_path))
+    try:
+        runtime.persistence_value.setText("Local Qwen · restored locally")
+        runtime.persistence_value.setProperty("pathenaUiState", "success")
+        runtime.persistence_value.setProperty("pathenaRuntimeFreshness", "fresh")
+        runtime.settings = FailingSettings()  # type: ignore[assignment]
+
+        stored = runtime._read_model("Local Qwen", display_name="Local Qwen")
+
+        assert stored is None
+        assert runtime.persistence_value.text() == "Local Qwen · local settings unreadable"
+        assert runtime.persistence_value.property("pathenaUiState") == "error"
+        assert runtime.persistence_value.property("pathenaRuntimeFreshness") == "unavailable"
+    finally:
+        window.close()
+        app.processEvents()
+
+
 def test_malformed_persisted_fields_do_not_replace_safe_defaults(tmp_path) -> None:
     app = _app()
     model = _model("Local Qwen")
