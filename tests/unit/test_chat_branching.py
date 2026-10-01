@@ -3,6 +3,7 @@ import pytest
 from athena.chat.repository import (
     ChatMessageNotFoundError,
     ChatRepository,
+    ChatRevisionConflictError,
     UnsupportedChatForkError,
     UnsupportedMessageEditError,
 )
@@ -25,6 +26,7 @@ def test_edit_user_message_creates_immutable_successor_revision(tmp_path) -> Non
     edited = service.edit_user_message(
         chat_id=chat_id,
         message_id=original.message_id,
+        expected_revision_id=original.revision_id,
         content="revised",
     )
 
@@ -77,6 +79,36 @@ def test_edit_user_message_creates_immutable_successor_revision(tmp_path) -> Non
     database.stop()
 
 
+def test_edit_rejects_stale_expected_revision_without_mutation(tmp_path) -> None:
+    database, service = _service(tmp_path)
+    chat_id = service.create_chat()
+    original = service.add_user_message(chat_id=chat_id, content="original")
+    current = service.edit_user_message(
+        chat_id=chat_id,
+        message_id=original.message_id,
+        expected_revision_id=original.revision_id,
+        content="current",
+    )
+
+    with pytest.raises(ChatRevisionConflictError):
+        service.edit_user_message(
+            chat_id=chat_id,
+            message_id=original.message_id,
+            expected_revision_id=original.revision_id,
+            content="stale overwrite",
+        )
+
+    loaded = service.load_chat(chat_id).messages[0]
+    assert loaded.revision_id == current.revision_id
+    assert loaded.content == "current"
+    revision_count = database.connection.execute(
+        "SELECT COUNT(*) FROM revisions WHERE entity_id = ?",
+        (uuid_to_blob(original.message_id),),
+    ).fetchone()[0]
+    assert int(revision_count) == 2
+    database.stop()
+
+
 def test_edit_rejects_assistant_message_without_new_revision(tmp_path) -> None:
     database, service = _service(tmp_path)
     chat_id = service.create_chat()
@@ -91,6 +123,7 @@ def test_edit_rejects_assistant_message_without_new_revision(tmp_path) -> None:
         service.edit_user_message(
             chat_id=chat_id,
             message_id=assistant.message_id,
+            expected_revision_id=assistant.revision_id,
             content="tampered",
         )
 
@@ -134,6 +167,7 @@ def test_edit_fails_closed_for_protected_user_message(tmp_path) -> None:
         service.edit_user_message(
             chat_id=chat_id,
             message_id=message.message_id,
+            expected_revision_id=message.revision_id,
             content="should not persist",
         )
     assert revision_count() == 1
@@ -158,6 +192,7 @@ def test_edit_fails_closed_for_protected_user_message(tmp_path) -> None:
         service.edit_user_message(
             chat_id=chat_id,
             message_id=message.message_id,
+            expected_revision_id=message.revision_id,
             content="still blocked",
         )
     assert revision_count() == 1
@@ -182,6 +217,7 @@ def test_edit_fails_closed_for_protected_user_message(tmp_path) -> None:
         service.edit_user_message(
             chat_id=chat_id,
             message_id=message.message_id,
+            expected_revision_id=message.revision_id,
             content="also blocked",
         )
     assert revision_count() == 1
@@ -209,6 +245,7 @@ def test_fork_chat_copies_history_through_exact_revision_with_provenance(tmp_pat
     fork_chat_id = service.fork_chat_from_message(
         chat_id=source_chat_id,
         source_message_id=fork_point.message_id,
+        source_revision_id=fork_point.revision_id,
     )
 
     forked = service.load_chat(fork_chat_id)
@@ -299,6 +336,30 @@ def test_fork_chat_copies_history_through_exact_revision_with_provenance(tmp_pat
     database.stop()
 
 
+def test_fork_rejects_stale_source_revision_without_partial_chat(tmp_path) -> None:
+    database, service = _service(tmp_path)
+    chat_id = service.create_chat()
+    original = service.add_user_message(chat_id=chat_id, content="original")
+    service.edit_user_message(
+        chat_id=chat_id,
+        message_id=original.message_id,
+        expected_revision_id=original.revision_id,
+        content="new head",
+    )
+    before = database.connection.execute("SELECT COUNT(*) FROM chats").fetchone()[0]
+
+    with pytest.raises(ChatRevisionConflictError):
+        service.fork_chat_from_message(
+            chat_id=chat_id,
+            source_message_id=original.message_id,
+            source_revision_id=original.revision_id,
+        )
+
+    after = database.connection.execute("SELECT COUNT(*) FROM chats").fetchone()[0]
+    assert int(after) == int(before)
+    database.stop()
+
+
 def test_fork_fails_closed_for_protected_chat_or_message(tmp_path) -> None:
     database, service = _service(tmp_path)
     chat_id = service.create_chat()
@@ -317,6 +378,7 @@ def test_fork_fails_closed_for_protected_chat_or_message(tmp_path) -> None:
         service.fork_chat_from_message(
             chat_id=chat_id,
             source_message_id=message.message_id,
+            source_revision_id=message.revision_id,
         )
 
     database.connection.execute(
@@ -339,6 +401,7 @@ def test_fork_fails_closed_for_protected_chat_or_message(tmp_path) -> None:
         service.fork_chat_from_message(
             chat_id=chat_id,
             source_message_id=message.message_id,
+            source_revision_id=message.revision_id,
         )
 
     database.connection.execute(
@@ -361,6 +424,7 @@ def test_fork_fails_closed_for_protected_chat_or_message(tmp_path) -> None:
         service.fork_chat_from_message(
             chat_id=chat_id,
             source_message_id=message.message_id,
+            source_revision_id=message.revision_id,
         )
 
     after = database.connection.execute("SELECT COUNT(*) FROM chats").fetchone()[0]
@@ -382,6 +446,7 @@ def test_fork_rejects_message_from_another_chat_without_partial_chat(tmp_path) -
         service.fork_chat_from_message(
             chat_id=first_chat,
             source_message_id=foreign_message.message_id,
+            source_revision_id=foreign_message.revision_id,
         )
 
     after = database.connection.execute("SELECT COUNT(*) FROM chats").fetchone()[0]
