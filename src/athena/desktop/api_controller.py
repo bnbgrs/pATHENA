@@ -1523,45 +1523,40 @@ class DesktopApiController(QObject):
     @Slot()
     def _drain_chat_cancel_outcome(self) -> None:
         try:
-            try:
-                outcome = self._chat_cancel_outcomes.get_nowait()
-            except Empty:
-                self._set_chat_cancel_state(
-                    "failed",
-                    "ATHENA cancellation result was lost; generation may still be running.",
-                )
-                return
-
-            if (
-                self._active_chat_cancel_task is not None
-                and self._active_chat_cancel_task.operation_id == outcome.operation_id
-            ):
-                self._active_chat_cancel_task = None
-            if outcome.operation_id != self._active_chat_operation_id:
-                return
-
-            if outcome.error is not None:
-                self._set_chat_cancel_state(
-                    "failed",
-                    outcome.error,
-                )
-                return
-
-            if outcome.accepted is True:
-                self._set_chat_cancel_state(
-                    "accepted",
-                    "Cancellation accepted; waiting for generation to stop.",
-                )
-                return
-
+            outcome = self._chat_cancel_outcomes.get_nowait()
+        except Empty:
             self._set_chat_cancel_state(
-                "expired",
-                "The generation completed or expired before cancellation was accepted.",
+                "failed",
+                "ATHENA cancellation result was lost; generation may still be running.",
             )
-        finally:
-            # Presentation can retry only after a failed/expired request while the
-            # exact direct-send operation is still active.
-            pass
+            return
+
+        if (
+            self._active_chat_cancel_task is not None
+            and self._active_chat_cancel_task.operation_id == outcome.operation_id
+        ):
+            self._active_chat_cancel_task = None
+        if outcome.operation_id != self._active_chat_operation_id:
+            return
+
+        if outcome.error is not None:
+            self._set_chat_cancel_state(
+                "failed",
+                outcome.error,
+            )
+            return
+
+        if outcome.accepted is True:
+            self._set_chat_cancel_state(
+                "accepted",
+                "Cancellation accepted; waiting for generation to stop.",
+            )
+            return
+
+        self._set_chat_cancel_state(
+            "expired",
+            "The generation completed or expired before cancellation was accepted.",
+        )
 
     @Slot()
     def _drain_chat_outcome(self) -> None:
