@@ -30,11 +30,19 @@ def test_policy_rejects_fractional_values_in_integer_fields(
 ) -> None:
     app = _started_app(tmp_path, f"fractional-{field}")
     try:
+        statements = {
+            "ram_headroom_bytes": (
+                "UPDATE resource_policy SET ram_headroom_bytes = ? WHERE singleton_id = 1"
+            ),
+            "disk_headroom_bytes": (
+                "UPDATE resource_policy SET disk_headroom_bytes = ? WHERE singleton_id = 1"
+            ),
+            "updated_at_us": (
+                "UPDATE resource_policy SET updated_at_us = ? WHERE singleton_id = 1"
+            ),
+        }
         with app.database.write_transaction() as connection:
-            connection.execute(
-                f"UPDATE resource_policy SET {field} = ? WHERE singleton_id = 1",
-                (value,),
-            )
+            connection.execute(statements[field], (value,))
 
         with pytest.raises(RuntimeError, match=field):
             app.resources.policy()
