@@ -607,15 +607,21 @@ class StructuredReplicationPublisher:
             expected_repository_id=target.target_id,
         )
 
-        allowed = {
-            "repository.json",
+        directory_names = {
             "commits",
             "snapshots",
             "manifests",
             "replication",
         }
+        allowed = {"repository.json", *directory_names}
         for item in target_root.iterdir():
-            if item.name in allowed:
+            if item.name in directory_names:
+                if is_link_boundary(item) or not item.is_dir():
+                    raise _TargetHistoryError(
+                        f"Long-term repository directory is unsafe: {item.name}"
+                    )
+                continue
+            if item.name == "repository.json":
                 continue
             if (
                 item.name.startswith(".repository.json.")
