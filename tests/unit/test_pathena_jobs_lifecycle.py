@@ -390,3 +390,53 @@ def test_failed_background_refresh_preserves_selected_job_details(
         workspace.close()
         app.processEvents()
 
+def test_background_show_completion_loads_the_new_current_selection(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(JobsWorkspace, "refresh", lambda _self: None)
+    app = _app()
+    workspace = JobsWorkspace()
+    workspace._refresh_timer.stop()
+    workspace._scheduler_status_timer.stop()
+    app.processEvents()
+    monkeypatch.setattr(workspace, "_drain_output", lambda: None)
+
+    old_item = QListWidgetItem("RUNNING")
+    old_item.setData(Qt.ItemDataRole.UserRole, JOB_ID)
+    old_item.setData(Qt.ItemDataRole.UserRole + 1, "running")
+    new_job_id = "22222222-2222-2222-2222-222222222222"
+    new_item = QListWidgetItem("WAITING")
+    new_item.setData(Qt.ItemDataRole.UserRole, new_job_id)
+    new_item.setData(Qt.ItemDataRole.UserRole + 1, "waiting")
+    workspace.jobs.blockSignals(True)
+    workspace.jobs.addItem(old_item)
+    workspace.jobs.addItem(new_item)
+    workspace.jobs.setCurrentItem(new_item)
+    workspace.jobs.blockSignals(False)
+    workspace._selected_job_id = new_job_id
+    workspace._selected_state = "waiting"
+    workspace._operation = "show"
+    workspace._operation_job_id = JOB_ID
+    workspace._buffer = f"JOB {JOB_ID}\nSTATE running\n"
+    calls: list[tuple[str, list[str], str | None]] = []
+
+    def _record_start(
+        operation: str,
+        arguments: list[str],
+        _label: str,
+        *,
+        job_id: str | None = None,
+    ) -> None:
+        calls.append((operation, arguments, job_id))
+
+    monkeypatch.setattr(workspace, "_start", _record_start)
+    try:
+        workspace._process_finished(0, QProcess.ExitStatus.NormalExit)
+        app.processEvents()
+
+        assert calls == [("show", ["show", new_job_id], new_job_id)]
+        assert workspace.details.property("pathenaBackgroundOperationOwner") == ""
+    finally:
+        workspace.close()
+        app.processEvents()
+
