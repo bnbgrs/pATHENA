@@ -124,7 +124,6 @@ class SystemRecoveryPanel(QFrame):
         self.setProperty("pathenaRecoveryRestoreAvailable", False)
         self._executable = executable or sys.executable
         self._process = QProcess(self)
-        self._process_error_reported = False
         self._process.setProcessChannelMode(QProcess.ProcessChannelMode.MergedChannels)
         self._process.finished.connect(self._handle_finished)
         self._process.errorOccurred.connect(self._handle_process_error)
@@ -180,7 +179,6 @@ class SystemRecoveryPanel(QFrame):
             )
             return False
 
-        self._process_error_reported = False
         self.status.setText("RUNNING")
         self.detail.setText(
             "Inspecting canonical integrity and Derived State read-only; no repair is running…"
@@ -202,12 +200,6 @@ class SystemRecoveryPanel(QFrame):
             self._process.waitForFinished(1_000)
 
     def _handle_finished(self, exit_code: int, _exit_status: object) -> None:
-        if self._process_error_reported:
-            self._process_error_reported = False
-            self.run_button.setText("Run again")
-            self.run_button.setEnabled(True)
-            return
-
         output = bytes(self._process.readAllStandardOutput().data()).decode(
             "utf-8", errors="replace"
         ).strip()
@@ -231,13 +223,11 @@ class SystemRecoveryPanel(QFrame):
         self.run_button.setEnabled(True)
 
     def _handle_process_error(self, error: QProcess.ProcessError) -> None:
-        self._process_error_reported = True
         if error == QProcess.ProcessError.Crashed:
             detail = "Recovery diagnostic process crashed before completion."
         else:
             detail = f"Recovery diagnostic process error: {self._process.errorString()}"
         self._apply_presentation(RecoveryPresentation("FAIL", detail, "error"))
-        self.run_button.setText("Run again")
         self.run_button.setEnabled(True)
 
     def _apply_presentation(self, presentation: RecoveryPresentation) -> None:
