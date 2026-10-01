@@ -28,7 +28,8 @@ def _database() -> SimpleNamespace:
             time_start_us INTEGER NULL,
             time_end_us INTEGER NULL,
             coverage_target REAL NOT NULL,
-            state TEXT NOT NULL
+            state TEXT NOT NULL,
+            created_at_us INTEGER NOT NULL
         );
         CREATE TABLE research_results (
             result_id BLOB PRIMARY KEY,
@@ -69,8 +70,9 @@ def _insert_result(
         """
         INSERT INTO research_scopes (
             scope_id, job_id, query_text, mode, domains_json, project_ids_json,
-            source_types_json, time_start_us, time_end_us, coverage_target, state
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?)
+            source_types_json, time_start_us, time_end_us, coverage_target, state,
+            created_at_us
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?, ?)
         """,
         (
             _blob(scope_id),
@@ -82,6 +84,7 @@ def _insert_result(
             source_types,
             coverage_target,
             state,
+            created_at_us,
         ),
     )
     database.connection.execute(
@@ -366,3 +369,64 @@ def test_comparison_requires_completed_current_result() -> None:
 
     with pytest.raises(ResearchComparisonError, match="current result is not completed"):
         service.compare_previous(job_id)
+
+def test_previous_run_order_uses_scope_start_not_late_result_finalization() -> None:
+    database = _database()
+    baseline_result = uuid.UUID("a1111111-1111-1111-1111-111111111111")
+    baseline_scope = uuid.UUID("a2111111-1111-1111-1111-111111111111")
+    baseline_job = uuid.UUID("a3111111-1111-1111-1111-111111111111")
+    current_result = uuid.UUID("b1111111-1111-1111-1111-111111111111")
+    current_scope = uuid.UUID("b2111111-1111-1111-1111-111111111111")
+    current_job = uuid.UUID("b3111111-1111-1111-1111-111111111111")
+
+    _insert_result(
+        database,
+        result_id=baseline_result,
+        scope_id=baseline_scope,
+        job_id=baseline_job,
+        created_at_us=100,
+        snapshot_commit_seq=10,
+    )
+    _insert_result(
+        database,
+        result_id=current_result,
+        scope_id=current_scope,
+        job_id=current_job,
+        created_at_us=200,
+        snapshot_commit_seq=20,
+    )
+    database.connection.execute(
+        "UPDATE research_results SET created_at_us = 300 WHERE result_id = ?",
+        (_blob(baseline_result),),
+    )
+    database.connection.execute(
+        "UPDATE research_results SET created_at_us = 250 WHERE result_id = ?",
+        (_blob(current_result),),
+    )
+    database.connection.commit()
+
+    views = {
+        baseline_result: _view(
+            baseline_result,
+            baseline_job,
+            summary="Earlier scope",
+            findings=["Before"],
+        ),
+        current_result: _view(
+            current_result,
+            current_job,
+            summary="Later scope",
+            findings=["After"],
+        ),
+    }
+    service = ResearchComparisonService(
+        database=database,  # type: ignore[arg-type]
+        result_view=views.__getitem__,
+    )
+
+    delta = service.compare_previous(current_job)
+
+    assert delta is not None
+    assert delta.baseline_result_id == baseline_result
+    assert delta.current_result_id == current_result
+

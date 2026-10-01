@@ -122,7 +122,7 @@ class _ResultRow:
     snapshot_commit_seq: int
     synthesis_pipeline_version: str
     model_signature_id: uuid.UUID | None
-    created_at_us: int
+    scope_created_at_us: int
 
 
 class ResearchComparisonService:
@@ -149,7 +149,7 @@ class ResearchComparisonService:
             """
             SELECT
                 rr.result_id,
-                rr.created_at_us,
+                rs.created_at_us AS scope_created_at_us,
                 rr.snapshot_commit_seq,
                 rr.model_signature_id,
                 rr.synthesis_pipeline_version,
@@ -167,17 +167,17 @@ class ResearchComparisonService:
             JOIN research_scopes AS rs ON rs.scope_id = rr.scope_id
             WHERE rs.state = 'completed'
               AND (
-                    rr.created_at_us < ?
+                    rs.created_at_us < ?
                     OR (
-                        rr.created_at_us = ?
+                        rs.created_at_us = ?
                         AND rr.result_id < ?
                     )
                   )
-            ORDER BY rr.created_at_us DESC, rr.result_id DESC
+            ORDER BY rs.created_at_us DESC, rr.result_id DESC
             """,
             (
-                current.created_at_us,
-                current.created_at_us,
+                current.scope_created_at_us,
+                current.scope_created_at_us,
                 uuid_to_blob(current.result_id),
             ),
         ).fetchall()
@@ -211,9 +211,9 @@ class ResearchComparisonService:
                 "coverage target, or synthesis pipeline differ."
             )
         if (
-            baseline.created_at_us > current.created_at_us
+            baseline.scope_created_at_us > current.scope_created_at_us
             or (
-                baseline.created_at_us == current.created_at_us
+                baseline.scope_created_at_us == current.scope_created_at_us
                 and baseline.result_id.bytes >= current.result_id.bytes
             )
         ):
@@ -233,7 +233,7 @@ class ResearchComparisonService:
             """
             SELECT
                 rr.result_id,
-                rr.created_at_us,
+                rs.created_at_us AS scope_created_at_us,
                 rr.snapshot_commit_seq,
                 rr.model_signature_id,
                 rr.synthesis_pipeline_version,
@@ -358,7 +358,7 @@ def _result_row_from_sql(row: Any) -> _ResultRow:
             if row["model_signature_id"] is None
             else uuid_from_blob(bytes(row["model_signature_id"]))
         ),
-        created_at_us=int(row["created_at_us"]),
+        scope_created_at_us=int(row["scope_created_at_us"]),
     )
 
 
