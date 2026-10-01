@@ -1532,7 +1532,11 @@ class DesktopApiController(QObject):
                 )
                 return
 
-            self._active_chat_cancel_task = None
+            if (
+                self._active_chat_cancel_task is not None
+                and self._active_chat_cancel_task.operation_id == outcome.operation_id
+            ):
+                self._active_chat_cancel_task = None
             if outcome.operation_id != self._active_chat_operation_id:
                 return
 
@@ -1605,6 +1609,11 @@ class DesktopApiController(QObject):
                 self.knowledge_merge_review_ready.emit(outcome.merge_review)
             elif outcome.thread is not None:
                 if outcome.operation == "send":
+                    if self.chat_cancel_pending:
+                        self._set_chat_cancel_state(
+                            "expired",
+                            "Generation completed before cancellation could take effect.",
+                        )
                     self.chat_sent.emit(outcome.thread)
                 else:
                     self.chat_loaded.emit(outcome.thread)
