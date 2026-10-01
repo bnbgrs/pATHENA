@@ -1601,12 +1601,18 @@ def _vectors_shape_valid(
     dimensions_seen: set[int] = set()
 
     for row in rows:
-        row_dimensions = int(row["dimensions"])
+        row_dimensions = _persisted_integer(
+            row["dimensions"],
+            minimum=1,
+        )
+        vector_blob = _persisted_blob(
+            row["vector_blob"]
+        )
 
-        if row_dimensions <= 0:
+        if row_dimensions is None or vector_blob is None:
             return False
 
-        if len(bytes(row["vector_blob"])) != row_dimensions * 4:
+        if len(vector_blob) != row_dimensions * 4:
             return False
 
         dimensions_seen.add(row_dimensions)
