@@ -46,10 +46,11 @@ class FilesWorkspace(QWidget):
         self._pending_imports: list[str] = []
         self._active_import_path: str | None = None
 
-        self.import_button = QPushButton("IMPORT FILE")
+        self.import_button = QPushButton("IMPORT FILES")
         self.import_button.setObjectName("newChatButton")
+        self.import_button.setAccessibleName("Import local files")
         self.import_button.setToolTip(
-            "Capture a local file and automatically queue retrieval processing"
+            "Capture one or more local files and queue retrieval processing sequentially"
         )
         self.import_button.clicked.connect(self._choose_file)
 
@@ -74,12 +75,20 @@ class FilesWorkspace(QWidget):
 
         self.sources = QListWidget()
         self.sources.setObjectName("sourceList")
+        self.sources.setAccessibleName("Sources")
+        self.sources.setAccessibleDescription(
+            "Captured local Sources with retrieval-processing readiness."
+        )
         self.sources.setMinimumWidth(430)
         self.sources.currentItemChanged.connect(self._selection_changed)
         set_pathena_ui_state(self.sources, "idle")
 
         self.details = QPlainTextEdit()
         self.details.setObjectName("sourceDetails")
+        self.details.setAccessibleName("Source details")
+        self.details.setAccessibleDescription(
+            "Capture, processing job and retrieval-readiness details for the selected Source."
+        )
         self.details.setReadOnly(True)
         self.details.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
         self.details.setPlaceholderText(
@@ -364,7 +373,11 @@ class FilesWorkspace(QWidget):
             captured_label = self._source_label(captured_source_id)
             if captured_source_id is not None and owns_details:
                 self._selected_source_id = captured_source_id
-            prefix = f"Source {captured_label} captured" if captured_label else "Source captured"
+            prefix = (
+                f"Source {captured_label} captured"
+                if captured_label
+                else "Source captured"
+            )
             if "PROCESS_QUEUED" in output:
                 self.status.setText(f"{prefix}; retrieval processing queued.")
             elif "unsupported_format" in output:
