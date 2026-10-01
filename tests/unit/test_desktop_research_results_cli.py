@@ -4,6 +4,7 @@ import argparse
 import uuid
 from types import SimpleNamespace
 
+from athena.desktop import research_results_cli
 from athena.desktop.research_results_cli import _run
 
 
@@ -193,4 +194,89 @@ def test_compare_command_surfaces_real_delta_or_honest_unavailable_state(capsys)
     output = capsys.readouterr().out
     assert '"available": false' in output
     assert "No earlier comparable completed ResearchResult exists." in output
+
+class _StorageLifecycle:
+    def __init__(self, *, fail_stop: bool = False) -> None:
+        self.fail_stop = fail_stop
+        self.started = 0
+        self.stopped = 0
+
+    def start(self) -> None:
+        self.started += 1
+
+    def stop(self) -> None:
+        self.stopped += 1
+        if self.fail_stop:
+            raise RuntimeError("storage stop failed")
+
+
+class _ResearchResultsHelperApp:
+    def __init__(self, *, fail_stop: bool = False) -> None:
+        self.storage_bootstrap = _StorageLifecycle(fail_stop=fail_stop)
+
+    def start(self, **_kwargs: object) -> None:
+        raise AssertionError("ResearchResult helper must not start the full Core lifecycle")
+
+    def stop(self) -> None:
+        raise AssertionError("ResearchResult helper must not stop the full Core lifecycle")
+
+
+def test_research_results_helper_uses_storage_only_lifecycle(monkeypatch) -> None:
+    app = _ResearchResultsHelperApp()
+    monkeypatch.setattr(research_results_cli, "AthenaApplication", lambda: app)
+    monkeypatch.setattr(research_results_cli, "_run", lambda _app, _args: 0)
+
+    result = research_results_cli.main(
+        ["result", "11111111-1111-1111-1111-111111111111"]
+    )
+
+    assert result == 0
+    assert app.storage_bootstrap.started == 1
+    assert app.storage_bootstrap.stopped == 1
+
+
+def test_research_results_helper_stops_storage_after_command_failure(
+    monkeypatch,
+    capsys,
+) -> None:
+    app = _ResearchResultsHelperApp()
+    monkeypatch.setattr(research_results_cli, "AthenaApplication", lambda: app)
+
+    def fail(_app: object, _args: object) -> int:
+        raise RuntimeError("helper command failed")
+
+    monkeypatch.setattr(research_results_cli, "_run", fail)
+
+    result = research_results_cli.main(
+        ["result", "11111111-1111-1111-1111-111111111111"]
+    )
+
+    assert result == 2
+    assert app.storage_bootstrap.started == 1
+    assert app.storage_bootstrap.stopped == 1
+    assert (
+        "RESEARCH_RESULT_ERROR RuntimeError: helper command failed"
+        in capsys.readouterr().err
+    )
+
+
+def test_research_results_helper_fails_closed_when_storage_shutdown_fails(
+    monkeypatch,
+    capsys,
+) -> None:
+    app = _ResearchResultsHelperApp(fail_stop=True)
+    monkeypatch.setattr(research_results_cli, "AthenaApplication", lambda: app)
+    monkeypatch.setattr(research_results_cli, "_run", lambda _app, _args: 0)
+
+    result = research_results_cli.main(
+        ["result", "11111111-1111-1111-1111-111111111111"]
+    )
+
+    assert result == 2
+    assert app.storage_bootstrap.started == 1
+    assert app.storage_bootstrap.stopped == 1
+    assert (
+        "RESEARCH_RESULT_ERROR RuntimeError: storage stop failed"
+        in capsys.readouterr().err
+    )
 
