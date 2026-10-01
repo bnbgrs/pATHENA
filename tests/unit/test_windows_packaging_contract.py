@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import shutil
 import subprocess
 import sys
@@ -19,6 +20,21 @@ _PACKAGING_SAFETY = _REPO_ROOT / "scripts" / "windows_packaging_safety.ps1"
 _PACKAGED_WORKER = _REPO_ROOT / "src" / "athena" / "desktop" / "packaged_worker.py"
 _OUTPUT_MARKER = ".pathena-windows-portable-output"
 _OUTPUT_MARKER_VALUE = "pATHENA Windows Portable Output v1"
+_LITERAL_MODULE_DISPATCH = re.compile(
+    r"""(?:\(|\[)\s*["']-m["']\s*,\s*["']([^"']+)["']""",
+    re.MULTILINE,
+)
+
+
+def _desktop_literal_worker_modules() -> set[str]:
+    modules: set[str] = set()
+    desktop_root = _REPO_ROOT / "src" / "athena" / "desktop"
+    for path in desktop_root.glob("*.py"):
+        source = path.read_text(encoding="utf-8")
+        if "sys.executable" not in source:
+            continue
+        modules.update(_LITERAL_MODULE_DISPATCH.findall(source))
+    return modules
 
 
 def _build_script_text() -> str:
@@ -175,6 +191,15 @@ def test_packaged_router_accepts_desktop_child_roles(
 def test_packaged_router_still_rejects_unknown_module() -> None:
     with pytest.raises(PackagedInvocationError, match="unsupported module dispatch"):
         route_packaged_argv(("-m", "athena.desktop.not_a_real_helper"))
+
+
+def test_packaged_router_covers_every_literal_desktop_worker_module() -> None:
+    modules = _desktop_literal_worker_modules()
+
+    assert modules
+    for module_name in sorted(modules):
+        invocation = route_packaged_argv(("-m", module_name))
+        assert invocation.target is not PackagedTarget.DESKTOP
 
 
 @pytest.mark.skipif(sys.platform != "win32", reason="native Windows path semantics")
