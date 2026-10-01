@@ -261,6 +261,16 @@ def main(argv: Sequence[str] | None = None) -> int:
             raise RuntimeError("Real repository-backed Knowledge workbench is unavailable.")
 
         expected_ids = set(reference_knowledge_ids)
+        preferred_id = reference_knowledge_ids[0]
+        knowledge_workspace: object | None = knowledge_list
+        while knowledge_workspace is not None and not hasattr(
+            knowledge_workspace, "_knowledge_busy"
+        ):
+            knowledge_workspace = knowledge_workspace.parent()  # type: ignore[attr-defined]
+        if knowledge_workspace is None:
+            raise RuntimeError("Knowledge process ownership is unavailable.")
+
+        stabilized = False
         deadline = time.monotonic() + 8.0
         observed_ids: set[str] = set()
         detail_id = ""
@@ -271,6 +281,38 @@ def main(argv: Sequence[str] | None = None) -> int:
                 str(knowledge_list.item(index).data(Qt.ItemDataRole.UserRole))
                 for index in range(knowledge_list.count())
             }
+            knowledge_busy = knowledge_workspace._knowledge_busy  # type: ignore[attr-defined]
+            if expected_ids.issubset(observed_ids) and not stabilized:
+                if knowledge_busy():
+                    time.sleep(0.05)
+                    continue
+                knowledge_list.sortItems(Qt.SortOrder.AscendingOrder)
+                preferred_row = next(
+                    (
+                        index
+                        for index in range(knowledge_list.count())
+                        if str(
+                            knowledge_list.item(index).data(Qt.ItemDataRole.UserRole)
+                        )
+                        == preferred_id
+                    ),
+                    -1,
+                )
+                if preferred_row < 0:
+                    raise RuntimeError("Preferred Knowledge fixture entry is unavailable.")
+                current = knowledge_list.currentItem()
+                if (
+                    current is not None
+                    and str(current.data(Qt.ItemDataRole.UserRole)) == preferred_id
+                ):
+                    knowledge_list.setCurrentRow(-1)
+                    app.processEvents()
+                knowledge_list.setCurrentRow(preferred_row)
+                stabilized = True
+                app.processEvents()
+                time.sleep(0.05)
+                continue
+
             detail_id = str(
                 knowledge_details.property("pathenaKnowledgeEntityId") or ""
             )
@@ -278,8 +320,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 knowledge_details.property("pathenaKnowledgeReviewState") or ""
             )
             if (
-                expected_ids.issubset(observed_ids)
-                and detail_id in expected_ids
+                stabilized
+                and detail_id == preferred_id
                 and detail_state == "ready"
                 and knowledge_details.toPlainText().strip()
             ):

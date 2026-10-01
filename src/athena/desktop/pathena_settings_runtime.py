@@ -169,13 +169,13 @@ class SettingsRuntimeController(QObject):
 
         self.panel = QWidget()
         self.panel.setObjectName("settingsRuntimePanel")
-        self.provider_value = QLabel("Model provider · awaiting Core")
+        self.provider_value = QLabel("Model service · waiting")
         self.provider_value.setObjectName("settingsProviderState")
-        self.network_value = QLabel("Local Core · awaiting connection")
+        self.network_value = QLabel("Local service · waiting")
         self.network_value.setObjectName("settingsNetworkState")
         self.persistence_value = QLabel("Per-model settings · not saved yet")
         self.persistence_value.setObjectName("settingsPersistenceState")
-        self.detail = QLabel("Runtime status comes from the local Core API.")
+        self.detail = QLabel("Live status appears when the local service responds.")
         self.detail.setObjectName("settingsRuntimeDetail")
         self.detail.setWordWrap(True)
         self.news_time = QTimeEdit()
@@ -186,7 +186,7 @@ class SettingsRuntimeController(QObject):
         self.news_save = QPushButton("Save schedule")
         self.news_save.setObjectName("settingsNewsScheduleSave")
         self.news_save.setEnabled(False)
-        self.news_status = QLabel("News schedule · awaiting Core")
+        self.news_status = QLabel("News schedule · waiting for local service")
         self.news_status.setObjectName("settingsNewsScheduleState")
         self.news_status.setWordWrap(True)
         self.news_status.setTextFormat(Qt.TextFormat.PlainText)
@@ -223,8 +223,8 @@ class SettingsRuntimeController(QObject):
             freshness="unavailable",
         )
         initial_network_detail = (
-            "Local Core · awaiting connection. Internet access is not inferred before "
-            "a Core snapshot."
+            "Local service · waiting. Internet access is not inferred before "
+            "a local status response."
         )
         self.network_value.setProperty("pathenaNetworkScope", "unavailable")
         self.network_value.setProperty("pathenaInternetStateInferred", False)

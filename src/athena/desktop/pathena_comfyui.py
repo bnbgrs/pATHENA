@@ -16,7 +16,6 @@ from PySide6.QtCore import QEvent, QObject, Qt
 from PySide6.QtWidgets import (
     QDialog,
     QFileDialog,
-    QFormLayout,
     QFrame,
     QHBoxLayout,
     QLabel,
@@ -328,6 +327,7 @@ class ComfyUiController(QObject):
         title_row = QHBoxLayout()
         title = QLabel("ComfyUI")
         title.setObjectName("comfyUiTitle")
+        title.setVisible(self._workspace is None)
         title_row.addWidget(title)
         title_row.addStretch(1)
         self.close_button = QPushButton("Close")
@@ -339,106 +339,154 @@ class ComfyUiController(QObject):
         title_row.addWidget(self.close_button)
         outer.addLayout(title_row)
 
-        intro = QLabel("Local image + video workflow · loopback only")
+        intro = QLabel("Run local image and video workflows without leaving this device")
         intro.setWordWrap(True)
         intro.setProperty("role", "muted")
+        intro.setVisible(self._workspace is None)
         outer.addWidget(intro)
 
-        connection_label = QLabel("CONNECTION")
-        connection_label.setObjectName("comfyUiSectionLabel")
-        connection_label.setProperty("role", "muted")
-        outer.addWidget(connection_label)
+        content = QHBoxLayout()
+        content.setContentsMargins(0, 4, 0, 0)
+        content.setSpacing(14)
 
-        form = QFormLayout()
-        form.setSpacing(8)
+        primary = QVBoxLayout()
+        primary.setContentsMargins(0, 0, 0, 0)
+        primary.setSpacing(14)
+
+        connection = QFrame()
+        connection.setObjectName("comfyUiPanel")
+        connection.setAccessibleName("ComfyUI connection")
+        connection_layout = QVBoxLayout(connection)
+        connection_layout.setContentsMargins(18, 16, 18, 16)
+        connection_layout.setSpacing(10)
+
+        connection_heading = QHBoxLayout()
+        connection_heading.setContentsMargins(0, 0, 0, 0)
+        connection_heading.setSpacing(10)
+        connection_label = QLabel("Connection")
+        connection_label.setObjectName("comfyUiSectionTitle")
+        connection_heading.addWidget(connection_label)
+        connection_heading.addStretch(1)
+        self.check_button = QPushButton("Check connection")
+        self.check_button.setObjectName("comfyUiCheckConnection")
+        self.check_button.clicked.connect(self.check_connection)
+        connection_heading.addWidget(self.check_button)
+        connection_layout.addLayout(connection_heading)
+
+        endpoint_label = QLabel("Local endpoint")
+        endpoint_label.setObjectName("comfyUiFieldLabel")
+        connection_layout.addWidget(endpoint_label)
         self.endpoint = QLineEdit(self.client.endpoint)
         self.endpoint.setObjectName("comfyUiEndpoint")
         self.endpoint.setReadOnly(True)
         self.endpoint.setAccessibleName("ComfyUI local endpoint")
-        form.addRow("Endpoint", self.endpoint)
-        outer.addLayout(form)
+        connection_layout.addWidget(self.endpoint)
 
-        connection_actions = QHBoxLayout()
-        self.check_button = QPushButton("Check connection")
-        self.check_button.setObjectName("comfyUiCheckConnection")
-        self.check_button.clicked.connect(self.check_connection)
-        connection_actions.addWidget(self.check_button)
-        connection_actions.addStretch(1)
-        outer.addLayout(connection_actions)
-
-        self.status = QLabel("Not checked · local endpoint has not been probed.")
+        self.status = QLabel("Connection not checked yet.")
         self.status.setObjectName("comfyUiStatus")
         self.status.setWordWrap(True)
         self.status.setProperty("pathenaUiState", "empty")
         self.status.setAccessibleName("ComfyUI connection status")
-        outer.addWidget(self.status)
+        connection_layout.addWidget(self.status)
 
-        self.resource_status = QLabel("VRAM · unavailable until the local endpoint is checked.")
+        self.resource_status = QLabel("GPU memory appears after the connection is checked.")
         self.resource_status.setObjectName("comfyUiResourceStatus")
         self.resource_status.setWordWrap(True)
         self.resource_status.setProperty("role", "muted")
         self.resource_status.setAccessibleName("ComfyUI VRAM status")
-        outer.addWidget(self.resource_status)
+        connection_layout.addWidget(self.resource_status)
+        primary.addWidget(connection)
 
-        workflow_label = QLabel("WORKFLOW")
-        workflow_label.setObjectName("comfyUiSectionLabel")
-        workflow_label.setProperty("role", "muted")
-        outer.addWidget(workflow_label)
+        workflow = QFrame()
+        workflow.setObjectName("comfyUiPanel")
+        workflow.setAccessibleName("ComfyUI workflow")
+        workflow_layout = QVBoxLayout(workflow)
+        workflow_layout.setContentsMargins(18, 16, 18, 16)
+        workflow_layout.setSpacing(10)
+
+        workflow_label = QLabel("Workflow")
+        workflow_label.setObjectName("comfyUiSectionTitle")
+        workflow_layout.addWidget(workflow_label)
+
+        workflow_hint = QLabel(
+            "Choose a ComfyUI API workflow, then run it on the local ComfyUI server."
+        )
+        workflow_hint.setObjectName("comfyUiPanelHint")
+        workflow_hint.setWordWrap(True)
+        workflow_layout.addWidget(workflow_hint)
 
         self.workflow_field = QLineEdit()
         self.workflow_field.setObjectName("comfyUiWorkflowPath")
         self.workflow_field.setReadOnly(True)
-        self.workflow_field.setPlaceholderText("No API workflow selected")
+        self.workflow_field.setPlaceholderText("No workflow selected")
         self.workflow_field.setAccessibleName("ComfyUI API workflow")
         self.browse_button = QPushButton("Choose workflow…")
         self.browse_button.setObjectName("comfyUiBrowseWorkflow")
         self.browse_button.clicked.connect(self.choose_workflow)
         workflow_row = QHBoxLayout()
+        workflow_row.setContentsMargins(0, 0, 0, 0)
+        workflow_row.setSpacing(8)
         workflow_row.addWidget(self.workflow_field, 1)
         workflow_row.addWidget(self.browse_button)
-        outer.addLayout(workflow_row)
+        workflow_layout.addLayout(workflow_row)
 
         workflow_actions = QHBoxLayout()
-        self.queue_button = QPushButton("Queue workflow")
+        workflow_actions.setContentsMargins(0, 0, 0, 0)
+        self.queue_button = QPushButton("Run workflow")
         self.queue_button.setObjectName("comfyUiQueueWorkflow")
         self.queue_button.setEnabled(False)
         self.queue_button.clicked.connect(self.queue_selected_workflow)
         workflow_actions.addWidget(self.queue_button)
         workflow_actions.addStretch(1)
-        outer.addLayout(workflow_actions)
+        workflow_layout.addLayout(workflow_actions)
+        primary.addWidget(workflow)
+        primary.addStretch(1)
+        content.addLayout(primary, 1)
+
+        activity = QFrame()
+        activity.setObjectName("comfyUiActivityPanel")
+        activity.setAccessibleName("ComfyUI activity")
+        activity.setMinimumWidth(290)
+        activity.setMaximumWidth(360)
+        activity_layout = QVBoxLayout(activity)
+        activity_layout.setContentsMargins(18, 16, 18, 16)
+        activity_layout.setSpacing(10)
+
+        activity_label = QLabel("Activity")
+        activity_label.setObjectName("comfyUiSectionTitle")
+        activity_layout.addWidget(activity_label)
+
+        self.job_status = QLabel("No workflow is running in this session.")
+        self.job_status.setObjectName("comfyUiJobStatus")
+        self.job_status.setWordWrap(True)
+        self.job_status.setProperty("pathenaUiState", "empty")
+        self.job_status.setAccessibleName("ComfyUI job status")
+        activity_layout.addWidget(self.job_status)
 
         self.receipt = QLabel("")
         self.receipt.setObjectName("comfyUiQueueReceipt")
         self.receipt.setWordWrap(True)
         self.receipt.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         self.receipt.setAccessibleName("ComfyUI queue receipt")
-        outer.addWidget(self.receipt)
-
-        activity_label = QLabel("ACTIVITY")
-        activity_label.setObjectName("comfyUiSectionLabel")
-        activity_label.setProperty("role", "muted")
-        outer.addWidget(activity_label)
+        activity_layout.addWidget(self.receipt)
 
         operations = QHBoxLayout()
-        self.refresh_job_button = QPushButton("Refresh job")
+        operations.setContentsMargins(0, 0, 0, 0)
+        operations.setSpacing(8)
+        self.refresh_job_button = QPushButton("Refresh status")
         self.refresh_job_button.setObjectName("comfyUiRefreshJob")
         self.refresh_job_button.setEnabled(False)
         self.refresh_job_button.clicked.connect(self.refresh_prompt_status)
-        self.release_vram_button = QPushButton("Release VRAM")
+        self.release_vram_button = QPushButton("Free GPU memory")
         self.release_vram_button.setObjectName("comfyUiReleaseVram")
         self.release_vram_button.clicked.connect(self.release_vram)
         operations.addWidget(self.refresh_job_button)
         operations.addWidget(self.release_vram_button)
-        operations.addStretch(1)
-        outer.addLayout(operations)
+        activity_layout.addLayout(operations)
+        activity_layout.addStretch(1)
+        content.addWidget(activity)
 
-        self.job_status = QLabel("No ComfyUI job tracked in this session.")
-        self.job_status.setObjectName("comfyUiJobStatus")
-        self.job_status.setWordWrap(True)
-        self.job_status.setProperty("pathenaUiState", "empty")
-        self.job_status.setAccessibleName("ComfyUI job status")
-        outer.addWidget(self.job_status)
-        outer.addStretch(1)
+        outer.addLayout(content, 1)
 
         self.dialog.setTabOrder(self.check_button, self.browse_button)
         self.dialog.setTabOrder(self.browse_button, self.queue_button)
@@ -489,6 +537,13 @@ class ComfyUiController(QObject):
         inspector = getattr(self._shell, "_inspector", None)
         if isinstance(inspector, QFrame):
             inspector.hide()
+        transient_opened = getattr(self._shell, "transient_opened", None)
+        if callable(transient_opened):
+            transient_opened(
+                "ComfyUI",
+                "Run local image and video workflows on this device.",
+            )
+            return
         header = getattr(self._shell, "_header", None)
         set_context = getattr(header, "set_context", None)
         if callable(set_context):
@@ -507,6 +562,10 @@ class ComfyUiController(QObject):
                 set_context = getattr(header, "set_context", None)
                 if callable(set_context):
                     set_context("PALLAS", "Living semantic workspace")
+            return
+        transient_closed = getattr(self._shell, "transient_closed", None)
+        if callable(transient_closed):
+            transient_closed()
             return
         sync_navigation = getattr(self._shell, "_sync_navigation", None)
         if callable(sync_navigation):
@@ -560,7 +619,7 @@ class ComfyUiController(QObject):
         self.receipt.clear()
         self._set_status(
             "ready",
-            f"Workflow ready · {len(workflow)} nodes · queueing stays local.",
+            f"Workflow ready · {len(workflow)} nodes · runs locally.",
         )
 
     def check_connection(self) -> bool:
@@ -569,7 +628,7 @@ class ComfyUiController(QObject):
         except ComfyUiError as exc:
             self.check_button.setText("Retry connection")
             self._set_status("error", str(exc))
-            self._set_vram_unavailable("VRAM · unavailable while ComfyUI is disconnected.")
+            self._set_vram_unavailable("GPU memory · unavailable while ComfyUI is disconnected.")
             return False
         self.check_button.setText("Check again")
         version = f" · ComfyUI {health.version}" if health.version else ""
@@ -592,10 +651,10 @@ class ComfyUiController(QObject):
             return False
         self.last_prompt_id = receipt.prompt_id
         self.refresh_job_button.setEnabled(True)
-        self._set_status("success", "Workflow queued in local ComfyUI.")
+        self._set_status("success", "Workflow sent to local ComfyUI.")
         self.receipt.setText(f"Prompt ID · {receipt.prompt_id}")
         self.receipt.setProperty("pathenaComfyUiPromptId", receipt.prompt_id)
-        self._set_job_status("pending", "Queued · refresh to read the live ComfyUI state.")
+        self._set_job_status("pending", "Queued locally · refresh to read the current state.")
         return True
 
     def refresh_prompt_status(self) -> bool:
@@ -608,10 +667,10 @@ class ComfyUiController(QObject):
             self._set_job_status("error", str(exc))
             return False
         labels = {
-            "pending": "Pending in ComfyUI queue.",
-            "running": "Running in ComfyUI.",
-            "completed": "Completed in ComfyUI history.",
-            "unknown": "Not present in current ComfyUI queue or history.",
+            "pending": "Waiting in the local queue.",
+            "running": "Running locally in ComfyUI.",
+            "completed": "Completed.",
+            "unknown": "No longer present in the current queue or history.",
         }
         self._set_job_status(state.state, labels[state.state])
         return True
@@ -624,10 +683,10 @@ class ComfyUiController(QObject):
             return False
         self._set_status(
             "success",
-            "VRAM release requested · ComfyUI will unload models and free memory when safe.",
+            "GPU memory release requested · ComfyUI will unload models when safe.",
         )
         self.resource_status.setText(
-            "VRAM release requested · check the local endpoint again for measured memory."
+            "GPU memory release requested · check the connection again for measured memory."
         )
         self.dialog.setProperty("pathenaComfyUiVramReleaseRequested", True)
         return True
@@ -637,11 +696,11 @@ class ComfyUiController(QObject):
         free = health.vram_free_bytes
         if total is None or free is None:
             self._set_vram_unavailable(
-                "VRAM · unavailable from this local ComfyUI system_stats response."
+                "GPU memory · unavailable from this local ComfyUI status response."
             )
             return
         used = max(total - free, 0)
-        text = f"VRAM · {_format_gib(used)} used · {_format_gib(free)} free · {_format_gib(total)} total"
+        text = f"GPU memory · {_format_gib(used)} used · {_format_gib(free)} free · {_format_gib(total)} total"
         self.resource_status.setText(text)
         self.resource_status.setAccessibleDescription(text)
         self.dialog.setProperty("pathenaComfyUiVramAvailable", True)

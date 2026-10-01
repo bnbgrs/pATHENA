@@ -115,7 +115,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
 
     from PySide6.QtCore import QTimer
-    from PySide6.QtWidgets import QMainWindow, QWidget
+    from PySide6.QtWidgets import QAbstractButton, QMainWindow, QWidget
 
     from athena.desktop.app import create_application
     from athena.desktop.app import main as desktop_main
@@ -161,6 +161,40 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         return output.name
 
+    def action_diagnostics(window: QMainWindow, row: int) -> dict[str, object]:
+        names_by_row = {
+            2: ("researchStartButton", "researchRefreshButton", "researchCancelButton"),
+            3: (
+                "jobsRefreshButton",
+                "jobPauseButton",
+                "jobResumeButton",
+                "jobWakeButton",
+                "jobCancelButton",
+            ),
+            4: ("fileRefreshButton", "fileProcessButton", "fileImportButton"),
+        }
+        diagnostics: dict[str, object] = {}
+        for object_name in names_by_row.get(row, ()):
+            button = window.findChild(QAbstractButton, object_name)
+            if button is None:
+                diagnostics[object_name] = {"present": False}
+                continue
+            geometry = button.geometry()
+            diagnostics[object_name] = {
+                "present": True,
+                "enabled": button.isEnabled(),
+                "hidden": button.isHidden(),
+                "visible": button.isVisible(),
+                "text": button.text(),
+                "geometry": [
+                    geometry.x(),
+                    geometry.y(),
+                    geometry.width(),
+                    geometry.height(),
+                ],
+            }
+        return diagnostics
+
     def capture_row(row: int) -> None:
         try:
             window = find_window()
@@ -186,6 +220,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             captures[-1]["navigation_label"] = navigation.item(row).text()
             captures[-1]["row"] = row
             captures[-1]["page_index"] = pages.currentIndex()
+            controls = action_diagnostics(window, row)
+            if controls:
+                captures[-1]["controls"] = controls
         except Exception as exc:  # noqa: BLE001
             errors.append(f"workspace row {row}: {type(exc).__name__}: {exc}")
 

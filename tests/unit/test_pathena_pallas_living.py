@@ -198,3 +198,144 @@ def test_cellular_vitality_diffuses_only_across_real_edges() -> None:
 
     assert engine.states["right"].vitality > engine.states["isolated"].vitality
     assert graph.edges == (PallasSemanticEdge("left", "right", "cites"),)
+
+
+def test_reconcile_refreshes_cached_semantic_pairs_for_same_graph_id() -> None:
+    left = _node("left", title="alpha", summary="isolated first topic")
+    right = _node("right", title="beta", summary="different second topic")
+    config = PallasLivingConfig(
+        semantic_threshold=0.3,
+        semantic_attraction=0.0,
+        global_repulsion=0.0,
+        edge_spring=0.0,
+        center_pull=0.0,
+        focus_pull=0.0,
+        temporal_drift=0.0,
+    )
+    engine = PallasLivingEngine(config)
+    engine.reconcile(_snapshot((left, right)))
+    assert engine.diagnostics()["semantic_pairs"] == 0
+
+    revised_left = _node(
+        "left",
+        title="battery storage",
+        summary="solar battery storage evidence",
+    )
+    revised_right = _node(
+        "right",
+        title="solar storage",
+        summary="battery solar storage system",
+    )
+    revised = _snapshot((revised_left, revised_right))
+    engine.reconcile(revised)
+
+    assert revised.graph_id == "test-graph"
+    assert semantic_similarity(revised_left, revised_right) >= config.semantic_threshold
+    assert engine.diagnostics()["semantic_pairs"] == 1
+
+
+def test_diagnostics_report_cached_topology_and_motion() -> None:
+    left = _node("left")
+    right = _node("right")
+    graph = _snapshot(
+        (left, right),
+        (PallasSemanticEdge("left", "right", "cites"),),
+    )
+    engine = PallasLivingEngine()
+    engine.reconcile(graph, {"left": (-60.0, 0.0), "right": (60.0, 0.0)})
+    engine.step()
+
+    diagnostics = engine.diagnostics()
+    assert diagnostics["nodes"] == 2
+    assert diagnostics["edges"] == 1
+    assert diagnostics["spring_pairs"] == 1
+    assert diagnostics["repulsion_pairs"] == 1
+    assert diagnostics["conflict_repulsion_pairs"] == 0
+    assert isinstance(diagnostics["semantic_pairs"], int)
+    assert float(diagnostics["mean_speed"]) >= 0.0
+    assert float(diagnostics["max_speed"]) >= float(diagnostics["mean_speed"])
+
+
+def test_clear_resets_cached_living_topology() -> None:
+    left = _node("left", title="solar battery", summary="solar battery storage")
+    right = _node("right", title="battery solar", summary="battery solar storage")
+    engine = PallasLivingEngine(PallasLivingConfig(semantic_threshold=0.1))
+    engine.reconcile(
+        _snapshot(
+            (left, right),
+            (PallasSemanticEdge("left", "right", "cites"),),
+        )
+    )
+    assert int(engine.diagnostics()["semantic_pairs"]) >= 1
+    assert engine.diagnostics()["edges"] == 1
+
+    engine.clear()
+
+    diagnostics = engine.diagnostics()
+    assert diagnostics["nodes"] == 0
+    assert diagnostics["semantic_pairs"] == 0
+    assert diagnostics["spring_pairs"] == 0
+    assert diagnostics["repulsion_pairs"] == 0
+    assert diagnostics["conflict_repulsion_pairs"] == 0
+    assert diagnostics["edges"] == 0
+
+
+def test_visual_focus_is_presentation_only_and_resets_when_node_disappears() -> None:
+    focus = _node("focus", kind=PallasNodeKind.FOCUS)
+    selected = _node("selected", kind=PallasNodeKind.CLAIM)
+    graph = _snapshot((focus, selected), focus_id="focus")
+    engine = PallasLivingEngine()
+    engine.reconcile(graph)
+
+    engine.set_visual_focus("selected")
+    engine.step()
+
+    assert engine.visual_focus_id == "selected"
+    assert engine.snapshot is graph
+    assert graph.focus_id == "focus"
+    assert engine.diagnostics()["visual_focus"] == "selected"
+
+    without_selected = _snapshot((focus,), focus_id="focus")
+    engine.reconcile(without_selected)
+
+    assert engine.visual_focus_id is None
+    assert engine.snapshot is without_selected
+    assert without_selected.focus_id == "focus"
+
+def test_world_radius_expands_to_preserve_large_seed_layout() -> None:
+    left = _node("left")
+    right = _node("right")
+    engine = PallasLivingEngine(
+        PallasLivingConfig(
+            center_pull=0.0,
+            focus_pull=0.0,
+            temporal_drift=0.0,
+            global_repulsion=0.0,
+            semantic_attraction=0.0,
+            edge_spring=0.0,
+            world_radius=420.0,
+        )
+    )
+    graph = _snapshot((left, right))
+    engine.reconcile(
+        graph,
+        {
+            "left": (-650.0, 0.0),
+            "right": (650.0, 0.0),
+        },
+    )
+
+    radius = float(engine.diagnostics()["world_radius"])
+    assert radius > 650.0
+
+    engine.step()
+    left_position = engine.position("left")
+    right_position = engine.position("right")
+    assert left_position is not None
+    assert right_position is not None
+    assert abs(left_position[0]) > 600.0
+    assert abs(right_position[0]) > 600.0
+
+    engine.clear()
+    assert engine.diagnostics()["world_radius"] == 420.0
+

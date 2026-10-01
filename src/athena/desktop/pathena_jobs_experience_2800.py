@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from shiboken6 import isValid
 
 from athena.desktop.jobs_workspace import JobsWorkspace
 from athena.desktop.pathena_design_tokens import PALETTE, RADII
@@ -301,10 +302,13 @@ class PathenaJobsExperience(QObject):
         QTimer.singleShot(0, self._post_process_sync)
 
     def _post_process_sync(self) -> None:
-        if self.workspace._operation == "show":
+        workspace = self.workspace
+        if not isValid(self) or not isValid(workspace) or not isValid(workspace.details):
+            return
+        if workspace._operation == "show":
             self._humanize_details()
         else:
-            text = self.workspace.details.toPlainText()
+            text = workspace.details.toPlainText()
             if text.startswith("JOB "):
                 self._humanize_details()
         self._sync_actions()
@@ -342,10 +346,14 @@ class PathenaJobsExperience(QObject):
             item.setHidden(bool(terms) and not all(term in haystack for term in terms))
 
     def _sync_actions(self, *_args: object) -> None:
-        self.workspace.pause_button.setVisible(self.workspace.pause_button.isEnabled())
-        self.workspace.resume_button.setVisible(self.workspace.resume_button.isEnabled())
-        self.workspace.wake_button.setVisible(self.workspace.wake_button.isEnabled())
-        self.workspace.cancel_button.setVisible(self.workspace.cancel_button.isEnabled())
+        v3_owns_actions = self.workspace.property("pathenaV3Composed") is True
+        for button in (
+            self.workspace.pause_button,
+            self.workspace.resume_button,
+            self.workspace.wake_button,
+            self.workspace.cancel_button,
+        ):
+            button.setVisible(True if v3_owns_actions else button.isEnabled())
         self.workspace.status.setWordWrap(True)
         self.workspace.scheduler_status.setText(
             self.workspace.scheduler_status.text()

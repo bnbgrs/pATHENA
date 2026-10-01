@@ -4,6 +4,7 @@ import os
 from collections.abc import Iterator
 
 import pytest
+from PySide6.QtCore import QProcess
 from PySide6.QtWidgets import QApplication
 
 import athena.desktop.knowledge_workspace as knowledge_workspace_module
@@ -105,7 +106,7 @@ def test_vault_dialog_cancel_is_explicit_no_write_state(
     _FakeFileDialog.selected = ""
     try:
         workspace.begin_obsidian_export()
-        assert "CANCELLED" in workspace.obsidian_status.text()
+        assert "cancelled" in workspace.obsidian_status.text().casefold()
         assert "No files were changed" in workspace.obsidian_status.text()
         assert workspace._obsidian_operation == ""
     finally:
@@ -137,7 +138,7 @@ def test_conflict_preview_requires_explicit_replace_action(
             }
         )
         assert calls == [("export", True)]
-        assert "PREVIEW CONFLICT" in workspace.obsidian_status.text()
+        assert "preview · conflict" in workspace.obsidian_status.text().casefold()
     finally:
         workspace.deleteLater()
 
@@ -167,7 +168,30 @@ def test_preview_cancel_never_starts_export(
             }
         )
         assert calls == []
-        assert "CANCELLED" in workspace.obsidian_status.text()
+        assert "cancelled" in workspace.obsidian_status.text().casefold()
         assert "No files were changed" in workspace.obsidian_status.text()
+    finally:
+        workspace.deleteLater()
+
+
+def test_detail_provenance_state_tracks_knowledge_process_lifecycle(
+    qapp: QApplication,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    workspace = _workspace(qapp)
+    monkeypatch.setattr(workspace._knowledge_process, "start", lambda *_args: None)
+    try:
+        workspace._start_knowledge(
+            "history",
+            ["history", workspace._selected_knowledge_id or ""],
+            "Loading immutable Knowledge revision history",
+        )
+        assert workspace.knowledge_details.property("pathenaUiState") == "busy"
+
+        workspace._knowledge_buffer = "Revision history loaded"
+        workspace._knowledge_process_finished(0, QProcess.ExitStatus.NormalExit)
+
+        assert workspace.knowledge_details.property("pathenaUiState") == "success"
+        assert workspace.browser_status.text() == "Immutable Knowledge history loaded."
     finally:
         workspace.deleteLater()

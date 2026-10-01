@@ -88,6 +88,7 @@ class SystemRecoveryPanel(QFrame):
     def __init__(self, *, executable: str | None = None) -> None:
         super().__init__()
         self.setObjectName("systemRecoveryPanel")
+        self.setAccessibleName("Recovery check")
         self.setProperty("pathenaRecoveryReadOnly", True)
         self.setProperty("pathenaRecoveryRestoreAvailable", False)
         self._executable = executable or sys.executable
@@ -99,9 +100,11 @@ class SystemRecoveryPanel(QFrame):
         labels = QVBoxLayout()
         labels.setContentsMargins(0, 0, 0, 0)
         labels.setSpacing(4)
-        heading = QLabel("RECOVERY")
+        heading = QLabel("Recovery check")
         heading.setProperty("role", "section")
+        heading.setMinimumWidth(118)
         self.status = QLabel("NOT CHECKED")
+        self.status.setMinimumWidth(118)
         self.status.setObjectName("settingsValue")
         set_pathena_ui_state(self.status, "empty")
         labels.addWidget(heading)
@@ -114,11 +117,13 @@ class SystemRecoveryPanel(QFrame):
         self.detail.setObjectName("settingsHelp")
         self.detail.setWordWrap(True)
 
-        self.run_button = QPushButton("RUN DIAGNOSIS")
+        self.run_button = QPushButton("Run diagnosis")
         self.run_button.setObjectName("newChatButton")
         self.run_button.setToolTip(
-            "Run payload-free read-only Recovery diagnostics without starting a repair"
+            "Run read-only recovery diagnostics without starting a repair"
         )
+        self.run_button.setAccessibleName("Run recovery diagnosis")
+        self.run_button.setMinimumWidth(104)
         self.run_button.clicked.connect(self.run_diagnosis)
 
         layout = QHBoxLayout(self)
@@ -183,7 +188,7 @@ class SystemRecoveryPanel(QFrame):
                 state="error",
             )
         self._apply_presentation(presentation)
-        self.run_button.setText("RUN AGAIN")
+        self.run_button.setText("Run again")
         self.run_button.setEnabled(True)
 
     def _handle_process_error(self, error: QProcess.ProcessError) -> None:

@@ -397,6 +397,7 @@ class JobsWorkspace(QWidget):
             item.setToolTip(f"{job_id}\nstate={state}\nstage={stage}\nretries={retries}")
             item.setData(Qt.ItemDataRole.UserRole, job_id)
             item.setData(Qt.ItemDataRole.UserRole + 1, state)
+            item.setData(Qt.ItemDataRole.UserRole + 2, stage)
             self.jobs.addItem(item)
             if selected == job_id:
                 item_to_select = item

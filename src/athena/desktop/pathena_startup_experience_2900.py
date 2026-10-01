@@ -57,7 +57,7 @@ _STARTUP_REFINEMENTS: tuple[str, ...] = (
     "clarify first-run hierarchy",
     "preserve local-state truth",
     "tighten spatial rhythm",
-    "reserve orange for actionable intent",
+    "reserve accent for actionable intent",
 )
 
 UI_REFINEMENT_TASKS_2801_2900: tuple[str, ...] = tuple(
@@ -72,18 +72,18 @@ QFrame#composer {
     border: none;
 }
 QLabel#emptyStateEyebrow {
-    color: #F26A21;
+    color: #77818B;
     font-size: 9px;
-    font-weight: 600;
+    font-weight: 650;
     letter-spacing: 1px;
 }
 QLabel#emptyStateTitle {
-    color: #F2F2F2;
+    color: #F1F3F5;
     font-size: 20px;
-    font-weight: 600;
+    font-weight: 650;
 }
 QLabel#emptyStateBody {
-    color: #858585;
+    color: #98A1B1;
     font-size: 12px;
 }
 QFrame#emptyStatePanel {
@@ -91,32 +91,33 @@ QFrame#emptyStatePanel {
     border: none;
 }
 QPushButton#sendButton:disabled {
-    color: #555555;
-    background: #121212;
-    border: 1px solid #202020;
+    color: #AEBFBD;
+    background: #20292A;
+    border: 1px solid #334143;
 }
 QPushButton#groundButton:disabled {
-    color: #555555;
-    background: transparent;
-    border-color: transparent;
+    color: #7F8D8D;
+    background: #141A1B;
+    border: 1px solid #2B3738;
 }
+QPlainTextEdit#promptInput:disabled,
 QLineEdit#promptInput:disabled {
-    color: #666666;
-    background: #090909;
-    border-color: #1D1D1D;
+    color: #77818B;
+    background: transparent;
+    border: none;
 }
 QComboBox#chatSelector:disabled,
 QComboBox#modelSelector:disabled {
-    color: #5E5E5E;
-    background: #090909;
-    border-color: #1B1B1B;
+    color: #77818B;
+    background: #11151D;
+    border-color: #252C33;
 }
 QLabel#localStatus {
-    color: #777777;
+    color: #7E8797;
     font-size: 9px;
 }
 QLabel#keyboardHint {
-    color: #626262;
+    color: #687284;
     font-size: 9px;
 }
 """
@@ -281,19 +282,19 @@ class PathenaStartupExperience(QObject):
         *, title: QLabel, body: QLabel, raw_text: str, core_ready: bool
     ) -> None:
         if not core_ready:
-            title.setText("Getting pATHENA ready")
+            title.setText("Preparing your workspace")
             body.setText(
-                "pATHENA reconnects automatically. Chat, knowledge, research and "
-                "files remain local while the workspace comes online."
+                "Connecting to local services. Your chats, knowledge, research and sources "
+                "remain on this machine."
             )
         elif raw_text.startswith("Conversation deleted"):
             title.setText("Conversation deleted")
             body.setText("The local workspace is ready for a new conversation.")
         else:
-            title.setText("Start a conversation")
+            title.setText("What are you working on?")
             body.setText(
-                "Ask, explore, or work with your local knowledge. Sources and evidence "
-                "stay available on demand instead of occupying the workspace by default."
+                "Ask a question, start research, or work from your local knowledge. Add sources "
+                "when you need evidence."
             )
 
     @staticmethod
@@ -307,7 +308,7 @@ class PathenaStartupExperience(QObject):
         body.setFixedWidth(max(1, panel_width - 56))
 
     def _polish_empty_state(self, *, core_ready: bool) -> None:
-        messages = self.chat_messages
+        messages = getattr(self, "chat_messages", None)
         if messages is None:
             return
         raw = messages.findChild(QLabel, "emptyChatState")
@@ -316,6 +317,9 @@ class PathenaStartupExperience(QObject):
 
         raw_text = raw.text().strip()
         if bool(raw.property("pathenaStartupReplaced")):
+            # Legacy chat-state updates may toggle this label after V3 has taken
+            # ownership. Keep one visible empty-state source of truth.
+            raw.hide()
             panel = messages.findChild(QFrame, "emptyStatePanel")
             title = messages.findChild(QLabel, "emptyStateTitle")
             body = messages.findChild(QLabel, "emptyStateBody")
@@ -334,7 +338,7 @@ class PathenaStartupExperience(QObject):
 
         panel = QFrame(messages)
         panel.setObjectName("emptyStatePanel")
-        panel.setMinimumHeight(116)
+        panel.setMinimumHeight(100)
         panel.setSizePolicy(
             QSizePolicy.Policy.Fixed,
             QSizePolicy.Policy.Minimum,
@@ -343,10 +347,11 @@ class PathenaStartupExperience(QObject):
         panel_layout.setContentsMargins(18, 16, 18, 16)
         panel_layout.setSpacing(7)
 
-        eyebrow = QLabel("LOCAL-FIRST WORKSPACE", panel)
+        eyebrow = QLabel("LOCAL WORKSPACE", panel)
         eyebrow.setObjectName("emptyStateEyebrow")
         eyebrow.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         eyebrow.setMinimumHeight(16)
+        eyebrow.hide()
 
         title = QLabel(panel)
         title.setObjectName("emptyStateTitle")
@@ -358,7 +363,7 @@ class PathenaStartupExperience(QObject):
         body.setObjectName("emptyStateBody")
         body.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
         body.setWordWrap(True)
-        body.setMinimumHeight(50)
+        body.setMinimumHeight(38)
 
         self._sync_empty_state_width(messages=messages, panel=panel, body=body)
         self._sync_empty_state_copy(
@@ -375,13 +380,16 @@ class PathenaStartupExperience(QObject):
         layout = messages.layout()
         if not isinstance(layout, QVBoxLayout):
             return
+        # The base empty-chat renderer already owns the trailing stretch.
+        # Add one matching leading stretch so first-run copy sits deliberately
+        # in the workspace rather than clinging to the upper-left corner.
+        layout.insertStretch(0, 1)
         layout.insertWidget(
-            0,
+            1,
             panel,
             0,
-            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop,
+            Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter,
         )
-        layout.addStretch(1)
 
 
 def install_startup_experience(window: QWidget) -> PathenaStartupExperience:

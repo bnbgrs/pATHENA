@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import QObject, Signal
-from PySide6.QtWidgets import QApplication, QLabel, QWidget
+from PySide6.QtWidgets import QApplication, QFrame, QLabel, QWidget
 
 from athena.desktop.app import create_application
 from athena.desktop.command_palette import CommandPaletteController
@@ -66,9 +66,22 @@ def test_v3_comfyui_is_shell_hosted_and_restores_selected_route() -> None:
         assert inspector.isHidden()
         assert window.navigation.currentRow() == 6
         assert window.pages.currentIndex() == selected_page
+        assert all(
+            button.property("active") is False
+            for button in shell._nav_buttons.values()
+        )
+        assert shell._pallas_button.property("active") is False
         assert title.text() == "ComfyUI"
-        assert hint.text() == "Local image and video workflows · loopback only."
+        assert hint.text() == "Run local image and video workflows on this device."
         assert controller.close_button.isVisible()
+        inner_title = controller.dialog.findChild(QLabel, "comfyUiTitle")
+        assert inner_title is not None
+        assert inner_title.isHidden()
+        panels = controller.dialog.findChildren(QFrame, "comfyUiPanel")
+        activity = controller.dialog.findChild(QFrame, "comfyUiActivityPanel")
+        assert len(panels) == 2
+        assert activity is not None
+        assert activity.accessibleName() == "ComfyUI activity"
         assert app.focusWidget() is controller.check_button
 
         window.resize(window.width() + 180, window.height() + 120)
@@ -109,6 +122,7 @@ def test_v3_comfyui_is_shell_hosted_and_restores_selected_route() -> None:
         assert not controller.dialog.isVisible()
         assert window.navigation.currentRow() == 6
         assert window.pages.currentIndex() == selected_page
+        assert shell._nav_buttons[6].property("active") is True
         assert title.text() == "Settings"
         assert hint.text() != "Local image and video workflows · loopback only."
     finally:

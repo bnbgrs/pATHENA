@@ -110,7 +110,7 @@ def test_visual_knowledge_fixture_is_idempotent_and_renders_real_detail(
         assert "PERSISTED DETAIL UNAVAILABLE" not in (
             workspace.knowledge_details.toPlainText()
         )
-        assert "PROVENANCE" in workspace.knowledge_details.toPlainText()
+        assert "Source & history" in workspace.knowledge_details.toPlainText()
     finally:
         _stop_workspace_processes(workspace)
         workspace.close()

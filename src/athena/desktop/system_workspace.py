@@ -65,7 +65,7 @@ class _SystemStatusRow(QFrame):
         copy.addWidget(heading)
         copy.addWidget(self.description)
 
-        self.value = QLabel("Awaiting snapshot")
+        self.value = QLabel("Waiting for status")
         self.value.setObjectName("settingsValue")
         self.value.setAlignment(
             Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
@@ -172,8 +172,8 @@ class _SecurityPosture(QFrame):
         layout.addWidget(heading)
 
         note = QLabel(
-            "Only states exposed by the local Core snapshot are asserted. "
-            "Missing security telemetry remains unavailable."
+            "Only security states reported by the local service are shown. "
+            "Anything not reported remains unavailable."
         )
         note.setObjectName("settingsHelp")
         note.setWordWrap(True)
@@ -207,33 +207,32 @@ class SystemWorkspace(QWidget):
 
         self.runtime = _SystemStatusRow(
             "Local runtime",
-            "Core availability, API version and local model-provider state.",
+            "Application service, API and local model status.",
         )
         self.storage = _SystemStatusRow(
             "Knowledge storage",
-            "Read-only storage health from the Core when that probe is available.",
+            "Health of the local knowledge database when available.",
         )
         self.connectivity = _SystemStatusRow(
             "Connectivity",
-            "Reachability of the configured local model-provider boundary.",
+            "Connection to the configured local model service.",
         )
         self.background = _SystemStatusRow(
             "Background work",
-            "Queue and maintenance activity when exposed by the Core snapshot.",
+            "Queue and maintenance activity reported by the local service.",
         )
         self.security_posture = _SecurityPosture()
         self.hardware_acceptance = SystemHardwareAcceptancePanel()
         self.recovery = SystemRecoveryPanel()
 
         self.recent_events = QLabel(
-            "Event history is unavailable — the current desktop snapshot exposes no "
-            "durable activity feed."
+            "Activity history is unavailable from the current local service; no activity history is invented."
         )
         self.recent_events.setObjectName("systemRecentEventsEmpty")
         self.recent_events.setWordWrap(True)
         set_pathena_ui_state(self.recent_events, "empty")
 
-        self.detail = QLabel("Awaiting local Core snapshot.")
+        self.detail = QLabel("Waiting for local status…")
         self.detail.setObjectName("systemDetail")
         self.detail.setWordWrap(True)
         self.detail.setTextInteractionFlags(
@@ -244,7 +243,7 @@ class SystemWorkspace(QWidget):
 
         self.refresh_button = QPushButton("Refresh")
         self.refresh_button.setObjectName("newChatButton")
-        self.refresh_button.setToolTip("Refresh local Core, model and chat status")
+        self.refresh_button.setToolTip("Refresh local service, model and conversation status")
         self.refresh_button.setAccessibleName("Refresh System status")
         self.refresh_button.setEnabled(controller is not None)
         if controller is not None:
@@ -272,7 +271,7 @@ class SystemWorkspace(QWidget):
         main_layout.addLayout(header)
 
         intro = QLabel(
-            "Operational state from pATHENA Core. Missing probes stay explicitly "
+            "Operational state from local services. Missing checks stay explicitly "
             "unavailable rather than being inferred by the desktop."
         )
         intro.setObjectName("settingsHelp")

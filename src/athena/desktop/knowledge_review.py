@@ -181,17 +181,20 @@ def _short(value: str) -> str:
 def render_knowledge_entity_review(review: KnowledgeEntityReview) -> str:
     """Render only persisted fields with compact provenance-first hierarchy."""
     label = "KNOWLEDGE" if review.entity_type == "knowledge" else "CLAIM"
+    heading = review.title or ("Claim" if review.entity_type == "claim" else review.content)
+    descriptor = (
+        f"{label.title()} · {review.kind.replace('_', ' ').title()} · "
+        f"{review.status.replace('_', ' ').title()} · "
+        f"{review.lifecycle.replace('_', ' ').title()}"
+    )
     lines = [
-        label,
-        review.title or review.content,
+        heading,
+        descriptor,
         "",
-        "CONTENT",
+        "Content",
         review.content,
         "",
-        "STATE",
-        f"{review.kind.replace('_', ' ').title()} · {review.status.replace('_', ' ').title()} · {review.lifecycle.replace('_', ' ').title()}",
-        "",
-        "PROVENANCE",
+        "Source & history",
     ]
     if not review.provenance:
         lines.append("No provenance inputs were persisted for this revision.")
@@ -207,7 +210,7 @@ def render_knowledge_entity_review(review: KnowledgeEntityReview) -> str:
             f"{_short(provenance_item.entity_id)}{revision}"
         )
     if review.entity_type == "claim":
-        lines.extend(("", "EVIDENCE"))
+        lines.extend(("", "Evidence"))
         if not review.evidence:
             lines.append("No evidence references were persisted for this claim.")
         for evidence_item in review.evidence:

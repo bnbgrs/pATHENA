@@ -9,7 +9,7 @@ pytest.importorskip("PySide6")
 
 from PySide6.QtCore import Qt
 from PySide6.QtTest import QTest
-from PySide6.QtWidgets import QApplication, QFrame, QLabel
+from PySide6.QtWidgets import QApplication, QFrame, QLabel, QPushButton
 
 from athena.desktop.app import create_application
 from athena.desktop.pathena_pallas_field import install_pallas_grounded_field
@@ -89,6 +89,23 @@ def test_open_workspace_reuses_one_synchronized_full_surface() -> None:
     assert first_host is not None and first_host.isVisible()
     assert first_host.property("pathenaPallasShellHosted") is True
     assert first_workspace.property("pathenaPallasShellHosted") is True
+    back_button = window.findChild(QPushButton, "pallasBackButton")
+    fit_button = window.findChild(QPushButton, "pallasFitButton")
+    legend = window.findChild(QLabel, "pallasSemanticLegend")
+    assert back_button is not None and back_button.isVisible()
+    assert back_button.accessibleName() == "Back to current workspace"
+    vitality_button = window.findChild(QPushButton, "pallasLensVitalityButton")
+    age_button = window.findChild(QPushButton, "pallasLensAgeButton")
+    assert fit_button is not None and fit_button.isVisible()
+    assert fit_button.accessibleName() == "Fit all PALLAS nodes"
+    assert vitality_button is not None
+    assert "not epistemic confidence" in vitality_button.toolTip()
+    assert age_button is not None
+    assert "not source or document age" in age_button.toolTip()
+    assert legend is not None and legend.isVisible()
+    assert "◉ FOCUS" in legend.text()
+    assert "△ SOURCE" in legend.text()
+    assert "× CONFLICT" in legend.text()
     assert first_workspace.field.property("pathenaPallasMode") == "full"
     assert first_workspace.field.snapshot == grounded.field.snapshot
     assert window.property("pathenaPallasShellOpen") is True
@@ -217,6 +234,8 @@ def test_full_view_uses_dedicated_v3_inspector_without_exposing_legacy_panel() -
     assert not legacy_panel.isVisible()
     assert v3_title is not None and v3_title.text().endswith("Grounded response")
     assert v3_body is not None and "Graph  grounded-run:run-2" in v3_body.text()
+    assert "Relationships  1" in v3_body.text()
+    assert "→ cites · ◆ Supported claim" in v3_body.text()
 
     workspace = full_view.workspace
     assert workspace is not None
@@ -225,6 +244,8 @@ def test_full_view_uses_dedicated_v3_inspector_without_exposing_legacy_panel() -
 
     assert v3_title.text().endswith("Supported claim")
     assert "Confidence  0.91" in v3_body.text()
+    assert "Relationships  1" in v3_body.text()
+    assert "← cites · ◉ Grounded response" in v3_body.text()
     assert legacy_panel.property("pathenaPallasSelectionId") == "canonical_claim:claim-2"
     assert not legacy_panel.isVisible()
 
@@ -233,3 +254,129 @@ def test_full_view_uses_dedicated_v3_inspector_without_exposing_legacy_panel() -
     inspector.dispose()
     full_view.dispose()
     window.close()
+
+
+def test_living_cadence_tracks_compact_and_full_workspace_visibility() -> None:
+    app, window, grounded, full_view = _surface()
+    grounded.apply_snapshot(_snapshot())
+    living = full_view.living_controller
+    living._timer.stop()  # noqa: SLF001 - deterministic cadence regression
+    try:
+        living._tick()  # noqa: SLF001
+        app.processEvents()
+
+        expected_idle_interval = (
+            living._compact_interval_ms  # noqa: SLF001
+            if grounded.field.isVisible()
+            else living._idle_interval_ms  # noqa: SLF001
+        )
+        expected_idle_fps = round(1000 / expected_idle_interval)
+        assert living._timer.interval() == expected_idle_interval  # noqa: SLF001
+        assert grounded.field.property("pathenaPallasTargetFps") == expected_idle_fps
+
+        full_view.open_workspace()
+        app.processEvents()
+        living._tick()  # noqa: SLF001
+        app.processEvents()
+
+        workspace = full_view.workspace
+        status = window.findChild(QLabel, "pallasLivingStatus")
+        assert workspace is not None
+        assert living._timer.interval() == living._active_interval_ms  # noqa: SLF001
+        assert workspace.field.property("pathenaPallasTargetFps") == 30
+        assert status is not None
+        assert "30 FPS" in status.text()
+        assert "explicit edges" in status.toolTip()
+        assert "presentation signals" in status.accessibleDescription()
+        assert id(workspace.field) in living._bindings  # noqa: SLF001
+
+        full_view.close_workspace()
+        app.processEvents()
+        living._tick()  # noqa: SLF001
+        app.processEvents()
+
+        assert id(workspace.field) not in living._bindings  # noqa: SLF001
+        if grounded.field.isVisible():
+            assert id(grounded.field) in living._bindings  # noqa: SLF001
+    finally:
+        full_view.dispose()
+        window.close()
+
+
+def test_relationship_cache_refreshes_for_same_graph_id_content_change() -> None:
+    app, window, grounded, full_view = _surface()
+    grounded.apply_snapshot(_snapshot())
+    full_view.open_workspace()
+    workspace = full_view.workspace
+    body = window.findChild(QLabel, "v3PallasInspectorBody")
+    assert workspace is not None
+    assert body is not None
+
+    assert workspace.field.focus_node("canonical_claim:claim-2")
+    app.processEvents()
+    assert "Relationships  1" in body.text()
+
+    focus, claim = _snapshot().nodes
+    knowledge = PallasSemanticNode(
+        node_id="knowledge:unit-1",
+        kind=PallasNodeKind.KNOWLEDGE,
+        entity_type="knowledge_unit",
+        entity_id="unit-1",
+        revision_id="revision-unit-1",
+        title="Accepted knowledge",
+        summary="A durable knowledge unit.",
+        epistemic_status="accepted",
+        cited=False,
+    )
+    updated = PallasGraphSnapshot(
+        graph_id="grounded-run:run-2",
+        nodes=(focus, claim, knowledge),
+        edges=(
+            PallasSemanticEdge(focus.node_id, claim.node_id, "cites"),
+            PallasSemanticEdge(claim.node_id, knowledge.node_id, "supports"),
+        ),
+        focus_id=focus.node_id,
+        status="ready",
+        status_detail="Claim plus one explicit knowledge relationship.",
+    )
+    grounded.apply_snapshot(updated)
+    assert workspace.field.focus_node("canonical_claim:claim-2")
+    app.processEvents()
+
+    assert "Relationships  2" in body.text()
+    assert "→ supports · ■ Accepted knowledge" in body.text()
+
+    full_view.dispose()
+    window.close()
+
+def test_full_view_status_tracks_nonready_grounded_state() -> None:
+    app, window, grounded, full_view = _surface()
+    grounded.apply_snapshot(_snapshot())
+    full_view.open_workspace()
+    living = full_view.living_controller
+    living._timer.stop()  # noqa: SLF001
+    try:
+        living._tick()  # noqa: SLF001
+        app.processEvents()
+        status = window.findChild(QLabel, "pallasLivingStatus")
+        assert status is not None
+        assert "ACTIVE" in status.text()
+
+        empty = PallasGraphSnapshot(
+            graph_id="grounded-run:empty",
+            nodes=(),
+            edges=(),
+            focus_id=None,
+            status="empty",
+            status_detail="No grounded context is available.",
+        )
+        grounded.apply_snapshot(empty)
+        living._tick()  # noqa: SLF001
+        app.processEvents()
+
+        assert status.text() == "FIELD • NO GROUNDED CONTEXT"
+        assert "idle until a ready grounded graph" in status.toolTip()
+    finally:
+        full_view.dispose()
+        window.close()
+
