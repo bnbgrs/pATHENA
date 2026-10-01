@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import QObject, Qt, QTimer, Slot
+from PySide6.QtCore import QEvent, QObject, Qt, QTimer, Slot
 from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QDialog,
@@ -131,6 +131,23 @@ class UniversalSearchSwitcher(QObject):
         controller.search_ready.connect(self._search_ready)
         controller.search_failed.connect(self._search_failed)
 
+        self._peer_dialogs = tuple(
+            dialog
+            for name in ("commandPalette", "helpDialog")
+            if (dialog := window.findChild(QDialog, name)) is not None
+        )
+        for dialog in self._peer_dialogs:
+            dialog.installEventFilter(self)
+
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:  # noqa: N802
+        if (
+            event.type() == QEvent.Type.Show
+            and watched in self._peer_dialogs
+            and self.dialog.isVisible()
+        ):
+            self.dialog.hide()
+        return super().eventFilter(watched, event)
+
     def _build_dialog(self) -> None:
         layout = QVBoxLayout(self.dialog)
         layout.setContentsMargins(18, 16, 18, 16)
@@ -159,6 +176,9 @@ class UniversalSearchSwitcher(QObject):
 
     def open(self) -> None:
         """Open centered over the desktop and invalidate earlier result deliveries."""
+        for dialog in self._peer_dialogs:
+            if dialog.isVisible():
+                dialog.hide()
         self._debounce.stop()
         self._latest_request_id = None
         self._latest_query = ""
