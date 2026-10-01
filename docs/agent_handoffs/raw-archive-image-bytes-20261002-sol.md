@@ -40,13 +40,18 @@ The immutable Raw Archive path had no first-class in-memory byte intake. Clipboa
 
 - `src/athena/source/blob_store.py`
 - `src/athena/source/service.py`
+- `src/athena/source/models.py`
+- `src/athena/source/representation_repository.py`
 - `tests/unit/test_source_image_byte_capture.py`
+- `tests/unit/test_source_representation_type_contract.py`
 
 No desktop, Chat, provider/model, API facade/client, Jobs, Research, Knowledge, Storage schema or migration file was changed.
 
 ## Verhalten danach
 
 A future clipboard/composer implementation can hand encoded image bytes to the Source layer without inventing a temporary-path canonical state. The resulting image is a durable Source with immutable Raw Archive bytes and ordinary provenance/dedup semantics. A future vision request can retrieve those bytes through a bounded integrity-checked service boundary rather than reading storage paths directly.
+
+The representation domain can now faithfully model the representation values already accepted by persisted schema v12. Binary representation production is **not** faked: the existing retained-text writer rejects `thumbnail` and `page_images` until a real binary representation store/writer is implemented.
 
 This branch intentionally does **not** claim that clipboard UI, API transport or model vision routing is complete.
 
@@ -68,6 +73,7 @@ Exact PR evidence must be taken from PR #374 / its final head workflow result.
 - Core API upload/transport is not wired yet.
 - Vision-capability routing is not wired yet.
 - Unsupported-state UI for no vision-capable selected model is not wired yet.
+- A real binary SourceRepresentation writer for `thumbnail/page_images` does not exist yet; no fake writer was introduced.
 - This image entry point recognizes PNG/JPEG/GIF signatures; broader image format support should only be added with truthful format detection/validation needs.
 
 ## Abhängigkeiten / parallele Arbeit
@@ -102,4 +108,5 @@ After this PR is green/integrated:
 - Capture commit: `35be6d182f16dcfd3faa7abdd024f18eb5d01d5e`
 - Bounded read commit: `154303e86032781d4163f9892d5e7acedd1079af`
 - Protected-read regression commit: `0f2c953dbce4b49a68e744cdf51d4b1d375acc5c`
+- Representation schema/domain alignment: pending commit from this handoff update
 - Draft PR: #374
