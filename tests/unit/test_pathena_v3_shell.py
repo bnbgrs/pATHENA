@@ -207,6 +207,16 @@ def test_v3_shell_keeps_core_chat_controls_visible_at_minimum_desktop_size() -> 
         assert window.send_button.accessibleName() == "Send message"
         assert "background: transparent" in window.send_button.styleSheet()
         assert "border: 0" in window.send_button.styleSheet()
+
+        window.apply_chat_busy(True)
+        assert window.send_button.text() == "↑"
+        assert window.send_button.toolTip() == "Generation in progress"
+        assert "Generation in progress" in window.send_button.accessibleDescription()
+
+        window.apply_chat_busy(False)
+        assert window.send_button.text() == "↑"
+        assert "Ctrl+Enter" in window.send_button.toolTip()
+
         assert controller._nav_buttons[0].isVisible()
         assert controller._nav_buttons[6].isVisible()
         composer = window.prompt_input.parentWidget()
