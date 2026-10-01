@@ -1469,19 +1469,67 @@ def _inspect_archive_embeddings(
             )
             continue
 
-        indexed_snapshot = int(
-            state["indexed_chunk_generation"]
+        indexed_snapshot = _persisted_integer(
+            state["indexed_chunk_generation"],
+            minimum=0,
         )
-        indexed_visibility_commit_seq = int(
-            state["indexed_visibility_commit_seq"]
+        indexed_visibility_commit_seq = _persisted_integer(
+            state["indexed_visibility_commit_seq"],
+            minimum=0,
         )
-        dimensions = int(state["dimensions"])
-        document_count = int(state["document_count"])
+        dimensions = _persisted_integer(
+            state["dimensions"],
+            minimum=1,
+        )
+        document_count = _persisted_integer(
+            state["document_count"],
+            minimum=0,
+        )
 
+        if (
+            indexed_snapshot is None
+            or indexed_visibility_commit_seq is None
+            or dimensions is None
+            or document_count is None
+        ):
+            reports.append(
+                DerivedEmbeddingReport(
+                    storage_model_id=model_id,
+                    published=True,
+                    indexed_snapshot=indexed_snapshot,
+                    current_snapshot=current_snapshot,
+                    dimensions=dimensions,
+                    document_count=document_count,
+                    persisted_document_count=len(all_rows),
+                    unpublished_document_count=0,
+                    persisted_valid=False,
+                    embeddings_current=False,
+                    hnsw_files_plausible=False,
+                    embedding_rebuild_required=True,
+                    hnsw_rebuild_required=False,
+                )
+            )
+            continue
+
+        row_generations = [
+            _persisted_integer(
+                row["indexed_chunk_generation"],
+                minimum=0,
+            )
+            for row in all_rows
+        ]
+        generations_valid = all(
+            generation is not None
+            for generation in row_generations
+        )
         published_rows = [
             row
-            for row in all_rows
-            if int(row["indexed_chunk_generation"]) == indexed_snapshot
+            for row, generation in zip(
+                all_rows,
+                row_generations,
+                strict=True,
+            )
+            if generation == indexed_snapshot
         ]
 
         unpublished_document_count = (
@@ -1489,7 +1537,7 @@ def _inspect_archive_embeddings(
         )
 
         persisted_valid = (
-            dimensions > 0
+            generations_valid
             and len(published_rows) == document_count
             and _archive_vectors_shape_valid(
                 published_rows,
