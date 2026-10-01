@@ -18,6 +18,7 @@ The public publisher-identity boundary trusted type annotations more than runtim
 3. `canonical_plugin_identity_payload()` called `.strip()` on `package_sha256` before validating its runtime type.
 4. `verify_plugin_publisher_identity()` called `trust_roots.get(...)` without checking that the supplied object was actually a Mapping.
 5. A Mapping entry could be an arbitrary object; attribute access or crypto construction could then leak implementation exceptions out of the trust boundary.
+6. Publisher display metadata normalized keys with `strip()` but did not reject collisions. Raw keys such as `"name"` and `" name "` became the same key, and `publisher_mapping()` then silently discarded one value.
 
 These are configuration/runtime-boundary defects. They do not create a valid forged signature, but they weaken fail-closed behavior and can turn malformed trust configuration into uncontrolled exceptions during plugin verification.
 
@@ -29,10 +30,12 @@ These are configuration/runtime-boundary defects. They do not create a valid for
 - Validate `trust_roots` as a runtime `Mapping` before lookup.
 - Validate retrieved entries as `TrustedPluginPublisher` before reading fields or constructing Ed25519 keys.
 - Preserve existing signature, package hash, manifest binding and trust-root key-ID semantics.
+- Reject duplicate publisher metadata keys after normalization so package-inspection/provenance display cannot silently collapse ambiguous values.
 
 ## Dateien
 
 - `src/athena/plugins/identity.py`
+- `src/athena/plugins/manifest.py`
 - `tests/unit/test_plugin_publisher_identity.py`
 - this handoff
 
@@ -44,7 +47,8 @@ Focused tests now cover:
 - 32-character string values passed where Ed25519 public-key bytes are required;
 - non-string `package_sha256`;
 - non-Mapping `trust_roots`;
-- arbitrary objects stored as trust-root entries.
+- arbitrary objects stored as trust-root entries;
+- duplicate publisher metadata keys that collide after normalization.
 
 The tests use `typing.cast` only to cross static type boundaries deliberately; production runtime validation remains the subject under test.
 
@@ -87,5 +91,5 @@ Low. No active Plugin PR was found and the slice does not touch Plugin Host, cap
 ## Commit / PR
 
 - Base: `467ef434236c320e4afe9d21a39c20a4a2b75728`
-- Product/test head after final test-spacing cleanup: `4f7c9c91a1efa6b5944986ed380ec8818d8a6d84`
+- Product/test head after publisher metadata hardening and final spacing cleanup: `106758b13d145a9ebf4fe79200b09ce5d16b6f36`
 - PR: #393
