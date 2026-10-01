@@ -3,9 +3,9 @@
 ## Scope and ownership
 
 - Repository: `bnbgrs/pATHENA`
-- Branch: `feature/long-term-publication-20261002-sol`
-- Deliberately stacked on: PR #325 / `integration/canonical-commit-bundle-fresh-20261001`
-- Stack base head when created: `ea6503775d27417358e800abed5dd48faedf3028`
+- Branch: `feature/long-term-publication-current-20261002-sol`
+- Deliberately stacked on: PR #386 / `integration/canonical-commit-bundle-current-20261002-sol`
+- Stack base head when created: `9cd1a6fb6c17d523ec00e86178aa4614bed1c294`
 - Integration target after #325 is refreshed/integrated: `develop/pathena-next`
 - This slice does not modify the CanonicalCommitBundle serializer, the merged
   structured-replication state machine, Backup, UI, Jobs, Research, Chat, or
@@ -96,7 +96,7 @@ New `tests/unit/test_long_term_publication.py` covers:
 
 ## Verhalten danach
 
-Once #325 is available underneath this branch, a caller can stage one canonical
+Once #386 is available underneath this branch, a caller can stage one canonical
 structured-replication commit, call `publish_staged_commit(...)`, and receive an
 ACTIVE/advanced target only after exact physical read-back verification.
 
@@ -120,8 +120,8 @@ Local clone/test execution remains unavailable in this execution environment
 because `github.com` DNS resolution fails. Do not interpret source inspection
 as a runtime PASS.
 
-Upstream stack dependency #325 exact head
-`ea6503775d27417358e800abed5dd48faedf3028` has:
+Historical serializer source #325 exact head
+`ea6503775d27417358e800abed5dd48faedf3028` had:
 
 - pATHENA Storage Focused Candidate: PASS
 - Windows path safety in ATHENA Quality: PASS
@@ -138,14 +138,15 @@ the draft PR starts CI.
 
 ## Dependencies / conflict risk
 
-- #325 is a hard stack dependency because it introduces
-  `athena.storage.canonical_commit_bundle`.
-- Do not duplicate or rewrite #325 in this branch.
+- #386 is the hard current stack dependency because it reconstructs
+  `athena.storage.canonical_commit_bundle` on current Develop.
+- #386 copies #325's already-reviewed serializer/test/handoff blobs exactly;
+  do not duplicate or rewrite them in this branch.
 - The merged structured-replication state from #291 is consumed but not changed.
 - Current active Backup hardening (#345), Security, Memory, Chat, Jobs, Sources,
   Research, UI, LM Studio, Settings, logging and PALLAS PRs use different files.
-- If #325 is rebuilt on newer Develop, rebase/reconstruct only these three files
-  on that refreshed exact head and re-run focused + canonical gates.
+- If #386 is superseded by a newer Develop reconstruction, rebase/reconstruct
+  only these three publication files on that exact serializer head and rerun gates.
 
 ## Known remaining work
 
@@ -166,7 +167,7 @@ complete. Still separate:
 1. Run exact-head Ruff, mypy, focused publication tests, Storage Focused and
    canonical Quality.
 2. Fix only failures attributable to this slice.
-3. Refresh #325 onto the then-current `develop/pathena-next`; stack/rebase this
-   three-file delta on that exact serializer head.
+3. Integrate #386 first once exact-head qualified; then retarget/reconstruct this
+   three-file delta on the resulting current Develop if required.
 4. After integration, implement the upstream record builder/selector with
    Protected Metadata canary coverage before wiring an automated worker.
