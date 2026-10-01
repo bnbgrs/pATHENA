@@ -91,6 +91,61 @@ class SourceCaptureService:
                 prepared_blob=prepared_blob,
             )
 
+    def capture_image_bytes(
+        self,
+        data: bytes,
+        *,
+        original_name: str,
+        source_uri: str,
+        max_file_bytes: int | None = None,
+    ) -> SourceCaptureResult:
+        """Capture clipboard/image bytes as an immutable Raw Archive Source."""
+        if type(data) is not bytes:
+            raise TypeError("Image capture data must be immutable bytes.")
+        if not isinstance(original_name, str) or not original_name.strip():
+            raise ValueError("Image original_name must be non-empty text.")
+        if not isinstance(source_uri, str) or not source_uri.strip():
+            raise ValueError("Image source_uri must be non-empty text.")
+
+        detected_media_type = self.blob_store.detect_captured_media_type(
+            prefix=data[:64],
+            filename="",
+        )
+        if detected_media_type not in {
+            "image/png",
+            "image/jpeg",
+            "image/gif",
+        }:
+            raise ValueError(
+                "Image capture requires recognized PNG, JPEG, or GIF bytes."
+            )
+
+        with runtime_data_lock(self.runtime_lock_root):
+            prepared_blob = self.blob_store.capture_bytes(
+                data,
+                filename=original_name,
+                max_file_bytes=max_file_bytes,
+            )
+            existing_blob = self.repository.find_blob_by_integrity(
+                integrity_sha256=prepared_blob.integrity_sha256,
+                byte_length=prepared_blob.byte_length,
+            )
+            if existing_blob is not None:
+                self.blob_store.verify_blob(
+                    storage_area=existing_blob.storage_area,
+                    storage_locator=existing_blob.storage_locator,
+                    expected_sha256=existing_blob.integrity_sha256,
+                    expected_length=existing_blob.byte_length,
+                )
+            actor_id = self.chat.ensure_local_user()
+            return self.repository.capture_file(
+                actor_id=actor_id,
+                original_name=original_name,
+                source_uri=source_uri.strip(),
+                prepared_blob=prepared_blob,
+                source_type=SourceType.IMAGE,
+            )
+
     def capture_protected_file(
         self,
         path: Path,

@@ -176,6 +176,65 @@ class BlobStore:
             source_modified_at_us=modified_at_us,
         )
 
+    def capture_bytes(
+        self,
+        data: bytes,
+        *,
+        filename: str,
+        max_file_bytes: int | None = None,
+    ) -> PreparedBlob:
+        """Capture immutable in-memory bytes through the durable Raw Archive path."""
+        if type(data) is not bytes:
+            raise TypeError("data must be immutable bytes.")
+        if not isinstance(filename, str) or not filename.strip():
+            raise ValueError("filename must be non-empty text.")
+
+        max_file_bytes = _validated_max_file_bytes(max_file_bytes)
+        _ensure_within_capture_limit(
+            prospective_size=len(data),
+            max_file_bytes=max_file_bytes,
+        )
+
+        staging_dir = self.paths.spool_root / "imports"
+        staging_dir.mkdir(parents=True, exist_ok=True)
+        staging_path = staging_dir / f"capture-{secrets.token_hex(16)}.partial"
+
+        digest = hashlib.sha256()
+        byte_length = 0
+        media_type_prefix = data[:_MEDIA_TYPE_PREFIX_SIZE]
+        try:
+            with staging_path.open("xb") as target:
+                view = memoryview(data)
+                for offset in range(0, len(view), _COPY_BUFFER_SIZE):
+                    chunk = view[offset : offset + _COPY_BUFFER_SIZE]
+                    target.write(chunk)
+                    digest.update(chunk)
+                    byte_length += len(chunk)
+                target.flush()
+                os.fsync(target.fileno())
+
+            integrity_sha256 = digest.digest()
+            storage_area, storage_locator = self._commit_staged_blob(
+                staging_path,
+                integrity_sha256=integrity_sha256,
+                byte_length=byte_length,
+            )
+        finally:
+            staging_path.unlink(missing_ok=True)
+
+        media_type = _detect_media_type(
+            prefix=media_type_prefix,
+            filename=filename,
+        )
+        return PreparedBlob(
+            byte_length=byte_length,
+            media_type=media_type,
+            integrity_sha256=integrity_sha256,
+            storage_area=storage_area,
+            storage_locator=storage_locator,
+            source_modified_at_us=None,
+        )
+
     def detect_media_type(
         self,
         path: Path,
