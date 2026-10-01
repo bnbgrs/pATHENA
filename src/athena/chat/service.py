@@ -55,12 +55,14 @@ class ChatService:
         *,
         chat_id: uuid.UUID,
         source_message_id: uuid.UUID,
+        source_revision_id: uuid.UUID,
     ) -> uuid.UUID:
         """Create a durable branch through one exact persisted message revision."""
         user_id = self.ensure_local_user()
         return self.repository.fork_chat_from_message(
             chat_id=chat_id,
             source_message_id=source_message_id,
+            source_revision_id=source_revision_id,
             actor_id=user_id,
         )
 
@@ -69,6 +71,7 @@ class ChatService:
         *,
         chat_id: uuid.UUID,
         message_id: uuid.UUID,
+        expected_revision_id: uuid.UUID,
         content: str,
     ) -> ChatMessage:
         """Persist an immutable successor revision for one local-user message."""
@@ -81,6 +84,7 @@ class ChatService:
         return self.repository.edit_user_message(
             chat_id=chat_id,
             message_id=message_id,
+            expected_revision_id=expected_revision_id,
             actor_id=user_id,
             content=content,
         )
