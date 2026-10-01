@@ -12,6 +12,11 @@ from PySide6.QtGui import QAction, QIcon
 from PySide6.QtWidgets import QApplication, QMenu, QStyle, QSystemTrayIcon, QWidget
 
 
+def _system_tray_available() -> bool:
+    """Return whether Qt can expose a tray icon in the current desktop session."""
+    return bool(QSystemTrayIcon.isSystemTrayAvailable())
+
+
 class PathenaSystemTrayController(QObject):
     """Own one persistent system-tray icon and its desktop-shell actions."""
 
@@ -28,9 +33,11 @@ class PathenaSystemTrayController(QObject):
         if not isinstance(application, QApplication):
             raise RuntimeError("pATHENA system tray requires QApplication ownership")
         self.app: QApplication = application
-        self._close_to_tray_enabled = bool(close_to_tray)
+        self._tray_available = _system_tray_available()
+        self._close_to_tray_enabled = bool(close_to_tray) and self._tray_available
         self._shutdown = False
         self.window.installEventFilter(self)
+        self.window.setProperty("pathenaSystemTrayAvailable", self._tray_available)
         self.window.setProperty(
             "pathenaCloseToTrayEnabled",
             self._close_to_tray_enabled,
@@ -74,7 +81,13 @@ class PathenaSystemTrayController(QObject):
         self.tray.setProperty("pathenaRuntimeState", "unavailable")
         self.tray.setContextMenu(self.menu)
         self.tray.activated.connect(self._activate)
-        self.tray.show()
+        if self._tray_available:
+            self.tray.show()
+
+    @property
+    def tray_available(self) -> bool:
+        """Return whether the current desktop session exposes a usable tray."""
+        return self._tray_available
 
     @property
     def close_to_tray_enabled(self) -> bool:
@@ -84,7 +97,7 @@ class PathenaSystemTrayController(QObject):
     @Slot(bool)
     def set_close_to_tray_enabled(self, enabled: bool) -> None:
         """Enable or disable close-to-tray without changing process ownership."""
-        self._close_to_tray_enabled = bool(enabled)
+        self._close_to_tray_enabled = bool(enabled) and self._tray_available
         self.window.setProperty(
             "pathenaCloseToTrayEnabled",
             self._close_to_tray_enabled,
