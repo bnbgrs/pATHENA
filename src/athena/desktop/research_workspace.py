@@ -218,6 +218,39 @@ class ResearchWorkspace(QWidget):
             and self._operation_job_id == self._selected_job_id
         )
 
+    def _reload_selected_details_if_idle(self) -> None:
+        if self._busy() or not self._selected_job_id:
+            return
+        current = self.jobs.currentItem()
+        if (
+            current is None
+            or current.data(Qt.ItemDataRole.UserRole) != self._selected_job_id
+        ):
+            return
+        self.details.setProperty("pathenaBackgroundOperationOwner", "")
+        set_pathena_ui_state(self.details, "busy")
+        selected_job_id = self._selected_job_id
+        self._start(
+            "show",
+            ["show", selected_job_id],
+            "Loading research details",
+            job_id=selected_job_id,
+        )
+
+    def _recover_background_selection(
+        self,
+        operation: str,
+        *,
+        owns_details: bool,
+    ) -> None:
+        if (
+            operation not in {"show", "cancel"}
+            or owns_details
+            or not self._selected_job_id
+        ):
+            return
+        QTimer.singleShot(0, self._reload_selected_details_if_idle)
+
     def _set_status(
         self,
         text: str,
@@ -335,6 +368,10 @@ class ResearchWorkspace(QWidget):
             if operation == "list" and self._selected_job_id is None:
                 self.details.setPlainText(output)
                 set_pathena_ui_state(self.details, "error")
+            self._recover_background_selection(
+                operation,
+                owns_details=owns_details,
+            )
             return
 
         if operation == "list":
@@ -392,6 +429,10 @@ class ResearchWorkspace(QWidget):
                     "error",
                     diagnostic="The cancellation request lost its Research run identity.",
                 )
+                self._recover_background_selection(
+                    operation,
+                    owns_details=owns_details,
+                )
                 return
             try:
                 receipt = parse_research_cancel_receipt(
@@ -406,6 +447,10 @@ class ResearchWorkspace(QWidget):
                 )
                 if owns_details:
                     set_pathena_ui_state(self.details, "error")
+                self._recover_background_selection(
+                    operation,
+                    owns_details=owns_details,
+                )
                 return
 
             if receipt.job_id == self._selected_job_id:
@@ -423,6 +468,10 @@ class ResearchWorkspace(QWidget):
             )
             if owns_details:
                 set_pathena_ui_state(self.details, "success")
+            self._recover_background_selection(
+                operation,
+                owns_details=owns_details,
+            )
             QTimer.singleShot(120, self.refresh)
             return
 
@@ -430,6 +479,10 @@ class ResearchWorkspace(QWidget):
             self._set_status(f"Research run {job_label} details loaded.", "success")
             if owns_details:
                 set_pathena_ui_state(self.details, "success")
+            self._recover_background_selection(
+                operation,
+                owns_details=owns_details,
+            )
 
     def _render_job_list(self, rows: tuple[ResearchJobListEntry, ...]) -> None:
         selected = self._selected_job_id
@@ -519,6 +572,10 @@ class ResearchWorkspace(QWidget):
         self._set_status(message, "error")
         if owns_details:
             set_pathena_ui_state(self.details, "error")
+        self._recover_background_selection(
+            operation,
+            owns_details=owns_details,
+        )
 
 
 def install_research_workspace(window: object) -> ResearchWorkspace:
