@@ -1193,6 +1193,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help=argparse.SUPPRESS,
     )
+    job_scheduler_run.add_argument(
+        "--control-stdin",
+        action="store_true",
+        help=argparse.SUPPRESS,
+    )
     job_commands.add_parser(
         "recover",
         help="Recover only jobs whose worker lease has expired.",
