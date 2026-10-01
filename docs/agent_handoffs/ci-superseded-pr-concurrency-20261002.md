@@ -89,6 +89,12 @@ touch.
 
 ## Validierung
 
+In-PR self-validation is intentional: after the first candidate head queued the
+affected workflows, a documentation-only successor commit is pushed on this same PR.
+Because the workflow definitions now group by PR number, GitHub should cancel the
+older #389 PR-head runs and retain only the successor head. This validates the
+concurrency behavior itself rather than only its YAML/text contract.
+
 Before change:
 - queue depth observed: 146, then 184;
 - first 100 queued runs contained 56 entries in duplicate PR workflow/branch groups.
