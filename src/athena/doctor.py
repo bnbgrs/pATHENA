@@ -54,7 +54,7 @@ def _check_runtime_write(root: Path) -> DoctorCheck:
         return DoctorCheck(
             "runtime-write",
             "FAIL",
-            "runtime root crosses a symbolic-link or reparse-point boundary: "
+            "runtime root crosses a symbolic link or reparse-point boundary: "
             f"{boundary}",
         )
     try:
@@ -62,7 +62,7 @@ def _check_runtime_write(root: Path) -> DoctorCheck:
         boundary = _first_link_boundary(root)
         if boundary is not None or not root.is_dir():
             detail = (
-                "runtime root crosses a symbolic-link or reparse-point boundary: "
+                "runtime root crosses a symbolic link or reparse-point boundary: "
                 f"{boundary}"
                 if boundary is not None
                 else f"runtime root is not a safe directory: {root}"
@@ -110,7 +110,7 @@ def _check_optional_storage_root(
         return DoctorCheck(
             name,
             "WARN",
-            "configured root crosses a symbolic-link or reparse-point boundary: "
+            "configured root crosses a symbolic link or reparse-point boundary: "
             f"{boundary}",
         )
     if not root.is_dir():
