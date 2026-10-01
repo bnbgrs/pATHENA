@@ -421,6 +421,14 @@ class LMStudioRuntimeController(QObject):
             self._restore_preferred_model_selection()
         selected = self.window._selected_model()
 
+        if self.busy:
+            # The active CLI step owns the visible runtime status until it
+            # finishes, errors, or times out. Snapshot refreshes still update
+            # cached truth but must not replace "Loading…"/"Unloading…"/restart
+            # with a stale available/loaded label mid-command.
+            self.unload_button.setEnabled(False)
+            return
+
         if not provider_ready:
             self.unload_button.setEnabled(False)
             if _should_attempt_auto_start(
