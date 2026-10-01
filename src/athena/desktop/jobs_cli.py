@@ -173,22 +173,22 @@ def _run(app: AthenaApplication, args: argparse.Namespace) -> int:
 def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(list(argv) if argv is not None else None)
     app = AthenaApplication()
+    exit_code = 0
     try:
-        # This helper only needs canonical storage plus the already-composed
-        # durable Jobs service. Starting the whole Core would also bootstrap
-        # unrelated services (notably News), so read-only list/show commands
-        # could cause cross-subsystem writes.
+        # Desktop helpers need canonical storage, not ownership of global Core services.
         app.storage_bootstrap.start()
-        return _run(app, args)
+        exit_code = _run(app, args)
     except Exception as exc:
         print(f"JOBS_ERROR {type(exc).__name__}: {exc}", file=sys.stderr)
-        return 2
-    finally:
-        try:
-            app.storage_bootstrap.stop()
-        except Exception:
-            pass
+        exit_code = 2
 
+    try:
+        app.storage_bootstrap.stop()
+    except Exception as exc:
+        print(f"JOBS_ERROR {type(exc).__name__}: {exc}", file=sys.stderr)
+        exit_code = 2
+
+    return exit_code
 
 if __name__ == "__main__":
     raise SystemExit(main())
