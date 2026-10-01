@@ -5,6 +5,16 @@ from pathlib import Path
 
 import pytest
 
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+
+pytest.importorskip("PySide6")
+
+from PySide6.QtCore import QObject, QSettings, Signal
+from PySide6.QtWidgets import QApplication
+
+from athena.api.contracts import HealthResponse, ModelResponse, ProviderHealthResponse
+from athena.desktop.api_controller import DesktopApiSnapshot
+from athena.desktop.app import create_application
 from athena.desktop.lmstudio_runtime import (
     _accepted_model_load_id,
     _coerce_idle_minutes,
@@ -19,7 +29,50 @@ from athena.desktop.lmstudio_runtime import (
     _server_start_steps,
     _should_attempt_auto_load,
     _should_attempt_auto_start,
+    LMStudioRuntimeController,
 )
+from athena.desktop.pathena_window import PathenaMainWindow
+
+
+class _RuntimeControllerStub(QObject):
+    snapshot_ready = Signal(object)
+    connection_failed = Signal(str)
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.refresh_calls = 0
+
+    def refresh(self) -> None:
+        self.refresh_calls += 1
+
+
+def _app() -> QApplication:
+    return create_application(["lmstudio-runtime-qol-test"])
+
+
+def _ready_snapshot(*, loaded: bool = False) -> DesktopApiSnapshot:
+    model = ModelResponse(
+        provider="LM Studio",
+        backend_model_id="model-id",
+        display_name="Local Model",
+        model_type="llm",
+        context_capacity=65_536,
+        quantization="Q4",
+        loaded=loaded,
+        vision=False,
+        trained_for_tool_use=True,
+        loaded_context_length=65_536 if loaded else None,
+    )
+    return DesktopApiSnapshot(
+        health=HealthResponse(api_version="v1", core_status="ok", detail=None),
+        provider=ProviderHealthResponse(
+            provider="LM Studio",
+            status="ready",
+            detail=None,
+        ),
+        models=(model,),
+        chats=(),
+    )
 
 
 @pytest.mark.parametrize(
@@ -152,6 +205,41 @@ def test_restart_continues_only_after_a_failed_stop_step() -> None:
     load = _CommandStep("model_load", ("load", "model-id"), "Loading model")
     assert _continue_after_failed_step(stop) is True
     assert _continue_after_failed_step(load) is False
+
+
+def test_core_snapshot_does_not_overwrite_active_cli_status(tmp_path: Path) -> None:
+    app = _app()
+    window = PathenaMainWindow(api_controller=None)
+    controller = _RuntimeControllerStub()
+    settings = QSettings(
+        str(tmp_path / "lmstudio-runtime.ini"),
+        QSettings.Format.IniFormat,
+    )
+    runtime = LMStudioRuntimeController(
+        window,
+        controller,  # type: ignore[arg-type]
+        settings=settings,
+    )
+    snapshot = _ready_snapshot(loaded=False)
+    try:
+        window.apply_api_snapshot(snapshot)
+        runtime._steps.append(  # noqa: SLF001
+            _CommandStep(
+                operation="model_load",
+                arguments=("load", "model-id"),
+                status="Loading Local Model",
+            )
+        )
+        runtime._set_status("LM Studio runtime · Loading Local Model …")  # noqa: SLF001
+
+        runtime.apply_snapshot(snapshot)
+
+        assert runtime.status_text == "LM Studio runtime · Loading Local Model …"
+        assert runtime.unload_button.isEnabled() is False
+    finally:
+        runtime.dispose()
+        window.close()
+        app.processEvents()
 
 
 def test_process_command_preserves_arguments_for_native_executable() -> None:
