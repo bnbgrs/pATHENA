@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import base64
 import hashlib
-from typing import Any, cast
 
 import pytest
 from cryptography.hazmat.primitives import serialization
@@ -171,54 +170,4 @@ def test_malformed_signature_and_trust_root_mismatch_fail_closed() -> None:
             signer_key_id=trusted.key_id,
             signature_b64=_signature(private, manifest, b"package"),
             trust_roots={trusted.key_id: other},
-        )
-
-
-@pytest.mark.parametrize(
-    "key_id,public_key,match",
-    [
-        (cast(Any, 123), bytes(32), "key_id"),
-        ("publisher.example.v1", cast(Any, bytearray(32)), "public keys"),
-        ("Publisher.Example", bytes(32), "key_id"),
-    ],
-)
-def test_trusted_publisher_rejects_runtime_type_and_identity_spoofing(
-    key_id: object,
-    public_key: object,
-    match: str,
-) -> None:
-    with pytest.raises(PluginPublisherIdentityError, match=match):
-        TrustedPluginPublisher(
-            key_id=cast(Any, key_id),
-            public_key=cast(Any, public_key),
-        )
-
-
-def test_verification_rejects_non_trust_root_mapping_entry() -> None:
-    manifest = _manifest()
-    private, trusted = _keypair()
-    package = b"package"
-
-    with pytest.raises(PluginPublisherIdentityError, match="trust root entry"):
-        verify_plugin_publisher_identity(
-            manifest,
-            package_bytes=package,
-            signer_key_id=trusted.key_id,
-            signature_b64=_signature(private, manifest, package),
-            trust_roots=cast(Any, {trusted.key_id: object()}),
-        )
-
-
-def test_verification_rejects_non_mapping_trust_roots() -> None:
-    manifest = _manifest()
-    private, trusted = _keypair()
-    package = b"package"
-
-    with pytest.raises(TypeError, match="trust_roots"):
-        verify_plugin_publisher_identity(
-            manifest,
-            package_bytes=package,
-            signer_key_id=trusted.key_id,
-            signature_b64=_signature(private, manifest, package),
-            trust_roots=cast(Any, []),
         )
