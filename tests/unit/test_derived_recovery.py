@@ -14,6 +14,10 @@ from athena.core.derived_recovery import (
     DerivedRecoveryRequiredError,
     DerivedRecoveryService,
 )
+from athena.core.recovery_diagnostics import (
+    RecoveryDiagnosticStatus,
+    RecoveryDiagnosticsService,
+)
 from athena.knowledge.models import KnowledgeKind
 from athena.model.adapters.lm_studio import LMStudioProvider
 from athena.model.adapters.lm_studio_embeddings import LMStudioEmbeddingProvider
@@ -497,6 +501,114 @@ def test_hnsw_rebuild_uses_persisted_vectors_without_provider_call(
         assert archive_after is not None
         assert canonical_after.current
         assert archive_after.current
+
+    finally:
+        app.stop()
+
+
+
+
+
+def test_malformed_embedding_storage_degrades_to_rebuildable_derived_state(
+    tmp_path: Path,
+) -> None:
+    app = _app(tmp_path / "runtime")
+
+    try:
+        _prepare_public_data(app, tmp_path)
+
+        provider = _FakeEmbeddingProvider()
+        semantic = LocalSemanticSearchService(
+            app.database,
+            provider,
+            hnsw_root=app.paths.derived_root / "hnsw",
+        )
+        archive_semantic = ArchiveSemanticSearchService(
+            lexical=app.archive_search,
+            provider=provider,
+        )
+
+        canonical_status = semantic.rebuild("corrupt-recovery-embed")
+        archive_status = archive_semantic.rebuild("corrupt-recovery-embed")
+        assert canonical_status.current
+        assert archive_status.current
+
+        malformed_vector = "abcdefghijkl"
+
+        with app.database.write_transaction() as connection:
+            connection.execute(
+                """
+                UPDATE search_embeddings
+                SET vector_blob = ?
+                """,
+                (malformed_vector,),
+            )
+            storage_class = connection.execute(
+                """
+                SELECT typeof(vector_blob)
+                FROM search_embeddings
+                LIMIT 1
+                """
+            ).fetchone()
+            assert storage_class is not None
+            assert storage_class[0] == "text"
+
+        with app.source_chunk_store.connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            try:
+                connection.execute(
+                    """
+                    UPDATE archive_embeddings
+                    SET vector_blob = ?
+                    """,
+                    (malformed_vector,),
+                )
+                storage_class = connection.execute(
+                    """
+                    SELECT typeof(vector_blob)
+                    FROM archive_embeddings
+                    LIMIT 1
+                    """
+                ).fetchone()
+                assert storage_class is not None
+                assert storage_class[0] == "text"
+                connection.execute("COMMIT")
+            except BaseException:
+                if connection.in_transaction:
+                    connection.execute("ROLLBACK")
+                raise
+
+        service = DerivedRecoveryService(
+            database_path=app.paths.database_path,
+            derived_root=app.paths.derived_root,
+        )
+        derived = service.inspect()
+
+        assert len(derived.canonical_embeddings) == 1
+        assert len(derived.archive_embeddings) == 1
+
+        canonical = derived.canonical_embeddings[0]
+        archive = derived.archive_embeddings[0]
+
+        assert canonical.persisted_valid is False
+        assert canonical.embedding_rebuild_required is True
+        assert archive.persisted_valid is False
+        assert archive.embedding_rebuild_required is True
+
+        diagnostics = RecoveryDiagnosticsService(
+            paths=app.paths
+        ).inspect()
+
+        assert diagnostics.status is RecoveryDiagnosticStatus.DEGRADED_DERIVED
+        assert diagnostics.canonical_integrity_confirmed is True
+        assert diagnostics.normal_core_start_allowed is True
+        assert {
+            issue.code
+            for issue in diagnostics.issues
+        } >= {
+            "derived.canonical_embeddings_rebuild_required",
+            "derived.archive_embeddings_rebuild_required",
+        }
 
     finally:
         app.stop()
