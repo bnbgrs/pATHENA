@@ -432,6 +432,8 @@ class SettingsRuntimeController(QObject):
             return
         self._news_requested = True
         self.news_status.setText("News schedule · loading…")
+        self.news_status.setProperty("pathenaUiState", "idle")
+        self.news_status.setAccessibleDescription(self.news_status.text())
         task = _NewsScheduleTask(gateway)
         task.signals.loaded.connect(self.apply_news_profile)
         task.signals.failed.connect(self._apply_news_failure)
@@ -450,6 +452,8 @@ class SettingsRuntimeController(QObject):
         value = self.news_time.time()
         self.news_save.setEnabled(False)
         self.news_status.setText("News schedule · saving…")
+        self.news_status.setProperty("pathenaUiState", "idle")
+        self.news_status.setAccessibleDescription(self.news_status.text())
         task = _NewsScheduleTask(
             gateway,
             timezone_name=profile.timezone_name,
