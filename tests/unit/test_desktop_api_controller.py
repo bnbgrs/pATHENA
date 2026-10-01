@@ -370,3 +370,200 @@ def test_controller_grounded_send_keeps_operation_and_new_chat_identity_stable()
     assert grounded.thread.messages[1].message_id == str(
         assistant_message_id_for_operation(operation_id)
     )
+
+
+class _BlockingCancelableGateway(_Gateway):
+    def __init__(self, *, cancel_accepted: bool) -> None:
+        super().__init__()
+        self.cancel_accepted = cancel_accepted
+        self.send_entered = threading.Event()
+        self.cancel_called = threading.Event()
+        self.release_send = threading.Event()
+        self.sent_operation_id: str | None = None
+        self.sent_content: str | None = None
+        self.sent_chat_id: str | None = None
+        self.send_thread_id: int | None = None
+        self.cancel_thread_id: int | None = None
+
+    def send_chat_message(
+        self,
+        chat_id: str,
+        *,
+        content: str,
+        model_id: str | None = None,
+        operation_id: str | None = None,
+        effective_context_limit: int | None = None,
+        max_output_tokens: int | None = None,
+        temperature: float | None = None,
+        thinking_enabled: bool | None = None,
+    ) -> ChatThreadResponse:
+        del (
+            model_id,
+            effective_context_limit,
+            max_output_tokens,
+            temperature,
+            thinking_enabled,
+        )
+        assert operation_id is not None
+        self.send_thread_id = threading.get_ident()
+        self.sent_chat_id = chat_id
+        self.sent_operation_id = operation_id
+        self.sent_content = content
+        self.send_entered.set()
+
+        if self.cancel_accepted:
+            assert self.cancel_called.wait(2.0)
+            raise CoreApiClientError(
+                "Chat generation was cancelled.",
+                status=409,
+                code="generation_cancelled",
+                retryable=False,
+            )
+
+        assert self.release_send.wait(2.0)
+        return self._thread(include_assistant=True)
+
+    def cancel_chat_operation(self, operation_id: str) -> bool:
+        self.cancel_thread_id = threading.get_ident()
+        assert operation_id == self.sent_operation_id
+        self.cancel_called.set()
+        return self.cancel_accepted
+
+    def load_chat(self, chat_id: str) -> ChatThreadResponse:
+        assert chat_id == self.sent_chat_id
+        return self._thread(include_assistant=False)
+
+    def _thread(self, *, include_assistant: bool) -> ChatThreadResponse:
+        assert self.sent_chat_id is not None
+        assert self.sent_operation_id is not None
+        assert self.sent_content is not None
+        parsed_operation_id = uuid.UUID(self.sent_operation_id)
+        user = ChatMessageResponse(
+            message_id=self.sent_operation_id,
+            chat_id=self.sent_chat_id,
+            sequence_no=1,
+            message_type="user",
+            actor_id=str(uuid.uuid4()),
+            created_at_us=1,
+            revision_id=str(uuid.uuid4()),
+            content=self.sent_content,
+            content_format="text/plain",
+        )
+        messages: tuple[ChatMessageResponse, ...] = (user,)
+        if include_assistant:
+            assistant = ChatMessageResponse(
+                message_id=str(
+                    assistant_message_id_for_operation(parsed_operation_id)
+                ),
+                chat_id=self.sent_chat_id,
+                sequence_no=2,
+                message_type="assistant",
+                actor_id=str(uuid.uuid4()),
+                created_at_us=2,
+                revision_id=str(uuid.uuid4()),
+                content="answer",
+                content_format="text/plain",
+            )
+            messages = (user, assistant)
+        return ChatThreadResponse(
+            chat_id=self.sent_chat_id,
+            started_at_us=1,
+            ended_at_us=None,
+            archive_mode="standard",
+            lifecycle_state="active",
+            messages=messages,
+        )
+
+
+def test_controller_stop_bypasses_blocked_single_thread_send_pool() -> None:
+    app = _app()
+    gateway = _BlockingCancelableGateway(cancel_accepted=True)
+    send_pool = _pool()
+    control_pool = _pool()
+    controller = DesktopApiController(
+        gateway,
+        thread_pool=send_pool,
+        control_thread_pool=control_pool,
+    )
+    cancelled = QSignalSpy(controller.chat_cancelled)
+    loaded = QSignalSpy(controller.chat_loaded)
+    states = QSignalSpy(controller.chat_cancel_state_changed)
+    main_thread = threading.get_ident()
+    chat_id = str(uuid.uuid4())
+
+    controller.send_message(chat_id=chat_id, content="stop me")
+
+    assert gateway.send_entered.wait(1.0)
+    assert controller.chat_busy is True
+    assert controller.can_cancel_active_chat is True
+    assert controller.chat_cancel_pending is False
+    assert controller.cancel_active_chat_operation() is True
+    assert controller.chat_cancel_pending is True
+
+    assert control_pool.waitForDone(2_000)
+    assert send_pool.waitForDone(2_000)
+    app.processEvents()
+    app.processEvents()
+
+    assert gateway.cancel_called.is_set()
+    assert gateway.send_thread_id is not None
+    assert gateway.cancel_thread_id is not None
+    assert gateway.send_thread_id != main_thread
+    assert gateway.cancel_thread_id != main_thread
+    assert gateway.cancel_thread_id != gateway.send_thread_id
+    assert cancelled.count() == 1
+    assert cancelled.at(0)[0] == gateway.sent_operation_id
+    assert loaded.count() == 1
+    thread = loaded.at(0)[0]
+    assert isinstance(thread, ChatThreadResponse)
+    assert len(thread.messages) == 1
+    assert thread.messages[0].message_type == "user"
+    assert states.count() >= 1
+    assert states.at(0)[0] == "requesting"
+    assert controller.chat_busy is False
+    assert controller.can_cancel_active_chat is False
+    assert controller.chat_cancel_pending is False
+
+
+def test_controller_rejected_stop_keeps_send_running_and_allows_retry() -> None:
+    app = _app()
+    gateway = _BlockingCancelableGateway(cancel_accepted=False)
+    send_pool = _pool()
+    control_pool = _pool()
+    controller = DesktopApiController(
+        gateway,
+        thread_pool=send_pool,
+        control_thread_pool=control_pool,
+    )
+    states = QSignalSpy(controller.chat_cancel_state_changed)
+    sent = QSignalSpy(controller.chat_sent)
+    cancelled = QSignalSpy(controller.chat_cancelled)
+    chat_id = str(uuid.uuid4())
+
+    controller.send_message(chat_id=chat_id, content="finish normally")
+
+    assert gateway.send_entered.wait(1.0)
+    assert controller.cancel_active_chat_operation() is True
+    assert control_pool.waitForDone(2_000)
+    app.processEvents()
+
+    assert controller.chat_busy is True
+    assert controller.can_cancel_active_chat is True
+    assert controller.chat_cancel_pending is False
+    assert controller.chat_cancel_state == "expired"
+    assert states.count() >= 2
+    assert states.at(0)[0] == "requesting"
+    assert states.at(states.count() - 1)[0] == "expired"
+    assert controller.cancel_active_chat_operation() is True
+    assert control_pool.waitForDone(2_000)
+    app.processEvents()
+    assert controller.chat_cancel_state == "expired"
+
+    gateway.release_send.set()
+    assert send_pool.waitForDone(2_000)
+    app.processEvents()
+
+    assert sent.count() == 1
+    assert cancelled.count() == 0
+    assert controller.chat_busy is False
+    assert controller.can_cancel_active_chat is False
