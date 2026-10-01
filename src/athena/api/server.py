@@ -357,15 +357,18 @@ class CoreApiServer:
     def stop(self) -> None:
         server = self._server
         thread = self._thread
-        self._server = None
-        self._thread = None
-        self._discovery = None
         failures: list[BaseException] = []
+        runtime_cleared = False
+        server_closed = server is None
+        thread_stopped = thread is None
 
         try:
             self.runtime.clear()
         except BaseException as exc:
             failures.append(exc)
+        else:
+            runtime_cleared = True
+            self._discovery = None
 
         if server is not None:
             try:
@@ -376,6 +379,8 @@ class CoreApiServer:
                 server.server_close()
             except BaseException as exc:
                 failures.append(exc)
+            else:
+                server_closed = True
 
         if thread is not None:
             try:
@@ -385,6 +390,17 @@ class CoreApiServer:
             else:
                 if thread.is_alive():
                     failures.append(CoreApiServerError("ATHENA Core API thread did not stop."))
+                else:
+                    thread_stopped = True
+
+        if thread_stopped:
+            self._thread = None
+        if server_closed and thread_stopped:
+            self._server = None
+        if not runtime_cleared and self._discovery is None:
+            # A failed runtime clear with no discovery object is still retryable through
+            # LocalApiRuntime.clear(); do not manufacture discovery state.
+            pass
 
         if failures:
             for failure in failures:
