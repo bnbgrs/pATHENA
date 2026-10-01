@@ -121,6 +121,36 @@ def test_news_schedule_profile_is_presented_in_settings(tmp_path) -> None:
         app.processEvents()
 
 
+def test_failed_initial_news_load_retries_on_later_snapshot(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    app = _app()
+    window = PathenaMainWindow(api_controller=None)
+    runtime = install_settings_runtime(window, None, settings=_settings(tmp_path))
+    refresh_calls: list[None] = []
+
+    def record_refresh() -> None:
+        refresh_calls.append(None)
+
+    try:
+        runtime._news_requested = True
+        runtime._apply_news_failure("Local Core refresh failed.")
+
+        assert runtime._news_requested is False
+        assert runtime.news_status.property("pathenaUiState") == "error"
+        assert runtime.news_save.isEnabled() is False
+        assert runtime.news_time.isEnabled() is False
+
+        monkeypatch.setattr(runtime, "refresh_news_schedule", record_refresh)
+        runtime.apply_snapshot(_snapshot())
+
+        assert refresh_calls == [None]
+    finally:
+        window.close()
+        app.processEvents()
+
+
 def test_model_settings_persist_across_real_window_recreation(tmp_path) -> None:
     app = _app()
     snapshot = _snapshot()
