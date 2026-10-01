@@ -46,6 +46,7 @@ def _sync(extension: ResearchResultsExtension) -> None:
 
     for button in (
         extension.result_button,
+        extension.compare_button,
         extension.propose_button,
         extension.refresh_proposals_button,
         extension.accept_button,
@@ -86,6 +87,8 @@ def apply_research_result_presentation(extension: ResearchResultsExtension) -> N
 
     extension.result_button.setText("View result")
     extension.result_button.setObjectName("researchResultButton")
+    extension.compare_button.setText("Compare previous")
+    extension.compare_button.setObjectName("researchCompareButton")
     extension.propose_button.setText("Create proposals")
     extension.propose_button.setObjectName("researchProposeButton")
     extension.refresh_proposals_button.setText("Review proposals")

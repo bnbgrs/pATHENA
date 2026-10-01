@@ -20,7 +20,9 @@ from shiboken6 import isValid
 
 from athena.desktop.research_review import (
     ResearchReviewError,
+    parse_research_delta_review,
     parse_research_result_review,
+    render_research_delta_review,
     render_research_result_review,
 )
 from athena.desktop.research_workspace import ResearchWorkspace
@@ -72,10 +74,12 @@ class ResearchResultsExtension(QObject):
 
     def _install_result_panel(self) -> None:
         self.result_button = QPushButton("LOAD RESULT")
+        self.compare_button = QPushButton("COMPARE PREVIOUS")
         self.propose_button = QPushButton("CREATE PROPOSALS")
         self.refresh_proposals_button = QPushButton("PROPOSALS")
         for button in (
             self.result_button,
+            self.compare_button,
             self.propose_button,
             self.refresh_proposals_button,
         ):
@@ -83,6 +87,10 @@ class ResearchResultsExtension(QObject):
             button.setEnabled(False)
 
         self.result_button.clicked.connect(self.load_result)
+        self.compare_button.clicked.connect(self.compare_previous)
+        self.compare_button.setToolTip(
+            "Compare this completed result with the newest earlier comparable result"
+        )
         self.propose_button.clicked.connect(self.create_proposals)
         self.refresh_proposals_button.clicked.connect(self.load_proposals)
 
@@ -128,6 +136,7 @@ class ResearchResultsExtension(QObject):
         controls.addWidget(heading)
         controls.addStretch(1)
         controls.addWidget(self.result_button)
+        controls.addWidget(self.compare_button)
         controls.addWidget(self.propose_button)
         controls.addWidget(self.refresh_proposals_button)
         layout.addLayout(controls)
@@ -235,6 +244,7 @@ class ResearchResultsExtension(QObject):
             terminal_success = self._selected_job_state() == "completed"
             enabled = has_job and terminal_success and not self._busy()
             self.result_button.setEnabled(enabled)
+            self.compare_button.setEnabled(enabled)
             self.propose_button.setEnabled(enabled)
             self.refresh_proposals_button.setEnabled(enabled)
 
@@ -274,6 +284,17 @@ class ResearchResultsExtension(QObject):
         job_id = self._selected_job_id()
         if job_id:
             self._start("result", ["result", job_id], clear_details=True, job_id=job_id)
+
+    @Slot()
+    def compare_previous(self) -> None:
+        job_id = self._selected_job_id()
+        if job_id:
+            self._start(
+                "compare",
+                ["compare", job_id],
+                clear_details=True,
+                job_id=job_id,
+            )
 
     @Slot()
     def create_proposals(self) -> None:
@@ -321,12 +342,17 @@ class ResearchResultsExtension(QObject):
             self.workspace.details.setProperty(
                 "pathenaResearchResultReviewState", "loading"
             )
+        elif operation == "compare":
+            self.workspace.details.setProperty(
+                "pathenaResearchComparisonState", "loading"
+            )
         self.workspace.details.setProperty("pathenaBackgroundOperationOwner", "")
         self._set_extension_controls(False)
         job_label = self._job_label(job_id)
         self.proposal_status.setText(
             {
                 "result": f"Loading ResearchResult {job_label} and evidence …",
+                "compare": f"Comparing Research run {job_label} with its prior result …",
                 "propose": f"Freezing Research proposals for run {job_label} …",
                 "proposals": f"Loading frozen proposals for run {job_label} …",
                 "accept": f"Accepting proposal from Research run {job_label} …",
@@ -342,6 +368,7 @@ class ResearchResultsExtension(QObject):
         if not enabled:
             for button in (
                 self.result_button,
+                self.compare_button,
                 self.propose_button,
                 self.refresh_proposals_button,
                 self.accept_button,
@@ -419,6 +446,40 @@ class ResearchResultsExtension(QObject):
             self.proposal_status.setText(
                 f"ResearchResult {job_label} and evidence loaded."
             )
+        elif operation == "compare":
+            try:
+                review = parse_research_delta_review(output)
+            except ResearchReviewError as exc:
+                self.workspace.details.setProperty(
+                    "pathenaResearchComparisonState", "error"
+                )
+                self.workspace.details.setPlainText(
+                    f"COMPARISON REVIEW UNAVAILABLE\n{exc}\n\n"
+                    f"Raw command output:\n{output}"
+                )
+                self.proposal_status.setText(
+                    f"Research run {job_label} returned an unreadable comparison."
+                )
+                return
+            self.workspace.details.setPlainText(render_research_delta_review(review))
+            state = "ready" if review.available else "unavailable"
+            self.workspace.details.setProperty(
+                "pathenaResearchComparisonState", state
+            )
+            if review.available:
+                self.workspace.details.setProperty(
+                    "pathenaResearchBaselineResultId",
+                    review.baseline_result_id,
+                )
+                self.workspace.details.setProperty(
+                    "pathenaResearchResultId",
+                    review.current_result_id,
+                )
+                self.proposal_status.setText(
+                    f"Research changes for run {job_label} loaded."
+                )
+            else:
+                self.proposal_status.setText(review.reason)
         elif operation in {"propose", "proposals"}:
             self._render_proposals(output)
             verb = "created" if operation == "propose" else "loaded"

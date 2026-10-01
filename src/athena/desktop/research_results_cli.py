@@ -19,6 +19,10 @@ def _parser() -> argparse.ArgumentParser:
     result = commands.add_parser("result")
     result.add_argument("identifier", type=uuid.UUID)
 
+    compare = commands.add_parser("compare")
+    compare.add_argument("identifier", type=uuid.UUID)
+    compare.add_argument("--baseline", type=uuid.UUID)
+
     proposals = commands.add_parser("proposals")
     proposals.add_argument("identifier", type=uuid.UUID)
 
@@ -69,6 +73,33 @@ def _run(app: AthenaApplication, args: argparse.Namespace) -> int:
     if args.command == "result":
         view = app.research_promotion.result_view(args.identifier)
         print(json.dumps(view, ensure_ascii=False, indent=2, sort_keys=True))
+        return 0
+
+    if args.command == "compare":
+        baseline = getattr(args, "baseline", None)
+        if baseline is None:
+            delta = app.research_comparison.compare_previous(args.identifier)
+            if delta is None:
+                print(
+                    json.dumps(
+                        {
+                            "available": False,
+                            "reason": (
+                                "No earlier comparable completed ResearchResult exists."
+                            ),
+                        },
+                        ensure_ascii=False,
+                        indent=2,
+                        sort_keys=True,
+                    )
+                )
+                return 0
+        else:
+            delta = app.research_comparison.compare(
+                args.identifier,
+                baseline_identifier=baseline,
+            )
+        print(json.dumps(delta.as_dict(), ensure_ascii=False, indent=2, sort_keys=True))
         return 0
 
     if args.command == "proposals":
