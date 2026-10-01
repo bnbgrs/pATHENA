@@ -22,11 +22,11 @@ _MANIFEST_VERSION = 1
 _MAX_MANIFEST_BYTES = 64 * 1024
 _SHA256_PATTERN = re.compile(r"[0-9a-f]{64}")
 _SEMVER_PATTERN = re.compile(
-    r"(?P<major>0|[1-9][0-9]*)\\."
-    r"(?P<minor>0|[1-9][0-9]*)\\."
+    r"(?P<major>0|[1-9][0-9]*)\."
+    r"(?P<minor>0|[1-9][0-9]*)\."
     r"(?P<patch>0|[1-9][0-9]*)"
-    r"(?:-(?P<prerelease>[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*))?"
-    r"(?:\\+(?P<build>[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*))?"
+    r"(?:-(?P<prerelease>[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?"
+    r"(?:\+(?P<build>[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?"
 )
 _PACKAGE_NAME_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}")
 _MANIFEST_FIELDS = frozenset(
