@@ -11,6 +11,7 @@ from PySide6.QtWidgets import QApplication, QListWidget, QListWidgetItem
 
 from athena.api.search_contracts import SearchProtectionResponse, SearchResultResponse
 from athena.desktop.app import create_application
+from athena.desktop.command_palette import CommandPaletteController
 from athena.desktop.pathena_window import PathenaMainWindow
 from athena.desktop.universal_switcher import UniversalSearchSwitcher
 
@@ -279,3 +280,37 @@ def test_switcher_owns_ctrl_p_without_changing_ctrl_k_command_palette() -> None:
     finally:
         switcher.deleteLater()
         window.close()
+
+
+
+def test_switcher_and_command_palette_are_mutually_exclusive() -> None:
+    app = _app()
+    window = PathenaMainWindow(api_controller=None)
+    commands = CommandPaletteController(window)
+    controller = _SearchController()
+    switcher = UniversalSearchSwitcher(
+        window,
+        controller,  # type: ignore[arg-type]
+    )
+    try:
+        window.show()
+        app.processEvents()
+
+        commands.open()
+        app.processEvents()
+        assert commands.dialog.isVisible()
+
+        switcher.open()
+        app.processEvents()
+        assert switcher.dialog.isVisible()
+        assert not commands.dialog.isVisible()
+
+        commands.open()
+        app.processEvents()
+        assert commands.dialog.isVisible()
+        assert not switcher.dialog.isVisible()
+    finally:
+        switcher.deleteLater()
+        commands.deleteLater()
+        window.close()
+        app.processEvents()
