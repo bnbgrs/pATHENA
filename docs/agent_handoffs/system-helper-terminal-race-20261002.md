@@ -31,6 +31,11 @@ treated as a verified list refresh even when one or more output rows did not mat
 canonical backup CLI framing. Malformed rows were silently skipped, so protocol drift
 could appear as an empty or partial successful backup list.
 
+Hardware Acceptance also trusted `overall_ready=True` in isolation. It did not verify
+that the machine report's `gpu_ready`, `model_ready`, `inference_ready`, evidence
+fields and check statuses agreed. A corrupt/stale contradictory report could therefore
+render PASS and claim live inference succeeded.
+
 ## Änderungen
 
 - Track whether the current helper run has already emitted a QProcess error.
@@ -48,6 +53,11 @@ could appear as an empty or partial successful backup list.
   non-empty row fails the refresh instead of being skipped.
 - Preserve the previously rendered snapshot list when a successful process returns invalid
   framing, while surfacing diagnostic output when no snapshot detail is selected.
+- Treat Hardware Acceptance as one coherent machine receipt: PASS requires all three
+  readiness flags, only PASS checks, detected GPU evidence and a selected model; FAIL
+  cannot simultaneously claim all readiness flags true and must include a failed check.
+- Keep the intentionally minimal configuration-error hardware receipt valid as FAIL; do
+  not invent missing readiness evidence for it.
 
 ## Dateien
 
@@ -55,6 +65,7 @@ could appear as an empty or partial successful backup list.
 - `src/athena/desktop/system_recovery.py`
 - `src/athena/desktop/system_backup.py`
 - `tests/unit/test_pathena_system_hardware_acceptance.py`
+- `tests/unit/test_hardware_acceptance.py`
 - `tests/unit/test_system_recovery.py`
 - `tests/unit/test_desktop_system_backup.py`
 
@@ -70,8 +81,8 @@ Packaging, or PALLAS agent file is touched.
 
 ## Validierung
 
-Focused regressions are included for all three process-error races plus malformed Backup
-list framing/preservation. Exact-head GitHub Quality/UI checks are required before integration. No local native Qt execution is claimed from this chat runtime.
+Focused regressions are included for all three process-error races, malformed Backup
+list framing/preservation, and contradictory Hardware Acceptance machine reports. Exact-head GitHub Quality/UI checks are required before integration. No local native Qt execution is claimed from this chat runtime.
 
 ## Nächste Schritte
 
