@@ -131,4 +131,4 @@ Conflict risk is low unless another bot begins modifying `derived_recovery.py` o
 - Branch: `fix/recovery-derived-corruption-doctor-boundaries-20261002-sol2`
 - Product/test head before handoff: `6075213b156badbc77cd020be748c54d3bd56adf`
 - PR: #379
-- Product/test head after spacing cleanup: `636f813b827dea7022f484bcbed5824c36dffa9a`
+- Product/test head after final test-spacing cleanup: `613df7c3c80f033171022307d4445e4db5be26c3`
