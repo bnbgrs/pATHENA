@@ -17,6 +17,8 @@ from athena.api.service import (
     KnowledgeReviewConflictError,
     KnowledgeReviewNotFoundError,
 )
+from athena.chat.cancellation import ChatOperationActiveError
+from athena.chat.generation import GenerationCancelledError
 from athena.chat.repository import ChatNotFoundError
 from athena.chat.send_identity import (
     SendOperationState,
@@ -435,6 +437,35 @@ class CoreApiAsgiApp:
                 )
                 return
 
+            cancel_operation_id = _single_resource_id(
+                path,
+                prefix="/api/v1/chat-operations/",
+                suffix="/cancel",
+            )
+            if method == "POST" and cancel_operation_id is not None:
+                await _consume_empty_body(receive)
+                try:
+                    canonical_operation_id = str(
+                        uuid.UUID(cancel_operation_id)
+                    )
+                except ValueError as exc:
+                    raise ValueError(
+                        "Chat operation ID must be a valid UUID."
+                    ) from exc
+                accepted = self._facade.cancel_chat_operation(
+                    canonical_operation_id
+                )
+                await _send_json(
+                    send,
+                    status=202,
+                    payload={
+                        "accepted": accepted,
+                        "operation_id": canonical_operation_id,
+                    },
+                    request_id=request_id,
+                )
+                return
+
             if (
                 method == "POST"
                 and path.startswith("/api/v1/chats/")
@@ -741,6 +772,30 @@ class CoreApiAsgiApp:
                 retryable=False,
             )
             return
+        except GenerationCancelledError:
+            await _send_problem(
+                send,
+                status=409,
+                code="generation_cancelled",
+                message=(
+                    "Chat generation was cancelled. "
+                    "The incomplete assistant response was not persisted."
+                ),
+                request_id=request_id,
+                retryable=False,
+            )
+            return
+        except ChatOperationActiveError:
+            await _send_problem(
+                send,
+                status=409,
+                code="chat_operation_active",
+                message="The chat send operation is already active.",
+                request_id=request_id,
+                retryable=False,
+            )
+            return
+
         except SendOperationStateError as exc:
             if exc.status.state is SendOperationState.INCOMPLETE:
                 code = "send_operation_incomplete"
@@ -877,6 +932,12 @@ def _known_path(path: str) -> bool:
         "/api/v1/models/health",
         "/api/v1/system/shutdown",
     }:
+        return True
+    if _single_resource_id(
+        path,
+        prefix="/api/v1/chat-operations/",
+        suffix="/cancel",
+    ) is not None:
         return True
     if (
         path.startswith("/api/v1/chats/")

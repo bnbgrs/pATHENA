@@ -113,6 +113,7 @@ def test_facade_exposes_and_delegates_direct_chat_send() -> None:
     facade, direct = _facade()
 
     assert "chat.send.direct" in facade.capabilities().features
+    assert "chat.cancel" in facade.capabilities().features
 
     thread = facade.send_chat_message(
         str(CHAT_ID),
