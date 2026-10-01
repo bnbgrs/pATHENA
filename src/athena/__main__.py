@@ -1817,13 +1817,14 @@ def _request_scheduler_child_stop(
 ) -> bool:
     if process.poll() is not None:
         return True
-    if process.stdin is None:
+    stdin = getattr(process, "stdin", None)
+    if stdin is None:
         return False
     try:
-        written = process.stdin.write(_SCHEDULER_STOP_COMMAND)
+        written = stdin.write(_SCHEDULER_STOP_COMMAND)
         if written != len(_SCHEDULER_STOP_COMMAND):
             return False
-        process.stdin.flush()
+        stdin.flush()
     except (BrokenPipeError, OSError, ValueError):
         return False
     return True
@@ -1848,10 +1849,14 @@ def _stop_scheduler_children(
 ) -> None:
     # First ask every owned lane to stop through its control pipe. This lets the
     # scheduler finish the current durable transition and release its lane lock.
+    graceful_requested = False
     for _lane, process in children:
-        _request_scheduler_child_stop(process)
+        graceful_requested = (
+            _request_scheduler_child_stop(process)
+            or graceful_requested
+        )
 
-    if _wait_scheduler_children(
+    if graceful_requested and _wait_scheduler_children(
         children,
         timeout_seconds=_SCHEDULER_GRACEFUL_STOP_TIMEOUT_SECONDS,
     ):
@@ -1966,7 +1971,7 @@ def _run_scheduler_supervisor(args: argparse.Namespace) -> int:
     ] = []
     stop_event = (
         _start_scheduler_stdin_control(exit_on_eof=False)
-        if args.control_stdin
+        if getattr(args, "control_stdin", False)
         else None
     )
 
@@ -1989,21 +1994,40 @@ def _run_scheduler_supervisor(args: argparse.Namespace) -> int:
                 stdin=subprocess.PIPE,
             )
             children.append((SchedulerLane.CONTROL, control))
-            if not _wait_scheduler_child_started(
-                SchedulerLane.CONTROL,
-                control,
-                control_started,
-                stop_event=stop_event,
-            ):
+            control_started_result = (
+                _wait_scheduler_child_started(
+                    SchedulerLane.CONTROL,
+                    control,
+                    control_started,
+                    stop_event=stop_event,
+                )
+                if stop_event is not None
+                else _wait_scheduler_child_started(
+                    SchedulerLane.CONTROL,
+                    control,
+                    control_started,
+                )
+            )
+            if control_started_result is False:
                 _stop_scheduler_children(children)
                 print("Scheduler supervisor stopped during startup.", flush=True)
                 return 0
-            if not _wait_scheduler_child_ready(
-                SchedulerLane.CONTROL,
-                control,
-                control_ready,
-                stop_event=stop_event,
-            ):
+
+            control_ready_result = (
+                _wait_scheduler_child_ready(
+                    SchedulerLane.CONTROL,
+                    control,
+                    control_ready,
+                    stop_event=stop_event,
+                )
+                if stop_event is not None
+                else _wait_scheduler_child_ready(
+                    SchedulerLane.CONTROL,
+                    control,
+                    control_ready,
+                )
+            )
+            if control_ready_result is False:
                 _stop_scheduler_children(children)
                 print("Scheduler supervisor stopped during startup.", flush=True)
                 return 0
@@ -2021,21 +2045,40 @@ def _run_scheduler_supervisor(args: argparse.Namespace) -> int:
                 stdin=subprocess.PIPE,
             )
             children.append((SchedulerLane.PROVIDER, provider))
-            if not _wait_scheduler_child_started(
-                SchedulerLane.PROVIDER,
-                provider,
-                provider_started,
-                stop_event=stop_event,
-            ):
+            provider_started_result = (
+                _wait_scheduler_child_started(
+                    SchedulerLane.PROVIDER,
+                    provider,
+                    provider_started,
+                    stop_event=stop_event,
+                )
+                if stop_event is not None
+                else _wait_scheduler_child_started(
+                    SchedulerLane.PROVIDER,
+                    provider,
+                    provider_started,
+                )
+            )
+            if provider_started_result is False:
                 _stop_scheduler_children(children)
                 print("Scheduler supervisor stopped during startup.", flush=True)
                 return 0
-            if not _wait_scheduler_child_ready(
-                SchedulerLane.PROVIDER,
-                provider,
-                provider_ready,
-                stop_event=stop_event,
-            ):
+
+            provider_ready_result = (
+                _wait_scheduler_child_ready(
+                    SchedulerLane.PROVIDER,
+                    provider,
+                    provider_ready,
+                    stop_event=stop_event,
+                )
+                if stop_event is not None
+                else _wait_scheduler_child_ready(
+                    SchedulerLane.PROVIDER,
+                    provider,
+                    provider_ready,
+                )
+            )
+            if provider_ready_result is False:
                 _stop_scheduler_children(children)
                 print("Scheduler supervisor stopped during startup.", flush=True)
                 return 0
