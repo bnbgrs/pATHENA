@@ -121,4 +121,4 @@ Child commits before this handoff:
 - `9723b6a1c965516c08947a37e3728ef50dee0dd8` — sequential queue stacked on ownership fix
 - `28be8c16d47b321b82e91435aa0eb85516de4c8a` — state-based queue + ownership regressions
 
-Replacement PR: to be created with #348's branch as base.
+Replacement stacked PR: #359 `Sources: queue multi-file imports after detail-ownership fix`.
