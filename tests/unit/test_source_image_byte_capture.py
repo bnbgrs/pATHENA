@@ -6,7 +6,11 @@ import pytest
 
 from athena.config.settings import AthenaSettings
 from athena.core.application import AthenaApplication
-from athena.source.blob_store import SourceChangedDuringCaptureError
+from athena.source.blob_store import (
+    BlobIntegrityError,
+    BlobReadTooLargeError,
+    SourceChangedDuringCaptureError,
+)
 from athena.source.models import SourceType
 
 
@@ -162,3 +166,66 @@ def test_image_byte_capture_requires_immutable_bytes(
             )
     finally:
         app.stop()
+
+
+def test_image_bytes_are_read_only_through_bounded_integrity_check(
+    tmp_path: Path,
+) -> None:
+    app = _started_app(tmp_path)
+    payload = _png_payload()
+    captured = app.sources.capture_image_bytes(
+        payload,
+        original_name="clipboard-image.png",
+        source_uri="clipboard://composer",
+    )
+
+    assert app.sources.read_image_bytes(
+        captured.source.source_id,
+        max_bytes=len(payload),
+    ) == payload
+
+    with pytest.raises(BlobReadTooLargeError, match="read limit"):
+        app.sources.read_image_bytes(
+            captured.source.source_id,
+            max_bytes=len(payload) - 1,
+        )
+    app.stop()
+
+
+def test_image_byte_read_fails_closed_after_archive_corruption(
+    tmp_path: Path,
+) -> None:
+    app = _started_app(tmp_path)
+    captured = app.sources.capture_image_bytes(
+        _png_payload(),
+        original_name="clipboard-image.png",
+        source_uri="clipboard://composer",
+    )
+    stored_path = app.blob_store.resolve_blob_path(
+        storage_area=captured.blob.storage_area,
+        storage_locator=captured.blob.storage_locator,
+    )
+    stored_path.write_bytes(b"corrupt")
+
+    with pytest.raises(BlobIntegrityError, match="integrity|length changed"):
+        app.sources.read_image_bytes(
+            captured.source.source_id,
+            max_bytes=1024,
+        )
+    app.stop()
+
+
+def test_image_byte_read_rejects_non_image_source(
+    tmp_path: Path,
+) -> None:
+    original = tmp_path / "note.txt"
+    original.write_text("not an image", encoding="utf-8")
+    app = _started_app(tmp_path)
+    captured = app.sources.capture_file(original)
+
+    with pytest.raises(ValueError, match="not an image"):
+        app.sources.read_image_bytes(
+            captured.source.source_id,
+            max_bytes=1024,
+        )
+    app.stop()

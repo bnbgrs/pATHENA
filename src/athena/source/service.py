@@ -16,6 +16,7 @@ from athena.security.service import (
 from athena.source.blob_store import (
     ORPHAN_BLOB_SAFETY_HORIZON_US,
     BlobOrphanReconciliationResult,
+    BlobReadTooLargeError,
     BlobStore,
 )
 from athena.source.models import BlobRecord, SourceCaptureResult, SourceRecord, SourceType
@@ -144,6 +145,41 @@ class SourceCaptureService:
                 source_uri=source_uri.strip(),
                 prepared_blob=prepared_blob,
                 source_type=SourceType.IMAGE,
+            )
+
+    def read_image_bytes(
+        self,
+        source_id: uuid.UUID,
+        *,
+        max_bytes: int,
+    ) -> bytes:
+        """Read a captured image through the verified Raw Archive boundary."""
+        if type(max_bytes) is not int or max_bytes < 0:
+            raise ValueError("max_bytes must be a non-negative integer.")
+
+        with runtime_data_lock(self.runtime_lock_root):
+            source, blob = self.repository.get(source_id)
+            if source.source_type is not SourceType.IMAGE:
+                raise ValueError("Requested Source is not an image.")
+            if source.protection_scope_id is not None:
+                metadata = self.load_protected_metadata(source_id)
+                if metadata.plaintext_byte_length > max_bytes:
+                    raise BlobReadTooLargeError(
+                        "Image Source exceeds the configured in-memory read limit."
+                    )
+                plaintext = self.read_protected_bytes(source_id)
+                if len(plaintext) > max_bytes:
+                    raise ProtectedContentIntegrityError(
+                        "Protected image exceeded its authenticated plaintext length."
+                    )
+                return plaintext
+
+            return self.blob_store.read_verified_bytes(
+                storage_area=blob.storage_area,
+                storage_locator=blob.storage_locator,
+                expected_sha256=blob.integrity_sha256,
+                expected_length=blob.byte_length,
+                max_bytes=max_bytes,
             )
 
     def capture_protected_file(

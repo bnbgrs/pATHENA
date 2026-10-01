@@ -45,6 +45,10 @@ class ArchiveStorageUnavailableError(BlobStoreError):
     """Raised when the configured long-term Archive Root is unavailable."""
 
 
+class BlobReadTooLargeError(BlobStoreError):
+    """Raised before bounded callers would load an oversized blob into memory."""
+
+
 @dataclass(frozen=True, slots=True)
 class PreparedBlob:
     byte_length: int
@@ -317,6 +321,63 @@ class BlobStore:
 
         return path
 
+
+    def read_verified_bytes(
+        self,
+        *,
+        storage_area: BlobStorageArea,
+        storage_locator: str,
+        expected_sha256: bytes,
+        expected_length: int,
+        max_bytes: int,
+    ) -> bytes:
+        """Read one verified blob into memory without exceeding a caller limit."""
+        if type(max_bytes) is not int or max_bytes < 0:
+            raise ValueError("max_bytes must be a non-negative integer.")
+        if expected_length > max_bytes:
+            raise BlobReadTooLargeError(
+                "Raw Archive blob exceeds the configured in-memory read limit."
+            )
+
+        path = self.resolve_blob_path(
+            storage_area=storage_area,
+            storage_locator=storage_locator,
+        )
+        digest = hashlib.sha256()
+        byte_length = 0
+        chunks: list[bytes] = []
+
+        try:
+            with path.open("rb") as handle:
+                while True:
+                    chunk = handle.read(_COPY_BUFFER_SIZE)
+                    if not chunk:
+                        break
+                    byte_length += len(chunk)
+                    if byte_length > expected_length:
+                        raise BlobIntegrityError(
+                            "Raw Archive blob length changed during bounded read."
+                        )
+                    if byte_length > max_bytes:
+                        raise BlobReadTooLargeError(
+                            "Raw Archive blob exceeded the configured in-memory read limit."
+                        )
+                    digest.update(chunk)
+                    chunks.append(chunk)
+        except (BlobIntegrityError, BlobReadTooLargeError):
+            raise
+        except OSError as exc:
+            raise BlobStoreError(
+                "Cannot read stored Raw Archive blob "
+                f"{str(path)!r}."
+            ) from exc
+
+        if byte_length != expected_length or digest.digest() != expected_sha256:
+            raise BlobIntegrityError(
+                "Raw Archive blob integrity verification failed "
+                f"for {str(path)!r}."
+            )
+        return b"".join(chunks)
 
     def replicate_spool_blob_to_archive(
         self,
