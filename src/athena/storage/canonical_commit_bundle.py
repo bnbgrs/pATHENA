@@ -98,6 +98,20 @@ def _uuid_text(value: uuid.UUID, name: str) -> str:
     return str(value)
 
 
+def _uuid_from_text(value: Any, name: str) -> uuid.UUID:
+    if not isinstance(value, str):
+        raise CanonicalCommitBundleError(f"{name} must be canonical UUID text.")
+    try:
+        parsed = uuid.UUID(value)
+    except (ValueError, AttributeError) as exc:
+        raise CanonicalCommitBundleError(
+            f"{name} must be canonical UUID text."
+        ) from exc
+    if str(parsed) != value:
+        raise CanonicalCommitBundleError(f"{name} must use canonical UUID text.")
+    return parsed
+
+
 def _positive_integer(value: int, name: str) -> int:
     if (
         isinstance(value, bool)
@@ -368,7 +382,7 @@ def verify_canonical_commit_bundle(data: bytes) -> CanonicalCommitBundle:
     )
     try:
         rebuilt = serialize_canonical_commit_bundle(
-            commit_id=uuid.UUID(body["commit_id"]),
+            commit_id=_uuid_from_text(body["commit_id"], "commit_id"),
             commit_seq=body["commit_seq"],
             schema_version=body["schema_version"],
             previous_hash=body["previous_hash"],
