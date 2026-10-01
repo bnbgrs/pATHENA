@@ -19,6 +19,7 @@ from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
 _MANIFEST_VERSION = 1
+_MAX_MANIFEST_BYTES = 64 * 1024
 _SHA256_PATTERN = re.compile(r"[0-9a-f]{64}")
 _VERSION_PATTERN = re.compile(r"[0-9]+(?:\.[0-9]+){2}(?:[-+][0-9A-Za-z.-]+)?")
 _PACKAGE_NAME_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}")
@@ -97,9 +98,7 @@ class UpdateManifest:
             or not isinstance(self.manifest_version, int)
             or self.manifest_version != _MANIFEST_VERSION
         ):
-            raise UpdateVerificationError(
-                f"Unsupported update-manifest version {self.manifest_version!r}."
-            )
+            raise UpdateVerificationError("Unsupported update-manifest version.")
         if (
             not isinstance(self.app_version, str)
             or _VERSION_PATTERN.fullmatch(self.app_version) is None
@@ -143,6 +142,10 @@ class UpdateManifest:
     @classmethod
     def from_bytes(cls, raw: bytes) -> UpdateManifest:
         """Parse strict canonical JSON after signature verification."""
+        if not isinstance(raw, bytes):
+            raise UpdateVerificationError("Update manifest payload must be bytes.")
+        if len(raw) > _MAX_MANIFEST_BYTES:
+            raise UpdateVerificationError("Update manifest payload is too large.")
         try:
             parsed: object = json.loads(raw, object_pairs_hook=_reject_duplicate_keys)
         except (UnicodeDecodeError, json.JSONDecodeError) as exc:
@@ -232,6 +235,8 @@ def verify_signed_manifest(
     """Verify the detached Ed25519 signature before accepting update metadata."""
     if not isinstance(raw, bytes):
         raise UpdateVerificationError("Update manifest payload must be bytes.")
+    if len(raw) > _MAX_MANIFEST_BYTES:
+        raise UpdateVerificationError("Update manifest payload is too large.")
     if not isinstance(signature_base64, str):
         raise UpdateVerificationError("Update manifest signature must be base64 text.")
     if len(signature_base64) > 128:
