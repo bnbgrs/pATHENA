@@ -1,0 +1,72 @@
+name: TEMP Chat Cancel Diagnostic
+
+on:
+  pull_request:
+    branches:
+      - develop/pathena-next
+    paths:
+      - "src/athena/api/**"
+      - "src/athena/chat/**"
+      - "tests/unit/test_chat_cancellation_registry.py"
+      - "tests/unit/test_core_api_chat_cancellation.py"
+      - "tests/unit/test_core_api_asgi.py"
+      - "tests/unit/test_core_api_client.py"
+      - "tests/unit/test_core_api_direct_chat.py"
+      - "tests/unit/test_core_api_send_operation_reconciliation.py"
+      - "tests/unit/test_direct_chat_send_identity.py"
+      - ".github/workflows/_chat-cancel-diagnostic.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install locked dev environment
+        run: |
+          python -m pip install --disable-pip-version-check "uv==0.11.21"
+          uv lock --check
+          uv sync --locked --extra dev
+
+      - name: Ruff touched cancellation slice
+        run: |
+          uv run --locked --extra dev --no-sync ruff check \
+            src/athena/api/asgi.py \
+            src/athena/api/client.py \
+            src/athena/api/executor.py \
+            src/athena/api/ports.py \
+            src/athena/api/service.py \
+            src/athena/chat/cancellation.py \
+            src/athena/chat/direct.py \
+            src/athena/chat/generation.py \
+            tests/unit/test_chat_cancellation_registry.py \
+            tests/unit/test_core_api_chat_cancellation.py \
+            tests/unit/test_core_api_asgi.py \
+            tests/unit/test_core_api_client.py \
+            tests/unit/test_core_api_direct_chat.py \
+            tests/unit/test_core_api_send_operation_reconciliation.py \
+            tests/unit/test_direct_chat_send_identity.py
+
+      - name: Mypy production tree
+        run: uv run --locked --extra dev --no-sync python -m mypy src/athena
+
+      - name: Focused cancellation pytest
+        run: |
+          uv run --locked --extra dev --no-sync pytest -q \
+            tests/unit/test_chat_cancellation_registry.py \
+            tests/unit/test_core_api_chat_cancellation.py \
+            tests/unit/test_core_api_asgi.py \
+            tests/unit/test_core_api_client.py \
+            tests/unit/test_core_api_direct_chat.py \
+            tests/unit/test_core_api_send_operation_reconciliation.py \
+            tests/unit/test_direct_chat_send_identity.py
