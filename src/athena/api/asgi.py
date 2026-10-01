@@ -31,6 +31,7 @@ from athena.lifecycle.service import (
     LifecycleDeletionUnsupportedError,
 )
 from athena.model.adapters.lm_studio import ProviderOutputLimitError
+from athena.retrieval.universal import UniversalSearchEntityType
 
 AsgiMessage = dict[str, Any]
 AsgiScope = dict[str, Any]
@@ -116,6 +117,85 @@ class CoreApiAsgiApp:
 
             if method == "GET" and path == "/api/v1/capabilities":
                 await _send_contract(send, self._facade.capabilities(), request_id=request_id)
+                return
+
+            if method == "GET" and path == "/api/v1/search":
+                raw_query = cast(bytes, scope.get("query_string", b""))
+                try:
+                    values = parse_qs(
+                        raw_query.decode("ascii"),
+                        keep_blank_values=True,
+                    )
+                except UnicodeDecodeError as exc:
+                    raise ValueError(
+                        "Search query string must use URL-encoded ASCII."
+                    ) from exc
+                unknown = set(values) - {"q", "limit", "entity_type"}
+                if unknown:
+                    raise ValueError(
+                        "Search request contains unsupported query parameters."
+                    )
+                raw_text = values.get("q")
+                if raw_text is None or len(raw_text) != 1:
+                    raise ValueError(
+                        "Query parameter 'q' must occur exactly once."
+                    )
+                query = raw_text[0]
+                if not query.strip():
+                    raise ValueError(
+                        "Query parameter 'q' must contain non-whitespace text."
+                    )
+                limit = _positive_limit(
+                    scope,
+                    default=20,
+                    maximum=100,
+                )
+
+                entity_types = None
+                raw_entity_types = values.get("entity_type")
+                if raw_entity_types is not None:
+                    if len(raw_entity_types) != 1:
+                        raise ValueError(
+                            "Query parameter 'entity_type' must occur at most once."
+                        )
+                    names = tuple(
+                        item.strip()
+                        for item in raw_entity_types[0].split(",")
+                    )
+                    if not names or any(not item for item in names):
+                        raise ValueError(
+                            "Query parameter 'entity_type' must contain "
+                            "comma-separated entity names."
+                        )
+                    try:
+                        entity_types = tuple(
+                            UniversalSearchEntityType(item)
+                            for item in names
+                        )
+                    except ValueError as exc:
+                        raise ValueError(
+                            "Query parameter 'entity_type' contains an unknown type."
+                        ) from exc
+                    if len(set(entity_types)) != len(entity_types):
+                        raise ValueError(
+                            "Query parameter 'entity_type' must not contain duplicates."
+                        )
+
+                await _send_json(
+                    send,
+                    status=200,
+                    payload={
+                        "items": [
+                            item.to_dict()
+                            for item in self._facade.universal_search(
+                                query,
+                                limit=limit,
+                                entity_types=entity_types,
+                            )
+                        ]
+                    },
+                    request_id=request_id,
+                )
                 return
 
             if method == "GET" and path == "/api/v1/news/profile":
@@ -927,6 +1007,7 @@ def _known_path(path: str) -> bool:
         "/api/v1/storage/health",
         "/api/v1/capabilities",
         "/api/v1/news/profile",
+        "/api/v1/search",
         "/api/v1/chats",
         "/api/v1/models",
         "/api/v1/models/health",
