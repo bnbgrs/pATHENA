@@ -232,6 +232,46 @@ def test_client_rejects_non_loopback_discovery(tmp_path: Path) -> None:
     assert exc_info.value.code == "invalid_discovery"
 
 
+def test_client_rejects_symlink_runtime_ancestor(tmp_path: Path) -> None:
+    real_parent = tmp_path / "real-parent"
+    real_parent.mkdir()
+    link_parent = tmp_path / "linked-parent"
+    try:
+        link_parent.symlink_to(real_parent, target_is_directory=True)
+    except OSError:
+        pytest.skip("symlink creation unavailable")
+
+    runtime_root = link_parent / "api"
+    _bootstrap(runtime_root)
+
+    with pytest.raises(CoreApiClientError, match="runtime directory is not trusted") as exc_info:
+        CoreApiClient(runtime_root).discovery_process_id()
+
+    assert exc_info.value.code == "invalid_discovery"
+
+
+def test_client_rejects_runtime_ancestor_reported_as_link_boundary(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runtime_root = tmp_path / "safe" / "api"
+    _bootstrap(runtime_root)
+    original_is_link_boundary = client_module.is_link_boundary
+    unsafe_ancestor = runtime_root.parent
+
+    def fake_is_link_boundary(path: Path) -> bool:
+        if path == unsafe_ancestor:
+            return True
+        return original_is_link_boundary(path)
+
+    monkeypatch.setattr(client_module, "is_link_boundary", fake_is_link_boundary)
+
+    with pytest.raises(CoreApiClientError, match="runtime directory is not trusted") as exc_info:
+        CoreApiClient(runtime_root).discovery_process_id()
+
+    assert exc_info.value.code == "invalid_discovery"
+
+
 def test_client_rejects_token_path_outside_runtime_root(tmp_path: Path) -> None:
     runtime_root = tmp_path / "api"
     _bootstrap(runtime_root)
