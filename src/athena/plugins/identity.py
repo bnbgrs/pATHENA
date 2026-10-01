@@ -37,9 +37,9 @@ class TrustedPluginPublisher:
     public_key: bytes
 
     def __post_init__(self) -> None:
-        if not _KEY_ID_RE.fullmatch(self.key_id):
+        if not isinstance(self.key_id, str) or not _KEY_ID_RE.fullmatch(self.key_id):
             raise PluginPublisherIdentityError("Plugin publisher key_id is invalid.")
-        if len(self.public_key) != 32:
+        if not isinstance(self.public_key, bytes) or len(self.public_key) != 32:
             raise PluginPublisherIdentityError(
                 "Ed25519 plugin publisher public keys must be exactly 32 bytes."
             )
@@ -68,6 +68,10 @@ def canonical_plugin_identity_payload(
 
     if not isinstance(manifest, PluginManifest):
         raise TypeError("Plugin identity payload requires a validated PluginManifest.")
+    if not isinstance(package_sha256, str):
+        raise PluginPublisherIdentityError(
+            "Plugin package_sha256 must be text."
+        )
     normalized_digest = package_sha256.strip().lower()
     if not _SHA256_RE.fullmatch(normalized_digest):
         raise PluginPublisherIdentityError(
@@ -112,9 +116,13 @@ def verify_plugin_publisher_identity(
         raise TypeError("Plugin package bytes must be bytes.")
     if not isinstance(signer_key_id, str) or not _KEY_ID_RE.fullmatch(signer_key_id):
         raise PluginPublisherIdentityError("Plugin signer key_id is invalid.")
+    if not isinstance(trust_roots, Mapping):
+        raise TypeError("Plugin trust roots must be a mapping.")
     trusted = trust_roots.get(signer_key_id)
     if trusted is None:
         raise PluginPublisherIdentityError("Plugin signer is not trusted.")
+    if not isinstance(trusted, TrustedPluginPublisher):
+        raise PluginPublisherIdentityError("Plugin trust root entry is invalid.")
     if trusted.key_id != signer_key_id:
         raise PluginPublisherIdentityError(
             "Plugin trust root key_id does not match its map key."

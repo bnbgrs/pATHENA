@@ -53,6 +53,54 @@ def _signature(
     return base64.b64encode(private.sign(payload)).decode("ascii")
 
 
+def test_trusted_publisher_rejects_non_text_key_id() -> None:
+    with pytest.raises(PluginPublisherIdentityError, match="key_id"):
+        TrustedPluginPublisher(
+            key_id=123,  # type: ignore[arg-type]
+            public_key=b"x" * 32,
+        )
+
+
+def test_trusted_publisher_rejects_non_bytes_public_key_even_at_valid_length() -> None:
+    with pytest.raises(PluginPublisherIdentityError, match="exactly 32 bytes"):
+        TrustedPluginPublisher(
+            key_id="publisher.example.v1",
+            public_key="x" * 32,  # type: ignore[arg-type]
+        )
+
+
+def test_canonical_identity_payload_rejects_non_text_digest() -> None:
+    with pytest.raises(PluginPublisherIdentityError, match="must be text"):
+        canonical_plugin_identity_payload(
+            _manifest(),
+            package_sha256=123,  # type: ignore[arg-type]
+        )
+
+
+def test_publisher_verification_rejects_invalid_trust_root_container() -> None:
+    with pytest.raises(TypeError, match="mapping"):
+        verify_plugin_publisher_identity(
+            _manifest(),
+            package_bytes=b"package",
+            signer_key_id="publisher.example.v1",
+            signature_b64="",
+            trust_roots=[],  # type: ignore[arg-type]
+        )
+
+
+def test_publisher_verification_rejects_invalid_trust_root_entry() -> None:
+    with pytest.raises(PluginPublisherIdentityError, match="entry is invalid"):
+        verify_plugin_publisher_identity(
+            _manifest(),
+            package_bytes=b"package",
+            signer_key_id="publisher.example.v1",
+            signature_b64="",
+            trust_roots={  # type: ignore[dict-item]
+                "publisher.example.v1": object(),
+            },
+        )
+
+
 def test_valid_trusted_signature_returns_authenticated_identity() -> None:
     manifest = _manifest()
     package = b"signed plugin package bytes"
