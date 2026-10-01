@@ -42,3 +42,34 @@ def test_optional_storage_root_warns_when_write_probe_fails(
     assert check.status == "WARN"
     assert "not writable" in check.detail
     assert "access denied" in check.detail
+
+
+
+def test_optional_storage_root_warns_on_reparse_boundary_before_probe(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "archive"
+    root.mkdir()
+
+    monkeypatch.setattr(
+        doctor,
+        "is_link_boundary",
+        lambda path: path == root,
+    )
+
+    def fail_probe(*args: object, **kwargs: object) -> object:
+        raise AssertionError("write probe must not run across a reparse boundary")
+
+    monkeypatch.setattr(doctor.tempfile, "NamedTemporaryFile", fail_probe)
+
+    check = doctor._check_optional_storage_root(
+        "archive-root",
+        root,
+        missing_status="PASS",
+        missing_detail="not configured",
+    )
+
+    assert check.status == "WARN"
+    assert "reparse-point" in check.detail
+    assert str(root) in check.detail
