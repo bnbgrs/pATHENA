@@ -152,6 +152,7 @@ def test_packaged_worker_keeps_fail_closed_argv_and_desktop_refusal() -> None:
         ("athena", PackagedTarget.ATHENA_CLI),
         ("athena.desktop.jobs_cli", PackagedTarget.JOBS_CLI),
         ("athena.desktop.research_cli", PackagedTarget.RESEARCH_CLI),
+        ("athena.desktop.research_results_cli", PackagedTarget.RESEARCH_RESULTS_CLI),
         ("athena.desktop.sources_cli", PackagedTarget.SOURCES_CLI),
         ("athena.desktop.knowledge_cli", PackagedTarget.KNOWLEDGE_CLI),
         (
