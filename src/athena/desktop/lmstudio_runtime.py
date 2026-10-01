@@ -680,8 +680,7 @@ class LMStudioRuntimeController(QObject):
             self._pending_model_id = None
         self._model_confirmation_refreshes_remaining = 0
         self.busy_changed.emit(False)
-        label = step.operation if step is not None else "command"
-        self._set_status(f"LM Studio runtime · {label} error · {error.name}")
+        self._set_status(f"LM Studio runtime · {step.operation} error · {error.name}")
         QTimer.singleShot(250, self.controller.refresh)
 
 
