@@ -54,6 +54,23 @@ def test_model_info_rejects_empty_identity_text(field: str) -> None:
         _model(**{field: "   "})
 
 
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("provider", " lmstudio"),
+        ("provider", "lmstudio "),
+        ("backend_model_id", " local/model"),
+        ("backend_model_id", "local/model "),
+    ],
+)
+def test_model_info_rejects_noncanonical_stable_identity_text(
+    field: str,
+    value: str,
+) -> None:
+    with pytest.raises(ValueError, match="canonical trimmed text"):
+        _model(**{field: value})
+
+
 @pytest.mark.parametrize("field", ["vision", "trained_for_tool_use"])
 def test_model_info_rejects_non_boolean_capability_flags(field: str) -> None:
     with pytest.raises(TypeError, match="bool or None"):
