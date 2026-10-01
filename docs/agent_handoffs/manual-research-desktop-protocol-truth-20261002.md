@@ -138,3 +138,21 @@ Commits before this handoff:
 - f2745f0841f7d3c2bcd22743008554ddd79d4ddd — protocol truth regression coverage
 - e062a02dbf3eb3db755a9baac3b4a2d4f00d6755 — recover current detail selection after background work
 - 1f482e759b63af2691e0da55ed273fdb56f2e99b — current-selection detail recovery regression
+
+## Follow-up during the same run: process-error recovery race
+
+After PR creation, static QProcess ordering review found one final ownership edge:
+
+- errorOccurred can be emitted while the old process is not yet fully NotRunning;
+- an immediate scheduled reload of the user's new selection can therefore correctly refuse to start because the old helper is still active;
+- finished must retry that pending reload after the process is terminal.
+
+Repair:
+- finished checks the existing background-operation owner marker after a prior process error and schedules the current-selection reload again;
+- the reload is still guarded by QProcess idleness and exact current selection.
+
+Additional commit:
+- f5ae5891313c1145004521144f042aa6e1a4d64c — retry current-selection recovery after process error
+
+Requalify the latest PR head, not the earlier 0f4c9631 intermediate head.
+
