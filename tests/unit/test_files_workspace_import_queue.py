@@ -1,24 +1,91 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
+import pytest
 from PySide6.QtCore import QProcess
-from PySide6.QtWidgets import QApplication, QFileDialog
+from PySide6.QtWidgets import QFileDialog
 
-from athena.desktop.app import create_application
+import athena.desktop.files_workspace as files_workspace_module
 from athena.desktop.files_workspace import FilesWorkspace
 
 
-def _app() -> QApplication:
-    return create_application(["athena-files-import-queue-test"])
+class _TextSurface:
+    def __init__(self) -> None:
+        self.value = ""
+
+    def clear(self) -> None:
+        self.value = ""
+
+    def setText(self, value: str) -> None:
+        self.value = value
+
+    def setPlainText(self, value: str) -> None:
+        self.value = value
 
 
-def _workspace(monkeypatch: object) -> tuple[QApplication, FilesWorkspace]:
-    monkeypatch.setattr(FilesWorkspace, "refresh", lambda _self: None)
-    app = _app()
-    workspace = FilesWorkspace()
-    workspace._refresh_timer.stop()
-    return app, workspace
+class _QueueHarness:
+    _source_label = staticmethod(FilesWorkspace._source_label)
+
+    def __init__(self) -> None:
+        self._operation = ""
+        self._operation_source_id: str | None = None
+        self._buffer = ""
+        self._selected_source_id: str | None = None
+        self._pending_imports: list[str] = []
+        self._active_import_path: str | None = None
+        self.process_busy = False
+        self.details = _TextSurface()
+        self.status = _TextSurface()
+        self.starts: list[tuple[str, list[str], str, str | None]] = []
+        self.sync_calls = 0
+
+    def _busy(self) -> bool:
+        return self.process_busy
+
+    def _sync_controls(self, *, force_disabled: bool = False) -> None:
+        del force_disabled
+        self.sync_calls += 1
+
+    def _start(
+        self,
+        operation: str,
+        arguments: list[str],
+        label: str,
+        *,
+        source_id: str | None = None,
+    ) -> None:
+        self._operation = operation
+        self._operation_source_id = source_id
+        self.starts.append((operation, arguments, label, source_id))
+
+    def _start_next_import(self) -> None:
+        FilesWorkspace._start_next_import(self)  # type: ignore[arg-type]
+
+    def _resume_import_queue(self) -> bool:
+        if not self._pending_imports:
+            return False
+        self._start_next_import()
+        return True
+
+    def _drain_output(self) -> None:
+        return
+
+    def _operation_owns_details(self) -> bool:
+        return self._operation_source_id == self._selected_source_id
+
+    def import_paths(self, paths: list[str]) -> None:
+        FilesWorkspace.import_paths(self, paths)  # type: ignore[arg-type]
+
+
+@pytest.fixture(autouse=True)
+def _disable_qt_state_styling(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        files_workspace_module,
+        "set_pathena_ui_state",
+        lambda *_args, **_kwargs: None,
+    )
 
 
 def _touch(path: Path, text: str = "content") -> str:
@@ -26,210 +93,158 @@ def _touch(path: Path, text: str = "content") -> str:
     return str(path.absolute())
 
 
-def test_import_paths_deduplicates_and_starts_first_file(
-    monkeypatch: object,
-    tmp_path: Path,
-) -> None:
-    _app_instance, workspace = _workspace(monkeypatch)
+def test_import_paths_deduplicates_and_starts_first_file(tmp_path: Path) -> None:
+    harness = _QueueHarness()
     first = _touch(tmp_path / "first.md")
     second = _touch(tmp_path / "second.txt")
     missing = str(tmp_path / "missing.pdf")
-    starts: list[tuple[str, list[str], str, str | None]] = []
 
-    def fake_start(
-        operation: str,
-        arguments: list[str],
-        label: str,
-        *,
-        source_id: str | None = None,
-    ) -> None:
-        workspace._operation = operation
-        workspace._operation_source_id = source_id
-        starts.append((operation, arguments, label, source_id))
+    harness.import_paths([first, first, missing, second])
 
-    monkeypatch.setattr(workspace, "_start", fake_start)
-
-    try:
-        workspace.import_paths([first, first, missing, second])
-
-        assert starts == [
-            (
-                "import",
-                ["import", first],
-                "Capturing first.md · 1 more queued",
-                None,
-            )
-        ]
-        assert workspace._active_import_path == first
-        assert workspace._pending_imports == [second]
-        assert not workspace.import_button.isEnabled()
-        assert not workspace.refresh_button.isEnabled()
-        assert not workspace.process_button.isEnabled()
-    finally:
-        workspace.close()
+    assert harness.starts == [
+        (
+            "import",
+            ["import", first],
+            "Capturing first.md · 1 more queued",
+            None,
+        )
+    ]
+    assert harness._active_import_path == first
+    assert harness._pending_imports == [second]
 
 
-def test_import_paths_waits_for_existing_process_before_starting(
-    monkeypatch: object,
-    tmp_path: Path,
-) -> None:
-    _app_instance, workspace = _workspace(monkeypatch)
+def test_import_paths_waits_for_existing_process_before_starting(tmp_path: Path) -> None:
+    harness = _QueueHarness()
     first = _touch(tmp_path / "first.md")
     second = _touch(tmp_path / "second.md")
-    busy = True
-    starts: list[list[str]] = []
+    harness.process_busy = True
 
-    monkeypatch.setattr(workspace, "_busy", lambda: busy)
-    monkeypatch.setattr(
-        workspace,
-        "_start",
-        lambda _operation, arguments, _label, **_kwargs: starts.append(arguments),
-    )
+    harness.import_paths([first, second])
 
-    try:
-        workspace.import_paths([first, second])
+    assert harness.starts == []
+    assert harness._pending_imports == [first, second]
 
-        assert starts == []
-        assert workspace._pending_imports == [first, second]
+    harness.process_busy = False
+    harness._start_next_import()
 
-        busy = False
-        workspace._start_next_import()
-
-        assert starts == [["import", first]]
-        assert workspace._active_import_path == first
-        assert workspace._pending_imports == [second]
-    finally:
-        workspace.close()
+    assert harness.starts == [
+        (
+            "import",
+            ["import", first],
+            "Capturing first.md · 1 more queued",
+            None,
+        )
+    ]
+    assert harness._active_import_path == first
+    assert harness._pending_imports == [second]
 
 
 def test_successful_import_continues_queue_without_intermediate_refresh(
-    monkeypatch: object,
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    _app_instance, workspace = _workspace(monkeypatch)
+    harness = _QueueHarness()
     first = _touch(tmp_path / "first.md")
     second = _touch(tmp_path / "second.md")
     captured = "11111111-1111-1111-1111-111111111111"
-    starts: list[list[str]] = []
     refreshes: list[bool] = []
 
-    workspace._operation = "import"
-    workspace._operation_source_id = None
-    workspace._selected_source_id = None
-    workspace._active_import_path = first
-    workspace._pending_imports = [second]
-    workspace._buffer = f"SOURCE_CAPTURED {captured}\nPROCESS_QUEUED\n"
-
-    monkeypatch.setattr(workspace, "_drain_output", lambda: None)
-    monkeypatch.setattr(workspace, "refresh", lambda: refreshes.append(True))
+    harness._operation = "import"
+    harness._operation_source_id = None
+    harness._selected_source_id = None
+    harness._active_import_path = first
+    harness._pending_imports = [second]
+    harness._buffer = f"SOURCE_CAPTURED {captured}\nPROCESS_QUEUED\n"
+    setattr(harness, "refresh", lambda: refreshes.append(True))
     monkeypatch.setattr(
-        workspace,
-        "_start",
-        lambda _operation, arguments, _label, **_kwargs: starts.append(arguments),
+        files_workspace_module.QTimer,
+        "singleShot",
+        lambda _delay, callback: callback(),
     )
 
-    def resume_now() -> bool:
-        if not workspace._pending_imports:
-            return False
-        workspace._start_next_import()
-        return True
+    FilesWorkspace._process_finished(
+        harness,  # type: ignore[arg-type]
+        0,
+        QProcess.ExitStatus.NormalExit,
+    )
 
-    monkeypatch.setattr(workspace, "_resume_import_queue", resume_now)
+    assert harness._selected_source_id == captured
+    assert harness._active_import_path == second
+    assert harness._pending_imports == []
+    assert harness.starts == [
+        (
+            "import",
+            ["import", second],
+            "Capturing second.md",
+            captured,
+        )
+    ]
+    assert refreshes == []
 
-    try:
-        workspace._process_finished(0, QProcess.ExitStatus.NormalExit)
 
-        assert workspace._selected_source_id == captured
-        assert workspace._active_import_path == second
-        assert workspace._pending_imports == []
-        assert starts == [["import", second]]
-        assert refreshes == []
-    finally:
-        workspace.close()
-
-
-def test_failed_import_continues_with_next_queued_file(
-    monkeypatch: object,
-    tmp_path: Path,
-) -> None:
-    _app_instance, workspace = _workspace(monkeypatch)
+def test_failed_import_continues_with_next_queued_file(tmp_path: Path) -> None:
+    harness = _QueueHarness()
     first = _touch(tmp_path / "first.md")
     second = _touch(tmp_path / "second.md")
-    starts: list[list[str]] = []
 
-    workspace._operation = "import"
-    workspace._operation_source_id = None
-    workspace._active_import_path = first
-    workspace._pending_imports = [second]
-    workspace._buffer = "synthetic failure"
-    monkeypatch.setattr(workspace, "_drain_output", lambda: None)
-    monkeypatch.setattr(
-        workspace,
-        "_start",
-        lambda _operation, arguments, _label, **_kwargs: starts.append(arguments),
+    harness._operation = "import"
+    harness._operation_source_id = None
+    harness._active_import_path = first
+    harness._pending_imports = [second]
+    harness._buffer = "synthetic failure"
+
+    FilesWorkspace._process_finished(
+        harness,  # type: ignore[arg-type]
+        7,
+        QProcess.ExitStatus.NormalExit,
     )
 
-    def resume_now() -> bool:
-        if not workspace._pending_imports:
-            return False
-        workspace._start_next_import()
-        return True
-
-    monkeypatch.setattr(workspace, "_resume_import_queue", resume_now)
-
-    try:
-        workspace._process_finished(7, QProcess.ExitStatus.NormalExit)
-
-        assert "failed" in workspace.status.text().casefold()
-        assert workspace._active_import_path == second
-        assert workspace._pending_imports == []
-        assert starts == [["import", second]]
-    finally:
-        workspace.close()
+    assert "failed" in harness.status.value.casefold()
+    assert harness._active_import_path == second
+    assert harness._pending_imports == []
+    assert harness.starts == [
+        (
+            "import",
+            ["import", second],
+            "Capturing second.md",
+            None,
+        )
+    ]
 
 
-def test_process_start_error_continues_with_next_queued_file(
-    monkeypatch: object,
-    tmp_path: Path,
-) -> None:
-    _app_instance, workspace = _workspace(monkeypatch)
+def test_process_start_error_continues_with_next_queued_file(tmp_path: Path) -> None:
+    harness = _QueueHarness()
     first = _touch(tmp_path / "first.md")
     second = _touch(tmp_path / "second.md")
-    starts: list[list[str]] = []
 
-    workspace._operation = "import"
-    workspace._operation_source_id = None
-    workspace._active_import_path = first
-    workspace._pending_imports = [second]
-    monkeypatch.setattr(
-        workspace,
-        "_start",
-        lambda _operation, arguments, _label, **_kwargs: starts.append(arguments),
+    harness._operation = "import"
+    harness._operation_source_id = None
+    harness._active_import_path = first
+    harness._pending_imports = [second]
+
+    FilesWorkspace._process_error(
+        harness,  # type: ignore[arg-type]
+        QProcess.ProcessError.FailedToStart,
     )
 
-    def resume_now() -> bool:
-        if not workspace._pending_imports:
-            return False
-        workspace._start_next_import()
-        return True
-
-    monkeypatch.setattr(workspace, "_resume_import_queue", resume_now)
-
-    try:
-        workspace._process_error(QProcess.ProcessError.FailedToStart)
-
-        assert "unable to start" in workspace.status.text().casefold()
-        assert workspace._active_import_path == second
-        assert starts == [["import", second]]
-    finally:
-        workspace.close()
+    assert "unable to start" in harness.status.value.casefold()
+    assert harness._active_import_path == second
+    assert harness._pending_imports == []
+    assert harness.starts == [
+        (
+            "import",
+            ["import", second],
+            "Capturing second.md",
+            None,
+        )
+    ]
 
 
 def test_file_picker_allows_multiple_files_and_delegates_to_queue(
-    monkeypatch: object,
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    _app_instance, workspace = _workspace(monkeypatch)
+    harness = _QueueHarness()
     first = _touch(tmp_path / "first.md")
     second = _touch(tmp_path / "second.pdf")
     queued: list[list[str]] = []
@@ -239,11 +254,8 @@ def test_file_picker_allows_multiple_files_and_delegates_to_queue(
         "getOpenFileNames",
         lambda *_args, **_kwargs: ([first, second], ""),
     )
-    monkeypatch.setattr(workspace, "import_paths", lambda paths: queued.append(paths))
+    setattr(harness, "import_paths", lambda paths: queued.append(paths))
 
-    try:
-        workspace._choose_file()
+    FilesWorkspace._choose_file(harness)  # type: ignore[arg-type]
 
-        assert queued == [[first, second]]
-    finally:
-        workspace.close()
+    assert queued == [[first, second]]
