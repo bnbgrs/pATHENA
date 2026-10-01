@@ -21,7 +21,13 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 _MANIFEST_VERSION = 1
 _MAX_MANIFEST_BYTES = 64 * 1024
 _SHA256_PATTERN = re.compile(r"[0-9a-f]{64}")
-_VERSION_PATTERN = re.compile(r"[0-9]+(?:\.[0-9]+){2}(?:[-+][0-9A-Za-z.-]+)?")
+_SEMVER_PATTERN = re.compile(
+    r"(?P<major>0|[1-9][0-9]*)\\."
+    r"(?P<minor>0|[1-9][0-9]*)\\."
+    r"(?P<patch>0|[1-9][0-9]*)"
+    r"(?:-(?P<prerelease>[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*))?"
+    r"(?:\\+(?P<build>[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*))?"
+)
 _PACKAGE_NAME_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}")
 _MANIFEST_FIELDS = frozenset(
     {
@@ -46,6 +52,19 @@ class UpdateChannel(StrEnum):
 
     STABLE = "stable"
     BETA = "beta"
+
+
+def _is_semver(value: str) -> bool:
+    match = _SEMVER_PATTERN.fullmatch(value)
+    if match is None:
+        return False
+    prerelease = match.group("prerelease")
+    if prerelease is None:
+        return True
+    for identifier in prerelease.split("."):
+        if identifier.isdigit() and len(identifier) > 1 and identifier.startswith("0"):
+            return False
+    return True
 
 
 def _reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
@@ -101,7 +120,7 @@ class UpdateManifest:
             raise UpdateVerificationError("Unsupported update-manifest version.")
         if (
             not isinstance(self.app_version, str)
-            or _VERSION_PATTERN.fullmatch(self.app_version) is None
+            or not _is_semver(self.app_version)
         ):
             raise UpdateVerificationError("Application update version is invalid.")
         if (
@@ -174,7 +193,7 @@ class UpdateManifest:
             raise UpdateVerificationError("Unsupported application-update channel.") from exc
 
         app_version = _required_string(payload, "app_version")
-        if _VERSION_PATTERN.fullmatch(app_version) is None:
+        if not _is_semver(app_version):
             raise UpdateVerificationError("Application update version is invalid.")
 
         package_name = _required_string(payload, "package_name")
