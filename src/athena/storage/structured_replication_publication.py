@@ -238,6 +238,10 @@ def _parse_manifest(path: Path) -> _ManifestEntry:
 
     commit_seq = _positive_int(payload.get("commit_seq"), label="Manifest commit_seq")
     head_hash = _hash(payload.get("head_hash"))
+    if head_hash is None:
+        raise _TargetHistoryError(
+            f"Structured replication manifest head hash is missing: {path.name}"
+        )
     previous_head_hash = _hash(
         payload.get("previous_head_hash"),
         optional=True,
