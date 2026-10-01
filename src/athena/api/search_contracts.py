@@ -16,8 +16,13 @@ from athena.api.contracts import ApiContract
 def _nonempty_text(value: object, label: str) -> str:
     if not isinstance(value, str):
         raise TypeError(f"{label} must be text.")
-    if not value.strip():
+    stripped = value.strip()
+    if not stripped:
         raise ValueError(f"{label} must not be empty.")
+    if stripped != value:
+        raise ValueError(
+            f"{label} must not contain leading or trailing whitespace."
+        )
     return value
 
 
@@ -27,7 +32,7 @@ def _uuid_text(value: object, label: str) -> str:
         parsed = uuid.UUID(text)
     except ValueError as exc:
         raise ValueError(f"{label} must be a UUID.") from exc
-    if str(parsed) != text.lower():
+    if str(parsed) != text:
         raise ValueError(f"{label} must use canonical UUID text.")
     return text
 
