@@ -24,7 +24,6 @@ from athena.model.ports import ChatModelProvider
 from athena.storage.database import SQLiteDatabase
 from athena.storage.durable_fs import (
     durable_mkdir,
-    durable_unlink,
     durable_write_bytes,
     is_link_boundary,
 )
@@ -302,8 +301,8 @@ class ResourceManager:
             return
         path = root / f"{validated_lease_id}.json"
         partial = root / f".{validated_lease_id}.partial"
-        durable_unlink(path, missing_ok=True)
-        durable_unlink(partial, missing_ok=True)
+        path.unlink(missing_ok=True)
+        partial.unlink(missing_ok=True)
 
     @contextmanager
     def interactive_session(
@@ -387,7 +386,7 @@ class ResourceManager:
                 expired = modified_at_us + fallback_ttl_us <= validated_now
 
             if expired:
-                durable_unlink(path, missing_ok=True)
+                path.unlink(missing_ok=True)
 
     def _validated_interactive_lease_root(
         self,
