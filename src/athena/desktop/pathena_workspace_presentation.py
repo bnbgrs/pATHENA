@@ -506,9 +506,11 @@ def _configure_system_presentation(window: QWidget) -> None:
     object_names = {
         "Refresh": "backupRefreshButton",
         "Create backup": "backupCreateButton",
+        "Create backup…": "backupCreateButton",
         "Verify": "backupVerifyButton",
         "Deep verify": "backupDeepVerifyButton",
         "Restore…": "backupRestoreButton",
+        "Restore copy…": "backupRestoreButton",
         "Targets": "backupTargetsButton",
         "Add target…": "backupAddTargetButton",
     }
