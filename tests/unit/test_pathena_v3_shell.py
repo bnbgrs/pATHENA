@@ -30,6 +30,10 @@ def test_v3_shell_is_structurally_distinct_and_keeps_route_contract() -> None:
     assert shell.findChild(QFrame, "referenceBody") is not None
     assert shell.findChild(QFrame, "conversation") is not None
     assert shell.findChild(QFrame, "v2Sidebar") is None
+    assert shell.findChild(QLabel, "v3RuntimeDot") is None
+    runtime_text = shell.findChild(QLabel, "v3RuntimeText")
+    assert runtime_text is window.status_text
+    assert runtime_text.text() == "Connecting…"
 
     assert controller._header.height() == 68
     assert "#78D1C5" in PATHENA_V3_STYLESHEET
