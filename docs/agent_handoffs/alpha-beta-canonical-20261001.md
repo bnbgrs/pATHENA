@@ -193,3 +193,45 @@ QA owner should proceed to real Alpha/Beta E2E flows once this exact Quality rep
 - **Core:** continue disjoint Alpha/Beta gaps.
 - **Runtime:** continue Windows/LM Studio E2E.
 - **All workers:** update this file with exact SHA, evidence, merged PR/commit, remaining gap and next owner after every substantive step.
+
+## Windows packaged Sources worker routing — 2026-10-02
+
+- Branch: `fix/windows-sources-worker-routing-20261002-sol`
+- PR: #339
+- Product/workflow head before this handoff commit: `f983289c5b7cdd182a14e7038931e0f8a656818d`
+- Base: `develop/pathena-next@67174198e1494fd4c8678aad60756c39ef5c160b`
+- Ausgangslage:
+  - The real Sources workspace launches its helper boundary with `sys.executable -m athena.desktop.sources_cli ...` for refresh/import/show/process.
+  - The supported frozen Windows desktop deliberately rewrites `sys.executable` to sibling `pATHENA-Worker.exe`.
+  - The worker allowlist routed Jobs/Core/CLI roles but omitted `athena.desktop.sources_cli`; packaged Sources operations were therefore rejected fail-closed as unsupported module dispatch.
+- Root Cause:
+  - Desktop and Sources were individually correct, but the Windows two-executable integration contract was incomplete: the existing real Sources process role was never added to `PackagedTarget`, `_MODULE_TARGETS`, or `dispatch_worker()`.
+- Änderungen:
+  - Added explicit `SOURCES_CLI` packaged target and module allowlist entry.
+  - Added worker dispatch to `athena.desktop.sources_cli.main`.
+  - Added route/dispatch unit regressions.
+  - Extended native Windows worker smoke to execute both Jobs and Sources `--help` roles.
+- Dateien:
+  - `src/athena/desktop/packaged_app.py`
+  - `src/athena/desktop/packaged_worker.py`
+  - `tests/unit/test_windows_packaging_contract.py`
+  - `.github/workflows/windows-package.yml`
+- Verhalten danach:
+  - In the supported Windows package, Sources refresh/import/show/process can reach the existing Sources CLI through `pATHENA-Worker.exe` instead of being rejected by packaged dispatch.
+  - Unknown module roles remain fail-closed.
+- Validierung auf product/workflow head `f983289...`:
+  - pATHENA Windows Package: SUCCESS, including the extended native worker-role smoke.
+  - pATHENA UI Focused Candidate: SUCCESS.
+  - 11-Surface Visual first attempt: unrelated PALLAS-only failure (08-pallas changed_ratio 0.010139 / mean_delta 0.609396); all ordinary workspace surfaces were within threshold and Chat/Research/Files/System/Settings were pixel-identical. Failed visual job was rerun as flake diagnosis; no baseline/threshold was changed.
+  - ATHENA Quality was still queued when this handoff commit was written; these earlier results do not qualify the new handoff head.
+- Abhängigkeiten / Konfliktrisiko:
+  - #336 owns Sources multi-file queue behavior in `files_workspace.py`; #339 deliberately does not modify that file and only restores its packaged process route.
+  - No file overlap with #329/#335/#337 cancellation stack, #325 Storage, #326 Research, or #327 Quality isolation.
+- Restprobleme:
+  - PALLAS visual nondeterminism/drift must be treated separately from this packaging fix if rerun remains red; do not change a Sources/Windows PR baseline to conceal it.
+- Nächste Schritte:
+  1. qualify the new exact handoff head with Windows Package + Quality;
+  2. verify the visual rerun/result without weakening thresholds;
+  3. if exact-head functional gates are green, integrate #339 before relying on packaged Sources in release testing;
+  4. after integration, #336 can continue multi-file UX without needing to rediscover Windows routing.
+
