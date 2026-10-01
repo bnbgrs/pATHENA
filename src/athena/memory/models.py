@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import uuid
 from dataclasses import dataclass
 from enum import Enum
@@ -60,6 +61,22 @@ class PersonalMemoryDraft:
     last_confirmed_at_us: int | None = None
 
     def __post_init__(self) -> None:
+        if not isinstance(self.memory_kind, MemoryKind):
+            raise TypeError("Personal Memory memory_kind must be a MemoryKind.")
+        if not isinstance(self.content, str):
+            raise TypeError("Personal Memory content must be text.")
+        if not isinstance(self.scope_kind, MemoryScopeKind):
+            raise TypeError("Personal Memory scope_kind must be a MemoryScopeKind.")
+        if (
+            self.scope_entity_id is not None
+            and not isinstance(self.scope_entity_id, uuid.UUID)
+        ):
+            raise TypeError("Personal Memory scope_entity_id must be a UUID or None.")
+        if not isinstance(self.learning_mode, MemoryLearningMode):
+            raise TypeError("Personal Memory learning_mode must be a MemoryLearningMode.")
+        if not isinstance(self.sensitivity, MemorySensitivity):
+            raise TypeError("Personal Memory sensitivity must be a MemorySensitivity.")
+
         normalized = self.content.strip()
         if not normalized:
             raise ValueError("Personal Memory content must not be empty.")
@@ -71,12 +88,26 @@ class PersonalMemoryDraft:
         elif self.scope_entity_id is None:
             raise ValueError("Scoped Personal Memory requires scope_entity_id.")
 
-        if self.confidence is not None and not 0.0 <= self.confidence <= 1.0:
-            raise ValueError("Personal Memory confidence must be between 0 and 1.")
+        if self.confidence is not None:
+            if (
+                isinstance(self.confidence, bool)
+                or not isinstance(self.confidence, (int, float))
+            ):
+                raise TypeError("Personal Memory confidence must be numeric or None.")
+            if not math.isfinite(float(self.confidence)):
+                raise ValueError("Personal Memory confidence must be finite.")
+            if not 0.0 <= self.confidence <= 1.0:
+                raise ValueError("Personal Memory confidence must be between 0 and 1.")
         if self.learning_mode is MemoryLearningMode.EXPLICIT_USER and self.confidence is not None:
             raise ValueError("Explicit user Personal Memory must not invent model confidence.")
-        if self.last_confirmed_at_us is not None and self.last_confirmed_at_us < 0:
-            raise ValueError("last_confirmed_at_us must not be negative.")
+        if self.last_confirmed_at_us is not None:
+            if (
+                isinstance(self.last_confirmed_at_us, bool)
+                or not isinstance(self.last_confirmed_at_us, int)
+            ):
+                raise TypeError("last_confirmed_at_us must be an integer or None.")
+            if self.last_confirmed_at_us < 0:
+                raise ValueError("last_confirmed_at_us must not be negative.")
 
 
 @dataclass(frozen=True, slots=True)
