@@ -136,7 +136,10 @@ class PathenaSystemTrayController(QObject):
     @Slot()
     def open_window(self) -> None:
         """Restore and focus the real pATHENA main window."""
-        self.window.showNormal()
+        if self.window.isMinimized():
+            self.window.showNormal()
+        else:
+            self.window.show()
         self.window.raise_()
         self.window.activateWindow()
 
