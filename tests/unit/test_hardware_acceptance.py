@@ -226,6 +226,9 @@ def test_system_ui_surfaces_real_failure_detail() -> None:
     presentation = project_hardware_acceptance_payload(
         {
             "overall_ready": False,
+            "gpu_ready": False,
+            "model_ready": False,
+            "inference_ready": False,
             "detected_gpus": ["Microsoft Basic Display Adapter"],
             "selected_model_id": None,
             "checks": [
