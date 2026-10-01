@@ -103,8 +103,22 @@ def _stage(
 
 
 def _layout(root: Path) -> tuple[Path, Path]:
-    managed = root / "structured-replication-v1"
-    return managed / "commits", managed / "manifest"
+    return root / "commits", root / "manifests"
+
+
+def _initialize_repository_root(
+    root: Path,
+    target_id: uuid.UUID,
+) -> tuple[Path, Path]:
+    durable_mkdir(root, parents=True, exist_ok=True)
+    durable_publish_new_bytes(
+        root / "repository.json",
+        publication._canonical_repository_bytes(target_id),
+    )
+    commits_dir, manifest_dir = _layout(root)
+    durable_mkdir(commits_dir, parents=False, exist_ok=True)
+    durable_mkdir(manifest_dir, parents=False, exist_ok=True)
+    return commits_dir, manifest_dir
 
 
 def test_publish_verifies_filesystem_before_advancing_local_watermark(
@@ -153,6 +167,13 @@ def test_publish_verifies_filesystem_before_advancing_local_watermark(
         assert manifest["commit_seq"] == commit_seq
         assert manifest["head_hash"] == bundle.bundle_hash
         assert manifest["previous_head_hash"] is None
+        repository_manifest = json.loads(
+            (target_root / "repository.json").read_text(encoding="utf-8")
+        )
+        assert repository_manifest["repository_id"] == str(target.target_id)
+        assert repository_manifest["hash_algorithm"] == "sha256"
+        assert (target_root / "snapshots").is_dir()
+        assert (target_root / "replication").is_dir()
 
         before = sorted(path.name for path in commits_dir.iterdir())
         again = StructuredReplicationPublisher(repository).publish_staged_bundle(
@@ -248,9 +269,10 @@ def test_restart_recovers_orphan_bundle_before_manifest(
             previous_hash=None,
         )
 
-        commits_dir, manifest_dir = _layout(target_root)
-        durable_mkdir(commits_dir, parents=True, exist_ok=True)
-        durable_mkdir(manifest_dir, parents=True, exist_ok=True)
+        commits_dir, manifest_dir = _initialize_repository_root(
+            target_root,
+            target.target_id,
+        )
         durable_publish_new_bytes(
             commits_dir
             / publication._bundle_name(commit_seq, bundle.bundle_hash),
@@ -290,9 +312,10 @@ def test_existing_conflicting_orphan_is_never_overwritten_and_marks_conflict(
             previous_hash=None,
         )
 
-        commits_dir, manifest_dir = _layout(target_root)
-        durable_mkdir(commits_dir, parents=True, exist_ok=True)
-        durable_mkdir(manifest_dir, parents=True, exist_ok=True)
+        commits_dir, manifest_dir = _initialize_repository_root(
+            target_root,
+            target.target_id,
+        )
         bundle_path = commits_dir / publication._bundle_name(
             commit_seq,
             bundle.bundle_hash,
@@ -607,6 +630,51 @@ def test_current_remote_head_is_verified_before_extending_history(
         conflicted = repository.get_target(target.target_id)
         assert conflicted.state is ReplicationTargetState.CONFLICT
         assert conflicted.confirmed_commit_seq == first_seq
+    finally:
+        database.stop()
+
+def test_repository_identity_mismatch_conflicts_before_commit_publication(
+    tmp_path: Path,
+) -> None:
+    database, repository, actor_id = _runtime(tmp_path)
+    try:
+        target_root = tmp_path / "long-term"
+        target = repository.register_target(str(target_root))
+        commit_seq, commit_id = _commit(database, actor_id, 1)
+        bundle = _bundle(
+            commit_id=commit_id,
+            commit_seq=commit_seq,
+            previous_hash=None,
+            marker=1,
+        )
+        _stage(
+            repository,
+            target.target_id,
+            bundle,
+            commit_seq=commit_seq,
+            previous_hash=None,
+        )
+
+        durable_mkdir(target_root, parents=True, exist_ok=True)
+        foreign = publication._canonical_repository_bytes(uuid.uuid4())
+        repository_path = target_root / "repository.json"
+        durable_publish_new_bytes(repository_path, foreign)
+
+        with pytest.raises(
+            StructuredReplicationConflictError,
+            match="identity does not match the target",
+        ):
+            StructuredReplicationPublisher(repository).publish_staged_bundle(
+                target.target_id,
+                bundle,
+            )
+
+        assert repository_path.read_bytes() == foreign
+        assert not (target_root / "commits").exists()
+        assert (
+            repository.get_target(target.target_id).state
+            is ReplicationTargetState.CONFLICT
+        )
     finally:
         database.stop()
 
