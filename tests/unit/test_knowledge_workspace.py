@@ -345,3 +345,47 @@ def test_review_action_preserves_newer_selection(
         assert workspace.browser_status.text() == "Contradiction decision accepted."
     finally:
         workspace.deleteLater()
+
+
+def test_filter_does_not_start_detail_loads_for_inactive_tabs(
+    qapp: QApplication,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    workspace = KnowledgeWorkspace(_FakeWindow(), None)
+    workspace._knowledge_refresh_timer.stop()
+    starts: list[tuple[str, list[str]]] = []
+    monkeypatch.setattr(
+        workspace,
+        "_start_knowledge",
+        lambda operation, arguments, _label: starts.append((operation, arguments)),
+    )
+    try:
+        workspace.browser_tabs.setCurrentIndex(0)
+
+        knowledge = _knowledge_item(
+            "NOTE Beta",
+            "00000000-0000-0000-0000-000000000009",
+        )
+        claim_alpha = _knowledge_item(
+            "CLAIM Alpha",
+            "00000000-0000-0000-0000-000000000010",
+        )
+        claim_beta = _knowledge_item(
+            "CLAIM Beta",
+            "00000000-0000-0000-0000-000000000011",
+        )
+        workspace.knowledge_list.addItem(knowledge)
+        workspace.claim_list.addItem(claim_alpha)
+        workspace.claim_list.addItem(claim_beta)
+        workspace.knowledge_list.setCurrentItem(knowledge)
+        workspace.claim_list.setCurrentItem(claim_alpha)
+        starts.clear()
+
+        workspace._apply_filter("beta")
+
+        assert starts == []
+        assert workspace.claim_list.currentItem() is claim_alpha
+        assert claim_alpha.isHidden() is True
+        assert claim_beta.isHidden() is False
+    finally:
+        workspace.deleteLater()
