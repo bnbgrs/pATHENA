@@ -17,6 +17,7 @@ from athena.desktop.command_palette import install_command_palette
 from athena.desktop.files_workspace import install_files_workspace
 from athena.desktop.jobs_workspace import install_jobs_workspace
 from athena.desktop.knowledge_acceptance import install_knowledge_acceptance
+from athena.desktop.layout_state import install_desktop_layout_state
 from athena.desktop.knowledge_workspace import install_knowledge_workspace
 from athena.desktop.lmstudio_runtime import install_lmstudio_runtime
 from athena.desktop.pathena_async_focus_integrity_6200 import apply_ui_refinements_6101_6200
@@ -317,11 +318,15 @@ def main(argv: Sequence[str] | None = None) -> int:
     v3_sources = install_v3_sources_workspace(files_workspace)
     v3_system = install_v3_system_workspace(system_workspace)
     v3_shell.finalize()
+    layout_state = install_desktop_layout_state(window)
+    app.aboutToQuit.connect(layout_state.save)
+    QTimer.singleShot(0, layout_state.restore)
     _schedule_initial_core_refreshes(controller, supervisor, scheduler_supervisor)
     heartbeat = _start_core_refresh_heartbeat(controller, supervisor, scheduler_supervisor)
     window.show()
     exit_code = app.exec()
     heartbeat.stop()
+    layout_state.deleteLater()
     selection_disappearance_handoff.deleteLater()
     background_completion_accessibility.deleteLater()
     research_knowledge_transition.deleteLater()
