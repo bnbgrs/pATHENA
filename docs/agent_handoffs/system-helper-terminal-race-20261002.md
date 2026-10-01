@@ -2,10 +2,12 @@
 
 ## Ausgangslage
 
-The SYSTEM workspace owns two short-lived QProcess helpers:
+The SYSTEM workspace owns several short-lived QProcess helpers. This slice covers the
+three panels that had independent error/finish terminal handlers:
 
 - Hardware Acceptance: `athena.hardware_acceptance`
 - Recovery diagnosis: `athena.recovery_cli diagnose`
+- Backup operations: canonical `athena backup ...` CLI
 
 Both panels connect `errorOccurred` and `finished` to independent terminal handlers.
 
@@ -17,8 +19,10 @@ the useful crash/start error, while the later finished handler independently att
 load a report or parse stdout. That second path could overwrite the original diagnosis
 with generic "no diagnostic output", JSON, or report-loading failure text.
 
-Recovery also enabled its Run button directly from `errorOccurred` without checking
-whether the QProcess was already terminal.
+Recovery enabled its Run button directly from `errorOccurred` without checking whether
+the QProcess was already terminal. Backup similarly cleared operation ownership and
+re-enabled all controls immediately from `errorOccurred`, allowing a still-running process
+to lose its owner state.
 
 This is a terminal-state ownership bug, not a rendering problem.
 
@@ -31,23 +35,28 @@ This is a terminal-state ownership bug, not a rendering problem.
   instead of parsing/overwriting it.
 - Re-enable the action from `errorOccurred` only when QProcess is already NotRunning.
 - Normalize the post-error action label to `Run again`.
-- Add focused regressions that explicitly execute error -> finished ordering for both
-  Hardware Acceptance and Recovery and assert the original detail survives.
+- Apply the same ownership rule to Backup; do not clear its operation identity or re-enable
+  controls from an error signal until QProcess is terminal.
+- Add focused regressions that explicitly execute error -> finished ordering for Hardware
+  Acceptance, Recovery and Backup and assert the original detail survives.
 
 ## Dateien
 
 - `src/athena/desktop/system_hardware_acceptance.py`
 - `src/athena/desktop/system_recovery.py`
+- `src/athena/desktop/system_backup.py`
 - `tests/unit/test_pathena_system_hardware_acceptance.py`
 - `tests/unit/test_system_recovery.py`
+- `tests/unit/test_desktop_system_backup.py`
 
 ## Parallelität / Konfliktrisiko
 
 Fresh branch reconstructed from
 `develop/pathena-next@467ef434236c320e4afe9d21a39c20a4a2b75728`.
 
-The four touched files were byte-identical between the earlier inspected Develop SHA and
-this fresh base. No current Chat, Sources, Jobs, Research, Knowledge, Storage, LM Studio,
+The original four Hardware/Recovery product/test files were byte-identical between the
+earlier inspected Develop SHA and this fresh base. Backup was added only after confirming
+that no current open PR owned `system_backup.py`. No current Chat, Sources, Jobs, Research, Knowledge, Storage, LM Studio,
 Packaging, or PALLAS agent file is touched.
 
 ## Validierung
