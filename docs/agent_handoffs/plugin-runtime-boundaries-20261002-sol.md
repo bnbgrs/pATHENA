@@ -5,8 +5,9 @@
 Beta 17 requires plugin manifests/capabilities to fail closed. The existing parser paths were strict, but three public runtime dataclasses were trusted by downstream Core code merely because their Python type matched:
 
 1. `PluginManifest.from_mapping()` validates manifest syntax and authority, but callers could construct `PluginManifest(...)` directly and bypass those invariants.
-2. `TrustedPluginPublisher` assumed annotated runtime types; malformed key/public-key values could escape as raw regex/`len()` exceptions, and the verifier assumed every mapping value was a validated trust root.
-3. `PluginCapabilityRequest` was described as validated, while direct construction bypassed request-id/scope anti-spoofing and capability-type validation. `PluginCapabilityBroker` only checked `isinstance(request, PluginCapabilityRequest)`.
+2. `PluginCapabilityRequest` was described as validated, while direct construction bypassed request-id/scope anti-spoofing and capability-type validation. `PluginCapabilityBroker` only checked `isinstance(request, PluginCapabilityRequest)`.
+
+Publisher trust-root hardening is intentionally excluded because parallel PR #393 now owns that exact boundary.
 
 No executable plugin host/loader is added in this slice.
 
@@ -31,13 +32,6 @@ Added `PluginManifest.__post_init__()` so every manifest instance enforces:
 
 `from_mapping()` remains the normal parser and still performs normalization before construction.
 
-### Publisher identity
-
-`src/athena/plugins/identity.py`
-
-- `TrustedPluginPublisher` now rejects non-string key IDs and non-`bytes` public keys through the plugin identity error boundary instead of leaking Python runtime errors.
-- `verify_plugin_publisher_identity()` requires an actual Mapping at runtime and rejects non-`TrustedPluginPublisher` mapping entries before dereferencing them.
-
 ### Capability request
 
 `src/athena/plugins/protocol.py`
@@ -57,7 +51,6 @@ Added/expanded:
   - capability/permission mismatch;
   - duplicate/unsorted/unsafe publisher metadata;
   - `from_mapping()` normalization compatibility.
-- `tests/unit/test_plugin_publisher_identity.py`
   - invalid key-id runtime type;
   - bytearray/non-bytes public key rejection;
   - invalid trust-root mapping entry;
@@ -69,7 +62,6 @@ Added/expanded:
 ## Dateien
 
 - `src/athena/plugins/manifest.py`
-- `src/athena/plugins/identity.py`
 - `src/athena/plugins/protocol.py`
 - `tests/unit/test_plugin_manifest_runtime_boundaries.py`
 - `tests/unit/test_plugin_publisher_identity.py`
@@ -92,7 +84,7 @@ This slice is isolated to `src/athena/plugins/*` plus plugin unit tests.
 Completed:
 
 - current-Develop relationship checked: branch is ahead only, not behind;
-- diff scope checked: exactly three plugin production modules and three plugin test files before this handoff;
+- diff scope checked after parallel deconfliction: two plugin production modules, two plugin test files and this handoff;
 - existing parser/identity/broker contracts were inspected before mutation;
 - no local success is claimed: the runner cannot resolve `github.com`, and the local container is not the repository's Python 3.12/uv environment.
 
@@ -113,3 +105,14 @@ Beta 17 still describes a larger plugin lifecycle/host/install surface that is i
 2. After integration, re-evaluate Beta 17 installation/lifecycle gaps from current Develop.
 3. Prefer the smallest real vertical slice (for example explicit package inspection/install state) before introducing an executable host.
 4. Keep all third-party code disabled by default until explicit trust/permission state exists.
+
+
+## Parallel deconfliction update
+
+After PR #392 opened, parallel PR #393 appeared on the same base and independently owned
+`src/athena/plugins/identity.py` plus its publisher-identity tests. #393 also found an
+additional non-string package-digest boundary that this branch had not covered.
+
+To avoid competing edits, this branch restored both publisher-identity files exactly to
+current Develop and leaves #393 as the sole owner of that boundary. PR #392 now owns only
+Manifest and CapabilityRequest self-validation.
