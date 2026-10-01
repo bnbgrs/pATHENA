@@ -22,7 +22,11 @@ from athena.jobs.capabilities import requires_provider_isolation
 from athena.jobs.models import JobPriority, JobRecord
 from athena.model.ports import ChatModelProvider
 from athena.storage.database import SQLiteDatabase
-from athena.storage.durable_fs import durable_mkdir, durable_write_bytes, is_link_boundary
+from athena.storage.durable_fs import (
+    durable_mkdir,
+    durable_write_bytes,
+    is_link_boundary,
+)
 from athena.storage.paths import RuntimePaths
 
 
