@@ -305,7 +305,15 @@ class CoreApiServer:
 
     def start(self) -> None:
         if self._server is not None:
-            return
+            if self._thread is not None and self._discovery is not None:
+                return
+            raise CoreApiServerError(
+                "ATHENA Core API cannot restart until failed lifecycle cleanup completes."
+            )
+        if self._thread is not None or self._discovery is not None:
+            raise CoreApiServerError(
+                "ATHENA Core API cannot restart while stale lifecycle state remains."
+            )
 
         server = _AthenaHttpServer(
             (self._host, self._configured_port),
