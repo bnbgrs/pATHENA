@@ -720,7 +720,14 @@ class BackupService(DeletionLedgerStorageMixin):
             return self.get_snapshot(snapshot_id)
         except BaseException as exc:
             shutil.rmtree(staging_root, ignore_errors=True)
-            marker_published = (snapshot_root / "complete.marker").is_file()
+            try:
+                _safe_existing_file(
+                    snapshot_root,
+                    Path("complete.marker"),
+                )
+                marker_published = True
+            except BackupRestoreError:
+                marker_published = False
             if not marker_published:
                 # No completion marker means there is no restore point. Clean
                 # any partially published directory and release pins.
@@ -828,8 +835,6 @@ class BackupService(DeletionLedgerStorageMixin):
             / "snapshots"
             / f".{snapshot_id}.partial"
         )
-        marker = snapshot_root / "complete.marker"
-
         valid = False
         manifest_sha256: bytes | None = None
         db_sha256: bytes | None = None
@@ -838,7 +843,15 @@ class BackupService(DeletionLedgerStorageMixin):
         deletion_ledger_watermark: int | None = None
         objects: list[Any] | None = None
 
-        if marker.is_file():
+        try:
+            marker = _safe_existing_file(
+                snapshot_root,
+                Path("complete.marker"),
+            )
+        except BackupRestoreError:
+            marker = None
+
+        if marker is not None:
             try:
                 manifest_sha256 = bytes.fromhex(
                     marker.read_text(
@@ -863,7 +876,10 @@ class BackupService(DeletionLedgerStorageMixin):
 
         if valid and manifest_sha256 is not None:
             manifest = _read_manifest(
-                snapshot_root / "manifest.json"
+                _safe_existing_file(
+                    snapshot_root,
+                    Path("manifest.json"),
+                )
             )
             database_meta = manifest.get(
                 "database"
@@ -1773,7 +1789,15 @@ class BackupService(DeletionLedgerStorageMixin):
         publication_identity: tuple[int, int] | None = None
 
         try:
-            manifest = _read_manifest(snapshot_root / "manifest.json")
+            manifest_path = _safe_existing_file(
+                snapshot_root,
+                Path("manifest.json"),
+            )
+            snapshot_database = _safe_existing_file(
+                snapshot_root,
+                Path("athena.db"),
+            )
+            manifest = _read_manifest(manifest_path)
 
             raw_snapshot_deletion_watermark = (
                 manifest.get(
@@ -1816,7 +1840,7 @@ class BackupService(DeletionLedgerStorageMixin):
             )
             restored_db = state_root / "athena.db"
             _copy_file_with_progress(
-                snapshot_root / "athena.db",
+                snapshot_database,
                 restored_db,
                 progress_callback=progress_callback,
             )
