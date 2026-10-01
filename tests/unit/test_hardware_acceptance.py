@@ -196,9 +196,21 @@ def test_system_ui_projects_successful_machine_report_without_inventing_evidence
             "detected_gpus": [DEFAULT_EXPECTED_GPU],
             "selected_model_id": "local-model",
             "checks": [
-                {"name": "target-gpu", "status": "PASS", "detail": "GPU matched"},
-                {"name": "lm-studio-model", "status": "PASS", "detail": "model loaded"},
-                {"name": "live-inference", "status": "PASS", "detail": "marker returned"},
+                {
+                    "name": "target-gpu",
+                    "status": "PASS",
+                    "detail": "GPU matched",
+                },
+                {
+                    "name": "lm-studio-model",
+                    "status": "PASS",
+                    "detail": "model loaded",
+                },
+                {
+                    "name": "live-inference",
+                    "status": "PASS",
+                    "detail": "marker returned",
+                },
             ],
         }
     )
