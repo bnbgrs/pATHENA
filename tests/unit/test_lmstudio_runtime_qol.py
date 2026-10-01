@@ -7,8 +7,10 @@ import pytest
 
 from athena.desktop.lmstudio_runtime import (
     _accepted_model_load_id,
-    _CommandStep,
+    _coerce_idle_minutes,
     _command_timeout_ms,
+    _continue_after_failed_step,
+    _CommandStep,
     _endpoint,
     _endpoint_port,
     _find_lms,
@@ -92,7 +94,7 @@ def test_lms_cli_operations_have_bounded_timeouts(
     assert _command_timeout_ms(operation) == expected
 
 
-def test_pending_model_identity_requires_a_well_formed_dispatched_load() -> None:
+def test_pending_model_identity_requires_a_well_formed_completed_load() -> None:
     assert (
         _accepted_model_load_id(
             _CommandStep(
@@ -123,6 +125,33 @@ def test_pending_model_identity_requires_a_well_formed_dispatched_load() -> None
         )
         is None
     )
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        (30, 30),
+        (0, 0),
+        (-1, 0),
+        (2_000, 1_440),
+        ("30", 30),
+        ("45", 45),
+        ("-1", 0),
+        (None, 30),
+        (True, 30),
+    ],
+)
+def test_idle_minutes_requires_a_genuine_bounded_integer(
+    value: object, expected: int
+) -> None:
+    assert _coerce_idle_minutes(value) == expected
+
+
+def test_restart_continues_only_after_a_failed_stop_step() -> None:
+    stop = _CommandStep("server_stop", ("server", "stop"), "Stopping server")
+    load = _CommandStep("model_load", ("load", "model-id"), "Loading model")
+    assert _continue_after_failed_step(stop) is True
+    assert _continue_after_failed_step(load) is False
 
 
 def test_process_command_preserves_arguments_for_native_executable() -> None:
