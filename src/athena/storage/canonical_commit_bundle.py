@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import uuid
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
@@ -89,6 +90,12 @@ def _require_text(value: str, name: str) -> str:
         raise CanonicalCommitBundleError(f"{name} must be non-empty text.")
     _validate_unicode_text(value, name)
     return value
+
+
+def _uuid_text(value: uuid.UUID, name: str) -> str:
+    if not isinstance(value, uuid.UUID):
+        raise CanonicalCommitBundleError(f"{name} must be a UUID.")
+    return str(value)
 
 
 def _positive_integer(value: int, name: str) -> int:
@@ -227,7 +234,7 @@ def _record_object(record: CanonicalCommitRecord) -> dict[str, Any]:
 
 def serialize_canonical_commit_bundle(
     *,
-    commit_id: str,
+    commit_id: uuid.UUID,
     commit_seq: int,
     schema_version: int,
     previous_hash: str | None,
@@ -235,7 +242,7 @@ def serialize_canonical_commit_bundle(
 ) -> CanonicalCommitBundle:
     """Serialize already-selected replication records into canonical bundle bytes."""
 
-    identifier = _require_text(commit_id, "commit_id")
+    identifier = _uuid_text(commit_id, "commit_id")
     sequence = _positive_integer(commit_seq, "commit_seq")
     schema = _positive_integer(schema_version, "schema_version")
 
@@ -361,13 +368,13 @@ def verify_canonical_commit_bundle(data: bytes) -> CanonicalCommitBundle:
     )
     try:
         rebuilt = serialize_canonical_commit_bundle(
-            commit_id=body["commit_id"],
+            commit_id=uuid.UUID(body["commit_id"]),
             commit_seq=body["commit_seq"],
             schema_version=body["schema_version"],
             previous_hash=body["previous_hash"],
             records=records,
         )
-    except (CanonicalCommitBundleError, TypeError) as exc:
+    except (CanonicalCommitBundleError, TypeError, ValueError) as exc:
         if isinstance(exc, CanonicalCommitBundleError):
             raise
         raise CanonicalCommitBundleError(
