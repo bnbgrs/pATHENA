@@ -3,6 +3,7 @@ import pytest
 from athena.chat.repository import (
     ChatMessageNotFoundError,
     ChatRepository,
+    UnsupportedChatForkError,
     UnsupportedMessageEditError,
 )
 from athena.chat.service import ChatService
@@ -214,6 +215,53 @@ def test_fork_chat_copies_history_through_exact_revision_with_provenance(tmp_pat
     )
     assert fork_input["input_role"] == "fork_point"
     assert int(fork_input["ordinal"]) == 0
+    database.stop()
+
+
+def test_fork_fails_closed_for_protected_chat_or_message(tmp_path) -> None:
+    database, service = _service(tmp_path)
+    chat_id = service.create_chat()
+    message = service.add_user_message(chat_id=chat_id, content="protected")
+    before = database.connection.execute("SELECT COUNT(*) FROM chats").fetchone()[0]
+
+    database.connection.execute(
+        """
+        UPDATE chats
+        SET protection_scope_id = ?
+        WHERE chat_id = ?
+        """,
+        (b"s" * 16, uuid_to_blob(chat_id)),
+    )
+    with pytest.raises(UnsupportedChatForkError):
+        service.fork_chat_from_message(
+            chat_id=chat_id,
+            source_message_id=message.message_id,
+        )
+
+    database.connection.execute(
+        """
+        UPDATE chats
+        SET protection_scope_id = NULL
+        WHERE chat_id = ?
+        """,
+        (uuid_to_blob(chat_id),),
+    )
+    database.connection.execute(
+        """
+        UPDATE chat_message_revisions
+        SET protected_payload_id = ?
+        WHERE revision_id = ?
+        """,
+        (b"p" * 16, uuid_to_blob(message.revision_id)),
+    )
+    with pytest.raises(UnsupportedChatForkError):
+        service.fork_chat_from_message(
+            chat_id=chat_id,
+            source_message_id=message.message_id,
+        )
+
+    after = database.connection.execute("SELECT COUNT(*) FROM chats").fetchone()[0]
+    assert int(after) == int(before)
     database.stop()
 
 
