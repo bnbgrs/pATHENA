@@ -38,6 +38,13 @@ class ChatThread:
 
 
 @dataclass(frozen=True, slots=True)
+class ChatForkOrigin:
+    chat_id: uuid.UUID
+    source_message_id: uuid.UUID
+    source_revision_id: uuid.UUID
+
+
+@dataclass(frozen=True, slots=True)
 class ChatSummary:
     chat_id: uuid.UUID
     started_at_us: int
