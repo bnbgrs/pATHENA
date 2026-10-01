@@ -31,16 +31,22 @@ def _parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _single_line(value: object) -> str:
+    """Render user-controlled text without breaking the TSV/line framing contract."""
+    text = str(value).replace("\t", " ")
+    return " ".join(text.splitlines()).strip()
+
+
 def _scope_summary(raw: str | None) -> str:
     if not raw:
         return "-"
     try:
         value = json.loads(raw)
     except json.JSONDecodeError:
-        return raw.replace("\t", " ").replace("\n", " ")[:120]
+        return _single_line(raw)[:120]
 
     if not isinstance(value, dict):
-        return str(value).replace("\t", " ").replace("\n", " ")[:120]
+        return _single_line(value)[:120]
 
     preferred_keys = (
         "query",
@@ -55,7 +61,7 @@ def _scope_summary(raw: str | None) -> str:
         item = value.get(key)
         if item is None:
             continue
-        rendered = str(item).replace("\t", " ").replace("\n", " ").strip()
+        rendered = _single_line(item)
         if rendered:
             parts.append(f"{key}={rendered}")
         if len(parts) >= 2:
@@ -63,7 +69,7 @@ def _scope_summary(raw: str | None) -> str:
 
     if not parts:
         parts = [
-            f"{key}={str(item).replace(chr(9), ' ').replace(chr(10), ' ')}"
+            f"{_single_line(key)}={_single_line(item)}"
             for key, item in list(value.items())[:2]
         ]
 
