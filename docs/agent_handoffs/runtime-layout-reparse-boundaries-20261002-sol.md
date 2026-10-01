@@ -23,6 +23,11 @@ Two storage trust boundaries had drifted to different filesystem predicates:
 On Windows, "not a Python symlink" is not sufficient evidence that a path is a
 real local directory.
 
+A second ownership defect existed in the write probe: the old `finally` block
+unconditionally called `probe.unlink(missing_ok=True)`. If exclusive probe creation
+failed because that random pathname already existed, ATHENA would delete the
+pre-existing file even though it had never created or owned it.
+
 ## Änderungen
 
 Branch: `fix/runtime-layout-reparse-boundaries-20261002-sol`
@@ -32,12 +37,19 @@ Branch: `fix/runtime-layout-reparse-boundaries-20261002-sol`
   - ancestor validation now rejects symbolic links **and** reparse points;
   - required runtime directory validation rejects a reparse-backed leaf before
     creation/use and rechecks it after directory creation;
-  - writable probes reject a reparse-backed leaf before writing the probe.
+  - writable probes reject a reparse-backed leaf before writing the probe;
+  - probe cleanup runs only after ATHENA successfully created that probe;
+  - cleanup rechecks directory/link boundaries and compares the path's current
+    file identity with the descriptor identity captured at creation;
+  - a collision, disappearance, or identity replacement fails closed without
+    deleting the unowned/replaced pathname.
 - `tests/unit/test_storage_runtime_layout.py`
   - pins reparse-aware ancestor rejection;
   - pins leaf rejection before directory use;
   - pins that writable-probe validation creates no probe when the leaf is
-    classified as a reparse boundary.
+    classified as a reparse boundary;
+  - pins that an existing colliding probe pathname is never deleted;
+  - pins that a changed probe identity is not unlinked.
 
 The existing durable-filesystem test suite already owns direct Windows attribute
 coverage for `is_link_boundary()`; these new tests prove RuntimeLayout consumes
