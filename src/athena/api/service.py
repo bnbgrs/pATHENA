@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import uuid
+from collections.abc import Callable
 from typing import Any, Protocol
 
 from athena.api.contracts import (
@@ -47,6 +48,10 @@ from athena.api.search_adapter import (
     universal_search_result_response,
 )
 from athena.api.search_contracts import SearchResultResponse
+from athena.chat.cancellation import (
+    ChatCancellationRegistry,
+    ChatCancellationReservation,
+)
 from athena.chat.models import ChatMessage, ChatSummary, ChatThread
 from athena.chat.provenance import strip_durable_provenance_manifest
 from athena.chat.send_identity import (
@@ -105,6 +110,7 @@ class DirectChatSender(Protocol):
         output_reserve: int = 2048,
         temperature: float | None = None,
         reasoning_mode: str | None = "off",
+        cancel_requested: Callable[[], bool] | None = None,
     ) -> object: ...
 
 
@@ -277,6 +283,25 @@ class CoreApiFacade:
         self._normal_search: NormalSearch | None = None
         self._universal_search: UniversalSearch | None = None
         self._news: NewsProfileService | None = None
+        self._chat_cancellations = ChatCancellationRegistry()
+
+    def reserve_chat_operation(
+        self,
+        operation_id: str,
+    ) -> ChatCancellationReservation | None:
+        """Reserve cancellation state before a send enters the owner queue."""
+        return self._chat_cancellations.reserve(uuid.UUID(operation_id))
+
+    def release_chat_operation(
+        self,
+        reservation: ChatCancellationReservation,
+    ) -> None:
+        """Release one exact cancellation reservation without stale cleanup."""
+        self._chat_cancellations.release(reservation)
+
+    def cancel_chat_operation(self, operation_id: str) -> bool:
+        """Signal one known active send without touching domain or SQLite state."""
+        return self._chat_cancellations.cancel(uuid.UUID(operation_id))
 
     def attach_news(self, news: NewsProfileService) -> None:
         """Attach the existing durable News profile exactly once."""
@@ -398,7 +423,11 @@ class CoreApiFacade:
     def capabilities(self) -> CapabilitiesResponse:
         features: tuple[str, ...] = self._FEATURES
         if self._direct_chat is not None:
-            features = (*features, "chat.send.direct")
+            features = (
+                *features,
+                "chat.send.direct",
+                "chat.cancel",
+            )
         if self._unified_local_chat is not None:
             features = (*features, "chat.send.unified_local")
         if self._lifecycle_deletion is not None:
@@ -559,6 +588,16 @@ class CoreApiFacade:
             if operation_id is None
             else uuid.UUID(operation_id)
         )
+        cancellation_reservation = (
+            None
+            if parsed_operation_id is None
+            else self._chat_cancellations.get_or_reserve(parsed_operation_id)
+        )
+        cancel_requested = (
+            None
+            if cancellation_reservation is None
+            else cancellation_reservation.cancel_requested
+        )
 
         try:
             if parsed_operation_id is None:
@@ -613,6 +652,7 @@ class CoreApiFacade:
                     content=content,
                     requested_model_id=requested_model_id,
                     operation_id=parsed_operation_id,
+                    cancel_requested=cancel_requested,
                 )
             elif (
                 max_output_tokens is None
@@ -625,6 +665,7 @@ class CoreApiFacade:
                     requested_model_id=requested_model_id,
                     operation_id=parsed_operation_id,
                     effective_context_limit=effective_context_limit,
+                    cancel_requested=cancel_requested,
                 )
             else:
                 self._direct_chat.send_message(
@@ -644,6 +685,7 @@ class CoreApiFacade:
                         if thinking_enabled is True
                         else "off"
                     ),
+                    cancel_requested=cancel_requested,
                 )
 
         except SendOperationStateError as exc:
@@ -670,6 +712,9 @@ class CoreApiFacade:
                 )
 
             raise
+        finally:
+            if cancellation_reservation is not None:
+                self._chat_cancellations.release(cancellation_reservation)
 
         return _chat_thread(
             self._chat.load_chat(
