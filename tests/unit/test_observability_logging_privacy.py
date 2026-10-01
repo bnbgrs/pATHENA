@@ -254,3 +254,47 @@ def test_json_formatter_handles_cycles_without_leaking_or_recursing_forever() ->
 
     assert "<cycle>" in encoded
     assert payload["context"] == {"trace": "safe", "self": "<cycle>"}
+
+def test_json_formatter_sanitizes_dynamic_structured_keys() -> None:
+    encoded, payload = _format_record(
+        "dynamic structured keys",
+        extra={
+            "password=hunter2": "top-level-value",
+            "nested": {
+                "prompt=private question": "nested-value",
+                "https://example.test/path?token=url-secret&mode=safe": "url-key-value",
+            },
+        },
+    )
+
+    assert "hunter2" not in encoded
+    assert "private question" not in encoded
+    assert "url-secret" not in encoded
+    assert payload["password=[REDACTED]"] == "top-level-value"
+
+    nested = payload["nested"]
+    assert isinstance(nested, dict)
+    assert nested["prompt=[REDACTED_CONTENT]"] == "nested-value"
+    assert (
+        nested["https://example.test/path?token=%5BREDACTED%5D&mode=safe"]
+        == "url-key-value"
+    )
+
+
+def test_json_formatter_handles_non_string_top_level_extra_key() -> None:
+    record = logging.LogRecord(
+        "athena.test",
+        logging.INFO,
+        __file__,
+        10,
+        "non-string key",
+        (),
+        None,
+    )
+    record.__dict__[7] = "safe-value"  # type: ignore[index]
+
+    encoded = JsonFormatter().format(record)
+    payload = json.loads(encoded)
+
+    assert payload["<type:int>"] == "safe-value"
+
