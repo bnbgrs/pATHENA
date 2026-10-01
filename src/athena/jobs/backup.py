@@ -419,6 +419,7 @@ class DurableBackupWorker:
         if (
             isinstance(slot_raw, bool)
             or not isinstance(slot_raw, int)
+            or slot_raw < 0
         ):
             raise BackupJobError(
                 f"Backup job {job.job_id} has no valid schedule slot."
