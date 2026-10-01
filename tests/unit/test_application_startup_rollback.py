@@ -127,3 +127,36 @@ def test_startup_rollback_failure_does_not_replace_primary_failure(
     assert app.state is ApplicationState.FAILED
     assert "ATHENA Core startup rollback failed" in caplog.text
     assert close_events == ["close:jsonl"]
+
+
+def test_logging_configuration_failure_transitions_out_of_starting(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    service_events: list[str] = []
+    close_events: list[str] = []
+    app = _failing_start_app(tmp_path, service_events=service_events)
+
+    def fail_logging(_level: int) -> None:
+        raise RuntimeError("logging setup failed")
+
+    monkeypatch.setattr(application_module, "configure_logging", fail_logging)
+    monkeypatch.setattr(
+        application_module,
+        "inspect_database_read_only",
+        lambda _path: pytest.fail("storage inspection must not run after logging failure"),
+    )
+    monkeypatch.setattr(
+        application_module,
+        "close_jsonl_logging",
+        lambda: close_events.append("close:jsonl"),
+    )
+
+    with pytest.raises(RuntimeError, match="logging setup failed"):
+        app.start(run_startup_maintenance=False)
+
+    assert service_events == []
+    assert app.services.started_service_names == ()
+    assert app.state is ApplicationState.FAILED
+    assert app.health.events == ["starting", "failed:logging setup failed"]
+    assert close_events == ["close:jsonl"]
