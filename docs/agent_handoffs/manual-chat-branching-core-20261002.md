@@ -34,7 +34,8 @@ The schema already contains the required primitives (`revisions.parent_revision_
 - records `chat_message.edit` provenance;
 - records a `provenance_inputs` edge with role `prior_revision`;
 - advances `entity_heads` only after the new revision exists;
-- records an `update` commit change.
+- records an `update` commit change;
+- fails closed before mutation when the chat, message entity, or current message payload is protected, because this slice does not own protection-scope-aware re-encryption.
 
 `ChatService.edit_user_message()` rejects blank text before persistence and routes through the stable local-user actor.
 
@@ -49,7 +50,9 @@ The schema already contains the required primitives (`revisions.parent_revision_
 - preserves source message type and actor identity;
 - records `chat.fork` provenance whose `fork_point` input is the exact selected source message revision;
 - records `chat_message.fork` provenance for every copied message whose `fork_source` input is the exact source message revision;
-- performs the entire fork inside one write transaction, so an invalid fork point cannot leave a partial chat.
+- performs the entire fork inside one write transaction and one canonical `chat.fork` commit record, so an invalid fork point cannot leave a partial chat;
+- reuses the exact source revision payload hash for each copied immutable revision;
+- fails closed before mutation if the source chat, any copied message entity, or any copied payload is protected, preventing an implicit downgrade into an unprotected fork.
 
 `ChatService.fork_chat_from_message()` exposes the use case without adding Desktop/API controls in this slice.
 
@@ -68,13 +71,16 @@ The schema already contains the required primitives (`revisions.parent_revision_
 1. edit creates revision 2, keeps old payload, links the exact parent revision and provenance input;
 2. assistant messages cannot be rewritten through the user-edit path and gain no extra revision;
 3. fork copies exactly the prefix through the selected revision and retains exact per-message/source provenance;
-4. a fork point from a different chat fails before any partial chat is created.
+4. protected chat/message/payload states fail closed for edit and fork without adding a revision or partial chat;
+5. a fork point from a different chat fails before any partial chat is created.
 
 ## Validation
 
 Direct local checkout/test execution is unavailable in this execution environment because `github.com` DNS resolution is blocked. No local PASS is claimed.
 
-The branch was compared against current Develop after writes: exactly four product/test files were changed before this handoff, with the branch 4 commits ahead / 0 behind base. Open a draft PR and require exact-head GitHub CI before integration.
+The initial product diff was verified as disjoint from active bot-owned files before the draft PR was opened. Subsequent commits only harden this same chat persistence/test/handoff slice.
+
+Draft PR: #342. Exact-head GitHub CI is required before integration; older workflow runs from superseded branch heads do not count as validation.
 
 ## Known remaining scope
 
@@ -84,7 +90,8 @@ This slice intentionally does **not** yet implement:
 - Desktop “Edit”, “Regenerate”, or “New chat from here” controls;
 - regeneration semantics after an edited turn;
 - pin/favorite conversations;
-- provider transport cancellation.
+- provider transport cancellation;
+- protection-scope-aware fork/edit re-encryption (current behavior intentionally fails closed rather than weakening protection).
 
 Those should be layered on only after the repository/service contract is exact-head green.
 
