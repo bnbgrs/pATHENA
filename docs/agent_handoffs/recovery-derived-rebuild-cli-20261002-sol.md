@@ -6,136 +6,190 @@
 - Exact base inspected before work: `467ef434236c320e4afe9d21a39c20a4a2b75728`
 - Base already includes merged PR #329 (Core/API chat cancellation).
 - Working branch: `fix/recovery-derived-rebuild-cli-20261002-sol`
-- Implementation commit: `a5688802e6b33d85c79dbf046a0d34c08c97a115`
-- Focused CLI test commit: `83cba4cc539c0e9f7dc611cbc42ffdd962801a76`\n- Diagnostic truthfulness fix: `3a218b5d1fbb698049b07be187d10d06b6515d64`\n- Diagnostic truthfulness tests: `98cf02fbbd0363f15bd364239aa6042bd12b2f51`
+- Draft PR: #366 — Recovery: expose guarded derived-state rebuild commands
+- First rebuild implementation: `a5688802e6b33d85c79dbf046a0d34c08c97a115`
+- Initial rebuild tests: `83cba4cc539c0e9f7dc611cbc42ffdd962801a76`
+- Canonical diagnostic truth fix: `3a218b5d1fbb698049b07be187d10d06b6515d64`
+- Import formatting correction: `6f30c67cae3e1faaef1292305e6dc1e57ddbe43a`
+- Derived diagnostic truth fix: `d8e490c57ba8cb1fb733a9b06ab42cbbe09f981e`
+- Rebuild invariant-boundary fix: `f9cbf13c9958fc181620091b8a0d04b6b25fc6eb`
+- Rebuild invariant tests: `63c464286c173f4c390c093c572531632740d08b`
+- Derived diagnostic truth tests: `c2308d6dd21cb789fff366fea43959765f374cb8`
+- Lazy Backup import: `6c4fa9407d62903edb4687343a4f0f66a4995cbf`
+- Recovery CLI import-boundary test: `bdaab08605b5603256d83193cda94ff65fe0a2e1`
 
 ## Ausgangslage
 
-Beta 22 requires Recovery to offer an explicit “Index neu aufbauen” path while keeping the normal Core, model runtime, plugins and Internet out of the recovery dependency set.
+Beta 22 requires Recovery to provide an explicit “Index neu aufbauen” path while keeping the emergency entrypoint independent from the normal Core, models, plugins, Internet, News and background services.
 
-Current code already had four guarded repair primitives in `DerivedRecoveryService`:
+The repository already contained four guarded repair primitives in `DerivedRecoveryService`:
 
 - canonical FTS rebuild;
 - archive FTS rebuild;
-- canonical HNSW rebuild from already persisted vectors;
-- archive HNSW rebuild from already persisted vectors.
+- canonical HNSW rebuild from persisted vectors;
+- archive HNSW rebuild from persisted vectors.
 
-However, `athena-recover` exposed only `diagnose` and `restore-path`. A normal user/operator could diagnose a rebuild-required Derived State but could not invoke the existing safe repair primitives through the Recovery entrypoint without writing Python code.
+But `athena-recover` exposed only `diagnose` and `restore-path`. A user could receive a truthful rebuild-required diagnosis but had no supported Recovery command to execute the already-implemented safe repair.
 
-## Root Cause
+A second review found two truthfulness defects in Recovery error classification and one unnecessary dependency expansion in the CLI import path.
 
-The recovery implementation was split at the final integration boundary: safe repair services existed and were tested, but the minimal CLI never wired them into an operator-facing command surface.
+## Root causes
 
-This was a functional gap rather than a missing algorithm. Reimplementing index repair would have duplicated already hardened code and risked divergence.
+1. **Missing final Recovery integration boundary.** Safe Derived repair services existed, but the minimal operator CLI never wired them.
+2. **Canonical false certainty.** `RecoveryDiagnosticsService.inspect()` caught every canonical-preflight `Exception` and reported it as damaged/incompatible user data.
+3. **Derived false certainty.** Every unexpected Derived inspection exception was presented as a Derived-State problem even when the failure could be an internal diagnostics defect.
+4. **Rebuild exception masking.** `run_rebuild_derived()` caught generic `ValueError`, which could hide an invariant/programming failure as an expected recovery error.
+5. **Unnecessary Recovery dependencies.** Importing `athena.recovery_cli` eagerly imported `BackupService` and its broad dependency graph even for `diagnose` and Derived rebuilds.
 
-## Änderungen
+## Changes
 
-`src/athena/recovery_cli.py`
+### `src/athena/recovery_cli.py`
 
-- adds `athena-recover rebuild-derived <target>`;
-- supported explicit targets:
-  - `canonical-fts`
-  - `archive-fts`
-  - `canonical-hnsw`
-  - `archive-hnsw`
-- delegates only to the existing `DerivedRecoveryService` guarded repair methods;
-- keeps each invocation one-target-at-a-time so partial repair is never hidden behind an “all succeeded” claim;
-- reports the real returned count:
+Adds:
+
+`athena-recover rebuild-derived <target>`
+
+Supported explicit targets:
+
+- `canonical-fts`
+- `archive-fts`
+- `canonical-hnsw`
+- `archive-hnsw`
+
+Behavior:
+
+- delegates to the existing guarded `DerivedRecoveryService` methods;
+- runs one target at a time;
+- reports real returned counts:
   - FTS: `documents_indexed`
-  - HNSW: `model_indexes_rebuilt`
-- preserves Recovery minimality: no `AthenaApplication` startup and no provider/model call for these rebuild paths;
-- maps `DerivedRecoveryRequiredError` to exit code 4, matching the existing Recovery diagnostic “broader recovery required” contract;
-- maps expected rebuild/configuration/OS failures to exit code 2;
-- deliberately does not catch unexpected `RuntimeError`/programming defects, avoiding false classification as a known recovery condition;
-- rejects unknown rebuild targets before runtime/settings loading.
+  - HNSW: `model_indexes_rebuilt`;
+- does not start `AthenaApplication`;
+- does not invoke a model/provider for these rebuilds;
+- maps `DerivedRecoveryRequiredError` to exit 4;
+- maps expected `DerivedRecoveryError`, configuration and OS failures to exit 2;
+- does **not** catch generic `ValueError` or `RuntimeError` invariant/programming defects;
+- rejects unsupported target strings before runtime settings are loaded;
+- imports `BackupService` only inside `run_restore_path()`, so diagnose/rebuild imports do not pull in the Backup service graph.
 
-`tests/unit/test_recovery_derived_cli.py`
+### `src/athena/core/recovery_diagnostics.py`
 
-- proves all four targets dispatch to exactly one intended service method;
-- proves truthful count labels/output;
-- proves broader recovery requirement returns 4;
-- proves ordinary rebuild failure returns 2 without falsely claiming “recovery required”;
-- proves unexpected implementation defects propagate;
-- proves unsupported targets are rejected before runtime loading;
-- proves parser exposes the four bounded targets.
+Canonical preflight:
 
-## Zweiter behobener Fehler: falsche Gewissheit in Recovery-Diagnosen
+- `DatabaseRecoveryRequiredError` keeps the established `canonical.database_invalid_or_incompatible` classification;
+- unexpected exceptions become `canonical.database_inspection_failed`;
+- canonical integrity is not claimed;
+- normal Core start remains blocked;
+- action is `investigate-recovery-diagnostics`;
+- exception text is not exposed.
 
-### Ausgangslage / Root Cause
+Derived inspection:
 
-`RecoveryDiagnosticsService.inspect()` fing am kanonischen Preflight pauschal `Exception` ab und meldete **jede** Exception als `canonical.database_invalid_or_incompatible`.
+- `DerivedRecoveryRequiredError` keeps `derived.inspection_failed` / `investigate-derived-state`;
+- unexpected exceptions become `recovery.diagnostics_internal_error` on layer `recovery`;
+- canonical health remains truthfully recorded as already confirmed;
+- normal Core start remains blocked;
+- exception text is not exposed.
 
-Damit wurden auch unerwartete Implementierungs-/Diagnostikfehler semantisch als beschädigte oder inkompatible Benutzerdaten klassifiziert. Das verletzt Beta 22 „No False Certainty“ und kann einen Operator fälschlich in Richtung Restore lenken.
+## Tests added/extended
 
-### Änderung
+### `tests/unit/test_recovery_derived_cli.py`
 
-`src/athena/core/recovery_diagnostics.py`
+- exact dispatch for all four rebuild targets;
+- truthful count labels;
+- exit 4 for broader Recovery requirement;
+- exit 2 for expected rebuild failure;
+- unexpected `RuntimeError` **and** `ValueError` propagate;
+- unsupported targets fail before settings/runtime loading;
+- parser exposes only the bounded target set.
 
-- `DatabaseRecoveryRequiredError` behält die präzise bestehende Klassifikation `invalid-or-incompatible`;
-- unerwartete Fehler werden separat als `canonical.database_inspection_failed` / `canonical_database=inspection-failed` ausgegeben;
-- normaler Core-Start bleibt dabei sicher blockiert;
-- Exception-Text wird nicht in den payload-freien Diagnosebericht gespiegelt.
+### `tests/unit/test_recovery_diagnostics_truth.py`
 
-`tests/unit/test_recovery_diagnostics_truth.py`
+- known canonical Recovery errors preserve the existing specific classification;
+- unexpected canonical inspection failure is not labeled database corruption;
+- canonical internal exception text is not leaked;
+- known Derived Recovery requirement remains a Derived-State recovery classification;
+- unexpected Derived inspection failure is classified as a Recovery diagnostics defect;
+- Derived internal exception text is not leaked.
 
-- bekannte Recovery-Fehler bleiben präzise klassifiziert;
-- unerwartete Fehler werden nicht mehr als DB-Korruption ausgegeben;
-- unerwartete interne Exception-Texte werden nicht in den Diagnosepayload geleakt.
+### `tests/unit/test_recovery_cli_import_boundaries.py`
+
+Fresh-interpreter regression asserts that importing and building the Recovery CLI parser does not eagerly load:
+
+- `athena.backup.service`
+- `athena.core.application`
+- LM Studio model adapters
+- News service
+- Security service
 
 ## Verhalten danach
 
-Operators can now move from:
+Supported operator flow:
 
-`athena-recover diagnose`
+1. `athena-recover diagnose`
+2. inspect the structured Recovery result;
+3. when the reported condition matches an existing safe repair, run exactly one:
+   - `athena-recover rebuild-derived canonical-fts`
+   - `athena-recover rebuild-derived archive-fts`
+   - `athena-recover rebuild-derived canonical-hnsw`
+   - `athena-recover rebuild-derived archive-hnsw`
+4. diagnose again before normal startup.
 
-to one explicit, pre-existing safe repair action without launching the normal Core:
+All integrity/state prerequisites remain owned by `DerivedRecoveryService`; the CLI does not bypass them.
 
-`athena-recover rebuild-derived canonical-fts`
-
-`athena-recover rebuild-derived archive-fts`
-
-`athena-recover rebuild-derived canonical-hnsw`
-
-`athena-recover rebuild-derived archive-hnsw`
-
-The underlying service still owns all integrity and state preconditions. The CLI does not bypass or weaken those guards.
-
-## Dateien
+## Files changed
 
 - `src/athena/recovery_cli.py`
+- `src/athena/core/recovery_diagnostics.py`
 - `tests/unit/test_recovery_derived_cli.py`
+- `tests/unit/test_recovery_diagnostics_truth.py`
+- `tests/unit/test_recovery_cli_import_boundaries.py`
 - `docs/agent_handoffs/recovery-derived-rebuild-cli-20261002-sol.md`
 
-## Validierung
+## Validation
 
-Local checkout/test execution is unavailable in this agent container because `github.com` DNS resolution fails. No local PASS is claimed.
+Local checkout/test execution is unavailable in this agent container because `github.com` DNS resolution fails. **No local PASS is claimed.**
 
-Static review completed against the exact branch diff and the existing `DerivedRecoveryService` contracts.
+Completed static/contract review:
 
-Repository CI on the PR head is the executable validation source. Required evidence:
+- branch remains based on exact current Develop with no behind commits at last compare;
+- all changed Python files re-read from GitHub after edits;
+- no accidental literal `\\n` sequences remain in changed Python files;
+- no changed Python line exceeds the repository 100-character Ruff line limit;
+- existing `DerivedRecoveryService` tests already prove FTS rebuilds preserve authoritative state and HNSW rebuilds use persisted vectors without provider calls.
 
-1. Ruff on changed source/tests;
-2. mypy over production source;
-3. focused `tests/unit/test_recovery_derived_cli.py`;
-4. existing Derived Recovery tests;
-5. full ATHENA Quality before integration.
+Executable validation source is repository CI. Latest exact-head Quality run must cover:
 
-## Bekannte Restprobleme
+- specification validator;
+- Ruff;
+- mypy;
+- complete canonical pytest suite;
+- Linux storage regressions;
+- local install smoke;
+- Windows path/restart/package guards.
 
-- This slice exposes only already-implemented Derived-State repairs. It does not add automatic canonical DB repair, blob rehydration, storage rebinding, or a Recovery GUI.
-- Missing/stale archive SourceChunks remain a broader recovery condition where the existing service says so; the CLI does not fabricate or delete data to make the rebuild pass.
-- Embedding regeneration still requires the normal model-backed workflow. Recovery HNSW rebuild uses only already persisted valid vectors.
+Do not merge #366 until the final PR head is green.
 
-## Abhängigkeiten / Konfliktrisiko
+## Known remaining gaps
 
-No active open PR inspected at start owned `src/athena/recovery_cli.py` or this new focused test file.
+- No automatic canonical DB repair is added.
+- Missing/stale archive SourceChunks remain a broader recovery condition when the existing service says so; no data is fabricated/deleted to make a rebuild appear successful.
+- Embedding regeneration remains a normal model-backed workflow; Recovery HNSW rebuild uses only already-persisted valid vectors.
+- Recovery GUI still exposes diagnosis only; wiring mutation actions into the desktop should be a separate reviewed slice because the current packaged-worker routing has active parallel work.
+- Diagnostics export, blob rehydration and storage rebinding remain separate Beta 22 work.
 
-This slice deliberately avoids currently active Chat cancellation/UI, LM Studio runtime, Settings, Knowledge, Jobs, Sources, Backup, Storage replication, Research comparison and Windows packaged-helper branches.
+## Dependencies / conflict risk
 
-Potential future overlap: any worker extending Recovery CLI or Recovery UI should build on this command contract rather than adding a second repair entrypoint.
+At branch start, no active open PR owned `src/athena/recovery_cli.py` or `src/athena/core/recovery_diagnostics.py`.
 
-## Nächste sinnvolle Schritte
+This slice intentionally avoids active Chat/UI, LM Studio, Settings, Knowledge, Jobs, Sources, Backup, Storage replication, Research comparison and Windows packaged-helper branches.
 
-1. Qualify exact PR head in repository CI and fix only evidenced failures.
-2. If green, integrate onto fresh `develop/pathena-next`.
-3. Next independent Recovery slice: expose a user-reviewable diagnostics export or a safe read-only Recovery UI action that consumes the existing structured report; do not combine that work into this PR unless CI reveals a direct blocker.
+Potential future overlap:
+
+- Recovery UI workers should consume this command/diagnostic contract rather than create a second repair path.
+- Packaged-worker work should be reconciled before exposing these mutation commands in the frozen desktop.
+
+## Next actions
+
+1. Qualify the final exact PR #366 head in repository CI; fix only evidenced failures.
+2. If green, integrate history-preserving onto fresh `develop/pathena-next` and rerun required integration gates.
+3. Next independent Recovery slice should be diagnostics export or a reviewed Recovery UI action after packaged-worker routing stabilizes.
