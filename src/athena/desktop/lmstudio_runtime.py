@@ -154,6 +154,29 @@ def _process_command(lms_path: str, arguments: tuple[str, ...]) -> tuple[str, li
     return lms_path, list(arguments)
 
 
+def _coerce_idle_minutes(value: object, *, default: int = 30) -> int:
+    """Return one bounded genuine-integer idle value from persisted settings."""
+    parsed = value if isinstance(value, int) and not isinstance(value, bool) else default
+    return max(0, min(1440, parsed))
+
+
+def _accepted_model_load_id(step: _CommandStep) -> str | None:
+    """Derive pending identity only from the exact load command that completed."""
+    if (
+        step.operation != "model_load"
+        or len(step.arguments) < 2
+        or step.arguments[0] != "load"
+    ):
+        return None
+    model_id = step.arguments[1].strip()
+    return model_id or None
+
+
+def _continue_after_failed_step(step: _CommandStep) -> bool:
+    """Allow restart recovery to proceed when the server was already stopped."""
+    return step.operation == "server_stop"
+
+
 def _should_attempt_auto_load(
     *,
     model_id: str,
@@ -299,8 +322,7 @@ class LMStudioRuntimeController(QObject):
             self.settings.endGroup()
         self.auto_start.setChecked(bool(auto_start))
         self.auto_load.setChecked(bool(auto_load))
-        idle_value = idle_minutes if isinstance(idle_minutes, int) else 30
-        self.idle_minutes.setValue(max(0, min(1440, idle_value)))
+        self.idle_minutes.setValue(_coerce_idle_minutes(idle_minutes))
         preferred = str(preferred_model_id).strip()
         self._preferred_model_id = preferred or None
 
@@ -552,7 +574,7 @@ class LMStudioRuntimeController(QObject):
             self._set_status("LM Studio runtime · lms CLI not found")
             return
 
-        self._pending_model_id = model.backend_model_id
+        self._pending_model_id = None
         self._auto_load_attempted_model_id = model.backend_model_id
         arguments: list[str] = ["load", model.backend_model_id]
         context = self.window._effective_context_limit()
@@ -660,20 +682,40 @@ class LMStudioRuntimeController(QObject):
         # A stop/start command can race with an already-correct server state. Refresh
         # after any failure so the Core, rather than CLI wording, decides actual truth.
         if exit_code != 0:
+            detail = output.splitlines()[-1] if output else f"exit {exit_code}"
+            if _continue_after_failed_step(step) and self._steps:
+                self._active_step = None
+                self._set_status(
+                    "LM Studio runtime · server stop unavailable; continuing restart "
+                    f"· {detail}"
+                )
+                self._start_next_step()
+                return
+
             self._steps.clear()
             self._active_step = None
             if step.operation == "model_load":
                 self._pending_model_id = None
                 self._model_confirmation_refreshes_remaining = 0
             self.busy_changed.emit(False)
-            detail = output.splitlines()[-1] if output else f"exit {exit_code}"
             self._set_status(f"LM Studio runtime · {step.operation} failed · {detail}")
             QTimer.singleShot(250, self.controller.refresh)
             return
 
         if step.operation == "model_load":
-            # CLI exit 0 only means LM Studio accepted the load command. Keep the
-            # request pending until Core discovery reports this exact model loaded.
+            # CLI exit 0 only means the exact load command completed. Establish
+            # pending identity now, never at selection/intent time.
+            accepted_model_id = _accepted_model_load_id(step)
+            if accepted_model_id is None:
+                self._steps.clear()
+                self._active_step = None
+                self._pending_model_id = None
+                self._model_confirmation_refreshes_remaining = 0
+                self.busy_changed.emit(False)
+                self._set_status("LM Studio runtime · invalid model-load command state")
+                QTimer.singleShot(250, self.controller.refresh)
+                return
+            self._pending_model_id = accepted_model_id
             self._model_confirmation_refreshes_remaining = (
                 _MODEL_CONFIRMATION_REFRESH_LIMIT
             )
