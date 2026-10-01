@@ -4,7 +4,13 @@ from __future__ import annotations
 
 import uuid
 
-from athena.chat.models import ChatMessage, ChatSummary, ChatThread, MessageType
+from athena.chat.models import (
+    ChatForkOrigin,
+    ChatMessage,
+    ChatSummary,
+    ChatThread,
+    MessageType,
+)
 from athena.chat.repository import ChatRepository
 from athena.chat.send_identity import (
     SendOperationStatus,
@@ -184,6 +190,9 @@ class ChatService:
             operation_id=operation_id,
             expected_content=content,
         )
+
+    def get_fork_origin(self, chat_id: uuid.UUID) -> ChatForkOrigin | None:
+        return self.repository.get_fork_origin(chat_id)
 
     def load_chat(self, chat_id: uuid.UUID) -> ChatThread:
         return self.repository.load_chat(chat_id)
