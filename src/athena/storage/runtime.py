@@ -105,9 +105,11 @@ class RuntimeLayoutService:
                 f"ATHENA runtime path is not a safe directory: {str(validated)!r}."
             )
         probe = validated / f".athena-write-probe-{os.getpid()}-{secrets.token_hex(4)}"
+        created_identity: os.stat_result | None = None
 
         try:
             with probe.open("xb") as handle:
+                created_identity = os.fstat(handle.fileno())
                 handle.write(b"ATHENA")
                 handle.flush()
                 os.fsync(handle.fileno())
@@ -116,12 +118,26 @@ class RuntimeLayoutService:
                 f"ATHENA runtime directory is not writable: {str(validated)!r}."
             ) from exc
         finally:
-            try:
-                probe.unlink(missing_ok=True)
-            except OSError as exc:
-                # A failed probe cleanup is itself evidence that the directory
-                # is not healthy enough for durable ATHENA state.
-                if probe.exists():
+            if created_identity is not None:
+                try:
+                    _reject_symlink_ancestors(validated)
+                    if is_link_boundary(validated) or is_link_boundary(probe):
+                        raise RuntimePathError(
+                            "ATHENA runtime write probe path changed to a link boundary "
+                            f"in {str(validated)!r}."
+                        )
+                    current_identity = probe.stat(follow_symlinks=False)
+                    if not os.path.samestat(created_identity, current_identity):
+                        raise RuntimePathError(
+                            "ATHENA runtime write probe identity changed before cleanup "
+                            f"in {str(validated)!r}."
+                        )
+                    probe.unlink()
+                except FileNotFoundError as exc:
+                    raise RuntimePathError(
+                        f"ATHENA runtime write probe disappeared in {str(validated)!r}."
+                    ) from exc
+                except OSError as exc:
                     raise RuntimePathError(
                         f"ATHENA could not clean its write probe in {str(validated)!r}."
                     ) from exc
