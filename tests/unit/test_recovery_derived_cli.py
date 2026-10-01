@@ -292,3 +292,30 @@ def test_recovery_parser_exposes_only_supported_derived_rebuild_targets(
 
     assert args.command == "rebuild-derived"
     assert args.target == target
+
+
+
+def test_recovery_main_dispatches_derived_rebuild_command(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    seen: list[str] = []
+
+    def fake_rebuild(target: str) -> int:
+        seen.append(target)
+        return 17
+
+    monkeypatch.setattr(
+        recovery_cli,
+        "run_rebuild_derived",
+        fake_rebuild,
+    )
+
+    result = recovery_cli.main(
+        [
+            "rebuild-derived",
+            "archive-hnsw",
+        ]
+    )
+
+    assert result == 17
+    assert seen == ["archive-hnsw"]
