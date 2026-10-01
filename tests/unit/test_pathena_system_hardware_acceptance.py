@@ -237,6 +237,99 @@ def test_hardware_projection_rejects_success_without_evidence() -> None:
         )
 
 
+def test_hardware_projection_binds_receipt_to_cli_exit_code() -> None:
+    ready = {
+        "overall_ready": True,
+        "gpu_ready": True,
+        "model_ready": True,
+        "inference_ready": True,
+        "detected_gpus": ["AMD Radeon RX 7900 XTX"],
+        "selected_model_id": "local-model",
+        "checks": [
+            {
+                "name": "target-gpu",
+                "status": "PASS",
+                "detail": "GPU matched",
+            },
+            {
+                "name": "lm-studio-model",
+                "status": "PASS",
+                "detail": "model loaded",
+            },
+            {
+                "name": "live-inference",
+                "status": "PASS",
+                "detail": "marker returned",
+            },
+        ],
+    }
+
+    project_hardware_acceptance_payload(ready, exit_code=0)
+
+    with pytest.raises(ValueError, match="report/exit-code mismatch"):
+        project_hardware_acceptance_payload(ready, exit_code=4)
+
+    configuration_failure = {
+        "overall_ready": False,
+        "checks": [
+            {
+                "name": "configuration",
+                "status": "FAIL",
+                "detail": "runtime configuration is invalid",
+            }
+        ],
+    }
+    project_hardware_acceptance_payload(configuration_failure, exit_code=5)
+
+
+def test_hardware_panel_rejects_success_report_from_failure_exit(
+    tmp_path: Path,
+) -> None:
+    _app()
+    report = tmp_path / "hardware.json"
+    report.write_text(
+        json.dumps(
+            {
+                "overall_ready": True,
+                "gpu_ready": True,
+                "model_ready": True,
+                "inference_ready": True,
+                "detected_gpus": ["AMD Radeon RX 7900 XTX"],
+                "selected_model_id": "loaded-model",
+                "checks": [
+                    {
+                        "name": "target-gpu",
+                        "status": "PASS",
+                        "detail": "GPU matched",
+                    },
+                    {
+                        "name": "lm-studio-model",
+                        "status": "PASS",
+                        "detail": "model loaded",
+                    },
+                    {
+                        "name": "live-inference",
+                        "status": "PASS",
+                        "detail": "marker returned",
+                    },
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    panel = SystemHardwareAcceptancePanel(
+        report_path=report,
+        executable=r"C:\pATHENA\pATHENA-Worker.exe",
+    )
+
+    assert panel.status.text() == "PASS"
+
+    panel._handle_finished(4, None)
+
+    assert panel.status.text() == "INVALID"
+    assert "report/exit-code mismatch" in panel.detail.text()
+
+
 def test_system_hardware_panel_loads_existing_machine_report(tmp_path: Path) -> None:
     _app()
     report = tmp_path / "hardware.json"
