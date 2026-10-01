@@ -39,6 +39,7 @@ class ResearchWorkspace(QWidget):
         self.setObjectName("researchWorkspace")
         self._operation = ""
         self._operation_job_id: str | None = None
+        self._operation_selection_id: str | None = None
         self._buffer = ""
         self._process_error_reported = False
         self._selected_job_id: str | None = None
@@ -244,7 +245,7 @@ class ResearchWorkspace(QWidget):
         owns_details: bool,
     ) -> None:
         if (
-            operation not in {"show", "cancel"}
+            operation not in {"show", "cancel", "enqueue"}
             or owns_details
             or not self._selected_job_id
         ):
@@ -304,6 +305,7 @@ class ResearchWorkspace(QWidget):
     ) -> None:
         self._operation = operation
         self._operation_job_id = job_id
+        self._operation_selection_id = self._selected_job_id
         self._buffer = ""
         self._process_error_reported = False
         self._set_status(label + " …", "busy")
@@ -339,6 +341,7 @@ class ResearchWorkspace(QWidget):
             self._process_error_reported = False
             self._operation = ""
             self._operation_job_id = None
+            self._operation_selection_id = None
             self._set_controls_enabled(True)
             if self.details.property("pathenaBackgroundOperationOwner"):
                 QTimer.singleShot(0, self._reload_selected_details_if_idle)
@@ -346,10 +349,12 @@ class ResearchWorkspace(QWidget):
 
         operation = self._operation
         operation_job_id = self._operation_job_id
+        operation_selection_id = self._operation_selection_id
         owns_details = self._operation_owns_details()
         output = self._buffer
         self._operation = ""
         self._operation_job_id = None
+        self._operation_selection_id = None
         self._set_controls_enabled(True)
         job_label = operation_job_id[:8].upper() if operation_job_id else ""
 
@@ -418,12 +423,29 @@ class ResearchWorkspace(QWidget):
                     )
                     set_pathena_ui_state(self.details, "error")
                 return
-            self._selected_job_id = queued_job_id
-            self._selected_job_state = "queued"
+            selection_changed = self._selected_job_id != operation_selection_id
             self.query_input.clear()
-            self._set_status("Research job queued.", "success")
-            if self._selected_job_id == queued_job_id:
-                set_pathena_ui_state(self.details, "success")
+            if selection_changed:
+                self._set_status(
+                    "Research job queued; current selection kept.",
+                    "success",
+                )
+                self._recover_background_selection(
+                    operation,
+                    owns_details=False,
+                )
+            else:
+                self._selected_job_id = queued_job_id
+                self._selected_job_state = "queued"
+                queued_label = queued_job_id[:8].upper()
+                detail_message = (
+                    f"RESEARCH QUEUED · Run {queued_label}. "
+                    "Loading persisted status…"
+                )
+                self.details.setPlainText(detail_message)
+                self.details.setAccessibleDescription(detail_message)
+                set_pathena_ui_state(self.details, "busy")
+                self._set_status("Research job queued.", "success")
             QTimer.singleShot(120, self.refresh)
             return
 
@@ -563,6 +585,7 @@ class ResearchWorkspace(QWidget):
         owns_details = self._operation_owns_details()
         self._operation = ""
         self._operation_job_id = None
+        self._operation_selection_id = None
         self._set_controls_enabled(True)
         job_label = operation_job_id[:8].upper() if operation_job_id else ""
         if error == QProcess.ProcessError.FailedToStart:
