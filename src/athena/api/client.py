@@ -53,7 +53,12 @@ _DEFAULT_TIMEOUT_SECONDS = 5.0
 def _positive_finite_seconds(value: object, label: str) -> float:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise TypeError(f"{label} must be numeric.")
-    normalized = float(value)
+    try:
+        normalized = float(value)
+    except OverflowError as exc:
+        raise ValueError(
+            f"{label} must be a positive finite number."
+        ) from exc
     if not math.isfinite(normalized) or normalized <= 0:
         raise ValueError(f"{label} must be a positive finite number.")
     return normalized
@@ -982,7 +987,13 @@ def _required_float(payload: dict[str, JsonValue], key: str) -> float:
             f"ATHENA Core response field {key!r} is invalid.",
             code="invalid_response",
         )
-    normalized = float(value)
+    try:
+        normalized = float(value)
+    except OverflowError as exc:
+        raise CoreApiClientError(
+            f"ATHENA Core response field {key!r} is not finite.",
+            code="invalid_response",
+        ) from exc
     if not math.isfinite(normalized):
         raise CoreApiClientError(
             f"ATHENA Core response field {key!r} is not finite.",
