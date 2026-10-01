@@ -11,7 +11,10 @@ from athena.desktop.supervisor import core_process_launch_spec
 
 _START_TIMEOUT_MS = 5_000
 _CONTROL_WRITE_TIMEOUT_MS = 500
-_GRACEFUL_SHUTDOWN_TIMEOUT_MS = 5_000
+# The scheduler supervisor owns a 3s graceful + 2s terminate + 1s kill chain for
+# its lane children. The desktop owner must not terminate that supervisor before
+# the child process tree has had time to complete its own bounded cleanup.
+_GRACEFUL_SHUTDOWN_TIMEOUT_MS = 7_500
 _TERMINATE_TIMEOUT_MS = 1_500
 _KILL_TIMEOUT_MS = 1_000
 _STOP_COMMAND = b"stop\n"
