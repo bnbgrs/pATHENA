@@ -2057,9 +2057,9 @@ class AthenaMainWindow(QMainWindow):
             return
 
         self.send_button.setText("WORKING")
-        self.send_button.setAccessibleName("Generation in progress")
+        self.send_button.setAccessibleName("Chat operation in progress")
         self.send_button.setToolTip(
-            "This operation cannot currently be stopped from the desktop."
+            "This chat operation cannot currently be stopped from the desktop."
         )
 
     @Slot()
