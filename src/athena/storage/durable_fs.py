@@ -299,6 +299,125 @@ def durable_write_bytes(path: Path, data: bytes, *, mode: int = 0o600) -> None:
         handle.write(data)
 
 
+def durable_publish_new_bytes(path: Path, data: bytes, *, mode: int = 0o600) -> None:
+    """Durably create one immutable file and fail if the destination already exists.
+
+    Replication/history callers must not use replace semantics for append-only
+    records. This helper writes through a private temporary file, fsyncs the
+    payload, then publishes the destination with an atomic no-overwrite
+    operation before synchronizing the parent directory.
+    """
+    if not isinstance(data, bytes):
+        raise TypeError("Durable file payload must be bytes.")
+
+    destination = Path(path)
+    validated_mode = _validated_file_mode(mode)
+    parent = destination.parent
+    _assert_real_directory(parent, label="Durable new-file parent")
+    if is_link_boundary(destination):
+        raise FileExistsError(
+            f"Durable new-file destination is a symlink or reparse point: {destination}"
+        )
+
+    temporary_name = (
+        f".{destination.name}.{os.getpid()}-{secrets.token_hex(8)}.partial"
+    )
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
+
+    if _is_windows():
+        temporary = parent / temporary_name
+        descriptor = os.open(temporary, flags, validated_mode)
+        try:
+            with os.fdopen(descriptor, "wb", closefd=True) as handle:
+                descriptor = -1
+                handle.write(data)
+                handle.flush()
+                os.fsync(handle.fileno())
+            _windows_publish_new_write_through(temporary, destination)
+        finally:
+            if descriptor >= 0:
+                os.close(descriptor)
+            temporary.unlink(missing_ok=True)
+        return
+
+    parent_fd = _open_directory_fd(parent, label="Durable new-file parent")
+    descriptor = -1
+    try:
+        _assert_directory_fd_current(
+            parent,
+            parent_fd,
+            label="Durable new-file parent",
+        )
+        try:
+            descriptor = os.open(
+                temporary_name,
+                flags,
+                validated_mode,
+                dir_fd=parent_fd,
+            )
+        except (NotImplementedError, TypeError) as exc:
+            raise OSError(
+                "Identity-bound durable new-file creation is unsupported "
+                "on this POSIX runtime."
+            ) from exc
+
+        _assert_directory_fd_current(
+            parent,
+            parent_fd,
+            label="Durable new-file parent",
+        )
+        with os.fdopen(descriptor, "wb", closefd=True) as handle:
+            descriptor = -1
+            handle.write(data)
+            handle.flush()
+            os.fsync(handle.fileno())
+
+        _assert_directory_fd_current(
+            parent,
+            parent_fd,
+            label="Durable new-file parent",
+        )
+        try:
+            os.link(
+                temporary_name,
+                destination.name,
+                src_dir_fd=parent_fd,
+                dst_dir_fd=parent_fd,
+                follow_symlinks=False,
+            )
+        except FileExistsError:
+            raise
+        except (NotImplementedError, TypeError) as exc:
+            raise OSError(
+                "Identity-bound no-overwrite publication is unsupported "
+                "on this POSIX runtime."
+            ) from exc
+
+        os.fsync(parent_fd)
+        _assert_directory_fd_current(
+            parent,
+            parent_fd,
+            label="Durable new-file parent",
+        )
+
+        os.unlink(temporary_name, dir_fd=parent_fd)
+        os.fsync(parent_fd)
+        _assert_directory_fd_current(
+            parent,
+            parent_fd,
+            label="Durable new-file parent",
+        )
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+        try:
+            os.unlink(temporary_name, dir_fd=parent_fd)
+        except FileNotFoundError:
+            pass
+        finally:
+            os.close(parent_fd)
+
+
 def durable_mkdir(path: Path, *, parents: bool = False, exist_ok: bool = False) -> None:
     """Create a directory and durably publish every newly created entry."""
     directory = Path(path)
@@ -675,6 +794,33 @@ def _windows_replace_write_through(source: Path, destination: Path) -> None:
             destination_parent_handle,
             destination.name,
             replace_existing=not source_is_directory,
+        )
+    finally:
+        if destination_parent_handle >= 0:
+            _windows_close_handle(destination_parent_handle)
+        _windows_close_handle(source_handle)
+
+
+def _windows_publish_new_write_through(source: Path, destination: Path) -> None:
+    """Publish one file through bound HANDLEs without replacing existing history."""
+    source_handle = _windows_open_bound_handle(
+        source,
+        access=_DELETE | _FILE_READ_ATTRIBUTES,
+        require_directory=False,
+        write_through=True,
+    )
+    destination_parent_handle = -1
+    try:
+        destination_parent_handle = _windows_open_bound_handle(
+            destination.parent,
+            access=_FILE_READ_ATTRIBUTES,
+            require_directory=True,
+        )
+        _windows_rename_relative(
+            source_handle,
+            destination_parent_handle,
+            destination.name,
+            replace_existing=False,
         )
     finally:
         if destination_parent_handle >= 0:
