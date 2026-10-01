@@ -719,7 +719,7 @@ class BackupService(DeletionLedgerStorageMixin):
                 )
             return self.get_snapshot(snapshot_id)
         except BaseException as exc:
-            shutil.rmtree(staging_root, ignore_errors=True)
+            _remove_tree_without_redirect(staging_root, ignore_errors=True)
             try:
                 _safe_existing_file(
                     snapshot_root,
@@ -731,7 +731,7 @@ class BackupService(DeletionLedgerStorageMixin):
             if not marker_published:
                 # No completion marker means there is no restore point. Clean
                 # any partially published directory and release pins.
-                shutil.rmtree(snapshot_root, ignore_errors=True)
+                _remove_tree_without_redirect(snapshot_root, ignore_errors=True)
                 with self.database.write_transaction() as connection:
                     connection.execute(
                         "DELETE FROM backup_snapshot_pins WHERE snapshot_id = ?",
@@ -1001,18 +1001,18 @@ class BackupService(DeletionLedgerStorageMixin):
                         ),
                     )
 
-            shutil.rmtree(
+            _remove_tree_without_redirect(
                 staging_root,
                 ignore_errors=True,
             )
 
             return cursor.rowcount == 1
 
-        shutil.rmtree(
+        _remove_tree_without_redirect(
             staging_root,
             ignore_errors=True,
         )
-        shutil.rmtree(
+        _remove_tree_without_redirect(
             snapshot_root,
             ignore_errors=True,
         )
@@ -2024,7 +2024,7 @@ class BackupService(DeletionLedgerStorageMixin):
             return destination
 
         except BaseException:
-            shutil.rmtree(
+            _remove_tree_without_redirect(
                 staging,
                 ignore_errors=True,
             )
@@ -2052,7 +2052,7 @@ class BackupService(DeletionLedgerStorageMixin):
                     )
                     == publication_identity
                 ):
-                    shutil.rmtree(
+                    _remove_tree_without_redirect(
                         destination
                     )
                     fsync_directory(
@@ -2984,7 +2984,7 @@ class BackupService(DeletionLedgerStorageMixin):
                 )
             raise
 
-        shutil.rmtree(
+        _remove_tree_without_redirect(
             trash_path
         )
 
@@ -3087,7 +3087,7 @@ class BackupService(DeletionLedgerStorageMixin):
                     "exists outside retention trash."
                 )
 
-            shutil.rmtree(
+            _remove_tree_without_redirect(
                 item
             )
 
@@ -4328,6 +4328,30 @@ def _manifest_matches_database(manifest: dict[str, Any], database_path: Path) ->
         return True
     finally:
         check.close()
+
+
+def _remove_tree_without_redirect(
+    path: Path,
+    *,
+    ignore_errors: bool = False,
+) -> None:
+    """Remove one directory tree without following a redirected root."""
+    try:
+        if is_link_boundary(path):
+            raise BackupRestoreError(
+                f"Refusing to recursively remove redirected backup path: {path}."
+            )
+        if not path.exists():
+            return
+        if not path.is_dir():
+            raise BackupRestoreError(
+                f"Refusing to recursively remove non-directory backup path: {path}."
+            )
+        shutil.rmtree(path)
+    except (BackupRestoreError, OSError):
+        if ignore_errors:
+            return
+        raise
 
 
 def _safe_existing_file(root: Path, relative: Path) -> Path:
