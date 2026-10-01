@@ -203,8 +203,16 @@ def test_rebuild_derived_maps_rebuild_failure_without_claiming_recovery_required
     assert "ATHENA recovery required:" not in captured.err
 
 
+@pytest.mark.parametrize(
+    "error_type",
+    (
+        RuntimeError,
+        ValueError,
+    ),
+)
 def test_rebuild_derived_does_not_mask_unexpected_programming_failure(
     monkeypatch: pytest.MonkeyPatch,
+    error_type: type[Exception],
 ) -> None:
     _install_runtime_stubs(monkeypatch)
 
@@ -218,7 +226,7 @@ def test_rebuild_derived_does_not_mask_unexpected_programming_failure(
             del database_path, derived_root
 
         def rebuild_canonical_hnsw_from_persisted(self) -> int:
-            raise RuntimeError("unexpected implementation defect")
+            raise error_type("unexpected implementation defect")
 
     monkeypatch.setattr(
         recovery_cli,
@@ -227,7 +235,7 @@ def test_rebuild_derived_does_not_mask_unexpected_programming_failure(
     )
 
     with pytest.raises(
-        RuntimeError,
+        error_type,
         match="unexpected implementation defect",
     ):
         recovery_cli.run_rebuild_derived(
