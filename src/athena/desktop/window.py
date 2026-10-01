@@ -304,7 +304,7 @@ class AthenaMainWindow(QMainWindow):
         self.status_text = QLabel("LOCAL / CORE DISCONNECTED")
         self.prompt_input = PromptInput()
         self.ground_button = QPushButton("GROUND")
-        self.send_button = QPushButton("→")
+        self.send_button = QPushButton("CTRL+ENTER")
         self.chat_selector = QComboBox()
         self.model_selector = QComboBox()
         self.settings_model_selector = QComboBox()
@@ -1422,12 +1422,8 @@ class AthenaMainWindow(QMainWindow):
         )
 
         self.send_button.setObjectName("sendButton")
-        self.send_button.setText("→")
-        self.send_button.setAccessibleName("Send message")
-        self.send_button.setAccessibleDescription(
-            "Send the current message when local Core and a selected model are ready."
-        )
-        self.send_button.setToolTip("Send message · Ctrl+Enter")
+        self.send_button.setText("SEND")
+        self.send_button.setToolTip("Send message ? Ctrl+Enter")
         self.send_button.setDisabled(True)
         self.send_button.clicked.connect(self._submit_prompt)
 
@@ -2018,16 +2014,7 @@ class AthenaMainWindow(QMainWindow):
     @Slot(bool)
     def apply_chat_busy(self, busy: bool) -> None:
         self._chat_busy = busy
-        if busy:
-            self.send_button.setAccessibleDescription(
-                "Generation in progress. Sending is disabled until the current request completes."
-            )
-            self.send_button.setToolTip("Generation in progress")
-        else:
-            self.send_button.setAccessibleDescription(
-                "Send the current message when local Core and a selected model are ready."
-            )
-            self.send_button.setToolTip("Send message · Ctrl+Enter")
+        self.send_button.setText("WORKING" if busy else "SEND")
         self._sync_composer_enabled()
 
     @Slot()
