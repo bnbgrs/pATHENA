@@ -21,18 +21,19 @@ Because `install_system_workspace()` already owns tray installation, the fix bel
 ## Änderungen
 
 - `PathenaSystemTrayController` installs a main-window event filter.
-- With close-to-tray enabled, a real window Close event is consumed and the same window is hidden instead of closed.
+- The controller first verifies that Qt reports a usable system tray; close-to-tray fails safe to ordinary Close when no tray exists.
+- With an available tray and close-to-tray enabled, a real window Close event is consumed and the same window is hidden instead of closed.
 - Added `set_close_to_tray_enabled(bool)` and `close_to_tray_enabled` so a persisted Settings preference can bind to real runtime behavior later.
 - Mirrors the active state on `pathenaCloseToTrayEnabled` for truthful Qt/UI inspection.
 - `shutdown()` is idempotent, removes the event filter, disables interception, hides the tray and closes its menu.
 - `QApplication.aboutToQuit` invokes tray cleanup.
-- Focused tray tests cover interception, reopen, disable and teardown.
+- Focused tray tests cover interception, reopen, disable, unavailable-tray fail-safe and teardown.
 - System-workspace integration test now proves the real install path owns close-to-tray and can reopen the hidden main window.
 
 ## Dateien
 
 - `src/athena/desktop/pathena_system_tray.py`
-- `tests/unit/test_pathena_system_tray.py`
+- `tests/unit/test_pathena_system_tray.py` (including tray-unavailable fail-safe)
 - `tests/unit/test_system_workspace.py`
 - this handoff
 
@@ -42,9 +43,9 @@ On the existing real desktop composition path:
 
 `app.main → install_system_workspace(window, controller) → install_system_tray(window)`
 
-the main-window Close action is now intercepted by the installed controller, the window hides while the tray session remains available, and "Open pATHENA" restores that same window.
+the main-window Close action is now intercepted only when Qt reports an available tray, the window hides while that tray session remains available, and "Open pATHENA" restores that same window.
 
-Disabling close-to-tray or shutting down the controller restores ordinary close delivery. Tray Quit still routes through `QApplication.quit`; the existing `app.aboutToQuit` connections retain ownership of controlled Core and scheduler shutdown.
+If the desktop session has no usable system tray, the controller does not intercept Close, preventing an unreachable hidden-window state. Disabling close-to-tray or shutting down the controller also restores ordinary close delivery. Tray Quit still routes through `QApplication.quit`; the existing `app.aboutToQuit` connections retain ownership of controlled Core and scheduler shutdown.
 
 ## Validierung
 
@@ -63,7 +64,7 @@ No local PASS is claimed because this execution environment has GitHub repositor
 1. Spec-required tray operations for model load/unload, Internet toggle and background-job pause remain visibly disabled because the tray has no trustworthy command path for them. Do not fake-enable them.
 2. A persisted Settings preference for close-to-tray is not yet bound. The controller now exposes the real runtime switch needed for that narrow follow-up.
 3. Beta §50's wording about asking whether independently service-owned background jobs should continue is only relevant if pATHENA later supports a Core that intentionally survives application Quit. The current desktop owns its child Core/scheduler and already stops them from `aboutToQuit`.
-4. A native Windows interactive tray smoke remains valuable even after offscreen Qt tests are green.
+4. A native Windows interactive tray smoke remains valuable even after offscreen Qt tests are green; it must confirm that Qt reports the tray available in the packaged session.
 
 ## Abhängigkeiten / Konfliktrisiko
 
