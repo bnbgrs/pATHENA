@@ -363,3 +363,30 @@ def test_process_error_is_not_overwritten_by_following_finished_signal(
         workspace.close()
         app.processEvents()
 
+def test_failed_background_refresh_preserves_selected_job_details(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(JobsWorkspace, "refresh", lambda _self: None)
+    app = _app()
+    workspace = JobsWorkspace()
+    workspace._refresh_timer.stop()
+    workspace._scheduler_status_timer.stop()
+    app.processEvents()
+    monkeypatch.setattr(workspace, "_drain_output", lambda: None)
+    workspace._selected_job_id = JOB_ID
+    workspace._selected_state = "running"
+    workspace.details.setPlainText("Selected job details stay visible")
+    workspace._operation = "list"
+    workspace._operation_job_id = None
+    workspace._buffer = "JOBS_ERROR RuntimeError: synthetic refresh failure"
+
+    try:
+        workspace._process_finished(2, QProcess.ExitStatus.NormalExit)
+
+        assert workspace.details.toPlainText() == "Selected job details stay visible"
+        assert workspace.status.text() == "Jobs could not be refreshed (exit 2)."
+        assert workspace.status.property("pathenaUiState") == "error"
+    finally:
+        workspace.close()
+        app.processEvents()
+
