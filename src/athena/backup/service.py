@@ -2102,7 +2102,7 @@ class BackupService(DeletionLedgerStorageMixin):
                 / relative
             )
 
-            if path.is_symlink():
+            if is_link_boundary(path):
                 raise BackupRestoreError(
                     "Restored deleted Source blob "
                     "resolved to a symbolic link."
@@ -2154,7 +2154,7 @@ class BackupService(DeletionLedgerStorageMixin):
 
             if (
                 path.exists()
-                or path.is_symlink()
+                or is_link_boundary(path)
             ):
                 raise BackupRestoreError(
                     "Restored deleted Source blob "
@@ -2979,7 +2979,7 @@ class BackupService(DeletionLedgerStorageMixin):
             return
 
         if (
-            trash_root.is_symlink()
+            is_link_boundary(trash_root)
             or not trash_root.is_dir()
         ):
             raise BackupRestoreError(
@@ -2990,7 +2990,7 @@ class BackupService(DeletionLedgerStorageMixin):
             trash_root.iterdir(),
             key=lambda path: path.name,
         ):
-            if item.is_symlink() or not item.is_dir():
+            if is_link_boundary(item) or not item.is_dir():
                 raise BackupRestoreError(
                     "Unexpected retention-trash entry."
                 )
@@ -3096,7 +3096,7 @@ class BackupService(DeletionLedgerStorageMixin):
             return 0
 
         if (
-            objects_root.is_symlink()
+            is_link_boundary(objects_root)
             or not objects_root.is_dir()
         ):
             raise BackupRestoreError(
@@ -3109,7 +3109,7 @@ class BackupService(DeletionLedgerStorageMixin):
             objects_root.rglob("*.blob"),
             key=lambda item: item.as_posix(),
         ):
-            if path.is_symlink() or not path.is_file():
+            if is_link_boundary(path) or not path.is_file():
                 raise BackupRestoreError(
                     "Backup object store contains "
                     "an unsafe object entry."
@@ -3181,7 +3181,7 @@ class BackupService(DeletionLedgerStorageMixin):
             return set()
 
         if (
-            snapshots_root.is_symlink()
+            is_link_boundary(snapshots_root)
             or not snapshots_root.is_dir()
         ):
             raise BackupRestoreError(
@@ -3197,7 +3197,7 @@ class BackupService(DeletionLedgerStorageMixin):
         ):
             if (
                 snapshot_root.name.startswith(".")
-                or snapshot_root.is_symlink()
+                or is_link_boundary(snapshot_root)
                 or not snapshot_root.is_dir()
             ):
                 raise BackupRestoreError(
@@ -3215,24 +3215,18 @@ class BackupService(DeletionLedgerStorageMixin):
                     "blocks object GC."
                 ) from exc
 
-            marker = (
-                snapshot_root
-                / "complete.marker"
-            )
-
-            if not marker.is_file():
-                raise BackupRestoreError(
-                    "Snapshot without completion marker "
-                    "blocks object GC."
-                )
-
             try:
+                marker = _safe_existing_file(
+                    snapshot_root,
+                    Path("complete.marker"),
+                )
                 manifest_sha256 = bytes.fromhex(
                     marker.read_text(
                         encoding="ascii"
                     ).strip()
                 )
             except (
+                BackupRestoreError,
                 OSError,
                 ValueError,
             ) as exc:
@@ -3264,8 +3258,10 @@ class BackupService(DeletionLedgerStorageMixin):
 
             completed_count += 1
             manifest = _read_manifest(
-                snapshot_root
-                / "manifest.json"
+                _safe_existing_file(
+                    snapshot_root,
+                    Path("manifest.json"),
+                )
             )
             objects = manifest.get(
                 "objects"
@@ -4564,7 +4560,7 @@ def _fsync_existing(path: Path) -> None:
 def _write_fsynced(path: Path, data: bytes) -> None:
     """Write and durably publish one new backup metadata file."""
 
-    if path.exists() or path.is_symlink():
+    if path.exists() or is_link_boundary(path):
         raise FileExistsError(
             f"Durable backup metadata destination already exists: {path}."
         )
