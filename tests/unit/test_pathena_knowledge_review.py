@@ -10,7 +10,10 @@ from PySide6.QtWidgets import QApplication
 from athena.desktop.app import create_application
 from athena.desktop.knowledge_review import (
     KnowledgeReviewError,
+    parse_claim_list,
     parse_knowledge_entity_review,
+    parse_knowledge_list,
+    parse_review_list,
     render_knowledge_entity_review,
 )
 from athena.desktop.knowledge_workspace import KnowledgeWorkspace
@@ -121,6 +124,81 @@ def test_workspace_keeps_raw_output_when_detail_is_unreadable() -> None:
 
         assert workspace.knowledge_details.property("pathenaKnowledgeReviewState") == "error"
         assert "Raw command output:\nnot-a-persisted-detail" in workspace.knowledge_details.toPlainText()
+    finally:
+        workspace.close()
+        app.processEvents()
+
+
+def test_canonical_entity_lists_parse_as_complete_records() -> None:
+    knowledge_id = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+    claim_id = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
+
+    knowledge = parse_knowledge_list(
+        f"{knowledge_id}\t2\tdecision\taccepted\tactive\tRetention policy"
+    )
+    claims = parse_claim_list(
+        f"{claim_id}\t4\tfactual_assertion\tsupported\tactive\tDurable claim"
+    )
+
+    assert knowledge[0].entity_id == knowledge_id
+    assert knowledge[0].revision_no == 2
+    assert knowledge[0].summary == "Retention policy"
+    assert claims[0].entity_id == claim_id
+    assert claims[0].revision_no == 4
+
+
+def test_entity_list_fails_closed_on_split_or_malformed_record() -> None:
+    knowledge_id = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+    output = (
+        f"{knowledge_id}\t1\tdecision\taccepted\tactive\tFirst line\n"
+        "orphaned line"
+    )
+
+    with pytest.raises(KnowledgeReviewError, match="invalid record"):
+        parse_knowledge_list(output)
+
+
+def test_review_list_rejects_nonfinite_confidence_and_invalid_identity() -> None:
+    review_id = "cccccccc-cccc-cccc-cccc-cccccccccccc"
+    left_id = "dddddddd-dddd-dddd-dddd-dddddddddddd"
+    right_id = "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee"
+
+    with pytest.raises(KnowledgeReviewError, match="confidence"):
+        parse_review_list(
+            f"{review_id}\tcontradiction\tpending\tnan\t"
+            f"{left_id}\t{right_id}\tConflicting evidence"
+        )
+
+    with pytest.raises(KnowledgeReviewError, match="review identity"):
+        parse_review_list(
+            f"not-a-uuid\tcontradiction\tpending\t0.5\t"
+            f"{left_id}\t{right_id}\tConflicting evidence"
+        )
+
+
+def test_workspace_preserves_existing_list_on_invalid_exit_zero_response() -> None:
+    app = _app()
+    workspace = KnowledgeWorkspace(object(), None)
+    workspace._knowledge_refresh_timer.stop()
+    workspace.browser_tabs.setCurrentIndex(3)
+    app.processEvents()
+    try:
+        existing_id = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+        existing = workspace.knowledge_list.addItem("EXISTING VERIFIED ITEM")
+        assert existing is None
+        workspace._knowledge_operation = "list"
+        workspace._knowledge_buffer = (
+            f"{existing_id}\t1\tdecision\taccepted\tactive\tValid prefix\n"
+            "corrupt trailing record"
+        )
+
+        workspace._knowledge_process_finished(0, QProcess.ExitStatus.NormalExit)
+
+        assert workspace.knowledge_list.count() == 1
+        assert workspace.knowledge_list.item(0).text() == "EXISTING VERIFIED ITEM"
+        assert workspace.browser_status.property("pathenaUiState") == "error"
+        assert workspace.browser_status.text() == "Knowledge refresh could not be verified."
+        assert "invalid record" in workspace.browser_status.toolTip()
     finally:
         workspace.close()
         app.processEvents()
