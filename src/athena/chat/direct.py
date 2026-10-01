@@ -7,7 +7,11 @@ import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from athena.chat.generation import ChatGenerationResult, ChatGenerationService
+from athena.chat.generation import (
+    ChatGenerationResult,
+    ChatGenerationService,
+    GenerationCancelledError,
+)
 from athena.chat.models import ChatMessage, MessageType
 from athena.chat.provenance import (
     strip_model_facing_assistant_trace,
@@ -150,6 +154,7 @@ class DirectChatService:
         temperature: float | None = None,
         reasoning_mode: str | None = "off",
         on_delta: Callable[[str], None] | None = None,
+        cancel_requested: Callable[[], bool] | None = None,
     ) -> DirectChatGenerationResult:
         validated_turns = _bounded_positive_int(
             max_recent_conversation_turns,
@@ -181,6 +186,9 @@ class DirectChatService:
                 raise SendOperationStateError(
                     operation_status
                 )
+
+        if cancel_requested is not None and cancel_requested():
+            raise GenerationCancelledError("Chat generation was cancelled.")
 
         model = self.chat_generation.select_model(requested_model_id)
         context_limit = _resolve_context_limit(
@@ -317,7 +325,14 @@ class DirectChatService:
                     package.snapshot_commit_seq,
                     phase="immediately-before-primary-model-call",
                 ),
+                cancel_requested=cancel_requested,
             )
+        except GenerationCancelledError:
+            self.model_runs.finish_run(
+                processing_run.processing_run_id,
+                status="cancelled",
+            )
+            raise
         except KeyboardInterrupt:
             self.model_runs.finish_run(
                 processing_run.processing_run_id,
