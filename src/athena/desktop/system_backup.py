@@ -49,6 +49,7 @@ class BackupWorkspace(QWidget):
         self._operation_snapshot_id: str | None = None
         self._buffer = ""
         self._selected_snapshot_id: str | None = None
+        self._process_error_seen = False
 
         self.status = QLabel("Backup state has not been loaded yet.")
         self.status.setObjectName("settingsHelp")
@@ -229,6 +230,7 @@ class BackupWorkspace(QWidget):
     ) -> None:
         if self._busy():
             return
+        self._process_error_seen = False
         self._operation = operation
         self._operation_snapshot_id = snapshot_id
         self._buffer = ""
@@ -280,6 +282,13 @@ class BackupWorkspace(QWidget):
     @Slot(int, QProcess.ExitStatus)
     def _finished(self, exit_code: int, _status: QProcess.ExitStatus) -> None:
         self._drain_output()
+        if self._process_error_seen:
+            self._process_error_seen = False
+            self._operation = ""
+            self._operation_snapshot_id = None
+            self._set_controls(True)
+            return
+
         operation = self._operation
         operation_snapshot_id = self._operation_snapshot_id
         output = self._buffer
@@ -412,10 +421,12 @@ class BackupWorkspace(QWidget):
 
     @Slot(QProcess.ProcessError)
     def _process_error(self, error: QProcess.ProcessError) -> None:
+        self._process_error_seen = True
         snapshot_id = self._operation_snapshot_id
-        self._operation = ""
-        self._operation_snapshot_id = None
-        self._set_controls(True)
+        if self.process.state() == QProcess.ProcessState.NotRunning:
+            self._operation = ""
+            self._operation_snapshot_id = None
+            self._set_controls(True)
         snapshot_label = self._snapshot_label(snapshot_id)
         subject = f" for snapshot {snapshot_label}" if snapshot_label else ""
         self.status.setText(
