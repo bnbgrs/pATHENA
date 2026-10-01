@@ -114,7 +114,7 @@ def test_scheduler_stop_requests_graceful_control_before_terminate() -> None:
 
     assert process.writes == [b"stop\n"]
     assert process.bytes_written_timeouts == [500]
-    assert process.wait_timeouts == [5_000]
+    assert process.wait_timeouts == [7_500]
     assert process.terminate_calls == 0
     assert process.kill_calls == 0
     assert supervisor.child_active is False
@@ -141,7 +141,7 @@ def test_scheduler_stop_escalates_after_grace_and_terminate_timeouts() -> None:
     supervisor.stop()
 
     assert process.writes == [b"stop\n"]
-    assert process.wait_timeouts == [5_000, 1_500, 1_000]
+    assert process.wait_timeouts == [7_500, 1_500, 1_000]
     assert process.terminate_calls == 1
     assert process.kill_calls == 1
     assert supervisor.child_active is False
