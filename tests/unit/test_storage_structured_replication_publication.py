@@ -18,6 +18,7 @@ from athena.storage.durable_fs import durable_mkdir, durable_publish_new_bytes
 from athena.storage.structured_replication import (
     ReplicationCommitState,
     ReplicationTargetState,
+    StructuredReplicationInvariantError,
     StructuredReplicationRepository,
 )
 from athena.storage.structured_replication_publication import (
@@ -489,3 +490,112 @@ def test_bundle_commit_identity_must_match_canonical_local_history(
         )
     finally:
         database.stop()
+
+def test_concurrent_confirmation_of_same_bundle_is_idempotent(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    database, repository, actor_id = _runtime(tmp_path)
+    try:
+        target_root = tmp_path / "long-term"
+        target = repository.register_target(str(target_root))
+        commit_seq, commit_id = _commit(database, actor_id, 1)
+        bundle = _bundle(
+            commit_id=commit_id,
+            commit_seq=commit_seq,
+            previous_hash=None,
+            marker=1,
+        )
+        _stage(
+            repository,
+            target.target_id,
+            bundle,
+            commit_seq=commit_seq,
+            previous_hash=None,
+        )
+        real_confirm = repository.confirm_commit
+
+        def concurrent_confirm(*args: object, **kwargs: object) -> object:
+            real_confirm(*args, **kwargs)  # type: ignore[arg-type]
+            raise StructuredReplicationInvariantError(
+                "simulated losing confirmer"
+            )
+
+        monkeypatch.setattr(repository, "confirm_commit", concurrent_confirm)
+
+        confirmed = StructuredReplicationPublisher(repository).publish_staged_bundle(
+            target.target_id,
+            bundle,
+        )
+
+        assert confirmed.state is ReplicationTargetState.ACTIVE
+        assert confirmed.confirmed_commit_seq == commit_seq
+        assert confirmed.confirmed_head_hash == bundle.bundle_hash
+        assert (
+            repository.get_commit(target.target_id, commit_seq).state
+            is ReplicationCommitState.VERIFIED
+        )
+    finally:
+        database.stop()
+
+
+def test_current_remote_head_is_verified_before_extending_history(
+    tmp_path: Path,
+) -> None:
+    database, repository, actor_id = _runtime(tmp_path)
+    try:
+        target_root = tmp_path / "long-term"
+        target = repository.register_target(str(target_root))
+        first_seq, first_id = _commit(database, actor_id, 1)
+        first = _bundle(
+            commit_id=first_id,
+            commit_seq=first_seq,
+            previous_hash=None,
+            marker=1,
+        )
+        _stage(
+            repository,
+            target.target_id,
+            first,
+            commit_seq=first_seq,
+            previous_hash=None,
+        )
+        publisher = StructuredReplicationPublisher(repository)
+        publisher.publish_staged_bundle(target.target_id, first)
+
+        commits_dir, _manifest_dir = _layout(target_root)
+        first_path = commits_dir / publication._bundle_name(
+            first_seq,
+            first.bundle_hash,
+        )
+        first_path.write_bytes(b"tampered-current-head")
+
+        second_seq, second_id = _commit(database, actor_id, 2)
+        second = _bundle(
+            commit_id=second_id,
+            commit_seq=second_seq,
+            previous_hash=first.bundle_hash,
+            marker=2,
+        )
+        _stage(
+            repository,
+            target.target_id,
+            second,
+            commit_seq=second_seq,
+            previous_hash=first.bundle_hash,
+        )
+        second_path = commits_dir / publication._bundle_name(
+            second_seq,
+            second.bundle_hash,
+        )
+
+        with pytest.raises(StructuredReplicationConflictError):
+            publisher.publish_staged_bundle(target.target_id, second)
+
+        assert not second_path.exists()
+        conflicted = repository.get_target(target.target_id)
+        assert conflicted.state is ReplicationTargetState.CONFLICT
+        assert conflicted.confirmed_commit_seq == first_seq
+    finally:
+        database.stop()
+
