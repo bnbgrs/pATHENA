@@ -1969,12 +1969,24 @@ def _search_result(payload: dict[str, JsonValue]) -> SearchResultResponse:
     elif isinstance(raw_anchor, dict) and all(
         isinstance(key, str) for key in raw_anchor
     ):
-        source_anchor = SearchSourceAnchorResponse(
-            representation_id=_required_str(raw_anchor, "representation_id"),
-            start_offset=_required_int(raw_anchor, "start_offset"),
-            end_offset=_required_int(raw_anchor, "end_offset"),
-            quoted_sha256=_required_str(raw_anchor, "quoted_sha256"),
-        )
+        try:
+            source_anchor = SearchSourceAnchorResponse(
+                representation_id=_required_str(
+                    raw_anchor,
+                    "representation_id",
+                ),
+                start_offset=_required_int(raw_anchor, "start_offset"),
+                end_offset=_required_int(raw_anchor, "end_offset"),
+                quoted_sha256=_required_str(
+                    raw_anchor,
+                    "quoted_sha256",
+                ),
+            )
+        except (TypeError, ValueError) as exc:
+            raise CoreApiClientError(
+                "ATHENA Core returned an invalid Search source anchor.",
+                code="invalid_response",
+            ) from exc
     else:
         raise CoreApiClientError(
             "ATHENA Core returned an invalid Search source anchor.",
