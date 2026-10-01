@@ -416,7 +416,7 @@ def test_client_shutdown_command_is_not_retried(
 
 @pytest.mark.parametrize(
     "timeout",
-    [True, False, 0, -1, float("nan"), float("inf"), float("-inf"), "5"],
+    [True, False, 0, -1, float("nan"), float("inf"), float("-inf"), 10**10000, "5"],
 )
 def test_client_rejects_invalid_transport_timeout_values(
     tmp_path: Path,
@@ -431,7 +431,7 @@ def test_client_rejects_invalid_transport_timeout_values(
 
 @pytest.mark.parametrize(
     "timeout",
-    [True, False, 0, -1, float("nan"), float("inf"), float("-inf"), "30"],
+    [True, False, 0, -1, float("nan"), float("inf"), float("-inf"), 10**10000, "30"],
 )
 def test_client_rejects_invalid_generation_timeout_values(
     tmp_path: Path,
@@ -468,8 +468,11 @@ def test_client_rejects_non_integer_chat_pagination_before_discovery(
         )
 
 
-@pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf")])
-def test_client_rejects_nonfinite_numeric_response_fields(value: float) -> None:
+@pytest.mark.parametrize(
+    "value",
+    [float("nan"), float("inf"), float("-inf"), 10**10000],
+)
+def test_client_rejects_nonfinite_numeric_response_fields(value: int | float) -> None:
     with pytest.raises(CoreApiClientError, match="not finite") as exc_info:
         client_module._required_float({"confidence": value}, "confidence")
 
