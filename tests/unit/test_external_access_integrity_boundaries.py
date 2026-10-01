@@ -12,6 +12,8 @@ from athena.external.gateway import (
     ExternalAccessError,
     ExternalAuthorizationError,
     ExternalResearchService,
+    ExternalResponse,
+    ExternalTransportError,
 )
 
 
@@ -174,5 +176,116 @@ def test_external_research_rejects_invalid_url_containers_before_capture(
                 authorization_id=authorization.authorization_id,
                 urls=urls,  # type: ignore[arg-type]
             )
+    finally:
+        app.stop()
+
+
+class _RedirectLoopTransport:
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def fetch(
+        self,
+        url: str,
+        *,
+        max_bytes: int,
+        timeout_seconds: float,
+    ) -> ExternalResponse:
+        del max_bytes, timeout_seconds
+        self.calls += 1
+        return ExternalResponse(
+            final_url=url,
+            status=302,
+            headers={"location": "https://example.com/loop"},
+            body=b"",
+        )
+
+
+class _HiddenFinalUrlTransport:
+    def fetch(
+        self,
+        url: str,
+        *,
+        max_bytes: int,
+        timeout_seconds: float,
+    ) -> ExternalResponse:
+        del url, max_bytes, timeout_seconds
+        return ExternalResponse(
+            final_url="https://outside.example/final",
+            status=200,
+            headers={"content-type": "text/plain"},
+            body=b"should never be captured",
+        )
+
+
+def test_redirect_limit_failure_is_audited(
+    tmp_path: Path,
+) -> None:
+    app = _started_app(tmp_path, "redirect-limit")
+    try:
+        transport = _RedirectLoopTransport()
+        app.external_access.transports["direct_explicit"] = transport
+        authorization = app.external_access.authorize_explicit(
+            purpose="redirect audit",
+            allowed_hosts=("example.com",),
+            privacy_route="direct_explicit",
+        )
+
+        with pytest.raises(ExternalTransportError, match="redirect limit"):
+            app.external_access.capture_url(
+                authorization.authorization_id,
+                "https://example.com/start",
+            )
+
+        row = app.database.connection.execute(
+            """
+            SELECT outcome, reason_code
+            FROM external_access_events
+            WHERE authorization_id = ?
+            ORDER BY created_at_us DESC
+            LIMIT 1
+            """,
+            (uuid_to_blob(authorization.authorization_id),),
+        ).fetchone()
+        assert row is not None
+        assert row["outcome"] == "failed"
+        assert row["reason_code"] == "redirect_limit_exceeded"
+        assert transport.calls == app.external_access._MAX_REDIRECTS + 1
+    finally:
+        app.stop()
+
+
+def test_transport_final_url_scope_violation_is_denied_and_audited(
+    tmp_path: Path,
+) -> None:
+    app = _started_app(tmp_path, "hidden-final-url")
+    try:
+        app.external_access.transports["direct_explicit"] = _HiddenFinalUrlTransport()
+        authorization = app.external_access.authorize_explicit(
+            purpose="redirect audit",
+            allowed_hosts=("example.com",),
+            privacy_route="direct_explicit",
+        )
+
+        with pytest.raises(ExternalAuthorizationError, match="outside authorization scope"):
+            app.external_access.capture_url(
+                authorization.authorization_id,
+                "https://example.com/start",
+            )
+
+        row = app.database.connection.execute(
+            """
+            SELECT destination_host, outcome, reason_code
+            FROM external_access_events
+            WHERE authorization_id = ?
+            ORDER BY created_at_us DESC
+            LIMIT 1
+            """,
+            (uuid_to_blob(authorization.authorization_id),),
+        ).fetchone()
+        assert row is not None
+        assert row["destination_host"] == "outside.example"
+        assert row["outcome"] == "denied"
+        assert row["reason_code"] == "ExternalAuthorizationError"
     finally:
         app.stop()
