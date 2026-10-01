@@ -427,3 +427,40 @@ def test_startup_recovery_does_not_finalize_redirected_completion_marker(
         assert recovered.verification_status == "failed"
     finally:
         app.stop()
+
+
+def test_recursive_cleanup_never_follows_redirected_root(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    redirected = tmp_path / "redirected"
+    redirected.mkdir()
+    called = False
+
+    def forbidden_rmtree(path: Path) -> None:
+        nonlocal called
+        called = True
+        raise AssertionError(f"rmtree must not receive redirected root: {path}")
+
+    monkeypatch.setattr(
+        backup_module,
+        "is_link_boundary",
+        lambda path: path == redirected,
+    )
+    monkeypatch.setattr(backup_module.shutil, "rmtree", forbidden_rmtree)
+
+    backup_module._remove_tree_without_redirect(
+        redirected,
+        ignore_errors=True,
+    )
+    assert called is False
+    assert redirected.exists()
+
+    with pytest.raises(
+        BackupRestoreError,
+        match="Refusing to recursively remove redirected backup path",
+    ):
+        backup_module._remove_tree_without_redirect(redirected)
+
+    assert called is False
+    assert redirected.exists()
