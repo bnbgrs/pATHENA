@@ -83,6 +83,43 @@ def test_client_health_reads_discovery_and_authenticates(
     ]
 
 
+def test_client_posts_chat_cancellation_with_canonical_operation_id(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runtime_root = tmp_path / "api"
+    _bootstrap(runtime_root)
+    operation_id = "55555555-5555-4555-8555-555555555555"
+    seen: list[tuple[str, str]] = []
+
+    def fake_urlopen(request: Any, timeout: float) -> _Response:
+        del timeout
+        seen.append((request.get_method(), request.full_url))
+        return _Response(
+            {
+                "accepted": True,
+                "operation_id": operation_id,
+            },
+            status=202,
+        )
+
+    monkeypatch.setattr(client_module, "urlopen", fake_urlopen)
+
+    accepted = CoreApiClient(runtime_root).cancel_chat_operation(operation_id)
+
+    assert accepted is True
+    assert seen == [
+        (
+            "POST",
+            (
+                "http://127.0.0.1:32123/api/v1/chat-operations/"
+                + operation_id
+                + "/cancel"
+            ),
+        )
+    ]
+
+
 def test_client_reads_and_updates_news_schedule(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
