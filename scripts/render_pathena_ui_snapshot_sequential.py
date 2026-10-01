@@ -100,7 +100,7 @@ def _safe_name(value: str) -> str:
     return normalized or "screen"
 
 
-_PALLAS_VISUAL_CAPTURE_TICKS = 12
+_PALLAS_VISUAL_CAPTURE_TICKS = 1
 
 
 def _pause_pallas_living_capture(controller: object) -> None:
