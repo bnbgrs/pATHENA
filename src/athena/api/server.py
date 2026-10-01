@@ -358,7 +358,6 @@ class CoreApiServer:
         server = self._server
         thread = self._thread
         failures: list[BaseException] = []
-        runtime_cleared = False
         server_closed = server is None
         thread_stopped = thread is None
 
@@ -367,7 +366,6 @@ class CoreApiServer:
         except BaseException as exc:
             failures.append(exc)
         else:
-            runtime_cleared = True
             self._discovery = None
 
         if server is not None:
@@ -397,11 +395,6 @@ class CoreApiServer:
             self._thread = None
         if server_closed and thread_stopped:
             self._server = None
-        if not runtime_cleared and self._discovery is None:
-            # A failed runtime clear with no discovery object is still retryable through
-            # LocalApiRuntime.clear(); do not manufacture discovery state.
-            pass
-
         if failures:
             for failure in failures:
                 if not isinstance(failure, Exception):
