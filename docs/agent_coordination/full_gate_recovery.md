@@ -5,6 +5,12 @@ Single source of truth for recovery of the complete required quality/CI gate on 
 Canonical Ownership values: `QUALITY`, `BACKEND`, `UI`, `SECURITY`, `FEATURE`, `MIXED`, `EXTERNAL`.
 Status values: `OPEN`, `ASSIGNED`, `IN_PROGRESS`, `FIXED_PENDING_VERIFY`, `VERIFIED`, `STALE`, `BLOCKED`.
 
+## 2026-10-02 recovery refresh
+
+- Current integration baseline observed for this refresh: `develop/pathena-next` at `467ef434236c320e4afe9d21a39c20a4a2b75728` (merge of chat cancellation PR #329).
+- #2972 is retained below as historical exact-SHA evidence only. Its previously unavailable central job log has now been recovered and classified.
+- A fresh canonical pull-request Quality run is required before any current P0 product failure is asserted.
+
 ## Current recovery baseline
 
 - Candidate HEAD: `197a4aee545808b8e6c0d31894aa201c79bab2f1`.
@@ -15,25 +21,24 @@ Status values: `OPEN`, `ASSIGNED`, `IN_PROGRESS`, `FIXED_PENDING_VERIFY`, `VERIF
   - `Linux storage regressions` / job `97424104947`: **PASS**.
   - `Windows path safety` / job `97424104886`: **PASS**.
   - `Local install smoke` / job `97424104708`: **PASS**.
-- Exact current central sub-check diagnostics are not available through the connected GitHub job-log surface in this recovery run. The only supported current statement is that the central `Run ATHENA quality gate` step failed. Historical Ruff/mypy/pytest details from #2940 or #2967 are therefore **not transferred** to #2972.
+- The complete `Python 3.12 quality` job log for #2972 is now retrievable. It records `633 failed, 3391 passed, 2 skipped, 38 errors`; the dominant cascade is `StorageBootstrapReadOnlyRequiredError` after the runner volume enters EMERGENCY disk pressure. The same historical log also contains smaller independent Ruff/mypy/test failures. This evidence applies only to exact candidate `197a4aee...`; it is not transferred to current Develop.
 - Predecessor run #2967 is useful only as change-history evidence: its recorded Ruff/pytest state must not be treated as a #2972 PASS.
 
 ## Active blockers
 
-### FGATE-014 — Current central quality failure requires exact diagnostic evidence
+### FGATE-014 — Historical #2972 central quality diagnostics recovered
 
-- Priority: P0
+- Priority: P0 historical recovery evidence.
 - SHA/run/job/step: `197a4aee545808b8e6c0d31894aa201c79bab2f1` / #2972 / `97424104627` / `Run ATHENA quality gate`.
-- Error excerpt: the step conclusion is `failure`; raw current sub-check diagnostics are not exposed by the available connector surface in this run.
-- Reproduction: exact checkout of `197a4aee545808b8e6c0d31894aa201c79bab2f1`, then execute the repository's complete quality runner in keep-going mode, or decode the complete #2972 job log with checkout provenance.
-- Root-cause class: verification evidence / unresolved central sub-check failure.
-- Ownership: QUALITY.
-- Components: central quality-run evidence and classification only; no product module is assigned until current diagnostics identify one.
-- Required fix invariant: obtain exact-SHA diagnostic provenance before assigning a product owner or changing product/test code; do not infer a #2972 failure from #2940/#2967 diagnostics.
+- Recovered evidence (2026-10-02): the complete job log is now accessible. Pytest ended with `633 failed, 3391 passed, 2 skipped, 38 errors`; the dominant failure cascade is `StorageBootstrapReadOnlyRequiredError` because the Actions volume entered EMERGENCY disk pressure late in the suite. Smaller independent failures also existed on that historical SHA.
+- Current-code trace: Develop now carries an autouse `release_test_emergency_reserves` fixture in `tests/conftest.py`, which removes test-owned physical reserve files only after each test while preserving production reserve persistence and within-test restart semantics. Therefore the historical storage-pressure cascade is not assigned as a current product regression without fresh exact-SHA reproduction.
+- Root-cause class: historical CI resource accumulation plus independent historical test/type/lint failures.
+- Ownership: QUALITY for new exact-SHA gate classification.
+- Required fix invariant: do not transfer any #2972 diagnostic to current Develop. Run the canonical Quality workflow on the current integration lineage and assign only failures reproduced there.
 - Related conflicts: `CONFLICT-004`, `CONFLICT-005`.
-- Status: IN_PROGRESS.
-- Targeted verification: decode or reproduce the exact #2972 central runner, identify the first one or two current primary blockers, then assign only those blockers using canonical ownership.
-- Last gate status: **FAIL** on #2972; the other three required jobs are same-SHA PASS.
+- Status: STALE.
+- Last historical gate status: **FAIL** on #2972; the other three required jobs were same-SHA PASS.
+- Next verification: fresh pull-request Quality on current `develop/pathena-next` lineage.
 
 ### FGATE-008 — Windows durable-write parent identity
 
