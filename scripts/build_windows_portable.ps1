@@ -187,11 +187,12 @@ Keep together:
   app_runtime\
 
 pATHENA.exe is the no-console desktop. pATHENA-Worker.exe is a no-console internal
-process host for Core, Scheduler lanes, JOBS receipts, and the explicit hardware
-acceptance probe. The desktop binds all sys.executable child launches to that sibling
-before normal application startup, and the worker accepts only the explicit internal
-'-m' module roles used by pATHENA. Unknown module dispatches fail closed instead of
-reopening the desktop.
+process host for Core, Scheduler lanes, workspace helper CLIs (Jobs, Research,
+Research Results, Sources, Knowledge, Obsidian export and canonical-memory actions),
+recovery, and the explicit hardware acceptance probe. The desktop binds all
+sys.executable child launches to that sibling before normal application startup, and
+the worker accepts only the explicit internal '-m' module roles used by pATHENA.
+Unknown module dispatches fail closed instead of reopening the desktop.
 "@ | Set-Content -LiteralPath (Join-Path $packageRoot "START_HERE.txt") -Encoding UTF8
 
     Write-Output $executable
