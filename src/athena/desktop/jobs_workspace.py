@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
 from athena.desktop.jobs_lifecycle import (
     JobLifecycleError,
     action_availability,
+    parse_current_progress,
     parse_transition_receipt,
 )
 from athena.desktop.pathena_ui_refinement_600 import set_pathena_ui_state
@@ -42,25 +43,31 @@ class JobsWorkspace(QWidget):
         self._buffer = ""
         self._selected_job_id: str | None = None
         self._selected_state: str | None = None
+        self._failed_to_start_handled = False
 
         self.refresh_button = QPushButton("REFRESH")
         self.refresh_button.setObjectName("newChatButton")
+        self.refresh_button.setAccessibleName("Refresh jobs")
         self.refresh_button.clicked.connect(self.refresh)
 
         self.pause_button = QPushButton("PAUSE")
         self.pause_button.setObjectName("newChatButton")
+        self.pause_button.setAccessibleName("Pause selected job")
         self.pause_button.clicked.connect(self.pause_selected)
 
         self.resume_button = QPushButton("RESUME")
         self.resume_button.setObjectName("newChatButton")
+        self.resume_button.setAccessibleName("Resume selected job")
         self.resume_button.clicked.connect(self.resume_selected)
 
         self.wake_button = QPushButton("WAKE")
         self.wake_button.setObjectName("newChatButton")
+        self.wake_button.setAccessibleName("Wake selected job")
         self.wake_button.clicked.connect(self.wake_selected)
 
         self.cancel_button = QPushButton("CANCEL")
         self.cancel_button.setObjectName("newChatButton")
+        self.cancel_button.setAccessibleName("Cancel selected job")
         self.cancel_button.clicked.connect(self.cancel_selected)
 
         self.scheduler_status = QLabel()
@@ -77,6 +84,15 @@ class JobsWorkspace(QWidget):
             | Qt.TextInteractionFlag.TextSelectableByKeyboard
         )
         set_pathena_ui_state(self.status, "idle")
+
+        self.progress = QLabel("PROGRESS · Select a job.")
+        self.progress.setObjectName("jobProgress")
+        self.progress.setAccessibleName("Job progress")
+        self.progress.setTextInteractionFlags(
+            Qt.TextInteractionFlag.TextSelectableByMouse
+            | Qt.TextInteractionFlag.TextSelectableByKeyboard
+        )
+        set_pathena_ui_state(self.progress, "empty")
 
         self.jobs = QListWidget()
         self.jobs.setObjectName("durableJobList")
@@ -134,6 +150,7 @@ class JobsWorkspace(QWidget):
         intro.setWordWrap(True)
         layout.addWidget(intro)
         layout.addWidget(self.status)
+        layout.addWidget(self.progress)
 
         splitter = QSplitter(Qt.Orientation.Horizontal)
         splitter.addWidget(self.jobs)
@@ -207,6 +224,8 @@ class JobsWorkspace(QWidget):
         if self._selected_job_id:
             selected_job_id = self._selected_job_id
             set_pathena_ui_state(self.details, "busy")
+            self.progress.setText("PROGRESS · Loading durable checkpoint state …")
+            set_pathena_ui_state(self.progress, "busy")
             self._start(
                 "show",
                 ["show", selected_job_id],
@@ -248,6 +267,7 @@ class JobsWorkspace(QWidget):
         self._operation = operation
         self._operation_job_id = job_id
         self._buffer = ""
+        self._failed_to_start_handled = False
         job_label = self._job_label(job_id)
         if job_label and operation != "list":
             label = f"{label} · {job_label}"
@@ -296,6 +316,9 @@ class JobsWorkspace(QWidget):
 
     def _process_finished(self, exit_code: int, _exit_status: QProcess.ExitStatus) -> None:
         self._drain_output()
+        if self._failed_to_start_handled:
+            self._failed_to_start_handled = False
+            return
         operation = self._operation
         operation_job_id = self._operation_job_id
         owns_details = self._operation_owns_details()
@@ -319,6 +342,9 @@ class JobsWorkspace(QWidget):
             set_pathena_ui_state(self.status, "error")
             if owns_details:
                 set_pathena_ui_state(self.details, "error")
+                if operation == "show":
+                    self.progress.setText("PROGRESS · Unavailable.")
+                    set_pathena_ui_state(self.progress, "error")
             if operation == "list":
                 self.details.setPlainText(output)
             return
@@ -334,6 +360,16 @@ class JobsWorkspace(QWidget):
             set_pathena_ui_state(self.status, "success")
             if owns_details:
                 set_pathena_ui_state(self.details, "success")
+                progress = parse_current_progress(output)
+                if progress is None:
+                    self.progress.setText(
+                        "PROGRESS · No durable checkpoint progress recorded."
+                    )
+                    set_pathena_ui_state(self.progress, "idle")
+                else:
+                    self.progress.setText(f"PROGRESS · {progress}")
+                    self.progress.setToolTip(progress)
+                    set_pathena_ui_state(self.progress, "success")
             return
 
         try:
@@ -427,6 +463,9 @@ class JobsWorkspace(QWidget):
             self.details.setAccessibleDescription(message)
             self.jobs.setStatusTip(message)
             set_pathena_ui_state(self.details, "empty")
+            self.progress.setText("PROGRESS · Select another job.")
+            self.progress.setToolTip("")
+            set_pathena_ui_state(self.progress, "empty")
         elif self.jobs.count() > 0:
             set_pathena_ui_state(self.jobs, "success")
             self.jobs.setCurrentRow(0)
@@ -440,14 +479,14 @@ class JobsWorkspace(QWidget):
             )
             set_pathena_ui_state(self.jobs, "empty")
             set_pathena_ui_state(self.details, "empty")
+            self.progress.setText("PROGRESS · No job selected.")
+            self.progress.setToolTip("")
+            set_pathena_ui_state(self.progress, "empty")
 
     def _process_error(self, error: QProcess.ProcessError) -> None:
         job_id = self._operation_job_id
         owns_details = self._operation_owns_details()
         operation = self._operation
-        self._operation = ""
-        self._operation_job_id = None
-        self._sync_action_buttons()
         job_label = self._job_label(job_id)
         subject = f" for job {job_label}" if job_label else ""
         if operation == "list":
@@ -458,10 +497,27 @@ class JobsWorkspace(QWidget):
             label = operation.upper()
         else:
             label = "Jobs operation"
+
         if error == QProcess.ProcessError.FailedToStart:
+            # Qt may not emit finished() after a start failure. Finalize this
+            # path here, but guard against a platform-specific late callback.
+            self._failed_to_start_handled = True
+            self._operation = ""
+            self._operation_job_id = None
+            self._sync_action_buttons()
             self.status.setText(f"{label}{subject} could not be started.")
+            if owns_details and operation == "show":
+                self.progress.setText("PROGRESS · Unavailable.")
+                set_pathena_ui_state(self.progress, "error")
         else:
-            self.status.setText(f"{label}{subject} failed: {error.name}")
+            # Crashed/timed-out process errors may be followed by finished().
+            # Keep request identity until that terminal callback so the final
+            # error remains bound to the exact operation/job.
+            self.status.setText(
+                f"{label}{subject} encountered {error.name}; waiting for process exit."
+            )
+            self._sync_action_buttons(force_disabled=True)
+
         set_pathena_ui_state(self.status, "error")
         if owns_details:
             set_pathena_ui_state(self.details, "error")
