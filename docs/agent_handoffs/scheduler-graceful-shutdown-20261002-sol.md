@@ -66,6 +66,7 @@ Regression coverage:
 - `tests/unit/test_desktop_scheduler_graceful_shutdown.py`
 - `tests/unit/test_scheduler_graceful_stop.py`
 - `tests/unit/test_scheduler_supervisor_control.py`
+- `tests/integration/test_job_scheduler_cli.py` (existing suite extended)
 
 ## Verhalten danach
 
@@ -116,9 +117,12 @@ so no local pytest, Ruff, mypy, Windows launch, or manual UI PASS is claimed.
 - a pre-set stop event prevents another scheduler tick;
 - a stop event raised during an idle tick interrupts a 60-second idle wait immediately;
 - a pre-set stop event aborts scheduler readiness waiting before its long timeout;
-- the desktop graceful wait exceeds the supervisor's complete child-cleanup budget.
+- the desktop graceful wait exceeds the supervisor's complete child-cleanup budget;
+- a real scheduler control-lane subprocess accepts `stop\n` on stdin, exits with
+  code 0, and releases its lane ownership so a subsequent scheduler can acquire it.
 
-Existing `tests/integration/test_job_scheduler_cli.py` contracts were also inspected.
+Existing `tests/integration/test_job_scheduler_cli.py` contracts were also inspected
+and extended.
 The implementation preserves their historical test-double behavior: missing `stdin`
 means no graceful channel rather than an exception, legacy wait fakes returning
 `None` remain successful, and Namespace fixtures without the new hidden flag remain
@@ -174,6 +178,6 @@ build on it. Use the current branch below.
 - Branch: `fix/scheduler-graceful-shutdown-current-20261002-sol`
 - Base: `develop/pathena-next@467ef434236c320e4afe9d21a39c20a4a2b75728`.
 - Last product/test head before this documentation update:
-  `140d31084e62c2ee7c99ad6b5083f71c2f8fceee`.
+  `167567face9bffefd766974d05db6ca5467fb771`.
 - PR: #387 — `Desktop: gracefully stop scheduler process tree` (draft until
   exact-head validation).
