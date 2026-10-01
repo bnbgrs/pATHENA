@@ -77,11 +77,6 @@ class OfflineComprehensionController(QObject):
         if self.ground is not None:
             self.ground.setStatusTip(presentation.summary)
 
-        if presentation.state == "core-offline":
-            empty_title = self.window.findChild(QLabel, "emptyStateTitle")
-            if empty_title is not None:
-                empty_title.setText("Getting pATHENA ready")
-
     def _presentation(self) -> ReadinessPresentation:
         core_transport_ready = bool(
             getattr(self.window, "_core_transport_ready", False)
@@ -129,7 +124,7 @@ class OfflineComprehensionController(QObject):
             "ready",
             "pATHENA and the selected local model are ready.",
             "type a message",
-            "Ask ATHENA",
+            "Ask, research, or build…",
         )
 
     def _selected_model(self) -> object | None:

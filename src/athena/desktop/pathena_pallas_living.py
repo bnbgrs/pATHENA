@@ -68,12 +68,32 @@ class PallasLivingEngine:
         self.snapshot: PallasGraphSnapshot | None = None
         self.states: dict[str, PallasLivingNodeState] = {}
         self._semantic_tokens: dict[str, frozenset[str]] = {}
+        self._node_order: tuple[PallasSemanticNode, ...] = ()
+        self._node_by_id: dict[str, PallasSemanticNode] = {}
+        self._neighbors: dict[str, frozenset[str]] = {}
+        self._conflict_pairs: frozenset[frozenset[str]] = frozenset()
+        self._spring_pairs: tuple[tuple[str, str], ...] = ()
+        self._repulsion_pairs: tuple[tuple[str, str, float], ...] = ()
+        self._conflict_repulsion_pairs: tuple[tuple[str, str], ...] = ()
+        self._semantic_pairs: tuple[tuple[str, str, float], ...] = ()
+        self._world_radius = self.config.world_radius
+        self.visual_focus_id: str | None = None
         self.tick = 0
 
     def clear(self) -> None:
         self.snapshot = None
         self.states.clear()
         self._semantic_tokens.clear()
+        self._node_order = ()
+        self._node_by_id.clear()
+        self._neighbors.clear()
+        self._conflict_pairs = frozenset()
+        self._spring_pairs = ()
+        self._repulsion_pairs = ()
+        self._conflict_repulsion_pairs = ()
+        self._semantic_pairs = ()
+        self._world_radius = self.config.world_radius
+        self.visual_focus_id = None
         self.tick = 0
 
     def reconcile(
@@ -82,6 +102,9 @@ class PallasLivingEngine:
         seed_positions: Mapping[str, tuple[float, float]] | None = None,
     ) -> None:
         seeds = seed_positions or {}
+        previous_nodes = self._node_by_id
+        previous_tokens = self._semantic_tokens
+        previous_semantic_pairs = self._semantic_pairs
         ids = {node.node_id for node in snapshot.nodes}
         self.states = {
             node_id: state
@@ -102,12 +125,125 @@ class PallasLivingEngine:
                 float(y),
                 vitality=1.0 if node.node_id == snapshot.focus_id else 0.82,
             )
-        self._semantic_tokens = {
-            node.node_id: _tokens(node) for node in snapshot.nodes
+        self._node_order = tuple(sorted(snapshot.nodes, key=lambda item: item.node_id))
+        self._node_by_id = {node.node_id: node for node in self._node_order}
+        semantic_changed_ids: set[str] = set()
+        semantic_tokens: dict[str, frozenset[str]] = {}
+        for node in self._node_order:
+            previous = previous_nodes.get(node.node_id)
+            if (
+                previous is not None
+                and previous.title == node.title
+                and previous.summary == node.summary
+                and node.node_id in previous_tokens
+            ):
+                semantic_tokens[node.node_id] = previous_tokens[node.node_id]
+            else:
+                semantic_tokens[node.node_id] = _tokens(node)
+                semantic_changed_ids.add(node.node_id)
+        self._semantic_tokens = semantic_tokens
+
+        neighbor_sets: dict[str, set[str]] = {
+            node.node_id: set() for node in self._node_order
         }
+        conflict_pairs: set[frozenset[str]] = set()
+        spring_pairs: list[tuple[str, str]] = []
+        for edge in snapshot.edges:
+            if (
+                edge.source_id not in self._node_by_id
+                or edge.target_id not in self._node_by_id
+            ):
+                continue
+            neighbor_sets[edge.source_id].add(edge.target_id)
+            neighbor_sets[edge.target_id].add(edge.source_id)
+            spring_pairs.append((edge.source_id, edge.target_id))
+            if edge.relation.casefold() in _CONFLICT_REL:
+                conflict_pairs.add(frozenset((edge.source_id, edge.target_id)))
+        self._neighbors = {
+            node_id: frozenset(linked) for node_id, linked in neighbor_sets.items()
+        }
+        self._conflict_pairs = frozenset(conflict_pairs)
+        self._spring_pairs = tuple(spring_pairs)
+
+        semantic_pairs = [
+            pair
+            for pair in previous_semantic_pairs
+            if pair[0] in ids
+            and pair[1] in ids
+            and pair[0] not in semantic_changed_ids
+            and pair[1] not in semantic_changed_ids
+        ]
+        recomputed_semantic_pairs: set[tuple[str, str]] = set()
+        for changed_id in sorted(semantic_changed_ids):
+            changed_tokens = self._semantic_tokens.get(changed_id, frozenset())
+            for other in self._node_order:
+                if other.node_id == changed_id:
+                    continue
+                left_id, right_id = sorted((changed_id, other.node_id))
+                pair_key = (left_id, right_id)
+                if pair_key in recomputed_semantic_pairs:
+                    continue
+                recomputed_semantic_pairs.add(pair_key)
+                similarity = _token_similarity(
+                    changed_tokens
+                    if left_id == changed_id
+                    else self._semantic_tokens.get(left_id, frozenset()),
+                    changed_tokens
+                    if right_id == changed_id
+                    else self._semantic_tokens.get(right_id, frozenset()),
+                )
+                if similarity >= self.config.semantic_threshold:
+                    semantic_pairs.append((left_id, right_id, similarity))
+        semantic_pairs.sort(key=lambda pair: (pair[0], pair[1]))
+
+        repulsion_pairs: list[tuple[str, str, float]] = []
+        conflict_repulsion_pairs: list[tuple[str, str]] = []
+        contradiction_ratio = (
+            self.config.contradiction_repulsion
+            / max(self.config.global_repulsion, 1e-9)
+        )
+        for index, left in enumerate(self._node_order):
+            for right in self._node_order[index + 1 :]:
+                pair = frozenset((left.node_id, right.node_id))
+                repulsion_pairs.append(
+                    (
+                        left.node_id,
+                        right.node_id,
+                        contradiction_ratio if pair in conflict_pairs else 1.0,
+                    )
+                )
+                if (
+                    pair not in conflict_pairs
+                    and (
+                        left.kind is PallasNodeKind.CONFLICT
+                        or right.kind is PallasNodeKind.CONFLICT
+                    )
+                ):
+                    conflict_repulsion_pairs.append(
+                        (left.node_id, right.node_id)
+                    )
+        self._repulsion_pairs = tuple(repulsion_pairs)
+        self._conflict_repulsion_pairs = tuple(conflict_repulsion_pairs)
+        self._semantic_pairs = tuple(semantic_pairs)
+        occupied_radius = max(
+            (math.hypot(state.x, state.y) for state in self.states.values()),
+            default=0.0,
+        )
+        radius_margin = max(self.config.edge_rest_length * 0.35, 32.0)
+        self._world_radius = max(
+            self.config.world_radius,
+            occupied_radius + radius_margin,
+        )
+        if self.visual_focus_id not in ids:
+            self.visual_focus_id = None
+
         self.snapshot = snapshot
         if not had_state:
             self.tick = 0
+
+    def set_visual_focus(self, node_id: str | None) -> None:
+        """Bias presentation toward a selected real node without changing graph facts."""
+        self.visual_focus_id = node_id
 
     def step(self, dt: float | None = None) -> None:
         graph = self.snapshot
@@ -115,63 +251,46 @@ class PallasLivingEngine:
             return
         c = self.config
         dt = 1.0 / c.fps if dt is None else min(max(float(dt), 1 / 240), 0.1)
-        nodes = tuple(sorted(graph.nodes, key=lambda item: item.node_id))
-        by_id = {node.node_id: node for node in nodes}
+        nodes = self._node_order
         force: dict[str, list[float]] = {
             node.node_id: [0.0, 0.0] for node in nodes
         }
-        neighbors: dict[str, set[str]] = {
-            node.node_id: set() for node in nodes
-        }
-        conflict_pairs: set[frozenset[str]] = set()
+        neighbors = self._neighbors
 
-        for edge in graph.edges:
-            if edge.source_id not in by_id or edge.target_id not in by_id:
-                continue
-            neighbors[edge.source_id].add(edge.target_id)
-            neighbors[edge.target_id].add(edge.source_id)
-            if edge.relation.casefold() in _CONFLICT_REL:
-                conflict_pairs.add(frozenset((edge.source_id, edge.target_id)))
-            self._pair_force(edge.source_id, edge.target_id, force, spring=True)
+        for left_id, right_id in self._spring_pairs:
+            self._pair_force(left_id, right_id, force, spring=True)
 
-        for index, left in enumerate(nodes):
-            for right in nodes[index + 1 :]:
-                pair = frozenset((left.node_id, right.node_id))
-                ratio = (
-                    c.contradiction_repulsion / max(c.global_repulsion, 1e-9)
-                    if pair in conflict_pairs
-                    else 1.0
-                )
-                self._pair_force(left.node_id, right.node_id, force, repulsion=ratio)
-                similarity = _token_similarity(
-                    self._semantic_tokens.get(left.node_id, frozenset()),
-                    self._semantic_tokens.get(right.node_id, frozenset()),
-                )
-                if similarity >= c.semantic_threshold:
-                    self._pair_force(
-                        left.node_id,
-                        right.node_id,
-                        force,
-                        attraction=similarity,
-                    )
+        for left_id, right_id, ratio in self._repulsion_pairs:
+            self._pair_force(left_id, right_id, force, repulsion=ratio)
 
-        conflict_ids = {
-            node.node_id for node in nodes if node.kind is PallasNodeKind.CONFLICT
-        }
-        for conflict_id in conflict_ids:
-            for node in nodes:
-                pair = frozenset((conflict_id, node.node_id))
-                if node.node_id != conflict_id and pair not in conflict_pairs:
-                    self._pair_force(conflict_id, node.node_id, force, repulsion=1.55)
+        for left_id, right_id, similarity in self._semantic_pairs:
+            self._pair_force(
+                left_id,
+                right_id,
+                force,
+                attraction=similarity,
+            )
+
+        for left_id, right_id in self._conflict_repulsion_pairs:
+            self._pair_force(left_id, right_id, force, repulsion=1.55)
 
         previous = {
             node_id: state.vitality for node_id, state in self.states.items()
         }
         active = {node_id: state.active for node_id, state in self.states.items()}
+        presentation_focus = (
+            self.visual_focus_id
+            if self.visual_focus_id in self.states
+            else graph.focus_id
+        )
         damping = c.damping ** (dt * c.fps)
         for node in nodes:
             state = self.states[node.node_id]
-            pull = c.focus_pull if node.node_id == graph.focus_id else c.center_pull
+            pull = (
+                c.focus_pull
+                if node.node_id == presentation_focus
+                else c.center_pull
+            )
             phase = _phase(node.node_id)
             temporal = state.age_seconds * 0.13 + self.tick * 0.021
             force[node.node_id][0] += (
@@ -190,7 +309,7 @@ class PallasLivingEngine:
             else:
                 target = 0.62 if alive >= 2 else 0.08
             target += 0.12 if node.cited else 0.0
-            target += 0.14 if node.node_id == graph.focus_id else 0.0
+            target += 0.14 if node.node_id == presentation_focus else 0.0
             if node.confidence is not None:
                 target += 0.10 * max(0.0, min(1.0, node.confidence))
             if linked:
@@ -221,14 +340,14 @@ class PallasLivingEngine:
                 scale = c.max_speed / speed
                 state.vx *= scale
                 state.vy *= scale
-            if node.node_id == graph.focus_id:
+            if node.node_id == presentation_focus:
                 state.vx *= 0.72
                 state.vy *= 0.72
             state.x += state.vx * dt
             state.y += state.vy * dt
             radius = math.hypot(state.x, state.y)
-            if radius > c.world_radius:
-                scale = c.world_radius / radius
+            if radius > self._world_radius:
+                scale = self._world_radius / radius
                 state.x *= scale
                 state.y *= scale
                 state.vx *= -0.25
@@ -280,17 +399,27 @@ class PallasLivingEngine:
         age = 0.0 if state is None else state.age_seconds
         return age_glyph(age, self.config.aging_horizon_seconds)
 
-    def diagnostics(self) -> dict[str, float | int]:
+    def diagnostics(self) -> dict[str, float | int | str]:
         values = tuple(self.states.values())
         mean_vitality = (
             0.0
             if not values
             else sum(state.vitality for state in values) / len(values)
         )
+        speeds = tuple(math.hypot(state.vx, state.vy) for state in values)
         return {
             "nodes": len(values),
             "active": sum(state.active for state in values),
             "mean_vitality": mean_vitality,
+            "mean_speed": 0.0 if not speeds else sum(speeds) / len(speeds),
+            "max_speed": 0.0 if not speeds else max(speeds),
+            "semantic_pairs": len(self._semantic_pairs),
+            "spring_pairs": len(self._spring_pairs),
+            "repulsion_pairs": len(self._repulsion_pairs),
+            "conflict_repulsion_pairs": len(self._conflict_repulsion_pairs),
+            "edges": 0 if self.snapshot is None else len(self.snapshot.edges),
+            "world_radius": self._world_radius,
+            "visual_focus": self.visual_focus_id or "",
             "tick": self.tick,
         }
 

@@ -8,7 +8,10 @@ from PySide6.QtWidgets import QApplication, QWidget
 from shiboken6 import delete, isValid
 
 from athena.desktop.pathena_pallas_field import PallasGroundedFieldController
-from athena.desktop.pathena_pallas_living_qt import PallasLivingQtController
+from athena.desktop.pathena_pallas_living_qt import (
+    PallasLivingQtController,
+    _cadence_interval_ms,
+)
 from athena.desktop.pathena_pallas_semantic import (
     PallasGraphSnapshot,
     PallasNodeKind,
@@ -175,3 +178,324 @@ def test_qt_bridge_stops_and_clears_state_when_primary_field_is_disposed(
     assert living.engine.snapshot is None
     assert living.engine.states == {}
     delete(window)
+
+
+def _updated_snapshot_same_graph_id() -> PallasGraphSnapshot:
+    focus = _node("focus", PallasNodeKind.FOCUS)
+    claim = _node("claim", PallasNodeKind.CLAIM)
+    knowledge = _node("knowledge", PallasNodeKind.KNOWLEDGE)
+    return PallasGraphSnapshot(
+        graph_id="graph:living-qt-test",
+        nodes=(focus, claim, knowledge),
+        edges=(
+            PallasSemanticEdge(focus.node_id, claim.node_id, "cites"),
+            PallasSemanticEdge(focus.node_id, knowledge.node_id, "includes_context"),
+        ),
+        focus_id=focus.node_id,
+        status="ready",
+        status_detail="Three real grounded semantic nodes.",
+    )
+
+
+def test_qt_bridge_reconciles_snapshot_changes_even_when_graph_id_is_stable(
+    qapp: QApplication,
+) -> None:
+    window = QWidget()
+    grounded = _grounded_controller(window)
+    living = PallasLivingQtController(grounded)
+    living._timer.stop()  # noqa: SLF001
+    try:
+        living._tick()  # noqa: SLF001
+        original = living.engine.snapshot
+        assert original is not None
+        assert set(living.engine.states) == {"focus", "claim"}
+
+        updated = _updated_snapshot_same_graph_id()
+        assert updated.graph_id == original.graph_id
+        grounded.apply_snapshot(updated)
+        living._tick()  # noqa: SLF001
+        qapp.processEvents()
+
+        assert living.engine.snapshot == updated
+        assert set(living.engine.states) == {"focus", "claim", "knowledge"}
+        assert grounded.field.snapshot == updated
+    finally:
+        living.stop()
+        delete(window)
+
+
+def test_qt_bridge_publishes_structural_activity_delta(
+    qapp: QApplication,
+) -> None:
+    window = QWidget()
+    grounded = _grounded_controller(window)
+    living = PallasLivingQtController(grounded)
+    living._timer.stop()  # noqa: SLF001
+    diagnostics: list[object] = []
+    living.diagnostics_changed.connect(diagnostics.append)
+    try:
+        living._tick()  # noqa: SLF001
+        first = diagnostics[-1]
+        assert isinstance(first, dict)
+        assert first["delta_added"] == 0
+
+        grounded.apply_snapshot(_updated_snapshot_same_graph_id())
+        living._tick()  # noqa: SLF001
+        qapp.processEvents()
+
+        latest = diagnostics[-1]
+        assert isinstance(latest, dict)
+        assert latest["delta_added"] == 1
+        assert latest["delta_removed"] == 0
+        assert latest["delta_updated"] == 0
+        assert latest["delta_revisions"] == 0
+        assert latest["delta_edges"] == 1
+        assert latest["focus_changed"] is False
+
+        updated = _updated_snapshot_same_graph_id()
+        focus, claim, knowledge = updated.nodes
+        revised_claim = PallasSemanticNode(
+            node_id=claim.node_id,
+            kind=claim.kind,
+            entity_type=claim.entity_type,
+            entity_id=claim.entity_id,
+            revision_id="revision-claim-2",
+            title=claim.title,
+            summary=claim.summary,
+            epistemic_status=claim.epistemic_status,
+            cited=claim.cited,
+        )
+        revised = PallasGraphSnapshot(
+            graph_id=updated.graph_id,
+            nodes=(focus, revised_claim, knowledge),
+            edges=updated.edges,
+            focus_id=updated.focus_id,
+            status=updated.status,
+            status_detail=updated.status_detail,
+        )
+        grounded.apply_snapshot(revised)
+        living._tick()  # noqa: SLF001
+        qapp.processEvents()
+
+        revision_delta = diagnostics[-1]
+        assert isinstance(revision_delta, dict)
+        assert revision_delta["delta_added"] == 0
+        assert revision_delta["delta_removed"] == 0
+        assert revision_delta["delta_updated"] == 1
+        assert revision_delta["delta_revisions"] == 1
+        assert revision_delta["delta_edges"] == 0
+
+        living._delta_pulse_remaining = 0.0  # noqa: SLF001
+        living._tick()  # noqa: SLF001
+        expired = diagnostics[-1]
+        assert isinstance(expired, dict)
+        assert expired["delta_added"] == 0
+        assert expired["delta_removed"] == 0
+        assert expired["delta_updated"] == 0
+        assert expired["delta_revisions"] == 0
+        assert expired["delta_edges"] == 0
+    finally:
+        living.stop()
+        delete(window)
+
+
+def test_qt_bridge_tracks_real_selection_as_visual_focus(
+    qapp: QApplication,
+) -> None:
+    window = QWidget()
+    grounded = _grounded_controller(window)
+    living = PallasLivingQtController(grounded)
+    living._timer.stop()  # noqa: SLF001
+    try:
+        living._tick()  # noqa: SLF001
+        snapshot = living.engine.snapshot
+        assert snapshot is not None
+
+        assert grounded.field.focus_node("claim")
+        qapp.processEvents()
+
+        assert living.engine.visual_focus_id == "claim"
+        assert living.engine.snapshot is snapshot
+        assert snapshot.focus_id == "focus"
+
+        grounded.field.clear_selection()
+        qapp.processEvents()
+        assert living.engine.visual_focus_id is None
+    finally:
+        living.stop()
+        delete(window)
+
+
+def test_qt_bridge_rejects_invalid_snapshot_without_crashing_timer_path(
+    qapp: QApplication,
+) -> None:
+    window = QWidget()
+    grounded = _grounded_controller(window)
+    workspace = grounded.create_workspace(window)
+    living = PallasLivingQtController(grounded)
+    living._timer.stop()  # noqa: SLF001
+    diagnostics: list[object] = []
+    living.diagnostics_changed.connect(diagnostics.append)
+    try:
+        living._tick()  # noqa: SLF001
+        assert living.engine.snapshot is not None
+
+        focus = _node("focus", PallasNodeKind.FOCUS)
+        claim = _node("claim", PallasNodeKind.CLAIM)
+        invalid = PallasGraphSnapshot(
+            graph_id="graph:living-qt-invalid",
+            nodes=(focus, claim),
+            edges=(PallasSemanticEdge("focus", "missing", "cites"),),
+            focus_id="focus",
+            status="ready",
+            status_detail="Invalid graph for regression coverage.",
+        )
+        grounded.apply_snapshot(invalid)
+        living._tick()  # noqa: SLF001
+        qapp.processEvents()
+
+        latest = diagnostics[-1]
+        assert isinstance(latest, dict)
+        assert "missing node" in str(latest["validation_error"])
+        assert living.engine.snapshot is None
+        assert "missing node" in str(
+            grounded.field.property("pathenaPallasLivingError")
+        )
+        assert "missing node" in str(
+            workspace.field.property("pathenaPallasLivingError")
+        )
+
+        living._tick()  # noqa: SLF001
+        repeated = diagnostics[-1]
+        assert isinstance(repeated, dict)
+        assert "missing node" in str(repeated["validation_error"])
+        assert living.engine.snapshot is None
+        assert living._rejected_snapshot == invalid  # noqa: SLF001
+
+        empty = PallasGraphSnapshot(
+            graph_id="graph:living-qt-empty",
+            nodes=(),
+            edges=(),
+            focus_id=None,
+            status="empty",
+            status_detail="No current grounded context.",
+        )
+        grounded.apply_snapshot(empty)
+        living._tick()  # noqa: SLF001
+
+        cleared = diagnostics[-1]
+        assert isinstance(cleared, dict)
+        assert cleared["field_state"] == "empty"
+        assert cleared["validation_error"] == ""
+        assert living._rejected_snapshot is None  # noqa: SLF001
+        assert grounded.field.property("pathenaPallasLivingError") == ""
+        assert workspace.field.property("pathenaPallasLivingError") == ""
+    finally:
+        living.stop()
+        delete(window)
+
+
+def test_vitality_marker_geometry_tracks_dynamic_text_width(
+    qapp: QApplication,
+) -> None:
+    window = QWidget()
+    grounded = _grounded_controller(window)
+    living = PallasLivingQtController(grounded)
+    living._timer.stop()  # noqa: SLF001
+    try:
+        living._tick()  # noqa: SLF001
+        binding = living._bindings[id(grounded.field)]  # noqa: SLF001
+        marker = binding.age_items["claim"]
+        item = grounded.field._items["claim"]  # noqa: SLF001
+
+        living.set_lens("vitality")
+        qapp.processEvents()
+
+        assert marker.text().endswith("%")
+        assert marker.pos().x() == pytest.approx(
+            -marker.boundingRect().width() / 2
+        )
+        assert marker.pos().y() == pytest.approx(
+            item.boundingRect().bottom() + 2
+        )
+
+        living.set_lens("age")
+        qapp.processEvents()
+
+        assert marker.text() == "◆"
+        assert marker.pos().x() == pytest.approx(
+            -marker.boundingRect().width() / 2
+        )
+        assert marker.pos().y() == pytest.approx(
+            item.boundingRect().bottom() + 2
+        )
+        assert "field age" in marker.toolTip()
+    finally:
+        living.stop()
+        delete(window)
+
+def test_cadence_scales_down_without_changing_graph_facts() -> None:
+    assert _cadence_interval_ms(full_visible=True, visible=True, nodes=20) == 33
+    assert _cadence_interval_ms(full_visible=True, visible=True, nodes=120) == 42
+    assert _cadence_interval_ms(full_visible=True, visible=True, nodes=240) == 56
+    assert _cadence_interval_ms(full_visible=True, visible=True, nodes=500) == 83
+    assert _cadence_interval_ms(full_visible=False, visible=True, nodes=20) == 67
+    assert _cadence_interval_ms(full_visible=False, visible=True, nodes=220) == 100
+    assert _cadence_interval_ms(full_visible=False, visible=True, nodes=500) == 167
+    assert _cadence_interval_ms(full_visible=False, visible=False, nodes=500) == 250
+
+
+def test_stop_disconnects_selection_focus_lifecycle(qapp: QApplication) -> None:
+    window = QWidget()
+    grounded = _grounded_controller(window)
+    living = PallasLivingQtController(grounded)
+    living._timer.stop()  # noqa: SLF001
+    try:
+        living._tick()  # noqa: SLF001
+        assert grounded.field.focus_node("claim")
+        qapp.processEvents()
+        assert living.engine.visual_focus_id == "claim"
+
+        living.stop()
+        assert living._selection_connected is False  # noqa: SLF001
+        assert living.engine.visual_focus_id is None
+
+        grounded.field.clear_selection()
+        grounded.field.focus_node("focus")
+        qapp.processEvents()
+
+        assert living.engine.visual_focus_id is None
+        living.stop()
+    finally:
+        delete(window)
+
+def test_lens_change_drops_stale_scene_binding_before_next_tick(
+    qapp: QApplication,
+) -> None:
+    window = QWidget()
+    grounded = _grounded_controller(window)
+    living = PallasLivingQtController(grounded)
+    living._timer.stop()  # noqa: SLF001
+    try:
+        living._tick()  # noqa: SLF001
+        qapp.processEvents()
+        assert id(grounded.field) in living._bindings  # noqa: SLF001
+
+        grounded.apply_snapshot(_updated_snapshot_same_graph_id())
+        qapp.processEvents()
+
+        living.set_lens("age")
+
+        assert living.lens == "age"
+        assert grounded.field.property("pathenaPallasLens") == "age"
+        assert id(grounded.field) not in living._bindings  # noqa: SLF001
+
+        living._tick()  # noqa: SLF001
+        qapp.processEvents()
+
+        assert id(grounded.field) in living._bindings  # noqa: SLF001
+        assert grounded.field.property("pathenaPallasLens") == "age"
+    finally:
+        living.stop()
+        delete(window)
+

@@ -112,6 +112,7 @@ class SystemHardwareAcceptancePanel(QFrame):
     ) -> None:
         super().__init__()
         self.setObjectName("systemHardwareAcceptance")
+        self.setAccessibleName("Hardware acceptance check")
         self.setProperty("pathenaTargetHardwareAcceptance", True)
         self._report_path = report_path or default_hardware_acceptance_report_path()
         self._executable = executable or sys.executable
@@ -123,9 +124,11 @@ class SystemHardwareAcceptancePanel(QFrame):
         labels = QVBoxLayout()
         labels.setContentsMargins(0, 0, 0, 0)
         labels.setSpacing(4)
-        heading = QLabel("TARGET HARDWARE")
+        heading = QLabel("Hardware check")
         heading.setProperty("role", "section")
+        heading.setMinimumWidth(118)
         self.status = QLabel("NOT RUN")
+        self.status.setMinimumWidth(118)
         self.status.setObjectName("settingsValue")
         set_pathena_ui_state(self.status, "empty")
         labels.addWidget(heading)
@@ -139,11 +142,13 @@ class SystemHardwareAcceptancePanel(QFrame):
         self.detail.setWordWrap(True)
         self.detail.setProperty("pathenaHardwareAcceptanceReport", str(self._report_path))
 
-        self.run_button = QPushButton("RUN CHECK")
+        self.run_button = QPushButton("Run check")
         self.run_button.setObjectName("newChatButton")
         self.run_button.setToolTip(
-            "Run the strict target-workstation GPU and LM Studio inference acceptance"
+            "Check the Windows GPU, loaded local model and one live local inference"
         )
+        self.run_button.setAccessibleName("Run hardware check")
+        self.run_button.setMinimumWidth(104)
         self.run_button.setEnabled(os.name == "nt")
         self.run_button.clicked.connect(self.run_check)
 
@@ -248,7 +253,7 @@ class SystemHardwareAcceptancePanel(QFrame):
                     state="error",
                 )
             )
-        self.run_button.setText("RUN AGAIN")
+        self.run_button.setText("Run again")
         self.run_button.setEnabled(os.name == "nt")
 
     def _handle_process_error(self, error: QProcess.ProcessError) -> None:

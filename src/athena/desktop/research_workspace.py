@@ -292,6 +292,11 @@ class ResearchWorkspace(QWidget):
             )
             item.setData(Qt.ItemDataRole.UserRole, job_id)
             item.setData(Qt.ItemDataRole.UserRole + 1, state)
+            item.setData(Qt.ItemDataRole.UserRole + 2, stage)
+            item.setData(
+                Qt.ItemDataRole.UserRole + 3,
+                None if coverage == "-" else float(coverage),
+            )
             self.jobs.addItem(item)
             if selected == job_id:
                 item_to_select = item

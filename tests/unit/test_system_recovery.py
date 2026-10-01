@@ -95,7 +95,9 @@ def test_system_workspace_exposes_diagnosis_without_restore_action() -> None:
     workspace = SystemWorkspace(None)
 
     assert isinstance(workspace.recovery, SystemRecoveryPanel)
+    assert workspace.recovery.accessibleName() == "Recovery check"
+    assert workspace.recovery.run_button.accessibleName() == "Run recovery diagnosis"
     assert workspace.recovery.property("pathenaRecoveryReadOnly") is True
     assert workspace.recovery.property("pathenaRecoveryRestoreAvailable") is False
-    assert workspace.recovery.run_button.text() == "RUN DIAGNOSIS"
+    assert workspace.recovery.run_button.text() == "Run diagnosis"
     assert workspace.recovery.status.text() == "NOT CHECKED"

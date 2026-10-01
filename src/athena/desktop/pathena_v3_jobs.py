@@ -2,12 +2,20 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import QObject
-from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QSplitter, QVBoxLayout, QWidget
+from PySide6.QtCore import QObject, Qt
+from PySide6.QtWidgets import (
+    QHBoxLayout,
+    QLabel,
+    QListWidgetItem,
+    QProgressBar,
+    QSplitter,
+    QVBoxLayout,
+    QWidget,
+)
 from shiboken6 import isValid
 
 from athena.desktop.jobs_workspace import JobsWorkspace
-from athena.desktop.pathena_v3_components import V3EmptyState
+from athena.desktop.pathena_v3_components import V3ActionHost, V3EmptyState
 
 
 class PathenaV3JobsController(QObject):
@@ -38,47 +46,123 @@ class PathenaV3JobsController(QObject):
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(14)
 
-        command = QFrame()
+        command = V3ActionHost()
         command.setObjectName("v3JobsCommand")
-        layout = QHBoxLayout(command)
-        layout.setContentsMargins(14, 10, 14, 10)
-        layout.setSpacing(8)
+        command.setAccessibleName("Background work controls")
+        command_layout = QVBoxLayout(command)
+        command_layout.setContentsMargins(16, 12, 16, 12)
+        command_layout.setSpacing(8)
 
-        label = QLabel("QUEUE")
+        state_row = QHBoxLayout()
+        state_row.setContentsMargins(0, 0, 0, 0)
+        state_row.setSpacing(10)
+
+        label = QLabel("BACKGROUND WORK")
         label.setObjectName("v3Kicker")
-        layout.addWidget(label)
+        state_row.addWidget(label)
 
         workspace.status.setParent(command)
         workspace.status.setObjectName("v3JobsStatus")
+        workspace.status.setWordWrap(False)
+        workspace.status.setMinimumWidth(140)
         workspace.status.show()
-        layout.addWidget(workspace.status)
+        state_row.addWidget(workspace.status)
+
+        self.progress_label = QLabel("")
+        self.progress_label.setObjectName("v3ProgressLabel")
+        self.progress_label.setAccessibleName("Selected job activity")
+        self.progress_label.hide()
+        state_row.addWidget(self.progress_label)
+
+        self.progress = QProgressBar()
+        self.progress.setObjectName("v3ActivityProgress")
+        self.progress.setAccessibleName("Selected job activity")
+        self.progress.setTextVisible(False)
+        self.progress.setRange(0, 0)
+        self.progress.setFixedWidth(116)
+        self.progress.setFixedHeight(5)
+        self.progress.hide()
+        state_row.addWidget(self.progress)
 
         workspace.scheduler_status.setParent(command)
         workspace.scheduler_status.setObjectName("v3SchedulerStatus")
         workspace.scheduler_status.show()
-        layout.addWidget(workspace.scheduler_status)
-        layout.addStretch(1)
+        state_row.addWidget(workspace.scheduler_status)
+        state_row.addStretch(1)
+        command_layout.addLayout(state_row)
 
-        for button, text in (
-            (workspace.refresh_button, "Refresh"),
-            (workspace.pause_button, "Pause"),
-            (workspace.resume_button, "Resume"),
-            (workspace.wake_button, "Wake"),
-            (workspace.cancel_button, "Cancel"),
+        actions = QHBoxLayout()
+        actions.setContentsMargins(0, 0, 0, 0)
+        actions.setSpacing(8)
+        actions.addStretch(1)
+
+        workspace.refresh_button.setParent(command)
+        workspace.refresh_button.setText("Refresh")
+        workspace.refresh_button.setAccessibleName("Refresh background work")
+        workspace.refresh_button.setToolTip("Refresh job and scheduler state")
+        workspace.refresh_button.show()
+        actions.addWidget(workspace.refresh_button)
+
+        workspace.pause_button.setParent(command)
+        workspace.pause_button.setText("Pause")
+        workspace.pause_button.setAccessibleName("Pause scheduler")
+        workspace.pause_button.setToolTip("Pause automatic background execution")
+        workspace.pause_button.show()
+        actions.addWidget(workspace.pause_button)
+
+        workspace.resume_button.setParent(command)
+        workspace.resume_button.setText("Resume")
+        workspace.resume_button.setAccessibleName("Resume scheduler")
+        workspace.resume_button.setToolTip("Resume automatic background execution")
+        workspace.resume_button.show()
+        actions.addWidget(workspace.resume_button)
+
+        workspace.wake_button.setParent(command)
+        workspace.wake_button.setObjectName("jobsRunNowButton")
+        workspace.wake_button.setText("Run now")
+        workspace.wake_button.setMinimumWidth(78)
+        workspace.wake_button.setAccessibleName("Run background work now")
+        workspace.wake_button.setToolTip("Wake the scheduler and process ready work now")
+        workspace.wake_button.setProperty("v3PrimaryAction", True)
+        workspace.wake_button.show()
+        actions.addWidget(workspace.wake_button)
+
+        workspace.cancel_button.setParent(command)
+        workspace.cancel_button.setText("Cancel")
+        workspace.cancel_button.setAccessibleName("Cancel selected job")
+        workspace.cancel_button.setToolTip("Cancel the selected background job")
+        workspace.cancel_button.setProperty("v3DestructiveAction", True)
+        workspace.cancel_button.show()
+        actions.addWidget(workspace.cancel_button)
+        for button in (
+            workspace.refresh_button,
+            workspace.pause_button,
+            workspace.resume_button,
+            workspace.wake_button,
+            workspace.cancel_button,
         ):
-            button.setParent(command)
-            button.setText(text)
+            button.ensurePolished()
             button.show()
-            layout.addWidget(button)
+            button.raise_()
+            button.update()
+        command_layout.addLayout(actions)
+        command.bind_actions(
+            workspace.refresh_button,
+            workspace.pause_button,
+            workspace.resume_button,
+            workspace.wake_button,
+            workspace.cancel_button,
+        )
         root.addWidget(command)
 
         splitter.setParent(workspace)
         splitter.setObjectName("v3JobsSplit")
+        splitter.setAccessibleName("Job queue and job details")
         splitter.setChildrenCollapsible(False)
         splitter.setStretchFactor(0, 1)
         splitter.setStretchFactor(1, 3)
-        workspace.jobs.setMinimumWidth(240)
-        workspace.jobs.setMaximumWidth(400)
+        workspace.jobs.setMinimumWidth(260)
+        workspace.jobs.setMaximumWidth(380)
         workspace.jobs.show()
         workspace.details.show()
         splitter.show()
@@ -95,7 +179,9 @@ class PathenaV3JobsController(QObject):
         model.rowsInserted.connect(self._sync_empty_state)
         model.rowsRemoved.connect(self._sync_empty_state)
         model.modelReset.connect(self._sync_empty_state)
+        workspace.jobs.currentItemChanged.connect(self._sync_progress)
         self._sync_empty_state()
+        self._sync_progress()
         workspace.setProperty("pathenaV3Composed", True)
 
     def _sync_empty_state(self, *_args: object) -> None:
@@ -106,6 +192,31 @@ class PathenaV3JobsController(QObject):
         splitter = self.workspace.jobs.parentWidget()
         if isinstance(splitter, QSplitter):
             splitter.setVisible(not is_empty)
+        self._sync_progress()
+
+    def _sync_progress(self, *_args: object) -> None:
+        if not isValid(self.workspace) or not isValid(self.workspace.jobs):
+            return
+        current: QListWidgetItem | None = self.workspace.jobs.currentItem()
+        if current is None:
+            self.progress.hide()
+            self.progress_label.hide()
+            return
+        state = str(current.data(Qt.ItemDataRole.UserRole + 1) or "").casefold()
+        stage = str(current.data(Qt.ItemDataRole.UserRole + 2) or "")
+        active = state in {"queued", "waiting", "running", "cancel_requested"}
+        paused = state == "paused"
+        if not active and not paused:
+            self.progress.hide()
+            self.progress_label.hide()
+            return
+        label = state.replace("_", " ").title()
+        if stage and stage != "-":
+            label += f" · {stage.replace('_', ' ').title()}"
+        self.progress_label.setText(label)
+        self.progress_label.setAccessibleDescription(label)
+        self.progress_label.show()
+        self.progress.setVisible(active)
 
 
 def install_v3_jobs_workspace(workspace: JobsWorkspace) -> PathenaV3JobsController:

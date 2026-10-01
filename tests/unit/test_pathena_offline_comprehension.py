@@ -41,6 +41,8 @@ class _Window(QWidget):
         self.send.setObjectName("sendButton")
         self.ground = QPushButton(self)
         self.ground.setObjectName("groundButton")
+        self.empty_title = QLabel("Preparing your workspace", self)
+        self.empty_title.setObjectName("emptyStateTitle")
 
     def _selected_model(self) -> object | None:
         return self._model
@@ -61,6 +63,7 @@ def test_readiness_copy_tracks_real_local_state() -> None:
     assert window.prompt.property("pathenaReadinessState") == "core-offline"
     assert window.prompt.placeholderText() == "pATHENA reconnecting"
     assert window.status.text() == "pATHENA reconnecting"
+    assert window.empty_title.text() == "Preparing your workspace"
     assert "core" not in window.prompt.toolTip().casefold()
     assert "core" not in window.status.toolTip().casefold()
 
@@ -81,7 +84,8 @@ def test_readiness_copy_tracks_real_local_state() -> None:
     window._model = SimpleNamespace(loaded=True)
     controller.sync()
     assert window.prompt.property("pathenaReadinessState") == "ready"
-    assert window.prompt.placeholderText() == "Ask ATHENA"
+    assert window.prompt.placeholderText() == "Ask, research, or build…"
+    assert window.empty_title.text() == "Preparing your workspace"
     assert "core" not in window.prompt.toolTip().casefold()
 
 

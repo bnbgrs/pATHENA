@@ -265,6 +265,14 @@ def _humanize_item(widget_name: str, text: str) -> str | None:
     return None
 
 
+def _find_workspace(
+    window: QWidget,
+    legacy_name: str,
+    v3_name: str,
+) -> QWidget | None:
+    return window.findChild(QWidget, v3_name) or window.findChild(QWidget, legacy_name)
+
+
 def _sync_list_presentation(window: QWidget) -> None:
     for object_name in _LIST_MINIMUM_WIDTHS:
         widget = window.findChild(QListWidget, object_name)
@@ -282,7 +290,7 @@ def _sync_list_presentation(window: QWidget) -> None:
 
 
 def _sync_knowledge_copy(window: QWidget) -> None:
-    knowledge = window.findChild(QWidget, "knowledgeWorkspace")
+    knowledge = _find_workspace(window, "knowledgeWorkspace", "v3KnowledgeWorkspace")
     if knowledge is None:
         return
 
@@ -322,19 +330,22 @@ def _sync_knowledge_copy(window: QWidget) -> None:
 
 
 def _sync_research_presentation(window: QWidget) -> None:
-    research = window.findChild(QWidget, "researchWorkspace")
+    research = _find_workspace(window, "researchWorkspace", "v3ResearchWorkspace")
     if research is None:
         return
     cancel = research.findChild(QPushButton, "researchCancelButton")
     if cancel is not None:
-        cancel.setVisible(cancel.isEnabled())
+        cancel.setVisible(
+            True if research.property("pathenaV3Composed") is True else cancel.isEnabled()
+        )
 
 
 def _sync_jobs_presentation(window: QWidget) -> None:
-    jobs = window.findChild(QWidget, "jobsWorkspace")
+    jobs = _find_workspace(window, "jobsWorkspace", "v3JobsWorkspace")
     if jobs is None:
         return
 
+    v3_owns_actions = jobs.property("pathenaV3Composed") is True
     for object_name in (
         "jobPauseButton",
         "jobResumeButton",
@@ -343,7 +354,7 @@ def _sync_jobs_presentation(window: QWidget) -> None:
     ):
         button = jobs.findChild(QPushButton, object_name)
         if button is not None:
-            button.setVisible(button.isEnabled())
+            button.setVisible(True if v3_owns_actions else button.isEnabled())
 
     for label in jobs.findChildren(QLabel):
         text = label.text()
@@ -358,16 +369,18 @@ def _sync_jobs_presentation(window: QWidget) -> None:
 
 
 def _sync_files_presentation(window: QWidget) -> None:
-    files = window.findChild(QWidget, "filesWorkspace")
+    files = _find_workspace(window, "filesWorkspace", "v3SourcesWorkspace")
     if files is None:
         return
     process = files.findChild(QPushButton, "fileProcessButton")
     if process is not None:
-        process.setVisible(process.isEnabled())
+        process.setVisible(
+            True if files.property("pathenaV3Composed") is True else process.isEnabled()
+        )
 
 
 def _sync_system_presentation(window: QWidget) -> None:
-    system = window.findChild(QWidget, "systemWorkspace")
+    system = _find_workspace(window, "systemWorkspace", "v3SystemWorkspace")
     if system is not None:
         for label in system.findChildren(QLabel, "settingsValue"):
             replacement = _SYSTEM_VALUE_REPLACEMENTS.get(label.text())
@@ -493,9 +506,11 @@ def _configure_system_presentation(window: QWidget) -> None:
     object_names = {
         "Refresh": "backupRefreshButton",
         "Create backup": "backupCreateButton",
+        "Create backup…": "backupCreateButton",
         "Verify": "backupVerifyButton",
         "Deep verify": "backupDeepVerifyButton",
         "Restore…": "backupRestoreButton",
+        "Restore copy…": "backupRestoreButton",
         "Targets": "backupTargetsButton",
         "Add target…": "backupAddTargetButton",
     }

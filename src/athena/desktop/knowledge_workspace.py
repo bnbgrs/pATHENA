@@ -36,6 +36,7 @@ from athena.desktop.knowledge_review import (
     parse_knowledge_entity_review,
     render_knowledge_entity_review,
 )
+from athena.desktop.pathena_ui_refinement_600 import set_pathena_ui_state
 
 
 class KnowledgeWorkspace(QWidget):
@@ -64,19 +65,19 @@ class KnowledgeWorkspace(QWidget):
         )
         self.summary.setObjectName("settingsHelp")
         self.summary.setWordWrap(True)
-        self.source = QLabel("SOURCE CHAT  —")
+        self.source = QLabel("Source conversation · —")
         self.source.setProperty("role", "section")
-        self.runtime = QLabel("CORE  —  /  CHATS  —")
+        self.runtime = QLabel("Local service · —   Conversations · —")
         self.runtime.setObjectName("settingsHelp")
-        self.browser_status = QLabel("Loading canonical memory …")
+        self.browser_status = QLabel("Loading knowledge…")
         self.browser_status.setObjectName("settingsHelp")
 
-        self.open_chat_button = QPushButton("OPEN SOURCE CHAT")
+        self.open_chat_button = QPushButton("Open conversation")
         self.open_chat_button.setObjectName("newChatButton")
         self.open_chat_button.setEnabled(False)
         self.open_chat_button.clicked.connect(self._open_source_chat)
 
-        self.refresh_button = QPushButton("REFRESH CORE")
+        self.refresh_button = QPushButton("Sync")
         self.refresh_button.setObjectName("newChatButton")
         self.refresh_button.setEnabled(controller is not None)
         if controller is not None:
@@ -113,7 +114,7 @@ class KnowledgeWorkspace(QWidget):
         self.obsidian_export_button.clicked.connect(self.begin_obsidian_export)
 
         self.obsidian_status = QLabel(
-            "OBSIDIAN  —  Select canonical Knowledge, then choose a local vault to preview."
+            "Obsidian export · Select knowledge, then choose a local vault to preview."
         )
         self.obsidian_status.setObjectName("settingsHelp")
         self.obsidian_status.setWordWrap(True)
@@ -149,7 +150,7 @@ class KnowledgeWorkspace(QWidget):
         self.knowledge_details.setReadOnly(True)
         self.knowledge_details.setLineWrapMode(QPlainTextEdit.LineWrapMode.WidgetWidth)
         self.knowledge_details.setPlaceholderText(
-            "Select a durable KnowledgeUnit to inspect its current revision and provenance."
+            "Select a knowledge item to view its content, source, and revision history."
         )
 
         self.claim_list = QListWidget()
@@ -162,7 +163,7 @@ class KnowledgeWorkspace(QWidget):
         self.claim_details.setReadOnly(True)
         self.claim_details.setLineWrapMode(QPlainTextEdit.LineWrapMode.WidgetWidth)
         self.claim_details.setPlaceholderText(
-            "Select a canonical Claim to inspect statement, evidence, provenance and revision."
+            "Select a claim to view its statement, evidence, sources, and revision history."
         )
 
         self.review_list = QListWidget()
@@ -259,7 +260,7 @@ class KnowledgeWorkspace(QWidget):
         left_layout = QVBoxLayout(left)
         left_layout.setContentsMargins(0, 8, 8, 0)
         left_layout.setSpacing(8)
-        heading = QLabel("CURRENT CANONICAL KNOWLEDGE")
+        heading = QLabel("KNOWLEDGE")
         heading.setProperty("role", "section")
         left_layout.addWidget(heading)
         left_layout.addWidget(self.knowledge_list, 1)
@@ -270,7 +271,7 @@ class KnowledgeWorkspace(QWidget):
         right_layout.setContentsMargins(8, 8, 0, 0)
         right_layout.setSpacing(8)
         detail_header = QHBoxLayout()
-        detail_heading = QLabel("SELECTED KNOWLEDGE / PROVENANCE")
+        detail_heading = QLabel("KNOWLEDGE DETAILS")
         detail_heading.setProperty("role", "section")
         detail_header.addWidget(detail_heading)
         detail_header.addStretch(1)
@@ -294,7 +295,7 @@ class KnowledgeWorkspace(QWidget):
         left_layout = QVBoxLayout(left)
         left_layout.setContentsMargins(0, 8, 8, 0)
         left_layout.setSpacing(8)
-        heading = QLabel("CURRENT CANONICAL CLAIMS")
+        heading = QLabel("CLAIMS")
         heading.setProperty("role", "section")
         left_layout.addWidget(heading)
         left_layout.addWidget(self.claim_list, 1)
@@ -305,7 +306,7 @@ class KnowledgeWorkspace(QWidget):
         right_layout.setContentsMargins(8, 8, 0, 0)
         right_layout.setSpacing(8)
         detail_header = QHBoxLayout()
-        detail_heading = QLabel("SELECTED CLAIM / EVIDENCE / PROVENANCE")
+        detail_heading = QLabel("CLAIM DETAILS")
         detail_heading.setProperty("role", "section")
         detail_header.addWidget(detail_heading)
         detail_header.addStretch(1)
@@ -357,12 +358,12 @@ class KnowledgeWorkspace(QWidget):
         if not isinstance(payload, DesktopApiSnapshot):
             return
         self.runtime.setText(
-            f"CORE  {payload.health.core_status.upper()}  /  CHATS  {len(payload.chats)}"
+            f"Local service · {payload.health.core_status.title()}   Conversations · {len(payload.chats)}"
         )
 
     def apply_failure(self, message: str) -> None:
-        self.runtime.setText("CORE  DISCONNECTED  /  CHATS  —")
-        self.state.setText("CORE UNAVAILABLE")
+        self.runtime.setText("Local service · Disconnected   Conversations · —")
+        self.state.setText("LOCAL SERVICE UNAVAILABLE")
         self.summary.setText(message)
 
     def apply_extraction(self, payload: object) -> None:
@@ -371,12 +372,12 @@ class KnowledgeWorkspace(QWidget):
         self._source_chat_id = payload.chat_id
         self.open_chat_button.setEnabled(True)
         self.source.setText(
-            "SOURCE CHAT  "
+            "Source conversation · "
             + payload.chat_id[:8].upper()
-            + "  /  MESSAGE  "
+            + "   Message · "
             + payload.message_id[:8].upper()
         )
-        self.state.setText("PREFLIGHT / PENDING")
+        self.state.setText("REVIEW PENDING")
         self.summary.setText(
             f"Run {payload.processing_run_id[:8].upper()} · {len(payload.knowledge_units)} "
             f"Knowledge · {len(payload.claims)} Claims · {len(payload.relations)} Relations"
@@ -429,13 +430,13 @@ class KnowledgeWorkspace(QWidget):
         if not isinstance(payload, KnowledgeReviewResponse):
             return
         if payload.ready_to_accept:
-            self.state.setText("REVIEW COMPLETE / READY")
+            self.state.setText("REVIEW COMPLETE")
         elif payload.blocked_reason == "canonical_merge_candidates":
-            self.state.setText("DECISION REQUIRED / CANONICAL MERGE")
+            self.state.setText("DECISION REQUIRED")
         elif payload.blocked_reason == "extractor_merge_candidates":
-            self.state.setText("BLOCKED / EXTRACTOR MERGE")
+            self.state.setText("BLOCKED · EXTRACTION")
         else:
-            self.state.setText("BLOCKED / REVIEW REQUIRED")
+            self.state.setText("BLOCKED · REVIEW REQUIRED")
 
         decisions = tuple(payload.knowledge_decisions) + tuple(payload.claim_decisions)
         if decisions:
@@ -531,7 +532,7 @@ class KnowledgeWorkspace(QWidget):
             QFileDialog.Option.ShowDirsOnly | QFileDialog.Option.DontResolveSymlinks,
         )
         if not vault:
-            self.obsidian_status.setText("OBSIDIAN  CANCELLED  /  No files were changed.")
+            self.obsidian_status.setText("Obsidian export cancelled · No files were changed.")
             return
         self._obsidian_vault = vault
         self._start_obsidian_process("preview", replace=False)
@@ -545,10 +546,10 @@ class KnowledgeWorkspace(QWidget):
         self.obsidian_export_button.setEnabled(False)
         self.refresh_knowledge_button.setEnabled(False)
         if operation == "preview":
-            self.obsidian_status.setText("OBSIDIAN  PREVIEWING  /  No files changed yet …")
+            self.obsidian_status.setText("Preparing Obsidian preview · No files changed yet…")
         else:
             policy = "REPLACE" if replace else "KEEP IDENTICAL"
-            self.obsidian_status.setText(f"OBSIDIAN  EXPORTING  /  POLICY {policy} …")
+            self.obsidian_status.setText(f"Exporting to Obsidian · {policy.replace('_', ' ').title()}…")
         arguments = [
             "-m",
             "athena.desktop.knowledge_obsidian_export",
@@ -583,16 +584,16 @@ class KnowledgeWorkspace(QWidget):
             payload = json.loads(raw)
         except (json.JSONDecodeError, TypeError):
             detail = raw or f"local export process exited with code {exit_code}"
-            self.obsidian_status.setText(f"OBSIDIAN  ERROR  /  {detail}")
+            self.obsidian_status.setText(f"Obsidian export error · {detail}")
             self._restore_obsidian_button()
             return
         if not isinstance(payload, dict):
-            self.obsidian_status.setText("OBSIDIAN  ERROR  /  Invalid local export response.")
+            self.obsidian_status.setText("Obsidian export error · Invalid local response.")
             self._restore_obsidian_button()
             return
         if exit_code != 0 or payload.get("kind") == "error":
             detail = str(payload.get("detail") or "Local export failed.")
-            self.obsidian_status.setText(f"OBSIDIAN  BLOCKED  /  {detail}")
+            self.obsidian_status.setText(f"Obsidian export blocked · {detail}")
             self._restore_obsidian_button()
             return
 
@@ -604,12 +605,12 @@ class KnowledgeWorkspace(QWidget):
             destination = str(payload.get("destination") or "")
             policy = str(payload.get("policy") or "").replace("_", " ").upper()
             self.obsidian_status.setText(
-                f"OBSIDIAN  {status}  /  {destination}  /  POLICY {policy}"
+                f"Obsidian export · {status.title()} · {destination} · {policy.title()}"
             )
             self._restore_obsidian_button()
             return
 
-        self.obsidian_status.setText("OBSIDIAN  ERROR  /  Unexpected local export response.")
+        self.obsidian_status.setText("Obsidian export error · Unexpected local response.")
         self._restore_obsidian_button()
 
     def _present_obsidian_preview(self, payload: dict[str, object]) -> None:
@@ -619,7 +620,7 @@ class KnowledgeWorkspace(QWidget):
         detail = str(payload.get("detail") or "")
         replace_required = bool(payload.get("replace_required"))
         self.obsidian_status.setText(
-            f"OBSIDIAN  PREVIEW {state.upper()}  /  {relative_path}  /  {detail}"
+            f"Obsidian preview · {state.title()} · {relative_path} · {detail}"
         )
 
         if state == "blocked":
@@ -647,7 +648,7 @@ class KnowledgeWorkspace(QWidget):
         dialog.exec()
         if dialog.clickedButton() is not action_button:
             self.obsidian_status.setText(
-                f"OBSIDIAN  CANCELLED  /  {relative_path}  /  No files were changed."
+                f"Obsidian export cancelled · {relative_path} · No files were changed."
             )
             self._restore_obsidian_button()
             return
@@ -663,10 +664,10 @@ class KnowledgeWorkspace(QWidget):
         self.refresh_knowledge_button.setEnabled(True)
         if error == QProcess.ProcessError.FailedToStart:
             self.obsidian_status.setText(
-                "OBSIDIAN  ERROR  /  Unable to start the local export process."
+                "Obsidian export error · Unable to start the local export process."
             )
         else:
-            self.obsidian_status.setText(f"OBSIDIAN  ERROR  /  {error.name}")
+            self.obsidian_status.setText(f"Obsidian export error · {error.name}")
         self._restore_obsidian_button()
 
     def accept_selected_review(self) -> None:
@@ -699,10 +700,10 @@ class KnowledgeWorkspace(QWidget):
         self.obsidian_export_button.setEnabled(enabled)
         if self._selected_knowledge_id:
             self.obsidian_status.setText(
-                "OBSIDIAN  READY  /  Choose a local vault to preview before export."
+                "Ready to export · Choose a local Obsidian vault."
             )
         else:
-            self.obsidian_status.setText("OBSIDIAN  —  Select canonical Knowledge first.")
+            self.obsidian_status.setText("Obsidian export · Select a knowledge item first.")
         if self._selected_knowledge_id and not self._knowledge_busy():
             self.knowledge_details.clear()
             self._start_knowledge(
@@ -777,6 +778,9 @@ class KnowledgeWorkspace(QWidget):
     ) -> None:
         self._knowledge_operation = operation
         self._knowledge_buffer = ""
+        target = self._detail_target_for_operation(operation)
+        if target is not None:
+            set_pathena_ui_state(target, "busy")
         self.browser_status.setText(label + " …")
         self.refresh_knowledge_button.setEnabled(False)
         self.history_button.setEnabled(False)
@@ -834,8 +838,10 @@ class KnowledgeWorkspace(QWidget):
         if exit_code != 0:
             self.browser_status.setText(f"Canonical memory command failed (exit {exit_code}).")
             target = self._detail_target_for_operation(operation)
-            if target is not None and output and not target.toPlainText():
-                target.setPlainText(output)
+            if target is not None:
+                set_pathena_ui_state(target, "error")
+                if output and not target.toPlainText():
+                    target.setPlainText(output)
             return
 
         if operation in {"show", "claim-show"}:
@@ -845,6 +851,7 @@ class KnowledgeWorkspace(QWidget):
                     review = parse_knowledge_entity_review(output)
                 except KnowledgeReviewError as exc:
                     target.setProperty("pathenaKnowledgeReviewState", "error")
+                    set_pathena_ui_state(target, "error")
                     target.setPlainText(
                         f"PERSISTED DETAIL UNAVAILABLE\n{exc}\n\nRaw command output:\n{output}"
                     )
@@ -853,31 +860,35 @@ class KnowledgeWorkspace(QWidget):
                 target.setPlainText(render_knowledge_entity_review(review))
                 target.setProperty("pathenaKnowledgeReviewState", "ready")
                 target.setProperty("pathenaKnowledgeEntityId", review.entity_id)
+                set_pathena_ui_state(target, "success")
 
         if operation == "list":
             self._render_knowledge_list(output)
             self.browser_status.setText(
-                f"Canonical Knowledge: {self.knowledge_list.count()} shown."
+                f"Knowledge · {self.knowledge_list.count()} items"
             )
         elif operation == "claims-list":
             self._render_claim_list(output)
             self.browser_status.setText(
-                f"Canonical Claims: {self.claim_list.count()} shown."
+                f"Claims · {self.claim_list.count()} items"
             )
         elif operation == "reviews-list":
             self._render_review_list(output)
             self.browser_status.setText(
-                f"Pending contradiction decisions: {self.review_list.count()} shown."
+                f"Decisions · {self.review_list.count()} pending"
             )
         elif operation == "show":
-            self.browser_status.setText("Current Knowledge revision and provenance loaded.")
+            self.browser_status.setText("Knowledge ready.")
         elif operation == "history":
+            set_pathena_ui_state(self.knowledge_details, "success")
             self.browser_status.setText("Immutable Knowledge history loaded.")
         elif operation == "claim-show":
-            self.browser_status.setText("Current Claim evidence and provenance loaded.")
+            self.browser_status.setText("Claim ready.")
         elif operation == "claim-history":
+            set_pathena_ui_state(self.claim_details, "success")
             self.browser_status.setText("Immutable Claim history loaded.")
         elif operation == "review-show":
+            set_pathena_ui_state(self.review_details, "success")
             self.browser_status.setText("Pending contradiction decision loaded.")
         elif operation in {"review-accept", "review-reject"}:
             self._selected_review_id = None
@@ -1014,9 +1025,9 @@ class KnowledgeWorkspace(QWidget):
         self._selected_knowledge_id = None
         self.history_button.setEnabled(False)
         self.obsidian_export_button.setEnabled(False)
-        self.obsidian_status.setText("OBSIDIAN  —  No canonical Knowledge selected.")
+        self.obsidian_status.setText("Obsidian export · No knowledge selected.")
         self.knowledge_details.setPlainText(
-            "No canonical Knowledge exists yet. Use Add to knowledge on a persisted chat "
+            "No saved knowledge exists yet. Use Add to knowledge on a persisted chat "
             "message; accepted proposals remain visible here across restarts."
         )
 
@@ -1024,7 +1035,7 @@ class KnowledgeWorkspace(QWidget):
         self._selected_claim_id = None
         self.claim_history_button.setEnabled(False)
         self.claim_details.setPlainText(
-            "No canonical Claims exist yet. Claims accepted from extraction or explicitly "
+            "No saved claims exist yet. Claims accepted from extraction or explicitly "
             "promoted from chat will appear here with evidence and provenance."
         )
 

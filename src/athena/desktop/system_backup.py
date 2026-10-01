@@ -20,6 +20,13 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from athena.desktop.pathena_v3_theme import (
+    V3_ACCENT,
+    V3_BG,
+    V3_SURFACE_HOVER,
+    V3_TEXT,
+    V3_TEXT_DIM,
+)
 from athena.desktop.system_workspace import SystemWorkspace
 
 _BACKUP_RE = re.compile(
@@ -59,13 +66,13 @@ class BackupWorkspace(QWidget):
             "Select a completed backup to verify it or restore it into a new isolated root."
         )
 
-        self.refresh_button = QPushButton("REFRESH")
-        self.create_button = QPushButton("CREATE BACKUP…")
-        self.verify_button = QPushButton("VERIFY")
-        self.deep_verify_button = QPushButton("DEEP VERIFY")
-        self.restore_button = QPushButton("RESTORE ISOLATED…")
-        self.targets_button = QPushButton("TARGETS")
-        self.register_target_button = QPushButton("REGISTER TARGET…")
+        self.refresh_button = QPushButton("Refresh")
+        self.create_button = QPushButton("Create backup…")
+        self.verify_button = QPushButton("Verify")
+        self.deep_verify_button = QPushButton("Deep verify")
+        self.restore_button = QPushButton("Restore copy…")
+        self.targets_button = QPushButton("Targets")
+        self.register_target_button = QPushButton("Add target…")
         for button in (
             self.refresh_button,
             self.create_button,
@@ -106,7 +113,7 @@ class BackupWorkspace(QWidget):
         layout.setSpacing(10)
 
         header = QHBoxLayout()
-        title = QLabel("BACKUP / RECOVERY")
+        title = QLabel("Backups & recovery")
         title.setObjectName("speaker")
         header.addWidget(title)
         header.addStretch(1)
@@ -364,7 +371,7 @@ class BackupWorkspace(QWidget):
         else:
             self._selected_snapshot_id = None
             self.details.setPlainText(
-                "No backup snapshots are registered yet. Choose CREATE BACKUP… and select "
+                "No backup snapshots are registered yet. Choose Create backup… and select "
                 "a target folder; pATHENA will create and verify the snapshot before marking it complete."
             )
         self._set_controls(True)
@@ -430,13 +437,87 @@ class SystemBackupExtension(QObject):
         if index < 0:
             raise RuntimeError("pATHENA Runtime workspace is not installed")
 
-        self.tabs = QTabWidget()
+        self.host = QWidget()
+        self.host.setObjectName("systemOperationsHost")
+        host_layout = QVBoxLayout(self.host)
+        host_layout.setContentsMargins(0, 0, 0, 0)
+        host_layout.setSpacing(0)
+
+        navigation = QWidget(self.host)
+        navigation.setObjectName("systemOperationsNav")
+        navigation.setAccessibleName("System section navigation")
+        navigation_layout = QHBoxLayout(navigation)
+        navigation_layout.setContentsMargins(24, 6, 24, 6)
+        navigation_layout.setSpacing(4)
+
+        self.overview_button = QPushButton("Overview", navigation)
+        self.backups_button = QPushButton("Backups", navigation)
+        for button in (self.overview_button, self.backups_button):
+            button.setObjectName("systemOperationsNavButton")
+            button.setCheckable(True)
+            button.setAutoExclusive(True)
+            button.setMinimumHeight(32)
+            navigation_layout.addWidget(button)
+        navigation_layout.addStretch(1)
+        self.overview_button.setChecked(True)
+        self.overview_button.setAccessibleName("Show System overview")
+        self.backups_button.setAccessibleName("Show System backups")
+        navigation.setStyleSheet(
+            f"""
+            QWidget#systemOperationsNav {{
+                background: {V3_BG};
+                border: none;
+            }}
+            QPushButton#systemOperationsNavButton {{
+                color: {V3_TEXT_DIM};
+                background: transparent;
+                border: none;
+                border-bottom: 2px solid transparent;
+                border-radius: 0;
+                padding: 7px 10px 6px 10px;
+                font-size: 9pt;
+                font-weight: 600;
+            }}
+            QPushButton#systemOperationsNavButton:hover {{
+                color: {V3_TEXT};
+                background: {V3_SURFACE_HOVER};
+            }}
+            QPushButton#systemOperationsNavButton:checked {{
+                color: {V3_TEXT};
+                background: transparent;
+                border-bottom-color: {V3_ACCENT};
+            }}
+            QPushButton#systemOperationsNavButton:focus {{
+                border-bottom-color: {V3_ACCENT};
+            }}
+            """
+        )
+
+        self.tabs = QTabWidget(self.host)
         self.tabs.setObjectName("systemOperationsTabs")
+        self.tabs.setAccessibleName("System overview and backups")
+        self.tabs.tabBar().hide()
+        self.tabs.setDocumentMode(True)
+        self.tabs.setStyleSheet(
+            f"QTabWidget#systemOperationsTabs {{ background: {V3_BG}; border: 0; }} "
+            f"QTabWidget#systemOperationsTabs::pane {{ background: {V3_BG}; border: 0; }}"
+        )
         self.backup = BackupWorkspace()
         pages.removeWidget(runtime)
-        self.tabs.addTab(runtime, "Runtime")
-        self.tabs.addTab(self.backup, "Backup")
-        pages.insertWidget(index, self.tabs)
+        self.tabs.addTab(runtime, "Overview")
+        self.tabs.addTab(self.backup, "Backups")
+        host_layout.addWidget(navigation)
+        host_layout.addWidget(self.tabs, 1)
+        pages.insertWidget(index, self.host)
+
+        self.overview_button.clicked.connect(lambda: self.tabs.setCurrentIndex(0))
+        self.backups_button.clicked.connect(lambda: self.tabs.setCurrentIndex(1))
+        self.tabs.currentChanged.connect(self._sync_navigation)
+
+    @Slot(int)
+    def _sync_navigation(self, index: int) -> None:
+        self.overview_button.setChecked(index == 0)
+        self.backups_button.setChecked(index == 1)
 
     def open_backup(self) -> None:
         self.tabs.setCurrentIndex(1)

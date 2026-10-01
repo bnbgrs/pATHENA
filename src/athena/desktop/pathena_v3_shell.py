@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from PySide6.QtCore import QObject, Qt, Slot
+from PySide6.QtCore import QEvent, QObject, Qt, Slot
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
 )
 
 from athena.desktop.pathena_v3_components import (
+    V3ComposerFrame,
     V3ControlRow,
     V3NavigationButton,
     V3Pill,
@@ -27,13 +28,13 @@ from athena.desktop.pathena_window import PathenaMainWindow
 
 _PAGE_NAMES = ("Chat", "Knowledge", "Research", "Jobs", "Sources", "System", "Settings")
 _PAGE_HINTS = (
-    "Think, write and work with local intelligence.",
-    "Browse durable knowledge, claims and provenance.",
-    "Turn questions into evidence-backed research.",
-    "Track background work and recoverable execution.",
-    "Inspect imported material and source lineage.",
-    "See runtime health, storage and local security state.",
-    "Tune local models and inference behavior.",
+    "Chat with local models and grounded knowledge.",
+    "Browse reviewed knowledge, claims, decisions and sources.",
+    "Turn questions into structured, evidence-backed research.",
+    "Track background work, progress and recoverable execution.",
+    "Import, process and inspect local source material.",
+    "Check this device, storage, connectivity and local security.",
+    "Choose local models and tune how they respond.",
 )
 _PAGE_ICONS = ("chat", "knowledge", "research", "jobs", "sources", "system", "settings")
 
@@ -49,10 +50,14 @@ class PathenaV3ShellController(QObject):
         self._nav_buttons: dict[int, V3NavigationButton] = {}
         self._legacy_shell: QWidget | None = None
         self._inspector: QFrame | None = None
+        self._rail: QFrame | None = None
+        self._workspace_layout: QVBoxLayout | None = None
+        self._density_compact: bool | None = None
         self._header = V3WorkspaceHeader("Chat", _PAGE_HINTS[0])
-        self._command_button = QPushButton("Search or command   Ctrl K")
+        self._command_button = QPushButton("Command   Ctrl K")
         self._pallas_button = V3NavigationButton("PALLAS", icon_name="pallas")
         self._build()
+        window.installEventFilter(self)
         window.navigation.currentRowChanged.connect(self._sync_navigation)
         self._sync_navigation(max(0, window.navigation.currentRow()))
 
@@ -71,13 +76,10 @@ class PathenaV3ShellController(QObject):
     def finalize(self) -> None:
         self._replace_settings_page()
         self._window.setStyleSheet(PATHENA_V3_STYLESHEET)
-        self._window.chat_selector.setMinimumWidth(210)
-        self._window.chat_selector.setMaximumWidth(420)
-        self._window.model_selector.setMinimumWidth(200)
-        self._window.model_selector.setMaximumWidth(340)
+        self._apply_density(self._window.width())
         self._window.prompt_input.show()
         self._window.ground_button.show()
-        self._window.send_button.setFixedSize(40, 40)
+        self._window.send_button.setFixedSize(44, 44)
         self._window.send_button.show()
         self._sync_navigation(max(0, self._window.navigation.currentRow()))
 
@@ -128,26 +130,27 @@ class PathenaV3ShellController(QObject):
         legacy_shell.setParent(shell)
         legacy_shell.hide()
         window.setCentralWidget(shell)
-        window.resize(1580, 960)
+        window.resize(1480, 900)
         window.setMinimumSize(1120, 720)
 
     def _build_rail(self) -> QWidget:
         rail = QFrame()
         rail.setObjectName("v3Rail")
-        rail.setFixedWidth(88)
+        rail.setFixedWidth(78)
+        self._rail = rail
 
         layout = QVBoxLayout(rail)
-        layout.setContentsMargins(10, 18, 10, 16)
-        layout.setSpacing(5)
+        layout.setContentsMargins(7, 16, 7, 14)
+        layout.setSpacing(3)
 
         mark = QLabel("P")
         mark.setObjectName("v3Mark")
-        mark.setFixedSize(34, 34)
+        mark.setFixedSize(32, 32)
         mark.setAlignment(Qt.AlignmentFlag.AlignCenter)
         mark.setToolTip("pATHENA")
         layout.addWidget(mark, 0, Qt.AlignmentFlag.AlignHCenter)
 
-        layout.addSpacing(14)
+        layout.addSpacing(12)
 
         for index in range(5):
             layout.addWidget(
@@ -188,6 +191,7 @@ class PathenaV3ShellController(QObject):
 
     def _build_header(self) -> QWidget:
         self._command_button.setObjectName("v3CommandButton")
+        self._command_button.setMinimumWidth(174)
         self._command_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self._command_button.setEnabled(False)
         self._command_button.setAccessibleName("Open command palette")
@@ -209,8 +213,9 @@ class PathenaV3ShellController(QObject):
         workspace = QFrame()
         workspace.setObjectName("v3Workspace")
         layout = QVBoxLayout(workspace)
-        layout.setContentsMargins(32, 24, 32, 30)
+        layout.setContentsMargins(24, 18, 24, 24)
         layout.setSpacing(0)
+        self._workspace_layout = layout
 
         self._replace_chat_page()
 
@@ -231,45 +236,59 @@ class PathenaV3ShellController(QObject):
         chat.setObjectName("v3ChatPage")
         outer = QVBoxLayout(chat)
         outer.setContentsMargins(0, 0, 0, 0)
-        outer.setSpacing(12)
+        outer.setSpacing(10)
 
         meta = QFrame()
         meta.setObjectName("v3ChatMeta")
+        meta.setAccessibleName("Conversation controls")
         meta_layout = QHBoxLayout(meta)
-        meta_layout.setContentsMargins(2, 0, 2, 0)
-        meta_layout.setSpacing(7)
+        meta_layout.setContentsMargins(8, 5, 8, 8)
+        meta_layout.setSpacing(6)
 
-        conversation_label = QLabel("THREAD")
+        conversation_label = QLabel("Conversation")
         conversation_label.setObjectName("v3MetaLabel")
         meta_layout.addWidget(conversation_label)
 
         window.chat_selector.setParent(meta)
+        window.chat_selector.setAccessibleName("Conversation")
+        window.chat_selector.setPlaceholderText("No conversation yet")
+        window.chat_selector.setToolTip("Select conversation")
         meta_layout.addWidget(window.chat_selector, 1)
 
         window.new_chat_button.setParent(meta)
         window.new_chat_button.setText("New")
+        window.new_chat_button.setAccessibleName("New conversation")
+        window.new_chat_button.setToolTip("Start a new conversation")
         meta_layout.addWidget(window.new_chat_button)
 
         window.delete_chat_button.setParent(meta)
         window.delete_chat_button.setText("Delete")
+        window.delete_chat_button.setAccessibleName("Delete conversation")
+        window.delete_chat_button.setToolTip("Delete the selected conversation")
+        window.delete_chat_button.setProperty("v3QuietDanger", True)
         meta_layout.addWidget(window.delete_chat_button)
 
         meta_layout.addSpacing(12)
-        model_label = QLabel("MODEL")
+        model_label = QLabel("Model")
         model_label.setObjectName("v3MetaLabel")
         meta_layout.addWidget(model_label)
 
         window.model_selector.setParent(meta)
+        window.model_selector.setAccessibleName("Local model")
+        window.model_selector.setPlaceholderText("Choose local model")
+        window.model_selector.setToolTip("Select the local model used for chat")
         meta_layout.addWidget(window.model_selector)
 
         context_button = getattr(window, "context_button", None)
         if isinstance(context_button, QPushButton):
             context_button.setParent(meta)
             context_button.setText("Context")
+            context_button.setAccessibleName("Conversation context")
+            context_button.setToolTip("Show or hide conversation context")
             meta_layout.addWidget(context_button)
 
         meta.setMinimumWidth(620)
-        meta.setMaximumWidth(1180)
+        meta.setMaximumWidth(1040)
         meta.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         meta_row = QHBoxLayout()
         meta_row.setContentsMargins(0, 0, 0, 0)
@@ -281,8 +300,9 @@ class PathenaV3ShellController(QObject):
 
         stage = QFrame()
         stage.setObjectName("v3ConversationStage")
+        stage.setAccessibleName("Conversation workspace")
         stage_layout = QVBoxLayout(stage)
-        stage_layout.setContentsMargins(18, 14, 18, 14)
+        stage_layout.setContentsMargins(8, 8, 8, 8)
         stage_layout.setSpacing(10)
 
         conversation_row = QHBoxLayout()
@@ -304,7 +324,7 @@ class PathenaV3ShellController(QObject):
         stage_layout.addWidget(window.evidence_chain)
 
         stage.setMinimumWidth(620)
-        stage.setMaximumWidth(1180)
+        stage.setMaximumWidth(1040)
         stage.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         stage_row = QHBoxLayout()
         stage_row.setContentsMargins(0, 0, 0, 0)
@@ -314,33 +334,61 @@ class PathenaV3ShellController(QObject):
         stage_row.addStretch(1)
         outer.addLayout(stage_row, 1)
 
-        composer = QFrame()
+        composer = V3ComposerFrame()
         composer.setObjectName("v3Composer")
+        composer.setAccessibleName("Message composer")
         composer_layout = QHBoxLayout(composer)
-        composer_layout.setContentsMargins(14, 9, 10, 9)
+        composer_layout.setContentsMargins(14, 10, 10, 10)
         composer_layout.setSpacing(8)
 
         window.prompt_input.setParent(composer)
-        window.prompt_input.setMinimumHeight(48)
-        window.prompt_input.setMaximumHeight(84)
-        window.prompt_input.setPlaceholderText("Ask, investigate, build…")
+        window.prompt_input.setMinimumHeight(56)
+        window.prompt_input.setMaximumHeight(120)
+        window.prompt_input.setPlaceholderText("Ask, research, or build…")
         window.prompt_input.show()
         composer_layout.addWidget(window.prompt_input, 1)
 
         window.ground_button.setParent(composer)
-        window.ground_button.setText("Ground")
+        window.ground_button.setText("Sources")
         window.ground_button.setToolTip("Ground this turn in local knowledge and source evidence")
         window.ground_button.setAccessibleName("Ground message in local evidence")
-        window.ground_button.show()
+        window.ground_button.setStyleSheet(
+            "QPushButton { color: rgba(0, 0, 0, 0); background: transparent; "
+            "border: 1px solid transparent; border-radius: 9px; padding: 6px 9px; } "
+            "QPushButton:disabled { color: rgba(0, 0, 0, 0); background: transparent; "
+            "border-color: transparent; } "
+            "QPushButton:checked { color: rgba(0, 0, 0, 0); background: transparent; "
+            "border-color: transparent; }"
+        )
+        window.ground_button.setFixedHeight(38)
         composer_layout.addWidget(window.ground_button)
+        window.ground_button.ensurePolished()
+        window.ground_button.show()
+        window.ground_button.raise_()
+        window.ground_button.update()
 
         window.send_button.setParent(composer)
         window.send_button.setText("↑")
+        window.send_button.setAccessibleName("Send message")
         window.send_button.setToolTip("Send message · Ctrl+Enter")
-        window.send_button.show()
+        window.send_button.setStyleSheet(
+            "QPushButton { color: rgba(0, 0, 0, 0); background: transparent; border: 0; "
+            "border-radius: 22px; padding: 0; font-size: 15pt; font-weight: 800; } "
+            "QPushButton:disabled { color: rgba(0, 0, 0, 0); background: transparent; "
+            "border: 0; }"
+        )
+        window.send_button.setFixedSize(44, 44)
         composer_layout.addWidget(window.send_button)
-        composer.setMinimumWidth(620)
-        composer.setMaximumWidth(1120)
+        window.send_button.ensurePolished()
+        window.send_button.show()
+        window.send_button.raise_()
+        window.send_button.update()
+        composer.bind_actions(
+            ground_button=window.ground_button,
+            send_button=window.send_button,
+        )
+        composer.setMinimumWidth(600)
+        composer.setMaximumWidth(1040)
         composer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         composer_row = QHBoxLayout()
         composer_row.setContentsMargins(0, 0, 0, 0)
@@ -372,53 +420,52 @@ class PathenaV3ShellController(QObject):
         settings.setObjectName("v3SettingsPage")
         page_layout = QVBoxLayout(settings)
         page_layout.setContentsMargins(0, 0, 0, 0)
-        page_layout.setSpacing(16)
+        page_layout.setSpacing(20)
 
         intro_row = QHBoxLayout()
         intro_row.setContentsMargins(2, 0, 2, 0)
         intro_row.setSpacing(12)
 
         intro = QLabel(
-            "Local inference is configured per model. Values below feed the existing "
-            "chat request path and stay on this machine."
+            "Configure how the selected local model responds. These settings stay on this "
+            "machine and apply to chat."
         )
         intro.setObjectName("v3SettingsIntro")
         intro.setWordWrap(True)
-        intro.setMaximumWidth(760)
+        intro.setMaximumWidth(700)
         intro_row.addWidget(intro, 1)
 
-        local_pill = V3Pill("LOCAL", tone="accent")
+        local_pill = V3Pill("ON DEVICE", tone="accent")
         intro_row.addWidget(local_pill, 0, Qt.AlignmentFlag.AlignTop)
         page_layout.addLayout(intro_row)
-
-        content = QHBoxLayout()
-        content.setContentsMargins(0, 0, 0, 0)
-        content.setSpacing(24)
 
         scroll = QScrollArea()
         scroll.setObjectName("v3SettingsScroll")
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.Shape.NoFrame)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
 
         form = QWidget()
         form.setObjectName("v3SettingsForm")
+        form.setMaximumWidth(940)
         form_layout = QVBoxLayout(form)
-        form_layout.setContentsMargins(2, 0, 16, 24)
-        form_layout.setSpacing(0)
+        form_layout.setContentsMargins(0, 0, 12, 28)
+        form_layout.setSpacing(10)
 
         model_row = V3ControlRow(
             "Local model",
-            "The LM Studio model used for chat and its per-model inference values.",
+            "Choose the local model used for chat.",
         )
         window.settings_model_selector.setMinimumWidth(250)
         model_row.add_control(window.settings_model_selector, 1)
-        model_row.add_control(window.settings_model_value)
+        window.settings_model_value.setParent(model_row.control_host)
+        window.settings_model_value.hide()
         form_layout.addWidget(model_row)
 
         context_row = V3ControlRow(
             "Context window",
-            "Total request context available to the selected model.",
+            "How much conversation and source context the model can use.",
         )
         context_row.add_control(window.context_slider, 1)
         context_row.add_control(window.context_spin)
@@ -426,7 +473,7 @@ class PathenaV3ShellController(QObject):
 
         output_row = V3ControlRow(
             "Maximum output",
-            "Upper bound for generated tokens in a single response.",
+            "Maximum length of one generated response.",
         )
         output_row.add_control(window.max_output_slider, 1)
         output_row.add_control(window.max_output_spin)
@@ -434,7 +481,7 @@ class PathenaV3ShellController(QObject):
 
         temperature_row = V3ControlRow(
             "Temperature",
-            "Controls sampling variation without changing the model.",
+            "Lower values are steadier; higher values allow more variation.",
         )
         temperature_row.control_layout.addStretch(1)
         temperature_row.add_control(window.temperature_spin)
@@ -442,29 +489,24 @@ class PathenaV3ShellController(QObject):
 
         reasoning_row = V3ControlRow(
             "Reasoning",
-            "Use supported reasoning mode when the selected local model exposes it.",
+            "Enable deeper reasoning when the selected model supports it.",
         )
         reasoning_row.control_layout.addStretch(1)
         reasoning_row.add_control(window.thinking_checkbox)
         form_layout.addWidget(reasoning_row)
-        form_layout.addStretch(1)
-
-        scroll.setWidget(form)
-        content.addWidget(scroll, 1)
 
         runtime = QFrame()
-        runtime.setObjectName("v3RuntimeCard")
-        runtime.setMinimumWidth(300)
-        runtime.setMaximumWidth(350)
+        runtime.setObjectName("v3SettingsRuntimeSection")
+        runtime.setAccessibleName("Local runtime status")
         runtime_layout = QVBoxLayout(runtime)
-        runtime_layout.setContentsMargins(20, 20, 20, 20)
-        runtime_layout.setSpacing(10)
+        runtime_layout.setContentsMargins(18, 18, 18, 18)
+        runtime_layout.setSpacing(8)
 
         runtime_title = QLabel("Runtime")
-        runtime_title.setObjectName("v3RuntimeCardTitle")
+        runtime_title.setObjectName("v3SectionTitle")
         runtime_layout.addWidget(runtime_title)
 
-        runtime_hint = QLabel("Live state reported by the local Core.")
+        runtime_hint = QLabel("Live state from the local model service.")
         runtime_hint.setObjectName("v3RuntimeCardHint")
         runtime_hint.setWordWrap(True)
         runtime_layout.addWidget(runtime_hint)
@@ -474,9 +516,12 @@ class PathenaV3ShellController(QObject):
             runtime_panel.setObjectName("v3SettingsRuntimePanel")
             runtime_layout.addWidget(runtime_panel)
 
-        runtime_layout.addStretch(1)
-        content.addWidget(runtime)
-        page_layout.addLayout(content, 1)
+        form_layout.addSpacing(12)
+        form_layout.addWidget(runtime)
+        form_layout.addStretch(1)
+
+        scroll.setWidget(form)
+        page_layout.addWidget(scroll, 1)
 
         current_index = pages.currentIndex()
         pages.removeWidget(old_settings)
@@ -487,6 +532,55 @@ class PathenaV3ShellController(QObject):
         old_settings.setObjectName("legacySettingsPage")
         old_settings.setParent(self._legacy_shell)
         old_settings.hide()
+
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:  # noqa: N802
+        if watched is self._window and event.type() == QEvent.Type.Resize:
+            self._apply_density(self._window.width())
+        return super().eventFilter(watched, event)
+
+    def _apply_density(self, width: int) -> None:
+        compact = width < 1280
+        if self._density_compact is compact:
+            return
+        self._density_compact = compact
+
+        self._header.set_compact(compact)
+        self._command_button.setProperty("compact", compact)
+        self._command_button.setText("Ctrl K" if compact else "Command   Ctrl K")
+        if compact:
+            self._command_button.setMinimumWidth(70)
+            self._command_button.setMaximumWidth(70)
+        else:
+            self._command_button.setMinimumWidth(174)
+            self._command_button.setMaximumWidth(16777215)
+        command_style = self._command_button.style()
+        if command_style is not None:
+            command_style.unpolish(self._command_button)
+            command_style.polish(self._command_button)
+
+        rail = self._rail
+        if rail is not None:
+            rail.setFixedWidth(72 if compact else 78)
+
+        for button in (*self._nav_buttons.values(), self._pallas_button):
+            button.set_compact(compact)
+
+        workspace_layout = self._workspace_layout
+        if workspace_layout is not None:
+            if compact:
+                workspace_layout.setContentsMargins(18, 14, 18, 18)
+            else:
+                workspace_layout.setContentsMargins(24, 18, 24, 24)
+
+        self._window.chat_selector.setMinimumWidth(150 if compact else 190)
+        self._window.chat_selector.setMaximumWidth(300 if compact else 360)
+        self._window.model_selector.setMinimumWidth(145 if compact else 170)
+        self._window.model_selector.setMaximumWidth(240 if compact else 280)
+
+        for label in self._window.findChildren(QLabel, "v3MetaLabel"):
+            label.setVisible(not compact)
+
+        self._window.status_text.setMaximumWidth(220 if compact else 360)
 
     @Slot(int)
     def _sync_navigation(self, index: int) -> None:
@@ -501,6 +595,17 @@ class PathenaV3ShellController(QObject):
         inspector = self._inspector
         if inspector is not None and index != 0:
             inspector.hide()
+
+    def transient_opened(self, title: str, hint: str) -> None:
+        """Give a shell-hosted temporary workspace unambiguous visual ownership."""
+        for button in self._nav_buttons.values():
+            button.set_active(False)
+        self._pallas_button.set_active(False)
+        self._header.set_context(title, hint)
+
+    def transient_closed(self) -> None:
+        """Restore the selected durable route after a temporary workspace closes."""
+        self._sync_navigation(max(0, self._window.navigation.currentRow()))
 
     @Slot()
     def pallas_opened(self) -> None:
@@ -530,6 +635,7 @@ class PathenaV3ShellController(QObject):
             self._window.navigation.currentRowChanged.disconnect(self._sync_navigation)
         except (RuntimeError, TypeError):
             pass
+        self._window.removeEventFilter(self)
         self._command_callback = None
         self._pallas_callback = None
 

@@ -96,7 +96,7 @@ def test_workspace_renders_verified_claim_and_marks_state() -> None:
         assert workspace.claim_details.property("pathenaKnowledgeEntityId") == (
             "11111111-1111-1111-1111-111111111111"
         )
-        assert workspace.claim_details.toPlainText().startswith("CLAIM\n")
+        assert workspace.claim_details.toPlainText().startswith("Claim\n")
     finally:
         workspace.close()
         app.processEvents()

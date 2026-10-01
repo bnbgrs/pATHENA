@@ -81,13 +81,14 @@ def test_icon_navigation_exposes_human_page_names_to_accessibility() -> None:
 
 def test_disabled_composer_no_longer_looks_primary() -> None:
     assert "QPushButton#sendButton:disabled" in _STARTUP_STYLESHEET
-    assert "background: #121212" in _STARTUP_STYLESHEET
+    assert "background: #20292A" in _STARTUP_STYLESHEET
     assert "QLineEdit#promptInput:disabled" in _STARTUP_STYLESHEET
 
 
 def test_quiet_workspace_contract_remains_effect_free() -> None:
     lowered = _STARTUP_STYLESHEET.lower()
-    assert "#f26a21" in lowered
+    assert "#f26a21" not in lowered
+    assert "#20292a" in lowered
     assert "glow" not in lowered
     assert "shadow" not in lowered
     assert "gradient" not in lowered
@@ -171,7 +172,7 @@ def test_disconnected_startup_copy_keeps_core_infrastructure_in_background() -> 
     assert send.accessibleDescription() == send.toolTip()
     title = messages.findChild(QLabel, "emptyStateTitle")
     assert title is not None
-    assert title.text() == "Getting pATHENA ready"
+    assert title.text() == "Preparing your workspace"
 
 
 def test_ready_status_refreshes_accessibility_description_from_current_truth() -> None:
@@ -209,19 +210,28 @@ def test_empty_state_copy_refreshes_after_disconnected_to_ready_transition() -> 
     body = messages.findChild(QLabel, "emptyStateBody")
     assert title is not None
     assert body is not None
-    assert title.text() == "Getting pATHENA ready"
+    assert title.text() == "Preparing your workspace"
+
+    # A late legacy chat-state update must not become a second visible
+    # owner after the V3 empty-state panel has taken over.
+    raw.setText("Getting pATHENA ready")
+    raw.show()
+    assert not raw.isHidden()
+    controller.sync()
+    assert raw.isHidden()
+    assert title.text() == "Preparing your workspace"
 
     window._core_transport_ready = True
     controller.sync()
 
-    assert title.text() == "Start a conversation"
+    assert title.text() == "What are you working on?"
     assert "reconnect" not in body.text().casefold()
     assert "local knowledge" in body.text().casefold()
     assert title.alignment() & Qt.AlignmentFlag.AlignLeft
     assert body.alignment() & Qt.AlignmentFlag.AlignLeft
     panel = messages.findChild(QFrame, "emptyStatePanel")
     assert panel is not None
-    assert panel.minimumHeight() == 116
+    assert panel.minimumHeight() == 100
 
 
 def test_empty_state_width_tracks_available_chat_space_without_exceeding_cap() -> None:
