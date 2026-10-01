@@ -567,3 +567,70 @@ def test_controller_rejected_stop_keeps_send_running_and_allows_retry() -> None:
     assert cancelled.count() == 0
     assert controller.chat_busy is False
     assert controller.can_cancel_active_chat is False
+
+
+class _LateCancelGateway(_BlockingCancelableGateway):
+    def __init__(self) -> None:
+        super().__init__(cancel_accepted=True)
+
+    def send_chat_message(
+        self,
+        chat_id: str,
+        *,
+        content: str,
+        model_id: str | None = None,
+        operation_id: str | None = None,
+        effective_context_limit: int | None = None,
+        max_output_tokens: int | None = None,
+        temperature: float | None = None,
+        thinking_enabled: bool | None = None,
+    ) -> ChatThreadResponse:
+        del (
+            model_id,
+            effective_context_limit,
+            max_output_tokens,
+            temperature,
+            thinking_enabled,
+        )
+        assert operation_id is not None
+        self.send_thread_id = threading.get_ident()
+        self.sent_chat_id = chat_id
+        self.sent_operation_id = operation_id
+        self.sent_content = content
+        self.send_entered.set()
+        assert self.cancel_called.wait(2.0)
+        return self._thread(include_assistant=True)
+
+
+def test_controller_reports_accepted_but_late_stop_as_completed() -> None:
+    app = _app()
+    gateway = _LateCancelGateway()
+    send_pool = _pool()
+    control_pool = _pool()
+    controller = DesktopApiController(
+        gateway,
+        thread_pool=send_pool,
+        control_thread_pool=control_pool,
+    )
+    states = QSignalSpy(controller.chat_cancel_state_changed)
+    sent = QSignalSpy(controller.chat_sent)
+    cancelled = QSignalSpy(controller.chat_cancelled)
+
+    controller.send_message(
+        chat_id=str(uuid.uuid4()),
+        content="too late to stop",
+    )
+
+    assert gateway.send_entered.wait(1.0)
+    assert controller.cancel_active_chat_operation() is True
+    assert control_pool.waitForDone(2_000)
+    assert send_pool.waitForDone(2_000)
+    app.processEvents()
+    app.processEvents()
+
+    observed_states = [states.at(index)[0] for index in range(states.count())]
+    assert observed_states[0] == "requesting"
+    assert "expired" in observed_states
+    assert sent.count() == 1
+    assert cancelled.count() == 0
+    assert controller.chat_busy is False
