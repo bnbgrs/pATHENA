@@ -146,6 +146,35 @@ def test_lm_studio_discovers_and_normalizes_models() -> None:
     assert model.trained_for_tool_use is True
 
 
+@pytest.mark.parametrize(
+    "model_key",
+    (
+        " example/model-q4",
+        "example/model-q4 ",
+        "   ",
+    ),
+)
+def test_lm_studio_rejects_noncanonical_model_identity(model_key: str) -> None:
+    provider = LMStudioProvider("http://127.0.0.1:1234")
+    payload = {
+        "models": [
+            {
+                "type": "llm",
+                "key": model_key,
+                "display_name": "Example Model",
+                "loaded_instances": [],
+            }
+        ]
+    }
+
+    with patch(
+        "athena.model.adapters.lm_studio.open_local_request",
+        return_value=FakeResponse(payload),
+    ):
+        with pytest.raises(ProviderProtocolError, match="key"):
+            provider.discover_models()
+
+
 def test_lm_studio_health_is_unavailable_when_server_cannot_be_reached() -> None:
     provider = LMStudioProvider("http://127.0.0.1:1234")
 
