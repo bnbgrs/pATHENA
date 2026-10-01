@@ -32,8 +32,13 @@ from athena.api.contracts import (
 )
 from athena.desktop.api_controller import DesktopApiController, DesktopApiSnapshot
 from athena.desktop.knowledge_review import (
+    CanonicalEntityListEntry,
     KnowledgeReviewError,
+    PendingReviewListEntry,
+    parse_claim_list,
     parse_knowledge_entity_review,
+    parse_knowledge_list,
+    parse_review_list,
     render_knowledge_entity_review,
 )
 from athena.desktop.pathena_ui_refinement_600 import set_pathena_ui_state
@@ -1040,20 +1045,38 @@ class KnowledgeWorkspace(QWidget):
                 set_pathena_ui_state(target, "success")
 
         if operation == "list":
-            self._render_knowledge_list(output)
+            try:
+                rows = parse_knowledge_list(output)
+            except KnowledgeReviewError as exc:
+                self._reject_list_response("Knowledge", exc)
+                return
+            self._render_knowledge_list(rows)
             self.browser_status.setText(
                 f"Knowledge · {self.knowledge_list.count()} items"
             )
+            set_pathena_ui_state(self.browser_status, "success")
         elif operation == "claims-list":
-            self._render_claim_list(output)
+            try:
+                rows = parse_claim_list(output)
+            except KnowledgeReviewError as exc:
+                self._reject_list_response("Claims", exc)
+                return
+            self._render_claim_list(rows)
             self.browser_status.setText(
                 f"Claims · {self.claim_list.count()} items"
             )
+            set_pathena_ui_state(self.browser_status, "success")
         elif operation == "reviews-list":
-            self._render_review_list(output)
+            try:
+                review_rows = parse_review_list(output)
+            except KnowledgeReviewError as exc:
+                self._reject_list_response("Decisions", exc)
+                return
+            self._render_review_list(review_rows)
             self.browser_status.setText(
                 f"Decisions · {self.review_list.count()} pending"
             )
+            set_pathena_ui_state(self.browser_status, "success")
         elif operation == "show":
             self.browser_status.setText("Knowledge ready.")
         elif operation == "history":
@@ -1076,6 +1099,17 @@ class KnowledgeWorkspace(QWidget):
             self.browser_status.setText(f"Contradiction decision {action}.")
             QTimer.singleShot(150, self.refresh_knowledge)
 
+    def _reject_list_response(
+        self,
+        label: str,
+        error: KnowledgeReviewError,
+    ) -> None:
+        message = f"{label} refresh could not be verified."
+        self.browser_status.setText(message)
+        self.browser_status.setToolTip(str(error))
+        self.browser_status.setAccessibleDescription(f"{message} {error}")
+        set_pathena_ui_state(self.browser_status, "error")
+
     def _detail_target_for_operation(self, operation: str) -> QPlainTextEdit | None:
         if operation in {"show", "history"}:
             return self.knowledge_details
@@ -1085,26 +1119,27 @@ class KnowledgeWorkspace(QWidget):
             return self.review_details
         return None
 
-    def _render_knowledge_list(self, output: str) -> None:
+    def _render_knowledge_list(
+        self,
+        rows: tuple[CanonicalEntityListEntry, ...],
+    ) -> None:
         selected = self._selected_knowledge_id
         self.knowledge_list.blockSignals(True)
         self.knowledge_list.clear()
         item_to_select: QListWidgetItem | None = None
 
-        for raw_line in output.splitlines():
-            parts = raw_line.split("\t", 5)
-            if len(parts) != 6:
-                continue
-            knowledge_id, revision_no, kind, status, lifecycle, summary = parts
+        for row in rows:
             item = QListWidgetItem(
-                f"{kind.upper():<18} R{revision_no:<3} {status.upper():<13}  {summary}"
+                f"{row.kind.upper():<18} R{row.revision_no:<3} "
+                f"{row.status.upper():<13}  {row.summary}"
             )
             item.setToolTip(
-                f"{knowledge_id}\nlifecycle={lifecycle}\nkind={kind}\nstatus={status}"
+                f"{row.entity_id}\nlifecycle={row.lifecycle}\n"
+                f"kind={row.kind}\nstatus={row.status}"
             )
-            item.setData(Qt.ItemDataRole.UserRole, knowledge_id)
+            item.setData(Qt.ItemDataRole.UserRole, row.entity_id)
             self.knowledge_list.addItem(item)
-            if selected == knowledge_id:
+            if selected == row.entity_id:
                 item_to_select = item
 
         self.knowledge_list.blockSignals(False)
@@ -1115,26 +1150,27 @@ class KnowledgeWorkspace(QWidget):
         )
         self._apply_filter(self.search_input.text())
 
-    def _render_claim_list(self, output: str) -> None:
+    def _render_claim_list(
+        self,
+        rows: tuple[CanonicalEntityListEntry, ...],
+    ) -> None:
         selected = self._selected_claim_id
         self.claim_list.blockSignals(True)
         self.claim_list.clear()
         item_to_select: QListWidgetItem | None = None
 
-        for raw_line in output.splitlines():
-            parts = raw_line.split("\t", 5)
-            if len(parts) != 6:
-                continue
-            claim_id, revision_no, kind, status, lifecycle, statement = parts
+        for row in rows:
             item = QListWidgetItem(
-                f"{kind.upper():<18} R{revision_no:<3} {status.upper():<13}  {statement}"
+                f"{row.kind.upper():<18} R{row.revision_no:<3} "
+                f"{row.status.upper():<13}  {row.summary}"
             )
             item.setToolTip(
-                f"{claim_id}\nlifecycle={lifecycle}\nkind={kind}\nstatus={status}"
+                f"{row.entity_id}\nlifecycle={row.lifecycle}\n"
+                f"kind={row.kind}\nstatus={row.status}"
             )
-            item.setData(Qt.ItemDataRole.UserRole, claim_id)
+            item.setData(Qt.ItemDataRole.UserRole, row.entity_id)
             self.claim_list.addItem(item)
-            if selected == claim_id:
+            if selected == row.entity_id:
                 item_to_select = item
 
         self.claim_list.blockSignals(False)
@@ -1145,30 +1181,29 @@ class KnowledgeWorkspace(QWidget):
         )
         self._apply_filter(self.search_input.text())
 
-    def _render_review_list(self, output: str) -> None:
+    def _render_review_list(
+        self,
+        rows: tuple[PendingReviewListEntry, ...],
+    ) -> None:
         selected = self._selected_review_id
         self.review_list.blockSignals(True)
         self.review_list.clear()
         item_to_select: QListWidgetItem | None = None
 
-        for raw_line in output.splitlines():
-            parts = raw_line.split("\t", 6)
-            if len(parts) != 7:
-                continue
-            review_id, review_type, status, confidence, left_id, right_id, reason = parts
-            try:
-                confidence_percent = float(confidence) * 100
-            except ValueError:
-                confidence_percent = 0.0
+        for row in rows:
+            confidence_percent = row.confidence * 100
+            left_id = row.left_entity_id or "-"
+            right_id = row.right_entity_id or "-"
             item = QListWidgetItem(
-                f"{confidence_percent:5.1f}%  {review_type.upper():<14}  {reason}"
+                f"{confidence_percent:5.1f}%  {row.review_type.upper():<14}  {row.reason}"
             )
             item.setToolTip(
-                f"{review_id}\nstatus={status}\nleft={left_id}\nright={right_id}"
+                f"{row.review_id}\nstatus={row.status}\n"
+                f"left={left_id}\nright={right_id}"
             )
-            item.setData(Qt.ItemDataRole.UserRole, review_id)
+            item.setData(Qt.ItemDataRole.UserRole, row.review_id)
             self.review_list.addItem(item)
-            if selected == review_id:
+            if selected == row.review_id:
                 item_to_select = item
 
         self.review_list.blockSignals(False)
