@@ -1,6 +1,13 @@
 from __future__ import annotations
 
-from PySide6.QtWidgets import QApplication, QFrame, QLabel, QMainWindow, QStackedWidget, QWidget
+from PySide6.QtWidgets import (
+    QApplication,
+    QFrame,
+    QLabel,
+    QMainWindow,
+    QStackedWidget,
+    QWidget,
+)
 
 from athena.desktop.app import create_application
 from athena.desktop.system_workspace import (
