@@ -146,3 +146,53 @@ def test_disaster_restore_rejects_redirected_snapshot_directory_before_resolve(
         assert not (tmp_path / "restored").exists()
     finally:
         app.stop()
+
+
+def test_target_descriptor_rejects_windows_reparse_boundary_contract(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = AthenaApplication(settings=AthenaSettings(local_root=tmp_path / "runtime"))
+    app.start()
+    target = tmp_path / "backup-target"
+    target.mkdir()
+    descriptor = target / app.backup.TARGET_DESCRIPTOR_NAME
+    descriptor.write_text(
+        '{"format_version":1,"target_id":"11111111-1111-1111-1111-111111111111"}\n',
+        encoding="utf-8",
+    )
+    real_is_link_boundary = backup_module.is_link_boundary
+
+    def redirected(path: Path) -> bool:
+        return path == descriptor or real_is_link_boundary(path)
+
+    monkeypatch.setattr(backup_module, "is_link_boundary", redirected)
+    try:
+        with pytest.raises(BackupRestoreError, match="descriptor is unsafe"):
+            app.backup._read_target_descriptor(target)
+    finally:
+        app.stop()
+
+
+def test_target_root_rejects_windows_reparse_boundary_contract(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = AthenaApplication(settings=AthenaSettings(local_root=tmp_path / "runtime"))
+    app.start()
+    target = tmp_path / "backup-target"
+    target.mkdir()
+    real_is_link_boundary = backup_module.is_link_boundary
+
+    def redirected(path: Path) -> bool:
+        return path == target or real_is_link_boundary(path)
+
+    monkeypatch.setattr(backup_module, "is_link_boundary", redirected)
+    try:
+        with pytest.raises(
+            BackupRestoreError,
+            match="symlink, junction, or reparse point",
+        ):
+            app.backup._normalize_target_path(target)
+    finally:
+        app.stop()
