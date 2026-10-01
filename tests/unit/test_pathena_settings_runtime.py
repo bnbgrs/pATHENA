@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from types import SimpleNamespace
 
 import pytest
 
@@ -146,6 +147,63 @@ def test_failed_initial_news_load_retries_on_later_snapshot(
         runtime.apply_snapshot(_snapshot())
 
         assert refresh_calls == [None]
+    finally:
+        window.close()
+        app.processEvents()
+
+
+def test_news_loading_replaces_stale_error_semantics(tmp_path) -> None:
+    app = _app()
+    window = PathenaMainWindow(api_controller=None)
+    runtime = install_settings_runtime(window, None, settings=_settings(tmp_path))
+    queued: list[object] = []
+    runtime.controller = SimpleNamespace(
+        gateway=SimpleNamespace(news_profile=lambda: None),
+        thread_pool=SimpleNamespace(start=queued.append),
+    )
+    try:
+        runtime.news_status.setProperty("pathenaUiState", "error")
+        runtime.news_status.setAccessibleDescription("Previous failure")
+
+        runtime.refresh_news_schedule()
+
+        assert runtime.news_status.text() == "News schedule · loading…"
+        assert runtime.news_status.property("pathenaUiState") == "idle"
+        assert runtime.news_status.accessibleDescription() == runtime.news_status.text()
+        assert len(queued) == 1
+    finally:
+        window.close()
+        app.processEvents()
+
+
+def test_news_saving_replaces_stale_success_semantics(tmp_path) -> None:
+    app = _app()
+    window = PathenaMainWindow(api_controller=None)
+    runtime = install_settings_runtime(window, None, settings=_settings(tmp_path))
+    queued: list[object] = []
+    runtime.controller = SimpleNamespace(
+        gateway=SimpleNamespace(configure_news_schedule=lambda **_kwargs: None),
+        thread_pool=SimpleNamespace(start=queued.append),
+    )
+    try:
+        runtime.apply_news_profile(
+            NewsProfileResponse(
+                api_version="v1",
+                enabled=True,
+                timezone_name="Europe/Berlin",
+                local_hour=6,
+                local_minute=30,
+            )
+        )
+        assert runtime.news_status.property("pathenaUiState") == "success"
+
+        runtime.save_news_schedule()
+
+        assert runtime.news_status.text() == "News schedule · saving…"
+        assert runtime.news_status.property("pathenaUiState") == "idle"
+        assert runtime.news_status.accessibleDescription() == runtime.news_status.text()
+        assert runtime.news_save.isEnabled() is False
+        assert len(queued) == 1
     finally:
         window.close()
         app.processEvents()
