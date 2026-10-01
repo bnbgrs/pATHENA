@@ -10,10 +10,22 @@ from pathlib import Path
 
 from athena.backup.service import BackupRestoreError, BackupService
 from athena.config.settings import AthenaSettings, ConfigurationError
+from athena.core.derived_recovery import (
+    DerivedRecoveryError,
+    DerivedRecoveryRequiredError,
+    DerivedRecoveryService,
+)
 from athena.core.recovery_diagnostics import (
     RecoveryDiagnosticsService,
 )
 from athena.storage.paths import RuntimePaths
+
+_DERIVED_REBUILD_TARGETS = (
+    "canonical-fts",
+    "archive-fts",
+    "canonical-hnsw",
+    "archive-hnsw",
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -52,6 +64,22 @@ def build_parser() -> argparse.ArgumentParser:
         help=(
             "Inspect canonical and Derived State read-only and emit a "
             "payload-free Recovery failure matrix."
+        ),
+    )
+
+    rebuild = commands.add_parser(
+        "rebuild-derived",
+        help=(
+            "Explicitly rebuild one reconstructible search/index layer after "
+            "Recovery diagnostics have established a safe source state."
+        ),
+    )
+    rebuild.add_argument(
+        "target",
+        choices=_DERIVED_REBUILD_TARGETS,
+        help=(
+            "Derived layer to rebuild: canonical/archive FTS or canonical/archive "
+            "HNSW from already persisted vectors."
         ),
     )
 
@@ -144,6 +172,76 @@ def run_diagnose() -> int:
     return report.exit_code
 
 
+def run_rebuild_derived(
+    target: str,
+) -> int:
+    """Run one explicit Derived State rebuild without starting AthenaApplication."""
+    if target not in _DERIVED_REBUILD_TARGETS:
+        raise ValueError(
+            f"Unsupported Derived Recovery rebuild target: {target!r}"
+        )
+
+    try:
+        settings = AthenaSettings.from_environment()
+        paths = RuntimePaths.from_settings(
+            settings
+        )
+        service = DerivedRecoveryService(
+            database_path=paths.database_path,
+            derived_root=paths.derived_root,
+        )
+
+        if target == "canonical-fts":
+            count = service.rebuild_canonical_fts()
+            result_name = "documents_indexed"
+        elif target == "archive-fts":
+            count = service.rebuild_archive_fts()
+            result_name = "documents_indexed"
+        elif target == "canonical-hnsw":
+            count = service.rebuild_canonical_hnsw_from_persisted()
+            result_name = "model_indexes_rebuilt"
+        else:
+            count = service.rebuild_archive_hnsw_from_persisted()
+            result_name = "model_indexes_rebuilt"
+
+    except ConfigurationError as exc:
+        print(
+            f"ATHENA recovery configuration error: {exc}",
+            file=sys.stderr,
+        )
+        return 2
+
+    except DerivedRecoveryRequiredError as exc:
+        print(
+            f"ATHENA recovery required: {exc}",
+            file=sys.stderr,
+        )
+        return 4
+
+    except (
+        DerivedRecoveryError,
+        OSError,
+        ValueError,
+    ) as exc:
+        print(
+            f"ATHENA recovery rebuild error: {type(exc).__name__}: {exc}",
+            file=sys.stderr,
+        )
+        return 2
+
+    print(
+        "Derived Recovery rebuild complete: "
+        f"target={target} {result_name}={count}"
+    )
+    print(
+        "Normal ATHENA Core startup was bypassed."
+    )
+    print(
+        "No model/provider call was used for this rebuild."
+    )
+    return 0
+
+
 def main(
     argv: Sequence[str] | None = None,
 ) -> int:
@@ -157,6 +255,11 @@ def main(
 
     if args.command == "diagnose":
         return run_diagnose()
+
+    if args.command == "rebuild-derived":
+        return run_rebuild_derived(
+            args.target
+        )
 
     raise RuntimeError(
         f"Unsupported recovery command: {args.command!r}"
