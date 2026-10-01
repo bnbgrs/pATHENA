@@ -52,6 +52,7 @@ from athena.storage.durable_fs import (
     durable_mkdir,
     durable_replace,
     fsync_directory,
+    is_link_boundary,
 )
 from athena.storage.paths import RuntimePaths
 from athena.storage.schema import (
@@ -1667,9 +1668,10 @@ class BackupService(DeletionLedgerStorageMixin):
                 "Backup snapshot directory name must be its UUID."
             ) from exc
         target = snapshot.parent.parent
-        marker = snapshot / "complete.marker"
-        if not marker.is_file():
-            raise BackupRestoreError("Backup snapshot has no complete.marker.")
+        try:
+            marker = _safe_existing_file(snapshot, Path("complete.marker"))
+        except BackupRestoreError as exc:
+            raise BackupRestoreError("Backup snapshot has no safe complete.marker.") from exc
         try:
             expected_manifest_sha256 = bytes.fromhex(
                 marker.read_text(encoding="ascii").strip()
@@ -4047,12 +4049,10 @@ class BackupService(DeletionLedgerStorageMixin):
         expected_snapshot_id: uuid.UUID | None = None,
         progress_callback: Callable[[], None] | None = None,
     ) -> bool:
-        marker = snapshot_root / "complete.marker"
-        if not marker.is_file():
-            return False
         try:
+            marker = _safe_existing_file(snapshot_root, Path("complete.marker"))
             marker_value = marker.read_text(encoding="ascii").strip()
-        except OSError:
+        except (BackupRestoreError, OSError):
             return False
         if marker_value != expected_manifest_sha256.hex():
             return False
@@ -4073,13 +4073,11 @@ class BackupService(DeletionLedgerStorageMixin):
         expected_snapshot_id: uuid.UUID | None = None,
         progress_callback: Callable[[], None] | None = None,
     ) -> bool:
-        manifest_path = snapshot_root / "manifest.json"
-        database_path = snapshot_root / "athena.db"
-        if not manifest_path.is_file() or not database_path.is_file():
-            return False
         try:
+            manifest_path = _safe_existing_file(snapshot_root, Path("manifest.json"))
+            database_path = _safe_existing_file(snapshot_root, Path("athena.db"))
             manifest_bytes = manifest_path.read_bytes()
-        except OSError:
+        except (BackupRestoreError, OSError):
             return False
         if hashlib.sha256(manifest_bytes).digest() != expected_manifest_sha256:
             return False
@@ -4317,16 +4315,18 @@ def _manifest_matches_database(manifest: dict[str, Any], database_path: Path) ->
 def _safe_existing_file(root: Path, relative: Path) -> Path:
     root_resolved = root.resolve()
     candidate = root_resolved / relative
-    if candidate.is_symlink():
-        raise BackupRestoreError(f"Backup object must not be a symlink: {candidate}.")
+    if is_link_boundary(candidate):
+        raise BackupRestoreError(
+            f"Backup file must not be a symlink, junction, or reparse point: {candidate}."
+        )
     try:
         resolved = candidate.resolve(strict=True)
     except OSError as exc:
-        raise BackupRestoreError(f"Backup object is unavailable: {candidate}.") from exc
+        raise BackupRestoreError(f"Backup file is unavailable: {candidate}.") from exc
     if root_resolved != resolved and root_resolved not in resolved.parents:
-        raise BackupRestoreError("Backup object resolved outside the backup target.")
+        raise BackupRestoreError("Backup file resolved outside its trusted root.")
     if not resolved.is_file():
-        raise BackupRestoreError(f"Backup object is not a regular file: {resolved}.")
+        raise BackupRestoreError(f"Backup file is not a regular file: {resolved}.")
     return resolved
 
 
