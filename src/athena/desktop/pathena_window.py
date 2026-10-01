@@ -654,6 +654,20 @@ class PathenaMainWindow(AthenaMainWindow):
         self._sync_reference_navigation(index)
         self._sync_progressive_chat_actions()
 
+    def _sync_send_action_presentation(self) -> None:
+        super()._sync_send_action_presentation()
+        controller = self.api_controller
+        if not self._chat_busy:
+            self.send_button.setText("→")
+            return
+        if (
+            controller is not None
+            and controller.can_cancel_active_chat
+            and not controller.chat_cancel_pending
+        ):
+            self.send_button.setText("■")
+            return
+        self.send_button.setText("…")
+
     def apply_chat_busy(self, busy: bool) -> None:
         super().apply_chat_busy(busy)
-        self.send_button.setText("…" if busy else "→")
