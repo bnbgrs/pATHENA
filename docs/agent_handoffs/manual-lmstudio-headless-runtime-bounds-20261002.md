@@ -3,113 +3,125 @@
 Date: 2026-10-02
 Branch: `fix/lmstudio-headless-runtime-bounds-20261002`
 PR: #334
-Base: `develop/pathena-next@67174198e1494fd4c8678aad60756c39ef5c160b`
-Scope owner: runtime/Desktop LM Studio lifecycle only.
+Base at branch creation: `develop/pathena-next@67174198e1494fd4c8678aad60756c39ef5c160b`
+Scope owner: Desktop LM Studio lifecycle/runtime only.
 
 ## Ausgangslage
 
-Current Develop already contained the LM Studio runtime controller and desktop wiring, so stale PR #297 was treated as source material only and was **not** merged. Five concrete runtime/lifecycle defects remained:
+Current Develop already contained the LM Studio runtime controller and desktop wiring, so stale PR #297 was used only as historical source material and was not merged.
 
-1. `ATHENA_LMSTUDIO_BASE_URL=http://[::1]:PORT` passed validation, but automatic server startup hard-coded `--bind 127.0.0.1`; Core could probe IPv6 loopback while the spawned server listened on IPv4.
-2. Automatic headless startup invoked `lms server start` directly without first establishing the documented llmster daemon with `lms daemon up`.
-3. `QProcess` CLI operations had no deadline; one hung `lms` command could keep the runtime controller busy indefinitely.
-4. A selected model could be marked pending before a load command was actually validated/dispatched. Disabled auto-load, missing CLI, unsafe Windows wrapper arguments, timeout, or CLI failure could therefore turn into a false later “Core did not confirm ... loaded” state.
-5. Desktop shutdown had no explicit cleanup for an in-flight pATHENA-owned `lms` CLI child process.
+The current runtime still had concrete lifecycle/state defects:
+
+1. IPv6 loopback endpoints were accepted, but automatic server startup always rebound LM Studio to IPv4 `127.0.0.1`.
+2. Headless startup did not establish llmster with `lms daemon up` before starting the HTTP server.
+3. CLI child processes had no deadline and could leave the runtime permanently busy.
+4. Model-load pending/confirmation state could exist before a successful `lms load`, so unrelated Core refreshes could report a false confirmation failure.
+5. Restart aborted if `server stop` returned non-zero even when the server was simply already stopped.
+6. Qt `QSettings` integer coercion could turn a malformed persisted bool into an idle TTL of one minute.
+7. Core snapshots received during active load/unload/restart work could overwrite the truthful CLI status with stale `available`/`loaded` UI text.
+8. Desktop shutdown did not explicitly clean up a pATHENA-owned in-flight `lms` CLI child.
 
 ## Root Cause
 
-Endpoint validation discarded the validated loopback host identity and retained only the port. Headless service startup, command lifetime, and model-load state were handled as loosely related UI intentions rather than one bounded lifecycle. Pending model identity was created before the command boundary instead of being derived from the command that was actually dispatchable. Shutdown relied on QObject/process teardown rather than an explicit owned-child cleanup contract.
+Endpoint validation discarded loopback-family identity. Runtime intent, CLI process lifetime and Core-confirmed state were not separated tightly enough: pending identity was created before the successful command boundary, restart treated its stop phase as mandatory success, persisted values were coerced before validation, and snapshot presentation was allowed to overwrite an active operation.
 
 ## Änderungen
 
-- Added `_endpoint()` returning validated bind host + port:
-  - `localhost` normalizes to `127.0.0.1`;
-  - `::1` remains `::1`;
-  - only loopback HTTP endpoints and valid ports are accepted.
-- Kept `_endpoint_port()` as a compatibility helper.
-- Added `_server_start_steps()`: idempotent `lms daemon up` followed by `lms server start --port ... --bind ...`.
-- Restart now performs server stop → daemon up → server start.
-- Added operation-specific CLI watchdogs:
-  - daemon/server/control: 45 s
-  - unload: 120 s
-  - model load: 600 s
-- Timeout kills only the owned CLI child, clears queued work and load-confirmation state, reports the timeout truthfully, then refreshes Core.
-- Process finish/error paths stop the watchdog.
-- Added `_accepted_model_load_id()`; pending model identity is now derived only from a well-formed model-load command after command validation and immediately before `QProcess.start()`.
-- Missing CLI, rejected command, non-zero exit, process error and timeout all clear model-load pending state before any later Core refresh can reinterpret the failure.
-- Added `LMStudioRuntimeController.dispose()`; desktop quit cancels only pATHENA-owned in-flight CLI work. It deliberately does **not** stop the persistent LM Studio daemon/server.
+- Added `_endpoint()` returning the validated loopback bind host and port:
+  - `localhost` -> `127.0.0.1`;
+  - `::1` remains `::1`.
+- Added daemon-first `_server_start_steps()`: `lms daemon up` then loopback-bound `lms server start`.
+- Restart performs stop -> daemon up -> start and may continue after a failed `server_stop` when recovery steps remain.
+- Added operation deadlines:
+  - daemon/server/control: 45 s;
+  - unload: 120 s;
+  - model load: 600 s.
+- Timeout kills only the owned CLI child, clears queued/confirmation state, reports the timeout, then asks Core for fresh truth.
+- Model pending identity is now established only after the exact `model_load` command exits successfully; only then does the bounded Core-confirmation window open.
+- Rejected command, non-zero load exit, process error and timeout clear load state before later Core refreshes.
+- Raw idle TTL is validated by `_coerce_idle_minutes()`; bool and malformed types fall back to the safe default instead of Qt coercion.
+- While any CLI sequence is busy, Core snapshots update cached truth but do not replace the operation-owned visible status.
+- Added idempotent `LMStudioRuntimeController.dispose()`; desktop quit cancels only pATHENA-owned CLI work and deliberately leaves the persistent LM Studio daemon/server alone.
 - Wired `app.aboutToQuit` to runtime disposal.
-- Added focused pure regressions for loopback bind identity, daemon-first headless startup, operation deadlines and accepted/dispatched model identity.
+
+## Regression coverage
+
+`tests/unit/test_lmstudio_runtime_qol.py` now covers:
+
+- IPv4/localhost/IPv6 bind identity;
+- daemon-before-server startup;
+- bounded per-operation timeouts;
+- load identity from a well-formed completed command;
+- safe idle-TTL coercion;
+- restart continuation only for the stop phase;
+- a real Qt `PathenaMainWindow` + `LMStudioRuntimeController` regression proving a Core snapshot does not overwrite an active CLI status.
 
 ## Dateien
 
 - `src/athena/desktop/lmstudio_runtime.py`
 - `src/athena/desktop/app.py`
 - `tests/unit/test_lmstudio_runtime_qol.py`
-- `docs/agent_handoffs/manual-lmstudio-headless-runtime-bounds-20261002.md`
+- this handoff
+
+## Parallel-work coordination
+
+The run continuously re-synchronized active PRs.
+
+- #331 independently started on the same runtime area after #334 existed. It was subsequently closed rather than kept as a competing integration candidate.
+- Bot branch `fix/lmstudio-runtime-race-followup-20261002-sol` explicitly stacked on #334 and documented three residual defects: premature pending identity, restart-on-already-stopped-server, and raw TTL validation. Its handoff instructed the parent owner to consume the delta rather than reimplement it independently. Those deltas were consumed into #334.
+- #346 owns LM Studio provider/model-identity validation only (`src/athena/model/adapters/lm_studio.py` + provider tests); it is file-disjoint and compatible.
+- #333 owns Settings/News persistence/hydration only; it does not own the runtime preferred-model key.
+- Chat cancellation (#329/#335/#337), Storage, Sources, Windows packaging and helper-lifecycle PRs remain outside this slice.
+- Product PALLAS PR #302 is untouched.
+- PALLAS visual-harness determinism is isolated in separate QA PR #352; no product PALLAS file is changed there either.
+
+Do not revive or merge stale #297/#331 on top of this branch. Do not separately reapply the consumed runtime-race follow-up.
+
+## Validation observed during this run
+
+Because the assistant execution container cannot resolve `github.com`, local clone/pytest execution was unavailable. No local PASS is claimed.
+
+Real GitHub Actions evidence from superseded exact heads:
+
+- Local install smoke: PASS.
+- Linux storage regressions: PASS.
+- UI Focused Candidate: PASS.
+- A later exact runtime head completed Windows path safety: PASS.
+- Eleven-surface Windows capture itself completed successfully on the superseded runtime head. Its verdict failed only on `08-pallas.png`; Chat, Research, Files, System and Settings were exact or inside policy. That PALLAS-only nondeterminism was independently root-caused and isolated into QA PR #352 rather than patched in this runtime branch.
+
+The branch has changed since those runs. Final authority is the fresh exact-head CI for PR #334 after this handoff commit. Do not treat superseded-head green jobs as final approval.
 
 ## Verhalten danach
 
-Automatic local runtime startup follows the configured loopback family, establishes llmster before the HTTP server, and cannot remain permanently blocked on one CLI child process. A model is not represented as pending until pATHENA has a valid load command ready to dispatch. CLI rejection/failure/timeout remains visible as the actual failure rather than being overwritten by a fake Core-confirmation failure. Quitting pATHENA cleans up an active owned CLI command without taking down an otherwise useful persistent local model service.
-
-## Validierung
-
-Observed before this final handoff update:
-
-- Branch comparison against current Develop: ahead only, behind 0; no parallel-bot commits were overwritten.
-- Full diff re-read after mutations.
-- Current official LM Studio CLI/headless contract cross-checked for `lms daemon up`, headless llmster and `lms server start --bind`.
-- Previous exact code head `71c06d67943a4785a4d853bf184089cd63b7ed91`:
-  - Local install smoke: PASS.
-  - Linux storage regressions: PASS.
-  - UI Focused Candidate: PASS.
-  - Visual capture/harness itself: PASS for all eleven captures, but visual verdict FAIL only on `08-pallas.png` (changed_ratio 0.00843243, mean_delta 0.48803428). Chat/Research/Files/System/Settings were exact or within policy. This branch does not change PALLAS files; do not “fix” PALLAS from this runtime branch.
-  - Windows path-safety job on that superseded head was cancelled after subsequent commits; no PASS claimed.
-- Local clone/test execution in the assistant container remained blocked by DNS resolution (`Could not resolve host: github.com`); no local PASS is claimed.
-- The final handoff commit intentionally triggers fresh exact-head CI. Use PR #334 checks as the authoritative final execution evidence. Post final results as a PR comment rather than mutating this branch again.
+pATHENA can use the configured loopback family, bootstrap LM Studio headlessly, recover restart when the server is already stopped, bound hung CLI work, preserve truthful in-flight status, and only claim a model-load confirmation after the load command actually completed. Shutdown does not leave pATHENA-owned CLI work hanging and does not kill the persistent model service.
 
 ## Bekannte Restprobleme
 
-- Native Windows acceptance with an actual LM Studio installation/model is still required; CI does not prove a real downloaded model can load on the user's workstation.
-- Provider-level prompt cancellation while LM Studio synchronous transport is blocked belongs to current Chat/Runtime cancellation work (#329) and is not touched here.
-- The PALLAS visual delta observed on the superseded runtime head is outside this branch's changed-file set and should be handled by the PALLAS/UI owner only if it reproduces on the relevant canonical candidate.
-- The 600 s model-load deadline is intentionally generous but finite. Change it only from measured large-model evidence.
-
-## Abhängigkeiten / Konfliktrisiko
-
-Active work inspected before and during this slice:
-
-- #329 Chat cancellation: API/chat cancellation files; no overlap with this runtime controller.
-- #327 Qt CI isolation: workflow/quality files only.
-- #326 Research UI: `research_workspace.py` only.
-- #325 Storage canonical commit bundle: storage + focused tests only.
-
-Old #297 is stale/diverged by 224 commits and must not be merged wholesale after this slice.
-
-The old Backend queue item BE-021 (ContextPackage temperature overflow) was re-checked on current Develop during this run. Current `generation_temperature()` already catches `OverflowError` and maps it into `ContextPackageError`; the queue evidence is stale, so no duplicate mutation was made.
+- Native Windows acceptance with a real installed LM Studio and a downloaded model is still required. CI cannot prove the user's actual installation/model/GPU path.
+- Provider-level prompt cancellation belongs to the active Chat cancellation control-plane work and is intentionally not duplicated here.
+- A 600 s model-load deadline is deliberately generous but finite; change it only from measured large-model evidence.
+- Final merge/readiness depends on exact-head Quality plus relevant Windows evidence.
 
 ## Nächste sinnvolle Schritte
 
-1. Read exact-head checks on PR #334. Fix only reproducible runtime/test/type failures attributable to this branch.
-2. Native Windows acceptance with LM Studio installed but GUI closed:
+1. Require exact-head PR #334 Quality/focused checks and inspect any failure at the failing step/log rather than weakening gates.
+2. Native Windows acceptance with LM Studio GUI closed:
    - launch pATHENA;
-   - verify daemon/server start without opening LM Studio GUI;
+   - verify daemon/server starts headlessly;
    - select a downloaded model;
    - verify Core reports that exact model loaded;
-   - send chat and verify the selected backend model ID is used;
-   - exercise restart/unload;
-   - exercise one controlled CLI failure/timeout;
-   - quit pATHENA during an owned CLI command and verify no orphan CLI child remains while the persistent LM Studio service is not killed.
-3. Keep Chat cancellation (#329), PALLAS visual work and Storage work in their existing ownership lanes.
+   - send Chat and verify the exact selected backend model ID is used;
+   - restart when the server is already stopped;
+   - exercise unload and one controlled CLI failure/timeout;
+   - quit during owned CLI work and verify no orphan CLI child remains while llmster/server remain available.
+3. Integrator should keep #346 provider identity validation adjacent but independent.
 
-## Commits before this handoff refresh
+## Key commits
 
-- `073310d28770c0b8b229134708ac32a8ac975ab7` — harden headless lifecycle and endpoint/command bounds.
-- `4e1fa364562de901344998c6bc77a3e7c88280ff` — focused endpoint/start/timeout tests.
-- `ffa45aa758a87b14fa8806542fcf81a3dad9481d` — truthful pending-state cleanup.
-- `d709d0b7219461004d1c8ee7ccc5f4da6fb9c59a` — remove unreachable guarded fallback.
-- `0e51b334fb20550974827aa5e20f62e71f247111` — explicit owned CLI shutdown cleanup.
-- `7b0ff571e25ead5b0d51a4eebcbe8af54d3bf75f` — wire runtime disposal to desktop quit.
-- `079cb16cfd17edb9236c02cf15e3001b01cd0c62` — clear rejected model-load state.
-- `a429157d06ea2a0a0a12617086a8b36cbd2d7bec` — derive pending model identity at dispatch boundary.
-- `f5d3fe6912654b30ca99cbd0f0a597fb73e755d1` — regression for dispatched model identity.
+- `073310d28770c0b8b229134708ac32a8ac975ab7` — daemon/bind/deadline runtime hardening.
+- `4e1fa364562de901344998c6bc77a3e7c88280ff` — initial focused tests.
+- `0e51b334fb20550974827aa5e20f62e71f247111` / `7b0ff571e25ead5b0d51a4eebcbe8af54d3bf75f` — owned CLI shutdown cleanup + app wiring.
+- `8c90549d9b5cb159a348f4517ff619b57eb496f1` — consume stacked runtime race follow-up.
+- `4dbe0ede1ac0628685f6f6f86a5c89f1c862d977` — race/TTL/restart regressions.
+- `4fa3ecb132828d4a1a7895cf7a179c7611b62f66` — preserve active CLI status across snapshots.
+- `234d0e103f1f34c1960358de2458ee9f2fa32a64` — real Qt regression for active CLI status.
