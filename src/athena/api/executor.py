@@ -25,11 +25,13 @@ from athena.api.contracts import (
     StorageHealthResponse,
 )
 from athena.api.ports import CoreDomainSurface
+from athena.api.search_contracts import SearchResultResponse
 from athena.chat.cancellation import (
     ChatCancellationReservation,
     ChatOperationActiveError,
 )
 from athena.core.application import ApplicationState, AthenaApplication
+from athena.retrieval.universal import UniversalSearchEntityType
 
 _ResultT = TypeVar("_ResultT")
 _QueuedCall = tuple[Callable[[], object], Future[object]] | None
@@ -336,6 +338,21 @@ class SerializedCoreApiSurface:
 
     def list_models(self) -> tuple[ModelResponse, ...]:
         return self._executor.call(self._surface.list_models)
+
+    def universal_search(
+        self,
+        query: str,
+        *,
+        limit: int = 20,
+        entity_types: tuple[UniversalSearchEntityType, ...] | None = None,
+    ) -> tuple[SearchResultResponse, ...]:
+        return self._executor.call(
+            lambda: self._surface.universal_search(
+                query,
+                limit=limit,
+                entity_types=entity_types,
+            )
+        )
 
     def reserve_chat_operation(
         self,
