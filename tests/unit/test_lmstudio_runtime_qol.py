@@ -241,6 +241,8 @@ def test_model_confirmation_ignores_a_different_selected_model() -> None:
         (-1, 0),
         (2000, 1440),
         ("30", 30),
+        ("45", 45),
+        ("-1", 0),
         (None, 30),
         (True, 30),
     ],
