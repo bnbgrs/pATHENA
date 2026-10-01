@@ -1,9 +1,13 @@
 from __future__ import annotations
 
-from PySide6.QtWidgets import QApplication, QFrame, QLabel
+from PySide6.QtWidgets import QApplication, QFrame, QLabel, QMainWindow, QStackedWidget, QWidget
 
 from athena.desktop.app import create_application
-from athena.desktop.system_workspace import SystemWorkspace, _presentation_state
+from athena.desktop.system_workspace import (
+    SystemWorkspace,
+    _presentation_state,
+    install_system_workspace,
+)
 
 
 def _app() -> QApplication:
@@ -92,3 +96,37 @@ def test_system_workspace_failure_keeps_unprobed_states_unavailable() -> None:
     assert workspace.security_posture.loopback.value.text() == "Unavailable"
     assert workspace.security_posture.encrypted.value.text() == "Unavailable"
     assert workspace.security_posture.tor.value.text() == "Unavailable"
+
+
+class _SystemWorkspaceHost(QMainWindow):
+    def __init__(self) -> None:
+        super().__init__()
+        self.pages = QStackedWidget(self)
+        for _ in range(7):
+            self.pages.addWidget(QWidget())
+        self.setCentralWidget(self.pages)
+
+
+def test_install_system_workspace_owns_real_close_to_tray_lifecycle() -> None:
+    app = _app()
+    window = _SystemWorkspaceHost()
+    workspace = install_system_workspace(window, None)
+    controller = getattr(window, "_pathena_system_tray_controller")
+
+    assert window.pages.widget(5) is workspace
+    assert controller.close_to_tray_enabled is True
+    assert window.property("pathenaSystemTrayInstalled") is True
+    assert window.property("pathenaCloseToTrayEnabled") is True
+
+    window.show()
+    app.processEvents()
+    window.close()
+    app.processEvents()
+    assert not window.isVisible()
+
+    controller.open_window()
+    app.processEvents()
+    assert window.isVisible()
+
+    controller.shutdown()
+    window.close()
