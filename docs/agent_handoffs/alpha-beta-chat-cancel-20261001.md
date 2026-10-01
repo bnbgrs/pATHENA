@@ -212,3 +212,27 @@ Whichever option is chosen must test:
 - a stale cancellation signal cannot affect a later operation.
 
 Do not solve this by creating unbounded tombstone Events for arbitrary unknown operation IDs.
+
+
+## Current LM Studio transport cancellation status
+
+Exact current provider path:
+- `src/athena/model/adapters/lm_studio.py`
+- `src/athena/model/adapters/local_http.py`
+
+Observed current behavior:
+- `LMStudioProvider.stream_chat()` uses synchronous `urllib` SSE over `open_local_request(...)`.
+- `generation_timeout_seconds` defaults to 300 seconds.
+- The adapter iterates response lines synchronously and yields chunks only after `readline()` returns.
+- The provider does **not** implement `cancel_generation(request_id)` even though a cancellation capability exists on the broader managed-provider protocol.
+- `open_local_request` enforces loopback-only transport, byte bounds and a monotonic total deadline, but it exposes no dedicated cross-thread request-abort handle/control plane.
+
+Consequence:
+- Core can observe a cancellation signal before provider entry and between yielded chunks.
+- Core can close the stream/generator after it regains control.
+- The current transport does not prove bounded interruption while blocked in the first `open()/readline()` or a later `readline()`.
+- Therefore provider-level prompt abort is currently **PARTIAL/MISSING** until Runtime adds or proves a bounded transport cancellation mechanism.
+
+Do not claim that calling generator `close()` from the cancellation HTTP thread solves this. Closing a Python generator concurrently while it is executing/blocking is not the same as owning a safe underlying HTTP request-abort handle and may fail or race.
+
+Runtime should evaluate the smallest safe transport change separately from the Core cancellation control plane.
