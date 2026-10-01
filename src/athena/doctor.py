@@ -15,6 +15,7 @@ from athena.config.settings import AthenaSettings, ConfigurationError
 from athena.core.application import AthenaApplication
 from athena.model.adapters.lm_studio import LMStudioProvider
 from athena.model.domain import ProviderHealthStatus
+from athena.storage.durable_fs import is_link_boundary
 from athena.storage.paths import RuntimePaths
 from athena.storage.recovery import DatabaseRecoveryRequiredError, inspect_database_read_only
 from athena.version import __version__
