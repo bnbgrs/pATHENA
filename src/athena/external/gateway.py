@@ -392,6 +392,10 @@ class ExternalAccessGateway:
         self,
         authorization_id: uuid.UUID,
     ) -> ExternalAccessAuthorizationRecord:
+        if not isinstance(authorization_id, uuid.UUID):
+            raise ExternalAuthorizationError(
+                "External authorization id must be a UUID."
+            )
         row = self.database.connection.execute(
             "SELECT * FROM external_access_authorizations WHERE authorization_id = ?",
             (uuid_to_blob(authorization_id),),
@@ -400,19 +404,73 @@ class ExternalAccessGateway:
             raise ExternalAuthorizationError(
                 f"External authorization {authorization_id} not found."
             )
-        return ExternalAccessAuthorizationRecord(
-            authorization_id=uuid_from_blob(bytes(row["authorization_id"])),
-            actor_id=uuid_from_blob(bytes(row["actor_id"])),
-            purpose=str(row["purpose"]),
-            allowed_hosts_json=str(row["allowed_hosts_json"]),
-            privacy_route=str(row["privacy_route"]),
-            origin=str(row["origin"]),
-            expires_at_us=int(row["expires_at_us"]),
-            revoked_at_us=(
-                int(row["revoked_at_us"]) if row["revoked_at_us"] is not None else None
-            ),
-            created_at_us=int(row["created_at_us"]),
+
+        persisted_authorization_id = _persisted_uuid(
+            row["authorization_id"],
+            field="authorization_id",
         )
+        if persisted_authorization_id != authorization_id:
+            raise ExternalAuthorizationError(
+                "Persisted external authorization identity does not match the lookup id."
+            )
+        actor_id = _persisted_uuid(row["actor_id"], field="actor_id")
+        purpose = _persisted_text(row["purpose"], field="purpose")
+        if not purpose or purpose != purpose.strip():
+            raise ExternalAuthorizationError(
+                "Persisted external authorization purpose is not canonical text."
+            )
+        allowed_hosts_json = _persisted_host_scope(row["allowed_hosts_json"])
+        privacy_route = _persisted_text(
+            row["privacy_route"],
+            field="privacy_route",
+        )
+        if privacy_route not in {"tor_preferred", "tor", "direct_explicit"}:
+            raise ExternalAuthorizationError(
+                "Persisted external authorization privacy route is invalid."
+            )
+        origin = _persisted_text(row["origin"], field="origin")
+        if origin != "explicit_user":
+            raise ExternalAuthorizationError(
+                "Persisted external authorization origin is invalid."
+            )
+        created_at_us = _persisted_int(row["created_at_us"], field="created_at_us")
+        expires_at_us = _persisted_int(row["expires_at_us"], field="expires_at_us")
+        revoked_raw = row["revoked_at_us"]
+        revoked_at_us = (
+            None
+            if revoked_raw is None
+            else _persisted_int(revoked_raw, field="revoked_at_us")
+        )
+        if created_at_us < 0 or expires_at_us <= created_at_us:
+            raise ExternalAuthorizationError(
+                "Persisted external authorization timestamps are invalid."
+            )
+        if revoked_at_us is not None and revoked_at_us < created_at_us:
+            raise ExternalAuthorizationError(
+                "Persisted external authorization revocation timestamp is invalid."
+            )
+
+        return ExternalAccessAuthorizationRecord(
+            authorization_id=persisted_authorization_id,
+            actor_id=actor_id,
+            purpose=purpose,
+            allowed_hosts_json=allowed_hosts_json,
+            privacy_route=privacy_route,
+            origin=origin,
+            expires_at_us=expires_at_us,
+            revoked_at_us=revoked_at_us,
+            created_at_us=created_at_us,
+        )
+
+    def validate_url(
+        self,
+        authorization_id: uuid.UUID,
+        url: str,
+    ) -> ExternalAccessAuthorizationRecord:
+        """Validate one URL against an active authorization without network access."""
+        if not isinstance(url, str):
+            raise ExternalDestinationError("External URL must be text.")
+        return self._require_authorized(authorization_id, url=url)
 
     def capture_url(
         self,
@@ -899,9 +957,28 @@ class ExternalResearchService:
         output_reserve: int | None = None,
         safety_margin: int | None = None,
     ) -> JobRecord:
-        normalized_urls = tuple(item.strip() for item in urls if item.strip())
+        if isinstance(urls, (str, bytes)) or not isinstance(urls, Sequence):
+            raise ExternalAccessError(
+                "External Research URLs must be a sequence of URL strings."
+            )
+        normalized_items: list[str] = []
+        for item in urls:
+            if not isinstance(item, str):
+                raise ExternalAccessError(
+                    "External Research URLs must contain only URL strings."
+                )
+            normalized = item.strip()
+            if normalized:
+                normalized_items.append(normalized)
+        normalized_urls = tuple(normalized_items)
         if not normalized_urls:
             raise ExternalAccessError("External Research requires at least one URL.")
+
+        # Preflight the complete request set before the first Source capture so a
+        # later malformed/out-of-scope URL cannot leave an avoidable partial batch.
+        for url in normalized_urls:
+            self.gateway.validate_url(authorization_id, url)
+
         source_ids = tuple(
             self.gateway.capture_url(authorization_id, url).source.source_id
             for url in normalized_urls
@@ -1084,6 +1161,60 @@ def _looks_like_access_challenge(response: ExternalResponse) -> bool:
         b"verify you are human" in sample
         and (b"captcha" in sample or b"cloudflare" in sample)
     )
+
+
+def _persisted_text(value: object, *, field: str) -> str:
+    if type(value) is not str:
+        raise ExternalAuthorizationError(
+            f"Persisted external authorization {field} has an invalid storage type."
+        )
+    return value
+
+
+def _persisted_int(value: object, *, field: str) -> int:
+    if type(value) is not int:
+        raise ExternalAuthorizationError(
+            f"Persisted external authorization {field} has an invalid storage type."
+        )
+    return value
+
+
+def _persisted_uuid(value: object, *, field: str) -> uuid.UUID:
+    if type(value) is not bytes:
+        raise ExternalAuthorizationError(
+            f"Persisted external authorization {field} has an invalid storage type."
+        )
+    try:
+        return uuid_from_blob(value)
+    except (TypeError, ValueError) as exc:
+        raise ExternalAuthorizationError(
+            f"Persisted external authorization {field} is invalid."
+        ) from exc
+
+
+def _persisted_host_scope(value: object) -> str:
+    serialized = _persisted_text(value, field="allowed_hosts_json")
+    hosts = _string_array(serialized)
+    if not hosts:
+        raise ExternalAuthorizationError(
+            "Persisted external authorization host scope is empty."
+        )
+    try:
+        normalized = tuple(sorted({_normalize_host(host) for host in hosts}))
+        for host in normalized:
+            _reject_unsafe_literal_or_name(host)
+    except ExternalDestinationError as exc:
+        raise ExternalAuthorizationError(
+            "Persisted external authorization host scope is invalid."
+        ) from exc
+    if (
+        tuple(hosts) != normalized
+        or serialized != _canonical_json(list(normalized))
+    ):
+        raise ExternalAuthorizationError(
+            "Persisted external authorization host scope is not canonical."
+        )
+    return serialized
 
 
 def _canonical_json(value: object) -> str:
