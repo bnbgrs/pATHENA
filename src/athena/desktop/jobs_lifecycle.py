@@ -21,6 +21,7 @@ _TRANSITION_LABELS = {
     "wake": "JOB_WAKE",
     "cancel": "JOB_CANCEL",
 }
+_CURRENT_PROGRESS_PREFIX = "CURRENT_PROGRESS "
 
 
 class JobLifecycleError(ValueError):
@@ -97,3 +98,17 @@ def parse_transition_receipt(
         job_id=expected_job_id,
         state=state,
     )
+
+
+def parse_current_progress(output: str) -> str | None:
+    """Read the truthful latest-checkpoint progress line from Jobs CLI output."""
+    if not isinstance(output, str):
+        raise TypeError("Job detail output must be text.")
+    for line in output.splitlines():
+        if not line.startswith(_CURRENT_PROGRESS_PREFIX):
+            continue
+        summary = line[len(_CURRENT_PROGRESS_PREFIX):].strip()
+        if not summary or summary == "-":
+            return None
+        return summary
+    return None
