@@ -119,6 +119,63 @@ jobs:
             throw "Worker accepted an unsupported module dispatch."
           }
 
+      - name: Verify packaged Sources capture across worker restarts
+        shell: pwsh
+        run: |
+          $pkg = Join-Path $env:RUNNER_TEMP "pathena-portable\pATHENA"
+          $worker = Join-Path $pkg "pATHENA-Worker.exe"
+          $runtime = Join-Path $env:RUNNER_TEMP "pathena-sources-package-runtime"
+          New-Item -ItemType Directory -Force -Path $runtime | Out-Null
+          $env:ATHENA_LOCAL_ROOT = $runtime
+
+          $sourceName = "packaged-source-$env:CANDIDATE_SHA.txt"
+          $sourcePath = Join-Path $env:RUNNER_TEMP $sourceName
+          "pATHENA packaged Sources smoke $env:CANDIDATE_SHA" | Set-Content -LiteralPath $sourcePath -Encoding UTF8
+
+          function Invoke-CapturedSourceWorker {
+            param(
+              [Parameter(Mandatory = $true)][string[]]$WorkerArguments,
+              [Parameter(Mandatory = $true)][string]$Label
+            )
+            $token = [guid]::NewGuid().ToString("N")
+            $stdoutPath = Join-Path $env:RUNNER_TEMP "$Label-$token.stdout.txt"
+            $stderrPath = Join-Path $env:RUNNER_TEMP "$Label-$token.stderr.txt"
+            try {
+              $process = Start-Process -FilePath $worker -WorkingDirectory $pkg -ArgumentList $WorkerArguments -Wait -PassThru -NoNewWindow -RedirectStandardOutput $stdoutPath -RedirectStandardError $stderrPath
+              $stdout = if (Test-Path -LiteralPath $stdoutPath) { Get-Content -LiteralPath $stdoutPath -Raw } else { "" }
+              $stderr = if (Test-Path -LiteralPath $stderrPath) { Get-Content -LiteralPath $stderrPath -Raw } else { "" }
+              return [pscustomobject]@{
+                ExitCode = $process.ExitCode
+                Text = (($stdout, $stderr) -join [Environment]::NewLine).Trim()
+              }
+            }
+            finally {
+              Remove-Item -LiteralPath $stdoutPath, $stderrPath -Force -ErrorAction SilentlyContinue
+            }
+          }
+
+          $captured = Invoke-CapturedSourceWorker -WorkerArguments @("-m", "athena.desktop.sources_cli", "import", $sourcePath) -Label "source-import"
+          if ($captured.ExitCode -ne 0) {
+            throw "Packaged Source capture failed: $($captured.Text)"
+          }
+          $match = [regex]::Match($captured.Text, "SOURCE_CAPTURED\s+([0-9a-fA-F-]{36})")
+          if (-not $match.Success) {
+            throw "Packaged Source capture did not return a source id: $($captured.Text)"
+          }
+          $sourceId = $match.Groups[1].Value
+
+          # A fresh worker process must recover the same durable Source from disk.
+          $shown = Invoke-CapturedSourceWorker -WorkerArguments @("-m", "athena.desktop.sources_cli", "show", $sourceId) -Label "source-show"
+          if ($shown.ExitCode -ne 0) {
+            throw "Packaged Source reload failed: $($shown.Text)"
+          }
+          if ($shown.Text -notmatch [regex]::Escape("SOURCE $sourceId")) {
+            throw "Packaged Source identity was not recovered after worker restart: $($shown.Text)"
+          }
+          if ($shown.Text -notmatch [regex]::Escape("NAME $sourceName")) {
+            throw "Packaged Source metadata was not recovered after worker restart: $($shown.Text)"
+          }
+
       - name: Verify persistent Knowledge across packaged restarts
         shell: pwsh
         run: |
