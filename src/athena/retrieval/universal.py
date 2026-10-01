@@ -189,8 +189,15 @@ class UniversalSearchService:
         query: str,
         limit: int,
     ) -> tuple[_Candidate, ...]:
+        searchable = """(
+            coalesce(s.original_name, '') || ' ' ||
+            coalesce(s.source_type, '') || ' ' ||
+            coalesce(s.mime_type, '') || ' ' ||
+            coalesce(s.source_uri, '')
+        )"""
+        predicate, terms = _term_predicate(searchable, query)
         rows = connection.execute(
-            """
+            f"""
             SELECT
                 s.source_id,
                 s.original_name,
@@ -205,19 +212,11 @@ class UniversalSearchService:
             WHERE entity.lifecycle_state != 'deleted'
               AND s.lifecycle_state != 'deleted'
               AND protected.source_id IS NULL
-              AND instr(
-                    lower(
-                        coalesce(s.original_name, '') || ' ' ||
-                        coalesce(s.source_type, '') || ' ' ||
-                        coalesce(s.mime_type, '') || ' ' ||
-                        coalesce(s.source_uri, '')
-                    ),
-                    lower(?)
-                  ) > 0
+              AND {predicate}
             ORDER BY s.source_id ASC
             LIMIT ?
             """,
-            (query, min(400, max(limit * 8, 40))),
+            (*terms, min(400, max(limit * 8, 40))),
         ).fetchall()
         output: list[_Candidate] = []
         for row in rows:
@@ -251,8 +250,10 @@ class UniversalSearchService:
         query: str,
         limit: int,
     ) -> tuple[_Candidate, ...]:
+        searchable = "(scope.query_text || ' ' || result.content_json)"
+        predicate, terms = _term_predicate(searchable, query)
         rows = connection.execute(
-            """
+            f"""
             SELECT
                 result.result_id,
                 scope.query_text,
@@ -264,14 +265,11 @@ class UniversalSearchService:
               ON job.job_id = scope.job_id
             WHERE job.protection_scope_id IS NULL
               AND job.protected_payload_id IS NULL
-              AND instr(
-                    lower(scope.query_text || ' ' || result.content_json),
-                    lower(?)
-                  ) > 0
+              AND {predicate}
             ORDER BY result.result_id ASC
             LIMIT ?
             """,
-            (query, min(400, max(limit * 8, 40))),
+            (*terms, min(400, max(limit * 8, 40))),
         ).fetchall()
         output: list[_Candidate] = []
         for row in rows:
@@ -297,8 +295,16 @@ class UniversalSearchService:
         query: str,
         limit: int,
     ) -> tuple[_Candidate, ...]:
+        searchable = """(
+            job_type || ' ' ||
+            state || ' ' ||
+            coalesce(current_stage, '') || ' ' ||
+            coalesce(blocked_reason, '') || ' ' ||
+            coalesce(requested_scope_json, '')
+        )"""
+        predicate, terms = _term_predicate(searchable, query)
         rows = connection.execute(
-            """
+            f"""
             SELECT
                 job_id,
                 job_type,
@@ -309,20 +315,11 @@ class UniversalSearchService:
             FROM jobs
             WHERE protection_scope_id IS NULL
               AND protected_payload_id IS NULL
-              AND instr(
-                    lower(
-                        job_type || ' ' ||
-                        state || ' ' ||
-                        coalesce(current_stage, '') || ' ' ||
-                        coalesce(blocked_reason, '') || ' ' ||
-                        coalesce(requested_scope_json, '')
-                    ),
-                    lower(?)
-                  ) > 0
+              AND {predicate}
             ORDER BY job_id ASC
             LIMIT ?
             """,
-            (query, min(400, max(limit * 8, 40))),
+            (*terms, min(400, max(limit * 8, 40))),
         ).fetchall()
         output: list[_Candidate] = []
         for row in rows:
@@ -347,6 +344,17 @@ class UniversalSearchService:
                 )
             )
         return tuple(output)
+
+
+def _term_predicate(expression: str, query: str) -> tuple[str, tuple[str, ...]]:
+    terms = tuple(part.casefold() for part in query.split())
+    if not terms:
+        raise UniversalSearchError("Universal search query must contain searchable terms.")
+    clause = " AND ".join(
+        f"instr(lower({expression}), ?) > 0"
+        for _term in terms
+    )
+    return clause, terms
 
 
 def _query_text(value: object) -> str:
@@ -479,5 +487,12 @@ def _relevance(query: str, title: str | None, body: str) -> float:
         score += 1.0
         occurrences = body_text.count(needle)
         score += min(2.0, math.log2(max(1, occurrences)) * 0.25)
+
+    terms = tuple(part for part in needle.split() if part)
+    if terms:
+        title_hits = sum(term in title_text for term in terms)
+        body_hits = sum(term in body_text for term in terms)
+        score += 2.0 * title_hits / len(terms)
+        score += 0.75 * body_hits / len(terms)
 
     return score
