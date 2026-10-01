@@ -88,7 +88,7 @@ def test_cancel_bypasses_owner_queue_and_closes_pre_dispatch_race() -> None:
         surface,  # type: ignore[arg-type]
         executor,  # type: ignore[arg-type]
     )
-    raised: list[BaseException] = []
+    raised: list[Exception] = []
 
     def run_send() -> None:
         try:
@@ -97,7 +97,7 @@ def test_cancel_bypasses_owner_queue_and_closes_pre_dispatch_race() -> None:
                 content="cancel immediately",
                 operation_id=_OPERATION_ID,
             )
-        except BaseException as exc:
+        except Exception as exc:
             raised.append(exc)
 
     thread = threading.Thread(target=run_send)
