@@ -89,3 +89,5 @@ Base: `67174198e1494fd4c8678aad60756c39ef5c160b`
 
 - `46dae1314e007c4da4da3ab8b3f9d2454e737b27` — fix serializer framing
 - `de18f80920492244c2193d2d746984935a94e843` — focused framing regressions
+
+PR: #351 `Jobs: keep scope summaries inside one CLI record`.
