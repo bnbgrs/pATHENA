@@ -18,6 +18,8 @@ from typing import Any
 
 from athena.common.ids import uuid_from_blob
 from athena.storage.canonical_commit_bundle import (
+    FORMAT as COMMIT_FORMAT,
+    FORMAT_VERSION as COMMIT_FORMAT_VERSION,
     CanonicalCommitBundle,
     CanonicalCommitBundleError,
     verify_canonical_commit_bundle,
@@ -35,7 +37,21 @@ from athena.storage.structured_replication import (
     StructuredReplicationRepository,
 )
 
-_LAYOUT_NAME = "structured-replication-v1"
+_REPOSITORY_FORMAT = "athena.structured-replication-repository"
+_REPOSITORY_VERSION = 1
+_STORAGE_LAYOUT_VERSION = 1
+_REPOSITORY_LIMIT = 16 * 1024
+_REPOSITORY_KEYS = frozenset(
+    {
+        "format",
+        "format_version",
+        "repository_id",
+        "hash_algorithm",
+        "commit_format",
+        "commit_format_version",
+        "storage_layout_version",
+    }
+)
 _MANIFEST_FORMAT = "athena.structured-replication-head"
 _MANIFEST_VERSION = 1
 _MANIFEST_LIMIT = 16 * 1024
@@ -95,6 +111,72 @@ def _positive_int(value: object, *, label: str) -> int:
     if isinstance(value, bool) or not isinstance(value, int) or value < 1:
         raise _TargetHistoryError(f"{label} must be a positive integer.")
     return value
+
+
+def _canonical_repository_bytes(repository_id: uuid.UUID) -> bytes:
+    payload = {
+        "commit_format": COMMIT_FORMAT,
+        "commit_format_version": COMMIT_FORMAT_VERSION,
+        "format": _REPOSITORY_FORMAT,
+        "format_version": _REPOSITORY_VERSION,
+        "hash_algorithm": "sha256",
+        "repository_id": str(repository_id),
+        "storage_layout_version": _STORAGE_LAYOUT_VERSION,
+    }
+    return json.dumps(
+        payload,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")
+
+
+def _verify_repository_bytes(
+    data: bytes,
+    *,
+    expected_repository_id: uuid.UUID,
+) -> None:
+    try:
+        payload: Any = json.loads(data.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise _TargetHistoryError(
+            "Structured replication repository manifest is invalid JSON."
+        ) from exc
+    if not isinstance(payload, dict) or set(payload) != _REPOSITORY_KEYS:
+        raise _TargetHistoryError(
+            "Structured replication repository manifest has an invalid shape."
+        )
+    if (
+        payload.get("format") != _REPOSITORY_FORMAT
+        or payload.get("format_version") != _REPOSITORY_VERSION
+        or payload.get("hash_algorithm") != "sha256"
+        or payload.get("commit_format") != COMMIT_FORMAT
+        or payload.get("commit_format_version") != COMMIT_FORMAT_VERSION
+        or payload.get("storage_layout_version") != _STORAGE_LAYOUT_VERSION
+    ):
+        raise _TargetHistoryError(
+            "Structured replication repository manifest has an unsupported format."
+        )
+    repository_id = payload.get("repository_id")
+    if not isinstance(repository_id, str):
+        raise _TargetHistoryError(
+            "Structured replication repository identity is invalid."
+        )
+    try:
+        parsed = uuid.UUID(repository_id)
+    except ValueError as exc:
+        raise _TargetHistoryError(
+            "Structured replication repository identity is invalid."
+        ) from exc
+    if str(parsed) != repository_id or parsed != expected_repository_id:
+        raise _TargetHistoryError(
+            "Structured replication repository identity does not match the target."
+        )
+    if data != _canonical_repository_bytes(expected_repository_id):
+        raise _TargetHistoryError(
+            "Structured replication repository manifest bytes are not canonical."
+        )
 
 
 def _canonical_manifest_bytes(
@@ -340,14 +422,22 @@ class StructuredReplicationPublisher:
             raise StructuredReplicationPublicationError(
                 "Structured replication target locator must be an absolute path."
             )
-        layout_root = target_root / _LAYOUT_NAME
-        commits_dir = layout_root / "commits"
-        manifest_dir = layout_root / "manifest"
-
-        durable_mkdir(commits_dir, parents=True, exist_ok=True)
-        durable_mkdir(manifest_dir, parents=True, exist_ok=True)
+        durable_mkdir(target_root, parents=True, exist_ok=True)
+        commits_dir = target_root / "commits"
+        snapshots_dir = target_root / "snapshots"
+        manifest_dir = target_root / "manifests"
+        replication_dir = target_root / "replication"
 
         try:
+            self._ensure_repository_manifest(
+                target=target,
+                target_root=target_root,
+            )
+            durable_mkdir(commits_dir, parents=False, exist_ok=True)
+            durable_mkdir(snapshots_dir, parents=False, exist_ok=True)
+            durable_mkdir(manifest_dir, parents=False, exist_ok=True)
+            durable_mkdir(replication_dir, parents=False, exist_ok=True)
+
             entries = self._scan_target(
                 commits_dir=commits_dir,
                 manifest_dir=manifest_dir,
@@ -460,6 +550,81 @@ class StructuredReplicationPublisher:
             ):
                 return latest_target
             raise
+
+    def _ensure_repository_manifest(
+        self,
+        *,
+        target: ReplicationTarget,
+        target_root: Path,
+    ) -> None:
+        repository_path = target_root / "repository.json"
+        expected = _canonical_repository_bytes(target.target_id)
+        try:
+            existing = _read_regular_file(
+                repository_path,
+                max_bytes=_REPOSITORY_LIMIT,
+            )
+        except FileNotFoundError:
+            unexpected = [
+                item
+                for item in target_root.iterdir()
+                if not (
+                    item.name.startswith(".repository.json.")
+                    and item.name.endswith(".partial")
+                )
+            ]
+            if unexpected:
+                raise _TargetHistoryError(
+                    "Structured replication repository manifest is missing "
+                    "from a non-empty target."
+                )
+            try:
+                durable_publish_new_bytes(repository_path, expected)
+            except FileExistsError:
+                pass
+            try:
+                existing = _read_regular_file(
+                    repository_path,
+                    max_bytes=_REPOSITORY_LIMIT,
+                )
+            except FileNotFoundError as exc:
+                raise _TargetHistoryError(
+                    "Structured replication repository manifest disappeared "
+                    "during initialization."
+                ) from exc
+
+        if existing != expected:
+            _verify_repository_bytes(
+                existing,
+                expected_repository_id=target.target_id,
+            )
+            raise _TargetHistoryError(
+                "Structured replication repository manifest differs "
+                "from the expected target identity."
+            )
+        _verify_repository_bytes(
+            existing,
+            expected_repository_id=target.target_id,
+        )
+
+        allowed = {
+            "repository.json",
+            "commits",
+            "snapshots",
+            "manifests",
+            "replication",
+        }
+        for item in target_root.iterdir():
+            if item.name in allowed:
+                continue
+            if (
+                item.name.startswith(".repository.json.")
+                and item.name.endswith(".partial")
+            ):
+                continue
+            raise _TargetHistoryError(
+                f"Unexpected long-term repository entry: {item.name}"
+            )
 
     def _assert_canonical_commit_identity(
         self,
