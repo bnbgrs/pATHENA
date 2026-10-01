@@ -6,7 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from athena.chat.generation import ChatGenerationService
+from athena.chat.generation import ChatGenerationService, GenerationCancelledError
+from athena.chat.grounding import GroundingContract, GroundingEvidenceRef
 from athena.chat.models import MessageType
 from athena.chat.repository import ChatRepository
 from athena.chat.service import ChatService
@@ -151,6 +152,72 @@ def test_context_package_generation_uses_only_package_messages(tmp_path) -> None
         assert "Hidden historical assistant turn" not in flattened
         assert result.user_message.message_id == current.message_id
         assert result.assistant_message.message_type is MessageType.ASSISTANT
+    finally:
+        database.stop()
+
+
+def test_grounded_context_package_cancel_blocks_late_visible_deltas(
+    tmp_path,
+) -> None:
+    database = _database(tmp_path)
+    try:
+        chat = ChatService(ChatRepository(database))
+        chat_id = chat.create_chat()
+        current = chat.add_user_message(
+            chat_id=chat_id,
+            content="Current grounded request",
+        )
+        package = _package(current, snapshot_commit_seq=2)
+        provider = FakeProvider()
+
+        def grounded_stream(
+            *,
+            model_id: str,
+            messages: Sequence[ModelChatMessage],
+            max_output_tokens: int | None = None,
+            reasoning_mode: str | None = None,
+        ) -> Iterator[str]:
+            assert max_output_tokens == 1000
+            assert reasoning_mode == "off"
+            provider.requests.append((model_id, tuple(messages)))
+            yield "Grounded answer [CTX-001]"
+
+        provider.stream_chat = grounded_stream  # type: ignore[method-assign]
+        service = ChatGenerationService(chat, provider)
+        visible: list[str] = []
+        checks = 0
+
+        def cancel_requested() -> bool:
+            nonlocal checks
+            checks += 1
+            return checks >= 6
+
+        contract = GroundingContract(
+            evidence_refs=(
+                GroundingEvidenceRef(
+                    context_id="CTX-001",
+                    entity_type="knowledge",
+                    entity_id=uuid.uuid4(),
+                    revision_id=uuid.uuid4(),
+                ),
+            ),
+        )
+
+        with pytest.raises(GenerationCancelledError):
+            service.send_context_package(
+                chat_id=chat_id,
+                user_message=current,
+                context_package=package,
+                on_delta=visible.append,
+                grounding_contract=contract,
+                cancel_requested=cancel_requested,
+            )
+
+        assert visible == []
+        thread = chat.load_chat(chat_id)
+        assert [message.message_type for message in thread.messages] == [
+            MessageType.USER,
+        ]
     finally:
         database.stop()
 
