@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import uuid
 
 import pytest
 
@@ -40,7 +41,7 @@ def _serialize(
     previous_hash: str | None = "AB" * 32,
 ):
     return serialize_canonical_commit_bundle(
-        commit_id="018f0000-0000-7000-8000-000000000001",
+        commit_id=uuid.UUID("018f0000-0000-7000-8000-000000000001"),
         commit_seq=7,
         schema_version=41,
         previous_hash=previous_hash,
@@ -228,6 +229,17 @@ def test_extra_envelope_fields_are_rejected() -> None:
 def test_invalid_unicode_scalar_is_rejected() -> None:
     with pytest.raises(CanonicalCommitBundleError, match="Invalid Unicode scalar"):
         _serialize([_record("bad-surrogate", metadata={"bad": "\ud800"})])
+
+
+def test_commit_id_requires_canonical_uuid_type() -> None:
+    with pytest.raises(CanonicalCommitBundleError, match="commit_id must be a UUID"):
+        serialize_canonical_commit_bundle(
+            commit_id="018f0000-0000-7000-8000-000000000001",  # type: ignore[arg-type]
+            commit_seq=7,
+            schema_version=41,
+            previous_hash=None,
+            records=[_record("a")],
+        )
 
 
 def test_invalid_previous_hash_is_rejected() -> None:
