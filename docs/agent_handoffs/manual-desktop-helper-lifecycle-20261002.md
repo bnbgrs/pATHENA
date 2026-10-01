@@ -33,21 +33,26 @@ canonical storage/database lifecycle to be open.
 
 ## Changes
 
-All six internal desktop helper entry points now start/stop only
-`app.storage_bootstrap` around the existing command implementation:
+The four conflict-free internal desktop helper entry points in this candidate
+now start/stop only `app.storage_bootstrap` around the existing command
+implementation:
 
 - `src/athena/desktop/canonical_memory_cli.py`
 - `src/athena/desktop/jobs_cli.py`
-- `src/athena/desktop/knowledge_cli.py`
 - `src/athena/desktop/research_cli.py`
-- `src/athena/desktop/research_results_cli.py`
 - `src/athena/desktop/sources_cli.py`
+
+The same root cause also exists in `knowledge_cli.py` and
+`research_results_cli.py`, but those files became owned by active PRs #343
+and #357 during this run. They were removed from this candidate and the exact
+follow-up was posted directly on both PRs.
 
 No command semantics, repository calls, transition rules, output protocol, job
 payloads, Source ingestion behavior, Knowledge acceptance behavior, Research
 promotion behavior, or UI layout changed.
 
-`tests/unit/test_desktop_helper_lifecycle.py` covers every helper and asserts:
+`tests/unit/test_desktop_helper_lifecycle.py` covers all four helpers in this
+candidate and asserts:
 
 - full `AthenaApplication.start()` is never called;
 - full `AthenaApplication.stop()` is never called;
@@ -87,10 +92,15 @@ The integration candidate was rebuilt fresh from
 `fix/jobs-helper-lifecycle-20261002-sol`. It does not modify any #344-owned
 file.
 
+Later in the run, #343 expanded to own `knowledge_cli.py` and #357 appeared
+owning `research_results_cli.py`. Both files were restored to Develop content
+in #353. Handoff comments were posted on #343 and #357 so those owners can
+apply the lifecycle fix without conflict.
+
 Other active Chat, LM Studio, Settings/News, Sources import queue, Windows
-packaging, Obsidian, Backup, Model and Update PR file sets were rechecked before
-this broader helper-lifecycle change; none owns these six CLI files or the new
-focused test.
+packaging, Obsidian, Backup, Model and Update PR file sets were rechecked. The
+final #353 candidate owns only the four CLI files listed above, the focused test
+and this handoff.
 
 ## Validation
 
@@ -102,8 +112,8 @@ Performed before PR:
 
 - exact branch/develop comparison;
 - branch is 0 commits behind current Develop at comparison time;
-- final candidate changes only the six helper entry points, one focused test and
-  this handoff;
+- final candidate changes only four conflict-free helper entry points, one
+  focused test and this handoff;
 - >100-character and trailing-whitespace checks are clean for the initially
   modified Jobs slice; exact CI remains authoritative for the full candidate.
 
