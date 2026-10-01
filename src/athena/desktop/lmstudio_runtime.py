@@ -155,8 +155,15 @@ def _process_command(lms_path: str, arguments: tuple[str, ...]) -> tuple[str, li
 
 
 def _coerce_idle_minutes(value: object, *, default: int = 30) -> int:
-    """Return one bounded genuine-integer idle value from persisted settings."""
-    parsed = value if isinstance(value, int) and not isinstance(value, bool) else default
+    """Return one bounded idle value without bool-to-int coercion."""
+    if isinstance(value, bool):
+        parsed = default
+    elif isinstance(value, int):
+        parsed = value
+    elif isinstance(value, str) and value.strip().lstrip("-").isdigit():
+        parsed = int(value.strip())
+    else:
+        parsed = default
     return max(0, min(1440, parsed))
 
 
@@ -316,7 +323,7 @@ class LMStudioRuntimeController(QObject):
         try:
             auto_start = self.settings.value("auto_start", True, type=bool)
             auto_load = self.settings.value("auto_load", True, type=bool)
-            idle_minutes = self.settings.value("idle_minutes", 30, type=int)
+            idle_minutes = self.settings.value("idle_minutes", 30)
             preferred_model_id = self.settings.value("preferred_model_id", "", type=str)
         finally:
             self.settings.endGroup()
