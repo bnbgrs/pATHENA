@@ -726,7 +726,7 @@ class LMStudioProvider:
         return ""
 
     def _parse_model(self, raw: Mapping[str, Any]) -> ModelInfo:
-        key = self._required_string(raw, "key")
+        key = self._required_canonical_string(raw, "key")
         display_name = self._required_string(raw, "display_name")
         model_type = self._required_string(raw, "type")
 
@@ -800,6 +800,19 @@ class LMStudioProvider:
         if not isinstance(value, str) or not value:
             raise ProviderProtocolError(
                 f"LM Studio model entry has invalid {field!r}."
+            )
+        return value
+
+    @staticmethod
+    def _required_canonical_string(raw: Mapping[str, Any], field: str) -> str:
+        value = raw.get(field)
+        if (
+            not isinstance(value, str)
+            or not value.strip()
+            or value != value.strip()
+        ):
+            raise ProviderProtocolError(
+                f"LM Studio model entry has non-canonical {field!r}."
             )
         return value
 
