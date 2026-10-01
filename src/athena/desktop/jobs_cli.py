@@ -174,14 +174,18 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(list(argv) if argv is not None else None)
     app = AthenaApplication()
     try:
-        app.start(run_startup_maintenance=False)
+        # This helper only needs canonical storage plus the already-composed
+        # durable Jobs service. Starting the whole Core would also bootstrap
+        # unrelated services (notably News), so read-only list/show commands
+        # could cause cross-subsystem writes.
+        app.storage_bootstrap.start()
         return _run(app, args)
     except Exception as exc:
         print(f"JOBS_ERROR {type(exc).__name__}: {exc}", file=sys.stderr)
         return 2
     finally:
         try:
-            app.stop()
+            app.storage_bootstrap.stop()
         except Exception:
             pass
 
