@@ -7,6 +7,12 @@ from pathlib import Path
 
 import pytest
 
+from athena.desktop.packaged_app import (
+    PackagedInvocationError,
+    PackagedTarget,
+    route_packaged_argv,
+)
+
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _BUILD_SCRIPT = _REPO_ROOT / "scripts" / "build_windows_portable.ps1"
 _PACKAGING_SAFETY = _REPO_ROOT / "scripts" / "windows_packaging_safety.ps1"
@@ -137,6 +143,37 @@ def test_packaged_worker_keeps_fail_closed_argv_and_desktop_refusal() -> None:
         '        print("pATHENA worker refuses a desktop invocation.", file=sys.stderr)\n'
         "        return 2\n"
     ) in worker
+
+
+@pytest.mark.parametrize(
+    ("module_name", "expected_target"),
+    (
+        ("athena.api.process", PackagedTarget.CORE),
+        ("athena", PackagedTarget.ATHENA_CLI),
+        ("athena.desktop.jobs_cli", PackagedTarget.JOBS_CLI),
+        ("athena.desktop.research_cli", PackagedTarget.RESEARCH_CLI),
+        ("athena.desktop.sources_cli", PackagedTarget.SOURCES_CLI),
+        ("athena.desktop.knowledge_cli", PackagedTarget.KNOWLEDGE_CLI),
+        (
+            "athena.desktop.knowledge_obsidian_export",
+            PackagedTarget.KNOWLEDGE_OBSIDIAN_EXPORT,
+        ),
+        ("athena.desktop.canonical_memory_cli", PackagedTarget.CANONICAL_MEMORY_CLI),
+    ),
+)
+def test_packaged_router_accepts_desktop_child_roles(
+    module_name: str,
+    expected_target: PackagedTarget,
+) -> None:
+    invocation = route_packaged_argv(("-m", module_name, "--help"))
+
+    assert invocation.target is expected_target
+    assert invocation.arguments == ("--help",)
+
+
+def test_packaged_router_still_rejects_unknown_module() -> None:
+    with pytest.raises(PackagedInvocationError, match="unsupported module dispatch"):
+        route_packaged_argv(("-m", "athena.desktop.not_a_real_helper"))
 
 
 @pytest.mark.skipif(sys.platform != "win32", reason="native Windows path semantics")
