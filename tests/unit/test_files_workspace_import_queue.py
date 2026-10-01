@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
-
 import pytest
 from PySide6.QtCore import QProcess
 from PySide6.QtWidgets import QFileDialog
@@ -141,7 +139,6 @@ def test_import_paths_waits_for_existing_process_before_starting(tmp_path: Path)
 
 def test_successful_import_continues_queue_without_intermediate_refresh(
     tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     harness = _QueueHarness()
     first = _touch(tmp_path / "first.md")
@@ -156,12 +153,6 @@ def test_successful_import_continues_queue_without_intermediate_refresh(
     harness._pending_imports = [second]
     harness._buffer = f"SOURCE_CAPTURED {captured}\nPROCESS_QUEUED\n"
     setattr(harness, "refresh", lambda: refreshes.append(True))
-    monkeypatch.setattr(
-        files_workspace_module.QTimer,
-        "singleShot",
-        lambda _delay, callback: callback(),
-    )
-
     FilesWorkspace._process_finished(
         harness,  # type: ignore[arg-type]
         0,
