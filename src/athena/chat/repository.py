@@ -236,12 +236,15 @@ class ChatRepository:
                 SELECT
                     m.sequence_no,
                     h.current_revision_id AS revision_id,
-                    c.protection_scope_id
+                    c.protection_scope_id AS chat_protection_scope_id,
+                    ce.protection_scope_id AS entity_protection_scope_id
                 FROM chat_messages AS m
                 JOIN entity_heads AS h
                   ON h.entity_id = m.message_id
                 JOIN chats AS c
                   ON c.chat_id = m.chat_id
+                JOIN entity_registry AS ce
+                  ON ce.entity_id = c.chat_id
                 WHERE m.chat_id = ?
                   AND m.message_id = ?
                 """,
@@ -253,7 +256,10 @@ class ChatRepository:
             if fork_point is None:
                 raise ChatMessageNotFoundError(str(source_message_id))
 
-            if fork_point["protection_scope_id"] is not None:
+            if (
+                fork_point["chat_protection_scope_id"] is not None
+                or fork_point["entity_protection_scope_id"] is not None
+            ):
                 raise UnsupportedChatForkError(
                     "Protected chats require protection-scope-aware fork semantics."
                 )
@@ -272,7 +278,8 @@ class ChatRepository:
                     r.payload_hash,
                     mr.content,
                     mr.content_format,
-                    mr.protected_payload_id
+                    mr.protected_payload_id,
+                    me.protection_scope_id AS entity_protection_scope_id
                 FROM chat_messages AS m
                 JOIN entity_heads AS h
                   ON h.entity_id = m.message_id
@@ -280,6 +287,8 @@ class ChatRepository:
                   ON r.revision_id = h.current_revision_id
                 JOIN chat_message_revisions AS mr
                   ON mr.revision_id = r.revision_id
+                JOIN entity_registry AS me
+                  ON me.entity_id = m.message_id
                 WHERE m.chat_id = ?
                   AND m.sequence_no <= ?
                 ORDER BY m.sequence_no ASC
@@ -287,7 +296,11 @@ class ChatRepository:
                 (uuid_to_blob(chat_id), fork_sequence),
             ).fetchall()
 
-            if any(row["protected_payload_id"] is not None for row in source_rows):
+            if any(
+                row["protected_payload_id"] is not None
+                or row["entity_protection_scope_id"] is not None
+                for row in source_rows
+            ):
                 raise UnsupportedChatForkError(
                     "Protected message revisions require protection-scope-aware fork semantics."
                 )
@@ -499,10 +512,19 @@ class ChatRepository:
                     m.message_type,
                     m.actor_id,
                     h.current_revision_id,
-                    h.current_revision_no
+                    h.current_revision_no,
+                    c.protection_scope_id AS chat_protection_scope_id,
+                    e.protection_scope_id AS message_protection_scope_id,
+                    mr.protected_payload_id
                 FROM chat_messages AS m
                 JOIN entity_heads AS h
                   ON h.entity_id = m.message_id
+                JOIN chats AS c
+                  ON c.chat_id = m.chat_id
+                JOIN entity_registry AS e
+                  ON e.entity_id = m.message_id
+                JOIN chat_message_revisions AS mr
+                  ON mr.revision_id = h.current_revision_id
                 WHERE m.chat_id = ?
                   AND m.message_id = ?
                 """,
@@ -516,6 +538,14 @@ class ChatRepository:
             if str(row["message_type"]) != MessageType.USER.value:
                 raise UnsupportedMessageEditError(
                     "Only user-authored chat messages can be edited."
+                )
+            if (
+                row["chat_protection_scope_id"] is not None
+                or row["message_protection_scope_id"] is not None
+                or row["protected_payload_id"] is not None
+            ):
+                raise UnsupportedMessageEditError(
+                    "Protected messages require protection-scope-aware edit semantics."
                 )
 
             message_actor_blob = row["actor_id"]
