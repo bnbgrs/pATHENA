@@ -555,3 +555,63 @@ def test_retry_of_already_verified_commit_is_read_only_and_successful(tmp_path: 
     assert commit_path.read_bytes() == commit_bytes
     assert repository.get_commit(target_id, commit_seq).verified_at_us == 80
     database.stop()
+
+
+def test_retry_of_older_verified_commit_after_head_advanced_is_safe(tmp_path: Path) -> None:
+    database, repository, actor_id, root, target_id = _runtime(tmp_path)
+
+    first_id = uuid.uuid4()
+    first_seq = _commit(database, actor_id, commit_id=first_id, marker=1)
+    first = _bundle(commit_id=first_id, commit_seq=first_seq, previous_hash=None)
+    _stage(
+        repository,
+        target_id,
+        bundle=first,
+        commit_seq=first_seq,
+        previous_hash=None,
+    )
+    publish_staged_commit(
+        repository,
+        target_id=target_id,
+        target_root=root,
+        bundle_data=first.data,
+        now_us=100,
+    )
+
+    second_id = uuid.uuid4()
+    second_seq = _commit(database, actor_id, commit_id=second_id, marker=2)
+    second = _bundle(
+        commit_id=second_id,
+        commit_seq=second_seq,
+        previous_hash=first.bundle_hash,
+    )
+    _stage(
+        repository,
+        target_id,
+        bundle=second,
+        commit_seq=second_seq,
+        previous_hash=first.bundle_hash,
+    )
+    advanced = publish_staged_commit(
+        repository,
+        target_id=target_id,
+        target_root=root,
+        bundle_data=second.data,
+        now_us=110,
+    )
+    head_before = (root / "replication" / "head.json").read_bytes()
+
+    retried = publish_staged_commit(
+        repository,
+        target_id=target_id,
+        target_root=root,
+        bundle_data=first.data,
+        now_us=120,
+    )
+
+    assert retried == advanced
+    assert retried.confirmed_commit_seq == second_seq
+    assert retried.confirmed_head_hash == second.bundle_hash
+    assert (root / "replication" / "head.json").read_bytes() == head_before
+    assert repository.get_commit(target_id, first_seq).verified_at_us == 100
+    database.stop()
