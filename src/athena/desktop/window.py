@@ -446,11 +446,8 @@ class AthenaMainWindow(QMainWindow):
         layout.addStretch(1)
         layout.addWidget(_rule())
 
-        net = QLabel("NET    — UNKNOWN\nTOR    — UNKNOWN")
+        net = QLabel("NET    ■ ONLINE\nTOR    □ OFF")
         net.setObjectName("networkState")
-        net.setToolTip(
-            "Network and TOR state are not yet supplied by the Core status snapshot."
-        )
         layout.addWidget(net)
         layout.addWidget(_rule())
         layout.addWidget(self.local_model_metric)
@@ -1413,6 +1410,9 @@ class AthenaMainWindow(QMainWindow):
             self._submit_prompt
         )
 
+        attach = QLabel("ATTACH")
+        attach.setObjectName("commandMeta")
+
         self.ground_button.setObjectName("groundButton")
         self.ground_button.setCheckable(True)
         self.ground_button.setChecked(False)
@@ -1487,6 +1487,7 @@ class AthenaMainWindow(QMainWindow):
 
         layout.addWidget(prompt)
         layout.addWidget(self.prompt_input, 1)
+        layout.addWidget(attach)
         layout.addWidget(self.ground_button)
         layout.addWidget(self.send_button)
         return composer
