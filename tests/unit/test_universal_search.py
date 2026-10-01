@@ -35,6 +35,9 @@ class _Database:
             CREATE TABLE protected_sources (
                 source_id BLOB PRIMARY KEY
             );
+            CREATE TABLE source_protection_transitions (
+                source_id BLOB PRIMARY KEY
+            );
             CREATE TABLE jobs (
                 job_id BLOB PRIMARY KEY,
                 job_type TEXT NOT NULL,
@@ -99,6 +102,7 @@ def _insert_rows(database: _Database) -> dict[str, uuid.UUID]:
     ids = {
         "source": uuid.UUID("33333333-3333-3333-3333-333333333333"),
         "protected_source": uuid.UUID("44444444-4444-4444-4444-444444444444"),
+        "transitioning_source": uuid.UUID("cccccccc-cccc-4ccc-8ccc-cccccccccccc"),
         "job": uuid.UUID("55555555-5555-5555-5555-555555555555"),
         "protected_job": uuid.UUID("66666666-6666-6666-6666-666666666666"),
         "scope": uuid.UUID("77777777-7777-7777-7777-777777777777"),
@@ -108,7 +112,7 @@ def _insert_rows(database: _Database) -> dict[str, uuid.UUID]:
         "protection": uuid.UUID("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"),
     }
 
-    for key in ("source", "protected_source"):
+    for key in ("source", "protected_source", "transitioning_source"):
         connection.execute(
             "INSERT INTO entity_registry(entity_id, lifecycle_state) VALUES (?, 'active')",
             (ids[key].bytes,),
@@ -133,6 +137,20 @@ def _insert_rows(database: _Database) -> dict[str, uuid.UUID]:
     connection.execute(
         "INSERT INTO protected_sources(source_id) VALUES (?)",
         (ids["protected_source"].bytes,),
+    )
+
+    connection.execute(
+        """
+        INSERT INTO sources(
+            source_id, original_name, source_type, mime_type, source_uri, lifecycle_state
+        ) VALUES (?, 'Alpha transition.pdf', 'file', 'application/pdf',
+                  'file:///transition.pdf', 'active')
+        """,
+        (ids["transitioning_source"].bytes,),
+    )
+    connection.execute(
+        "INSERT INTO source_protection_transitions(source_id) VALUES (?)",
+        (ids["transitioning_source"].bytes,),
     )
 
     connection.execute(
@@ -204,6 +222,10 @@ def test_universal_search_combines_real_domains_and_excludes_protected_text() ->
         f"job:{ids['job']}",
     }
     assert all(str(ids["protected_source"]) not in item.result_ref for item in results)
+    assert all(
+        str(ids["transitioning_source"]) not in item.result_ref
+        for item in results
+    )
     assert all(str(ids["protected_job"]) not in item.result_ref for item in results)
     assert all(str(ids["protected_result"]) not in item.result_ref for item in results)
 
