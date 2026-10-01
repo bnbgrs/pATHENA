@@ -28,6 +28,7 @@ class ObsidianWatchStatus(str, Enum):
     """Observable result for one stable managed-file observation."""
 
     SELF_WRITE_IGNORED = "self_write_ignored"
+    IMPORT_CANDIDATE = "import_candidate"
     APPLIED = "applied"
     UNCHANGED = "unchanged"
     CONFLICT = "conflict"
@@ -184,14 +185,26 @@ class ObsidianVaultWatcher:
             )
         try:
             markdown = payload.decode("utf-8")
-            parsed = parse_obsidian_knowledge_edit(markdown)
-            revision = self._reconciler.apply_markdown(markdown)
         except UnicodeDecodeError as exc:
             return ObsidianWatchResult(
                 relative_path=relative_path,
                 status=ObsidianWatchStatus.REJECTED,
                 detail=f"Managed Obsidian projection is not UTF-8: {exc}",
             )
+
+        if not _contains_managed_identity(markdown):
+            return ObsidianWatchResult(
+                relative_path=relative_path,
+                status=ObsidianWatchStatus.IMPORT_CANDIDATE,
+                detail=(
+                    "Markdown file has no ATHENA identity; explicit import "
+                    "classification is required."
+                ),
+            )
+
+        try:
+            parsed = parse_obsidian_knowledge_edit(markdown)
+            revision = self._reconciler.apply_markdown(markdown)
         except ObsidianImportConflictError as exc:
             return ObsidianWatchResult(
                 relative_path=relative_path,
@@ -223,14 +236,21 @@ class ObsidianVaultWatcher:
             raise NotADirectoryError(
                 f"Obsidian Knowledge root is an unsafe filesystem boundary: {knowledge_root}"
             )
+
         files: dict[str, Path] = {}
-        for path in knowledge_root.iterdir():
-            if path.suffix.lower() != ".md":
-                continue
-            if is_link_boundary(path) or not path.is_file():
-                continue
-            relative_path = path.relative_to(self._vault_root).as_posix()
-            files[relative_path] = path
+        pending = [knowledge_root]
+        while pending:
+            directory = pending.pop()
+            for path in sorted(directory.iterdir(), key=lambda item: item.name.casefold()):
+                if is_link_boundary(path):
+                    continue
+                if path.is_dir():
+                    pending.append(path)
+                    continue
+                if path.suffix.lower() != ".md" or not path.is_file():
+                    continue
+                relative_path = path.relative_to(self._vault_root).as_posix()
+                files[relative_path] = path
         return files
 
     def _assert_safe_vault_root(self) -> None:
@@ -369,6 +389,26 @@ class ObsidianVaultWatchService:
         with self._lock:
             self._last_result = result
 
+
+
+def _contains_managed_identity(markdown: str) -> bool:
+    """Return whether front matter claims a canonical/legacy ATHENA identity."""
+
+    normalized = markdown.replace("\r\n", "\n").replace("\r", "\n")
+    lines = normalized.split("\n")
+    if not lines or lines[0] != "---":
+        return False
+
+    try:
+        end = lines.index("---", 1)
+    except ValueError:
+        end = len(lines)
+
+    for line in lines[1:end]:
+        key, separator, _raw = line.partition(":")
+        if separator and key.strip() in {"athena_id", "athena_knowledge_id"}:
+            return True
+    return False
 
 def _normalize_relative_path(relative_path: str) -> str:
     if not isinstance(relative_path, str):
