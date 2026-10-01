@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import uuid
 from pathlib import Path
 
 import pytest
@@ -196,3 +197,95 @@ def test_target_root_rejects_windows_reparse_boundary_contract(
             app.backup._normalize_target_path(target)
     finally:
         app.stop()
+
+
+def test_retention_recovery_rejects_reparse_trash_root(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = AthenaApplication(settings=AthenaSettings(local_root=tmp_path / "runtime"))
+    app.start()
+    target = tmp_path / "backup-target"
+    target.mkdir()
+    trash = target / app.backup.RETENTION_TRASH_NAME
+    trash.mkdir()
+    real_is_link_boundary = backup_module.is_link_boundary
+
+    def redirected(path: Path) -> bool:
+        return path == trash or real_is_link_boundary(path)
+
+    monkeypatch.setattr(backup_module, "is_link_boundary", redirected)
+    try:
+        with pytest.raises(BackupRestoreError, match="retention trash is invalid"):
+            app.backup._recover_retention_locked(
+                target_id=uuid.uuid4(),
+                target=target,
+            )
+    finally:
+        app.stop()
+
+
+def test_retention_recovery_rejects_reparse_snapshot_entry(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = AthenaApplication(settings=AthenaSettings(local_root=tmp_path / "runtime"))
+    app.start()
+    target = tmp_path / "backup-target"
+    target.mkdir()
+    trash = target / app.backup.RETENTION_TRASH_NAME
+    trash.mkdir()
+    entry = trash / str(uuid.uuid4())
+    entry.mkdir()
+    real_is_link_boundary = backup_module.is_link_boundary
+
+    def redirected(path: Path) -> bool:
+        return path == entry or real_is_link_boundary(path)
+
+    monkeypatch.setattr(backup_module, "is_link_boundary", redirected)
+    try:
+        with pytest.raises(BackupRestoreError, match="Unexpected retention-trash entry"):
+            app.backup._recover_retention_locked(
+                target_id=uuid.uuid4(),
+                target=target,
+            )
+    finally:
+        app.stop()
+
+
+def test_object_reference_scan_rejects_reparse_snapshots_root(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = AthenaApplication(settings=AthenaSettings(local_root=tmp_path / "runtime"))
+    app.start()
+    target = tmp_path / "backup-target"
+    target.mkdir()
+    snapshots = target / "snapshots"
+    snapshots.mkdir()
+    real_is_link_boundary = backup_module.is_link_boundary
+
+    def redirected(path: Path) -> bool:
+        return path == snapshots or real_is_link_boundary(path)
+
+    monkeypatch.setattr(backup_module, "is_link_boundary", redirected)
+    try:
+        with pytest.raises(BackupRestoreError, match="snapshots directory is invalid"):
+            app.backup._collect_physical_object_refs(target=target)
+    finally:
+        app.stop()
+
+
+def test_fsynced_metadata_rejects_reparse_destination_contract(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    destination = tmp_path / "metadata.json"
+    monkeypatch.setattr(
+        backup_module,
+        "is_link_boundary",
+        lambda path: path == destination,
+    )
+
+    with pytest.raises(FileExistsError, match="destination already exists"):
+        backup_module._write_fsynced(destination, b"{}\n")
