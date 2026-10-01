@@ -1605,6 +1605,8 @@ class AthenaMainWindow(QMainWindow):
         )
         controller.chat_operation_failed.connect(self.apply_chat_operation_failure)
         controller.chat_busy_changed.connect(self.apply_chat_busy)
+        controller.chat_cancel_state_changed.connect(self.apply_chat_cancel_state)
+        controller.chat_cancelled.connect(self.apply_chat_cancelled)
 
         QTimer.singleShot(0, self.refresh_core_status)
         self.refresh_timer.start()
@@ -2014,16 +2016,66 @@ class AthenaMainWindow(QMainWindow):
     @Slot(bool)
     def apply_chat_busy(self, busy: bool) -> None:
         self._chat_busy = busy
-        self.send_button.setText("WORKING" if busy else "SEND")
         self._sync_composer_enabled()
+
+    @Slot(str, str)
+    def apply_chat_cancel_state(self, state: str, detail: str) -> None:
+        if detail:
+            self.connection_detail.setText(detail)
+        self._sync_composer_enabled()
+
+    @Slot(str)
+    def apply_chat_cancelled(self, operation_id: str) -> None:
+        del operation_id
+        self.connection_detail.setText(
+            "Generation stopped. The incomplete assistant response was not saved."
+        )
+        self._sync_composer_enabled()
+        QTimer.singleShot(0, self.refresh_core_status)
+
+    def _sync_send_action_presentation(self) -> None:
+        controller = self.api_controller
+        if not self._chat_busy:
+            self.send_button.setText("SEND")
+            self.send_button.setAccessibleName("Send message")
+            self.send_button.setToolTip("Send message · Ctrl+Enter")
+            return
+
+        if controller is not None and controller.can_cancel_active_chat:
+            if controller.chat_cancel_pending:
+                self.send_button.setText("STOPPING")
+                self.send_button.setAccessibleName("Cancellation requested")
+                self.send_button.setToolTip(
+                    "Cancellation was requested; waiting for generation to stop."
+                )
+            else:
+                self.send_button.setText("STOP")
+                self.send_button.setAccessibleName("Stop response")
+                self.send_button.setToolTip(
+                    "Stop the current direct-chat generation · Ctrl+Enter"
+                )
+            return
+
+        self.send_button.setText("WORKING")
+        self.send_button.setAccessibleName("Generation in progress")
+        self.send_button.setToolTip(
+            "This operation cannot currently be stopped from the desktop."
+        )
 
     @Slot()
     def _submit_prompt(self) -> None:
         controller = self.api_controller
+        if controller is None:
+            return
+        if self._chat_busy:
+            if (
+                controller.can_cancel_active_chat
+                and not controller.chat_cancel_pending
+            ):
+                controller.cancel_active_chat_operation()
+            return
         if (
-            controller is None
-            or not self._core_ready
-            or self._chat_busy
+            not self._core_ready
             or self.pending_chat_id is not None
         ):
             return
@@ -2182,15 +2234,22 @@ class AthenaMainWindow(QMainWindow):
         )
 
     def _sync_composer_enabled(self) -> None:
+        controller = self.api_controller
         enabled = (
-            self.api_controller is not None
+            controller is not None
             and self._core_ready
             and not self._chat_busy
             and self.pending_chat_id is None
         )
+        cancellable = (
+            controller is not None
+            and controller.can_cancel_active_chat
+            and not controller.chat_cancel_pending
+        )
         self.prompt_input.setEnabled(enabled)
         self.ground_button.setEnabled(enabled)
-        self.send_button.setEnabled(enabled)
+        self.send_button.setEnabled(enabled or cancellable)
+        self._sync_send_action_presentation()
         controls_available = (
             self.api_controller is not None
             and not self._chat_busy
