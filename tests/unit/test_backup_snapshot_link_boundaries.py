@@ -458,7 +458,7 @@ def test_recursive_cleanup_never_follows_redirected_root(
 
     with pytest.raises(
         BackupRestoreError,
-        match="Refusing to recursively remove redirected backup path",
+        match="redirecting filesystem boundary",
     ):
         backup_module._remove_tree_without_redirect(redirected)
 
@@ -531,3 +531,34 @@ def test_safe_existing_file_rejects_non_relative_paths(
         match="not a safe relative path",
     ):
         backup_module._safe_existing_file(root, relative)
+
+
+def test_recursive_cleanup_rejects_redirected_parent(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    parent = tmp_path / "redirect-parent"
+    child = parent / "cleanup-target"
+    child.mkdir(parents=True)
+    called = False
+    real_is_link_boundary = backup_module.is_link_boundary
+
+    def redirected(path: Path) -> bool:
+        return path == parent or real_is_link_boundary(path)
+
+    def forbidden_rmtree(path: Path) -> None:
+        nonlocal called
+        called = True
+        raise AssertionError(f"rmtree must not cross redirected parent: {path}")
+
+    monkeypatch.setattr(backup_module, "is_link_boundary", redirected)
+    monkeypatch.setattr(backup_module.shutil, "rmtree", forbidden_rmtree)
+
+    with pytest.raises(
+        BackupRestoreError,
+        match="redirecting filesystem boundary",
+    ):
+        backup_module._remove_tree_without_redirect(child)
+
+    assert called is False
+    assert child.exists()
