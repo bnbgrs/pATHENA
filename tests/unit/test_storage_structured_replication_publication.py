@@ -853,3 +853,55 @@ def test_retry_of_older_verified_bundle_after_head_advanced_is_read_only(
         } == before_manifests
     finally:
         database.stop()
+
+
+def test_existing_managed_file_marks_target_conflict_without_overwrite(
+    tmp_path: Path,
+) -> None:
+    database, repository, actor_id = _runtime(tmp_path)
+    try:
+        target_root = tmp_path / "long-term"
+        target = repository.register_target(str(target_root))
+
+        durable_mkdir(target_root, parents=True, exist_ok=True)
+        durable_publish_new_bytes(
+            target_root / "repository.json",
+            publication._canonical_repository_bytes(target.target_id),
+        )
+        commits_path = target_root / "commits"
+        commits_path.write_bytes(b"not-a-directory")
+
+        commit_seq, commit_id = _commit(database, actor_id, 1)
+        bundle = _bundle(
+            commit_id=commit_id,
+            commit_seq=commit_seq,
+            previous_hash=None,
+            marker=1,
+        )
+        _stage(
+            repository,
+            target.target_id,
+            bundle,
+            commit_seq=commit_seq,
+            previous_hash=None,
+        )
+
+        with pytest.raises(
+            StructuredReplicationConflictError,
+            match="managed path is not a directory",
+        ):
+            StructuredReplicationPublisher(repository).publish_staged_bundle(
+                target.target_id,
+                bundle,
+            )
+
+        assert commits_path.read_bytes() == b"not-a-directory"
+        conflicted = repository.get_target(target.target_id)
+        assert conflicted.state is ReplicationTargetState.CONFLICT
+        assert conflicted.confirmed_commit_seq == 0
+        assert (
+            repository.get_commit(target.target_id, commit_seq).state
+            is ReplicationCommitState.PENDING
+        )
+    finally:
+        database.stop()
