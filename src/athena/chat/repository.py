@@ -27,6 +27,14 @@ class ActorNotFoundError(LookupError):
     """Raised when a requested actor does not exist or is inactive."""
 
 
+class ChatMessageNotFoundError(LookupError):
+    """Raised when a requested message is not part of the requested chat."""
+
+
+class UnsupportedMessageEditError(ValueError):
+    """Raised when an immutable chat-message edit is not permitted."""
+
+
 class UnsupportedArchiveModeError(ValueError):
     """Raised when this persistent repository cannot safely handle a mode."""
 
@@ -195,6 +203,425 @@ class ChatRepository:
             )
 
         return resolved_chat_id
+
+    def fork_chat_from_message(
+        self,
+        *,
+        chat_id: uuid.UUID,
+        source_message_id: uuid.UUID,
+        actor_id: uuid.UUID,
+    ) -> uuid.UUID:
+        """Create an independent standard chat through one exact source revision.
+
+        The fork is a real persisted branch: history through the selected message
+        is copied into new immutable message entities, while provenance_inputs
+        points both the new chat and every copied message at the exact source
+        entity/revision they derive from.
+        """
+        fork_chat_id = new_uuid7()
+        chat_provenance_id = new_uuid7()
+        chat_commit_id = new_uuid7()
+        forked_at_us = utc_now_us()
+
+        with self.database.write_transaction() as connection:
+            self._require_active_actor(connection, actor_id)
+            self._require_standard_chat(connection, chat_id)
+
+            fork_point = connection.execute(
+                """
+                SELECT
+                    m.sequence_no,
+                    h.current_revision_id AS revision_id
+                FROM chat_messages AS m
+                JOIN entity_heads AS h
+                  ON h.entity_id = m.message_id
+                WHERE m.chat_id = ?
+                  AND m.message_id = ?
+                """,
+                (
+                    uuid_to_blob(chat_id),
+                    uuid_to_blob(source_message_id),
+                ),
+            ).fetchone()
+            if fork_point is None:
+                raise ChatMessageNotFoundError(str(source_message_id))
+
+            fork_sequence = int(fork_point["sequence_no"])
+            fork_revision_id = uuid_from_blob(bytes(fork_point["revision_id"]))
+
+            source_rows = connection.execute(
+                """
+                SELECT
+                    m.message_id,
+                    m.sequence_no,
+                    m.message_type,
+                    m.actor_id,
+                    r.revision_id,
+                    mr.content,
+                    mr.content_format
+                FROM chat_messages AS m
+                JOIN entity_heads AS h
+                  ON h.entity_id = m.message_id
+                JOIN revisions AS r
+                  ON r.revision_id = h.current_revision_id
+                JOIN chat_message_revisions AS mr
+                  ON mr.revision_id = r.revision_id
+                WHERE m.chat_id = ?
+                  AND m.sequence_no <= ?
+                ORDER BY m.sequence_no ASC
+                """,
+                (uuid_to_blob(chat_id), fork_sequence),
+            ).fetchall()
+
+            chat_commit_seq = self._insert_commit(
+                connection,
+                commit_id=chat_commit_id,
+                actor_id=actor_id,
+                operation_type="chat.fork",
+                committed_at_us=forked_at_us,
+            )
+            self._insert_entity(
+                connection,
+                entity_id=fork_chat_id,
+                entity_type="chat",
+                actor_id=actor_id,
+                created_at_us=forked_at_us,
+                commit_seq=chat_commit_seq,
+            )
+            connection.execute(
+                """
+                INSERT INTO chats (
+                    chat_id,
+                    started_at_us,
+                    ended_at_us,
+                    archive_mode,
+                    lifecycle_state,
+                    protection_scope_id
+                ) VALUES (?, ?, NULL, 'standard', 'active', NULL)
+                """,
+                (uuid_to_blob(fork_chat_id), forked_at_us),
+            )
+            self._insert_provenance(
+                connection,
+                provenance_id=chat_provenance_id,
+                entity_id=fork_chat_id,
+                revision_id=None,
+                operation="chat.fork",
+                actor_id=actor_id,
+                created_at_us=forked_at_us,
+            )
+            self._insert_provenance_input(
+                connection,
+                provenance_id=chat_provenance_id,
+                input_entity_id=source_message_id,
+                input_revision_id=fork_revision_id,
+                input_role="fork_point",
+                ordinal=0,
+            )
+            connection.execute(
+                """
+                INSERT INTO commit_changes (
+                    commit_seq, entity_id, revision_id, change_type
+                ) VALUES (?, ?, NULL, 'create')
+                """,
+                (chat_commit_seq, uuid_to_blob(fork_chat_id)),
+            )
+
+            for row in source_rows:
+                source_id = uuid_from_blob(bytes(row["message_id"]))
+                source_revision_id = uuid_from_blob(bytes(row["revision_id"]))
+                message_actor_blob = row["actor_id"]
+                message_actor_id = (
+                    uuid_from_blob(bytes(message_actor_blob))
+                    if message_actor_blob is not None
+                    else None
+                )
+                content = str(row["content"]) if row["content"] is not None else None
+                content_format = (
+                    str(row["content_format"])
+                    if row["content_format"] is not None
+                    else None
+                )
+
+                forked_message_id = new_uuid7()
+                forked_revision_id = new_uuid7()
+                message_provenance_id = new_uuid7()
+                message_commit_id = new_uuid7()
+                message_commit_seq = self._insert_commit(
+                    connection,
+                    commit_id=message_commit_id,
+                    actor_id=actor_id,
+                    operation_type="chat_message.fork",
+                    committed_at_us=forked_at_us,
+                )
+                self._insert_entity(
+                    connection,
+                    entity_id=forked_message_id,
+                    entity_type="chat_message",
+                    actor_id=actor_id,
+                    created_at_us=forked_at_us,
+                    commit_seq=message_commit_seq,
+                )
+                self._insert_provenance(
+                    connection,
+                    provenance_id=message_provenance_id,
+                    entity_id=forked_message_id,
+                    revision_id=forked_revision_id,
+                    operation="chat_message.fork",
+                    actor_id=actor_id,
+                    created_at_us=forked_at_us,
+                )
+                self._insert_provenance_input(
+                    connection,
+                    provenance_id=message_provenance_id,
+                    input_entity_id=source_id,
+                    input_revision_id=source_revision_id,
+                    input_role="fork_source",
+                    ordinal=0,
+                )
+                connection.execute(
+                    """
+                    INSERT INTO revisions (
+                        revision_id,
+                        entity_id,
+                        revision_no,
+                        parent_revision_id,
+                        created_at_us,
+                        created_by_actor_id,
+                        provenance_id,
+                        schema_version,
+                        payload_hash,
+                        change_kind,
+                        commit_id
+                    ) VALUES (?, ?, 1, NULL, ?, ?, ?, 1, ?, 'create', ?)
+                    """,
+                    (
+                        uuid_to_blob(forked_revision_id),
+                        uuid_to_blob(forked_message_id),
+                        forked_at_us,
+                        uuid_to_blob(actor_id),
+                        uuid_to_blob(message_provenance_id),
+                        _message_payload_hash(content, content_format),
+                        uuid_to_blob(message_commit_id),
+                    ),
+                )
+                connection.execute(
+                    """
+                    INSERT INTO entity_heads (
+                        entity_id, current_revision_id, current_revision_no
+                    ) VALUES (?, ?, 1)
+                    """,
+                    (
+                        uuid_to_blob(forked_message_id),
+                        uuid_to_blob(forked_revision_id),
+                    ),
+                )
+                connection.execute(
+                    """
+                    INSERT INTO chat_messages (
+                        message_id, chat_id, sequence_no, message_type, actor_id
+                    ) VALUES (?, ?, ?, ?, ?)
+                    """,
+                    (
+                        uuid_to_blob(forked_message_id),
+                        uuid_to_blob(fork_chat_id),
+                        int(row["sequence_no"]),
+                        str(row["message_type"]),
+                        (
+                            uuid_to_blob(message_actor_id)
+                            if message_actor_id is not None
+                            else None
+                        ),
+                    ),
+                )
+                connection.execute(
+                    """
+                    INSERT INTO chat_message_revisions (
+                        revision_id, content, content_format, protected_payload_id
+                    ) VALUES (?, ?, ?, NULL)
+                    """,
+                    (
+                        uuid_to_blob(forked_revision_id),
+                        content,
+                        content_format,
+                    ),
+                )
+                connection.execute(
+                    """
+                    INSERT INTO commit_changes (
+                        commit_seq, entity_id, revision_id, change_type
+                    ) VALUES (?, ?, ?, 'create')
+                    """,
+                    (
+                        message_commit_seq,
+                        uuid_to_blob(forked_message_id),
+                        uuid_to_blob(forked_revision_id),
+                    ),
+                )
+
+        return fork_chat_id
+
+    def edit_user_message(
+        self,
+        *,
+        chat_id: uuid.UUID,
+        message_id: uuid.UUID,
+        actor_id: uuid.UUID,
+        content: str,
+        content_format: str = "text/plain",
+    ) -> ChatMessage:
+        """Create a new immutable revision for one user-authored message."""
+        revision_id = new_uuid7()
+        provenance_id = new_uuid7()
+        commit_id = new_uuid7()
+        created_at_us = utc_now_us()
+        payload_hash = _message_payload_hash(content, content_format)
+
+        with self.database.write_transaction() as connection:
+            self._require_active_actor(connection, actor_id)
+            self._require_standard_chat(connection, chat_id)
+
+            row = connection.execute(
+                """
+                SELECT
+                    m.sequence_no,
+                    m.message_type,
+                    m.actor_id,
+                    h.current_revision_id,
+                    h.current_revision_no
+                FROM chat_messages AS m
+                JOIN entity_heads AS h
+                  ON h.entity_id = m.message_id
+                WHERE m.chat_id = ?
+                  AND m.message_id = ?
+                """,
+                (
+                    uuid_to_blob(chat_id),
+                    uuid_to_blob(message_id),
+                ),
+            ).fetchone()
+            if row is None:
+                raise ChatMessageNotFoundError(str(message_id))
+            if str(row["message_type"]) != MessageType.USER.value:
+                raise UnsupportedMessageEditError(
+                    "Only user-authored chat messages can be edited."
+                )
+
+            message_actor_blob = row["actor_id"]
+            if message_actor_blob is None:
+                raise UnsupportedMessageEditError(
+                    "A user message without an actor cannot be edited."
+                )
+            message_actor_id = uuid_from_blob(bytes(message_actor_blob))
+            if message_actor_id != actor_id:
+                raise UnsupportedMessageEditError(
+                    "A user message can only be edited by its original actor."
+                )
+
+            parent_revision_id = uuid_from_blob(bytes(row["current_revision_id"]))
+            revision_no = int(row["current_revision_no"]) + 1
+
+            commit_seq = self._insert_commit(
+                connection,
+                commit_id=commit_id,
+                actor_id=actor_id,
+                operation_type="chat_message.edit",
+                committed_at_us=created_at_us,
+            )
+            self._insert_provenance(
+                connection,
+                provenance_id=provenance_id,
+                entity_id=message_id,
+                revision_id=revision_id,
+                operation="chat_message.edit",
+                actor_id=actor_id,
+                created_at_us=created_at_us,
+            )
+            self._insert_provenance_input(
+                connection,
+                provenance_id=provenance_id,
+                input_entity_id=message_id,
+                input_revision_id=parent_revision_id,
+                input_role="prior_revision",
+                ordinal=0,
+            )
+            connection.execute(
+                """
+                INSERT INTO revisions (
+                    revision_id,
+                    entity_id,
+                    revision_no,
+                    parent_revision_id,
+                    created_at_us,
+                    created_by_actor_id,
+                    provenance_id,
+                    schema_version,
+                    payload_hash,
+                    change_kind,
+                    commit_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, 'update', ?)
+                """,
+                (
+                    uuid_to_blob(revision_id),
+                    uuid_to_blob(message_id),
+                    revision_no,
+                    uuid_to_blob(parent_revision_id),
+                    created_at_us,
+                    uuid_to_blob(actor_id),
+                    uuid_to_blob(provenance_id),
+                    payload_hash,
+                    uuid_to_blob(commit_id),
+                ),
+            )
+            connection.execute(
+                """
+                INSERT INTO chat_message_revisions (
+                    revision_id, content, content_format, protected_payload_id
+                ) VALUES (?, ?, ?, NULL)
+                """,
+                (
+                    uuid_to_blob(revision_id),
+                    content,
+                    content_format,
+                ),
+            )
+            connection.execute(
+                """
+                UPDATE entity_heads
+                SET current_revision_id = ?,
+                    current_revision_no = ?
+                WHERE entity_id = ?
+                """,
+                (
+                    uuid_to_blob(revision_id),
+                    revision_no,
+                    uuid_to_blob(message_id),
+                ),
+            )
+            connection.execute(
+                """
+                INSERT INTO commit_changes (
+                    commit_seq, entity_id, revision_id, change_type
+                ) VALUES (?, ?, ?, 'update')
+                """,
+                (
+                    commit_seq,
+                    uuid_to_blob(message_id),
+                    uuid_to_blob(revision_id),
+                ),
+            )
+
+        return ChatMessage(
+            message_id=message_id,
+            chat_id=chat_id,
+            sequence_no=int(row["sequence_no"]),
+            message_type=MessageType.USER,
+            actor_id=actor_id,
+            created_at_us=created_at_us,
+            revision_id=revision_id,
+            content=content,
+            content_format=content_format,
+        )
 
     def append_message(
         self,
@@ -658,6 +1085,39 @@ class ChatRepository:
         )
 
     @staticmethod
+    def _insert_provenance_input(
+        connection: sqlite3.Connection,
+        *,
+        provenance_id: uuid.UUID,
+        input_entity_id: uuid.UUID,
+        input_revision_id: uuid.UUID | None,
+        input_role: str,
+        ordinal: int,
+    ) -> None:
+        connection.execute(
+            """
+            INSERT INTO provenance_inputs (
+                provenance_id,
+                input_entity_id,
+                input_revision_id,
+                input_role,
+                ordinal
+            ) VALUES (?, ?, ?, ?, ?)
+            """,
+            (
+                uuid_to_blob(provenance_id),
+                uuid_to_blob(input_entity_id),
+                (
+                    uuid_to_blob(input_revision_id)
+                    if input_revision_id is not None
+                    else None
+                ),
+                input_role,
+                ordinal,
+            ),
+        )
+
+    @staticmethod
     def _insert_provenance(
         connection: sqlite3.Connection,
         *,
@@ -694,7 +1154,10 @@ class ChatRepository:
         )
 
 
-def _message_payload_hash(content: str, content_format: str) -> bytes:
+def _message_payload_hash(
+    content: str | None,
+    content_format: str | None,
+) -> bytes:
     # For this payload shape (string-only fields), Python's sorted compact JSON
     # encoding is the RFC 8785 canonical representation. A general JCS encoder
     # will be introduced before payloads can contain numeric/object extensions.
