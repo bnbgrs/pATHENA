@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import importlib
+import re
 import shutil
 import subprocess
 import sys
@@ -7,7 +9,11 @@ from pathlib import Path
 
 import pytest
 
-from athena.desktop.packaged_app import PackagedTarget, route_packaged_argv
+from athena.desktop.packaged_app import (
+    PackagedInvocationError,
+    PackagedTarget,
+    route_packaged_argv,
+)
 from athena.desktop.packaged_worker import dispatch_worker
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -16,6 +22,31 @@ _PACKAGING_SAFETY = _REPO_ROOT / "scripts" / "windows_packaging_safety.ps1"
 _PACKAGED_WORKER = _REPO_ROOT / "src" / "athena" / "desktop" / "packaged_worker.py"
 _OUTPUT_MARKER = ".pathena-windows-portable-output"
 _OUTPUT_MARKER_VALUE = "pATHENA Windows Portable Output v1"
+_LITERAL_MODULE_DISPATCH = re.compile(
+    r"""(?:\(|\[)\s*["']-m["']\s*,\s*["']([^"']+)["']""",
+    re.MULTILINE,
+)
+_REMAINING_HELPER_ROUTES = (
+    ("athena.desktop.research_cli", PackagedTarget.RESEARCH_CLI),
+    ("athena.desktop.research_results_cli", PackagedTarget.RESEARCH_RESULTS_CLI),
+    ("athena.desktop.knowledge_cli", PackagedTarget.KNOWLEDGE_CLI),
+    (
+        "athena.desktop.knowledge_obsidian_export",
+        PackagedTarget.KNOWLEDGE_OBSIDIAN_EXPORT,
+    ),
+    ("athena.desktop.canonical_memory_cli", PackagedTarget.CANONICAL_MEMORY_CLI),
+)
+
+
+def _desktop_literal_worker_modules() -> set[str]:
+    modules: set[str] = set()
+    desktop_root = _REPO_ROOT / "src" / "athena" / "desktop"
+    for path in desktop_root.glob("*.py"):
+        source = path.read_text(encoding="utf-8")
+        if "sys.executable" not in source:
+            continue
+        modules.update(_LITERAL_MODULE_DISPATCH.findall(source))
+    return modules
 
 
 def _build_script_text() -> str:
@@ -109,6 +140,54 @@ def test_packaged_worker_dispatches_sources_cli(
     assert calls == [
         ("show", "00000000-0000-0000-0000-000000000001")
     ]
+
+
+@pytest.mark.parametrize(("module_name", "expected_target"), _REMAINING_HELPER_ROUTES)
+def test_packaged_router_accepts_remaining_desktop_helpers(
+    module_name: str,
+    expected_target: PackagedTarget,
+) -> None:
+    invocation = route_packaged_argv(("-m", module_name, "sentinel"))
+
+    assert invocation.target is expected_target
+    assert invocation.arguments == ("sentinel",)
+
+
+@pytest.mark.parametrize(
+    "module_name",
+    tuple(module_name for module_name, _target in _REMAINING_HELPER_ROUTES),
+)
+def test_packaged_worker_dispatches_remaining_desktop_helpers(
+    monkeypatch: pytest.MonkeyPatch,
+    module_name: str,
+) -> None:
+    helper_module = importlib.import_module(module_name)
+    calls: list[tuple[str, ...]] = []
+
+    def fake_main(arguments: tuple[str, ...]) -> int:
+        calls.append(tuple(arguments))
+        return 19
+
+    monkeypatch.setattr(helper_module, "main", fake_main)
+
+    result = dispatch_worker(("-m", module_name, "sentinel"))
+
+    assert result == 19
+    assert calls == [("sentinel",)]
+
+
+def test_packaged_router_still_rejects_unknown_module() -> None:
+    with pytest.raises(PackagedInvocationError, match="unsupported module dispatch"):
+        route_packaged_argv(("-m", "athena.desktop.not_a_real_helper"))
+
+
+def test_packaged_router_covers_every_literal_desktop_worker_module() -> None:
+    modules = _desktop_literal_worker_modules()
+
+    assert modules
+    for module_name in sorted(modules):
+        invocation = route_packaged_argv(("-m", module_name))
+        assert invocation.target is not PackagedTarget.DESKTOP
 
 
 def test_windows_portable_keeps_desktop_worker_two_exe_topology() -> None:
