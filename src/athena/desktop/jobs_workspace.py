@@ -336,7 +336,7 @@ class JobsWorkspace(QWidget):
         if not chunk:
             return
         self._buffer += chunk
-        if self._operation != "list" and self._operation_owns_details():
+        if self._operation == "show" and self._operation_owns_details():
             self.details.moveCursor(QTextCursor.MoveOperation.End)
             self.details.insertPlainText(chunk)
 
@@ -450,7 +450,13 @@ class JobsWorkspace(QWidget):
             "success",
         )
         if owns_details:
-            set_pathena_ui_state(self.details, "success")
+            detail_message = (
+                f"JOB UPDATED · {operation.upper()} completed · "
+                f"{receipt.state.upper()}. Refreshing current details…"
+            )
+            self.details.setPlainText(detail_message)
+            self.details.setAccessibleDescription(detail_message)
+            set_pathena_ui_state(self.details, "busy")
         self._recover_background_selection(
             operation,
             owns_details=owns_details,
