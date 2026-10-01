@@ -255,6 +255,7 @@ def test_json_formatter_handles_cycles_without_leaking_or_recursing_forever() ->
     assert "<cycle>" in encoded
     assert payload["context"] == {"trace": "safe", "self": "<cycle>"}
 
+
 def test_json_formatter_sanitizes_dynamic_structured_keys() -> None:
     encoded, payload = _format_record(
         "dynamic structured keys",
