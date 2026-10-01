@@ -414,6 +414,68 @@ def test_client_shutdown_command_is_not_retried(
 
 
 
+@pytest.mark.parametrize(
+    "timeout",
+    [True, False, 0, -1, float("nan"), float("inf"), float("-inf"), "5"],
+)
+def test_client_rejects_invalid_transport_timeout_values(
+    tmp_path: Path,
+    timeout: object,
+) -> None:
+    with pytest.raises((TypeError, ValueError), match="timeout"):
+        CoreApiClient(
+            tmp_path / "api",
+            timeout_seconds=timeout,  # type: ignore[arg-type]
+        )
+
+
+@pytest.mark.parametrize(
+    "timeout",
+    [True, False, 0, -1, float("nan"), float("inf"), float("-inf"), "30"],
+)
+def test_client_rejects_invalid_generation_timeout_values(
+    tmp_path: Path,
+    timeout: object,
+) -> None:
+    with pytest.raises((TypeError, ValueError), match="generation timeout"):
+        CoreApiClient(
+            tmp_path / "api",
+            generation_timeout_seconds=timeout,  # type: ignore[arg-type]
+        )
+
+
+@pytest.mark.parametrize(
+    ("limit", "offset", "message"),
+    [
+        (True, 0, "limit must be an integer"),
+        (1.5, 0, "limit must be an integer"),
+        ("20", 0, "limit must be an integer"),
+        (20, True, "offset must be an integer"),
+        (20, 1.5, "offset must be an integer"),
+        (20, "1", "offset must be an integer"),
+    ],
+)
+def test_client_rejects_non_integer_chat_pagination_before_discovery(
+    tmp_path: Path,
+    limit: object,
+    offset: object,
+    message: str,
+) -> None:
+    with pytest.raises(ValueError, match=message):
+        CoreApiClient(tmp_path / "missing-runtime").list_chats(
+            limit=limit,  # type: ignore[arg-type]
+            offset=offset,  # type: ignore[arg-type]
+        )
+
+
+@pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf")])
+def test_client_rejects_nonfinite_numeric_response_fields(value: float) -> None:
+    with pytest.raises(CoreApiClientError, match="not finite") as exc_info:
+        client_module._required_float({"confidence": value}, "confidence")
+
+    assert exc_info.value.code == "invalid_response"
+
+
 def test_client_rejects_negative_chat_offset(
     tmp_path: Path,
 ) -> None:
