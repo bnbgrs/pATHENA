@@ -276,6 +276,18 @@ class LMStudioRuntimeController(QObject):
     def status_text(self) -> str:
         return self.runtime_status.text()
 
+    @Slot()
+    def dispose(self) -> None:
+        """Stop owned CLI work during desktop shutdown without stopping LM Studio."""
+        self._command_timer.stop()
+        self._steps.clear()
+        self._active_step = None
+        self._pending_model_id = None
+        self._model_confirmation_refreshes_remaining = 0
+        if self.process.state() != QProcess.ProcessState.NotRunning:
+            self.process.kill()
+            self.process.waitForFinished(1_000)
+
     def _restore_settings(self) -> None:
         self.settings.beginGroup(_SETTINGS_ROOT)
         try:
