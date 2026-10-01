@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import math
 import uuid
+from dataclasses import dataclass
 
 
 class KnowledgeReviewError(ValueError):
