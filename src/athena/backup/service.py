@@ -843,6 +843,7 @@ class BackupService(DeletionLedgerStorageMixin):
         deletion_ledger_watermark: int | None = None
         objects: list[Any] | None = None
 
+        marker: Path | None
         try:
             marker = _safe_existing_file(
                 snapshot_root,
