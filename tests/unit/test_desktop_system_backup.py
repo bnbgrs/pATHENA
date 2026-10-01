@@ -13,8 +13,6 @@ from athena.core.application import AthenaApplication
 from athena.desktop.system_backup import BackupWorkspace, _BACKUP_RE
 
 
-
-
 def _qt_app() -> QApplication:
     existing = QApplication.instance()
     if isinstance(existing, QApplication):
@@ -72,6 +70,7 @@ def test_explicit_backup_target_is_registered_verified_and_restored_isolated(
         assert (restore_root / "state" / "athena.db").is_file()
     finally:
         app.stop()
+
 
 def test_backup_process_error_is_not_overwritten_by_late_finished() -> None:
     _qt_app()
