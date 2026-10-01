@@ -515,8 +515,19 @@ def test_concurrent_confirmation_of_same_bundle_is_idempotent(
         )
         real_confirm = repository.confirm_commit
 
-        def concurrent_confirm(*args: object, **kwargs: object) -> object:
-            real_confirm(*args, **kwargs)  # type: ignore[arg-type]
+        def concurrent_confirm(
+            target_id: uuid.UUID,
+            *,
+            commit_seq: int,
+            head_hash: str,
+            now_us: int | None = None,
+        ) -> None:
+            real_confirm(
+                target_id,
+                commit_seq=commit_seq,
+                head_hash=head_hash,
+                now_us=now_us,
+            )
             raise StructuredReplicationInvariantError(
                 "simulated losing confirmer"
             )
