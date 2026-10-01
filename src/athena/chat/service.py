@@ -50,6 +50,41 @@ class ChatService:
             chat_id=chat_id,
         )
 
+    def fork_chat_from_message(
+        self,
+        *,
+        chat_id: uuid.UUID,
+        source_message_id: uuid.UUID,
+    ) -> uuid.UUID:
+        """Create a durable branch through one exact persisted message revision."""
+        user_id = self.ensure_local_user()
+        return self.repository.fork_chat_from_message(
+            chat_id=chat_id,
+            source_message_id=source_message_id,
+            actor_id=user_id,
+        )
+
+    def edit_user_message(
+        self,
+        *,
+        chat_id: uuid.UUID,
+        message_id: uuid.UUID,
+        content: str,
+    ) -> ChatMessage:
+        """Persist an immutable successor revision for one local-user message."""
+        if not content.strip():
+            raise EmptyMessageError(
+                "A chat message must contain non-whitespace text."
+            )
+
+        user_id = self.ensure_local_user()
+        return self.repository.edit_user_message(
+            chat_id=chat_id,
+            message_id=message_id,
+            actor_id=user_id,
+            content=content,
+        )
+
     def add_user_message(
         self,
         *,
