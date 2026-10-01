@@ -231,6 +231,32 @@ def test_invalid_unicode_scalar_is_rejected() -> None:
         _serialize([_record("bad-surrogate", metadata={"bad": "\ud800"})])
 
 
+def test_rehashed_noncanonical_commit_uuid_text_is_rejected() -> None:
+    bundle = _serialize([_record("a")])
+    value = json.loads(bundle.data)
+    value["body"]["commit_id"] = value["body"]["commit_id"].upper()
+    value["integrity"]["body_sha256"] = hashlib.sha256(
+        _ascii_canonical(value["body"])
+    ).hexdigest()
+    invalid = _ascii_canonical(value)
+
+    with pytest.raises(CanonicalCommitBundleError, match="canonical UUID text"):
+        verify_canonical_commit_bundle(invalid)
+
+
+def test_rehashed_non_uuid_commit_id_is_rejected() -> None:
+    bundle = _serialize([_record("a")])
+    value = json.loads(bundle.data)
+    value["body"]["commit_id"] = "not-a-uuid"
+    value["integrity"]["body_sha256"] = hashlib.sha256(
+        _ascii_canonical(value["body"])
+    ).hexdigest()
+    invalid = _ascii_canonical(value)
+
+    with pytest.raises(CanonicalCommitBundleError, match="canonical UUID text"):
+        verify_canonical_commit_bundle(invalid)
+
+
 def test_commit_id_requires_canonical_uuid_type() -> None:
     with pytest.raises(CanonicalCommitBundleError, match="commit_id must be a UUID"):
         serialize_canonical_commit_bundle(
