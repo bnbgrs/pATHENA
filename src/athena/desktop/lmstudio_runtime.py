@@ -34,6 +34,7 @@ _DEFAULT_BASE_URL: Final = "http://127.0.0.1:1234"
 _MODEL_CONFIRMATION_REFRESH_LIMIT: Final = 6
 _MODEL_CONFIRMATION_DELAY_MS: Final = 500
 _COMMAND_TIMEOUT_MS: Final = 30_000
+_MODEL_LOAD_TIMEOUT_MS: Final = 10 * 60_000
 
 
 @dataclass(frozen=True, slots=True)
@@ -159,6 +160,20 @@ def _accepted_model_load_id(step: _CommandStep) -> str | None:
         return None
     model_id = step.arguments[1].strip()
     return model_id or None
+
+
+def _command_timeout_ms(step: _CommandStep) -> int:
+    # Large local models can take materially longer than daemon/server commands.
+    # Keep every CLI operation bounded without treating a normal model load as hung.
+    if step.operation == "model_load":
+        return _MODEL_LOAD_TIMEOUT_MS
+    return _COMMAND_TIMEOUT_MS
+
+
+def _continue_after_failed_step(step: _CommandStep) -> bool:
+    # Restart is recovery-oriented: an already-stopped server is not a reason to
+    # skip the subsequent idempotent daemon-up and server-start steps.
+    return step.operation == "server_stop"
 
 
 def _should_attempt_auto_load(
@@ -452,7 +467,7 @@ class LMStudioRuntimeController(QObject):
             attempted_model_id=self._auto_load_attempted_model_id,
             busy=self.busy,
         ):
-            self._pending_model_id = selected.backend_model_id
+            self._pending_model_id = None
             self._auto_load_attempted_model_id = selected.backend_model_id
             self.ensure_selected_model()
 
@@ -629,6 +644,7 @@ class LMStudioRuntimeController(QObject):
             self._set_status(f"LM Studio runtime · command rejected · {exc}")
             return
         self.process.start(program, arguments)
+        self._command_timer.setInterval(_command_timeout_ms(step))
         self._command_timer.start()
 
     @Slot()
@@ -661,13 +677,22 @@ class LMStudioRuntimeController(QObject):
         # A stop/start command can race with an already-correct server state. Refresh
         # after any failure so the Core, rather than CLI wording, decides actual truth.
         if exit_code != 0:
+            detail = output.splitlines()[-1] if output else f"exit {exit_code}"
+            if _continue_after_failed_step(step) and self._steps:
+                self._active_step = None
+                self._set_status(
+                    "LM Studio runtime · server stop unavailable; continuing restart "
+                    f"· {detail}"
+                )
+                self._start_next_step()
+                return
+
             self._steps.clear()
             self._active_step = None
             if step.operation == "model_load":
                 self._pending_model_id = None
                 self._model_confirmation_refreshes_remaining = 0
             self.busy_changed.emit(False)
-            detail = output.splitlines()[-1] if output else f"exit {exit_code}"
             self._set_status(f"LM Studio runtime · {step.operation} failed · {detail}")
             QTimer.singleShot(250, self.controller.refresh)
             return
