@@ -108,6 +108,7 @@ jobs:
             @("-m", "athena.api.process", "--help"),
             @("-m", "athena.desktop.jobs_cli", "--help"),
             @("-m", "athena.desktop.research_cli", "--help"),
+            @("-m", "athena.desktop.research_results_cli", "--help"),
             @("-m", "athena.desktop.sources_cli", "--help"),
             @("-m", "athena.desktop.knowledge_cli", "--help"),
             @("-m", "athena.desktop.knowledge_obsidian_export", "--help"),
