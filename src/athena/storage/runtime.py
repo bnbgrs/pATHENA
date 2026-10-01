@@ -6,6 +6,7 @@ import os
 import secrets
 from pathlib import Path
 
+from athena.storage.durable_fs import is_link_boundary
 from athena.storage.locality import ActiveStateLocalityError, assert_active_state_root_local
 from athena.storage.paths import RuntimePaths
 
@@ -24,9 +25,10 @@ def _reject_symlink_ancestors(path: Path) -> None:
     """Reject existing symlink components before creating or probing state."""
     cursor = path.parent
     while True:
-        if cursor.is_symlink():
+        if is_link_boundary(cursor):
             raise RuntimePathError(
-                f"ATHENA runtime path has a symlink ancestor: {str(cursor)!r}."
+                "ATHENA runtime path has a symbolic-link or reparse-point ancestor: "
+                f"{str(cursor)!r}."
             )
         if cursor.exists() and not cursor.is_dir():
             raise RuntimePathError(
@@ -76,9 +78,10 @@ class RuntimeLayoutService:
     def _ensure_directory(path: Path) -> None:
         validated = _require_path(path)
         _reject_symlink_ancestors(validated)
-        if validated.is_symlink():
+        if is_link_boundary(validated):
             raise RuntimePathError(
-                f"ATHENA runtime directory must not be a symlink: {str(validated)!r}."
+                "ATHENA runtime directory must not be a symbolic link or reparse point: "
+                f"{str(validated)!r}."
             )
         try:
             validated.mkdir(parents=True, exist_ok=True)
@@ -88,7 +91,7 @@ class RuntimeLayoutService:
             ) from exc
 
         _reject_symlink_ancestors(validated)
-        if validated.is_symlink() or not validated.is_dir():
+        if is_link_boundary(validated) or not validated.is_dir():
             raise RuntimePathError(
                 f"ATHENA runtime path is not a safe directory: {str(validated)!r}."
             )
@@ -97,7 +100,7 @@ class RuntimeLayoutService:
     def _verify_writable(path: Path) -> None:
         validated = _require_path(path)
         _reject_symlink_ancestors(validated)
-        if validated.is_symlink() or not validated.is_dir():
+        if is_link_boundary(validated) or not validated.is_dir():
             raise RuntimePathError(
                 f"ATHENA runtime path is not a safe directory: {str(validated)!r}."
             )
