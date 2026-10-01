@@ -98,3 +98,51 @@ def test_safe_existing_file_rejects_windows_reparse_boundary_contract(
         match="symlink, junction, or reparse point",
     ):
         backup_module._safe_existing_file(root, Path("payload.bin"))
+
+
+def test_verify_rejects_redirected_snapshot_directory(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app, snapshot, snapshot_root = _create_snapshot(tmp_path)
+    real_is_link_boundary = backup_module.is_link_boundary
+
+    def redirected(path: Path) -> bool:
+        return path == snapshot_root or real_is_link_boundary(path)
+
+    monkeypatch.setattr(backup_module, "is_link_boundary", redirected)
+    try:
+        assert snapshot.manifest_sha256 is not None
+        assert not app.backup._verify_path(
+            target=tmp_path / "backup",
+            snapshot_root=snapshot_root,
+            expected_manifest_sha256=snapshot.manifest_sha256,
+            expected_snapshot_id=snapshot.snapshot_id,
+        )
+    finally:
+        app.stop()
+
+
+def test_disaster_restore_rejects_redirected_snapshot_directory_before_resolve(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app, _snapshot, snapshot_root = _create_snapshot(tmp_path)
+    real_is_link_boundary = backup_module.is_link_boundary
+
+    def redirected(path: Path) -> bool:
+        return path == snapshot_root or real_is_link_boundary(path)
+
+    monkeypatch.setattr(backup_module, "is_link_boundary", redirected)
+    try:
+        with pytest.raises(
+            BackupRestoreError,
+            match="snapshot directory must not be a symlink",
+        ):
+            app.backup.restore_path(
+                snapshot_root,
+                destination_root=tmp_path / "restored",
+            )
+        assert not (tmp_path / "restored").exists()
+    finally:
+        app.stop()
