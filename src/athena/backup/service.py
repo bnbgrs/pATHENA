@@ -3562,7 +3562,7 @@ class BackupService(DeletionLedgerStorageMixin):
         if not path.exists():
             return None
 
-        if path.is_symlink() or not path.is_file():
+        if is_link_boundary(path) or not path.is_file():
             raise BackupRestoreError(
                 "Backup target descriptor is unsafe."
             )
@@ -3691,9 +3691,9 @@ class BackupService(DeletionLedgerStorageMixin):
                 "Backup target must be an absolute path."
             )
 
-        if target.exists() and target.is_symlink():
+        if target.exists() and is_link_boundary(target):
             raise BackupRestoreError(
-                "Backup target root must not be a symlink."
+                "Backup target root must not be a symlink, junction, or reparse point."
             )
 
         target = target.resolve()
