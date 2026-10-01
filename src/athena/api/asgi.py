@@ -445,20 +445,22 @@ class CoreApiAsgiApp:
             if method == "POST" and cancel_operation_id is not None:
                 await _consume_empty_body(receive)
                 try:
-                    uuid.UUID(cancel_operation_id)
+                    canonical_operation_id = str(
+                        uuid.UUID(cancel_operation_id)
+                    )
                 except ValueError as exc:
                     raise ValueError(
                         "Chat operation ID must be a valid UUID."
                     ) from exc
                 accepted = self._facade.cancel_chat_operation(
-                    cancel_operation_id
+                    canonical_operation_id
                 )
                 await _send_json(
                     send,
                     status=202,
                     payload={
                         "accepted": accepted,
-                        "operation_id": cancel_operation_id,
+                        "operation_id": canonical_operation_id,
                     },
                     request_id=request_id,
                 )
