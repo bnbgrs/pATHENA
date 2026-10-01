@@ -307,3 +307,46 @@ def test_server_start_retains_live_resources_when_rollback_is_incomplete(
         "close",
         "join",
     ]
+
+
+
+def test_server_start_rejects_incomplete_previous_cleanup(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    constructed = False
+
+    class _ForbiddenServer:
+        def __init__(self, *_args: Any, **_kwargs: Any) -> None:
+            nonlocal constructed
+            constructed = True
+            raise AssertionError("server construction must not occur")
+
+    monkeypatch.setattr(server_module, "_AthenaHttpServer", _ForbiddenServer)
+
+    server = CoreApiServer.__new__(CoreApiServer)
+    server._host = "127.0.0.1"
+    server._configured_port = 0
+    server._shutdown_callback = None
+    server.app = object()  # type: ignore[assignment]
+    server._server = None
+    server._thread = None
+    server._discovery = object()  # type: ignore[assignment]
+
+    with pytest.raises(CoreApiServerError, match="stale lifecycle state"):
+        server.start()
+
+    assert constructed is False
+
+
+def test_server_start_rejects_incomplete_failed_start_rollback() -> None:
+    class _LiveThread:
+        def is_alive(self) -> bool:
+            return True
+
+    server = CoreApiServer.__new__(CoreApiServer)
+    server._server = object()  # type: ignore[assignment]
+    server._thread = _LiveThread()  # type: ignore[assignment]
+    server._discovery = None
+
+    with pytest.raises(CoreApiServerError, match="cleanup completes"):
+        server.start()
