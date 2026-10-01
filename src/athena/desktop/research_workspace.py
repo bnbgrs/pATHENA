@@ -64,14 +64,18 @@ class ResearchWorkspace(QWidget):
 
         self.jobs = QListWidget()
         self.jobs.setObjectName("researchJobList")
+        self.jobs.setAccessibleName("Research runs")
+        self.jobs.setAccessibleDescription("Persisted research runs showing state, coverage and question.")
         self.jobs.setMinimumWidth(320)
         self.jobs.currentItemChanged.connect(self._selection_changed)
         set_pathena_ui_state(self.jobs, "idle")
 
         self.details = QPlainTextEdit()
         self.details.setObjectName("researchDetails")
+        self.details.setAccessibleName("Research run details")
+        self.details.setAccessibleDescription("Details for the selected run, including scope, coverage, source work and diagnostics.")
         self.details.setReadOnly(True)
-        self.details.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
+        self.details.setLineWrapMode(QPlainTextEdit.LineWrapMode.WidgetWidth)
         self.details.setPlaceholderText(
             "Select a research job to inspect scope, coverage and work items."
         )
