@@ -8,6 +8,7 @@ from athena.api.search_contracts import (
 )
 from athena.retrieval.hybrid import HybridSearchResult
 from athena.retrieval.protection import unprotected_search_protection_ref
+from athena.retrieval.universal import UniversalSearchResult
 
 
 def hybrid_search_result_response(result: HybridSearchResult) -> SearchResultResponse:
@@ -31,6 +32,35 @@ def hybrid_search_result_response(result: HybridSearchResult) -> SearchResultRes
         preview=result.text,
         entity_type=result.entity_type.value,
         revision_id=str(result.revision_id),
+        rank=result.rank,
+        retrieval_methods=result.retrieval_methods,
+        source_anchor=None,
+        protection=SearchProtectionResponse(
+            state=protection.state.value,
+            protection_scope_id=None,
+        ),
+    )
+
+
+def universal_search_result_response(
+    result: UniversalSearchResult,
+) -> SearchResultResponse:
+    """Serialize one universal local result without inventing a revision."""
+
+    if not isinstance(result, UniversalSearchResult):
+        raise TypeError("Universal search adapter requires a UniversalSearchResult.")
+
+    protection = unprotected_search_protection_ref()
+    return SearchResultResponse(
+        result_ref=result.result_ref,
+        title=result.title,
+        preview=result.preview,
+        entity_type=result.entity_type.value,
+        revision_id=(
+            str(result.revision_id)
+            if result.revision_id is not None
+            else None
+        ),
         rank=result.rank,
         retrieval_methods=result.retrieval_methods,
         source_anchor=None,
