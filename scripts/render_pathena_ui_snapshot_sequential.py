@@ -578,10 +578,18 @@ def main(argv: Sequence[str] | None = None) -> int:
                 raise RuntimeError("PALLAS reference capture did not reach ready state.")
             if int(workspace.field.property("pathenaPallasNodeCount") or 0) != 5:
                 raise RuntimeError("PALLAS reference graph did not render all diagnostic nodes.")
+            engine_tick = int(getattr(getattr(living, "engine", None), "tick", -1))
+            if engine_tick != _PALLAS_VISUAL_CAPTURE_TICKS:
+                raise RuntimeError(
+                    "PALLAS visual fixture advanced an unexpected number of ticks: "
+                    f"{engine_tick}."
+                )
             workspace.field.fit_all()
             app.processEvents()
             save_widget(window, ordinal=8, label="PALLAS", kind="full-pallas")
             captures[-1]["fixture"] = "diagnostic semantic graph; presentation only"
+            captures[-1]["living_capture_ticks"] = _PALLAS_VISUAL_CAPTURE_TICKS
+            captures[-1]["living_engine_tick"] = engine_tick
         finally:
             if callable(getattr(full_view, "close_workspace", None)):
                 full_view.close_workspace()
