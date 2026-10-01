@@ -230,7 +230,6 @@ def test_verification_rejects_malformed_trust_root_inputs() -> None:
         )
 
 
-
 def test_publisher_metadata_rejects_duplicate_normalized_keys() -> None:
     with pytest.raises(PluginManifestError, match="duplicate normalized keys"):
         PluginManifest.from_mapping(
