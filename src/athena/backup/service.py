@@ -4338,10 +4338,18 @@ def _remove_tree_without_redirect(
 ) -> None:
     """Remove one directory tree without following a redirected root."""
     try:
-        if is_link_boundary(path):
-            raise BackupRestoreError(
-                f"Refusing to recursively remove redirected backup path: {path}."
-            )
+        cursor = path
+        while True:
+            if is_link_boundary(cursor):
+                raise BackupRestoreError(
+                    "Refusing to recursively remove a backup path with a "
+                    f"redirecting filesystem boundary: {cursor}."
+                )
+            parent = cursor.parent
+            if parent == cursor:
+                break
+            cursor = parent
+
         if not path.exists():
             return
         if not path.is_dir():
