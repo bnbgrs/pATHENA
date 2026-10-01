@@ -459,17 +459,43 @@ class ResourceManager:
         ).fetchone()
         if row is None:
             raise RuntimeError("ATHENA resource policy row is missing.")
+
+        raw_mode = row["mode"]
+        if type(raw_mode) is not str:
+            raise RuntimeError("Persisted resource policy mode has an invalid storage type.")
+        try:
+            mode = ResourceMode(raw_mode)
+        except ValueError as exc:
+            raise RuntimeError("Persisted resource policy mode is invalid.") from exc
+
+        updated_actor_raw = row["updated_by_actor_id"]
+        updated_actor = (
+            None
+            if updated_actor_raw is None
+            else _persisted_policy_uuid(
+                updated_actor_raw,
+                "updated_by_actor_id",
+            )
+        )
         return ResourcePolicy(
-            mode=ResourceMode(str(row["mode"])),
-            ram_headroom_bytes=int(row["ram_headroom_bytes"]),
-            disk_headroom_bytes=int(row["disk_headroom_bytes"]),
-            gpu_background_threshold=float(row["gpu_background_threshold"]),
-            updated_at_us=int(row["updated_at_us"]),
-            updated_by_actor_id=(
-                uuid_from_blob(bytes(row["updated_by_actor_id"]))
-                if row["updated_by_actor_id"] is not None
-                else None
+            mode=mode,
+            ram_headroom_bytes=_persisted_policy_nonnegative_int(
+                row["ram_headroom_bytes"],
+                "ram_headroom_bytes",
             ),
+            disk_headroom_bytes=_persisted_policy_nonnegative_int(
+                row["disk_headroom_bytes"],
+                "disk_headroom_bytes",
+            ),
+            gpu_background_threshold=_persisted_policy_fraction(
+                row["gpu_background_threshold"],
+                "gpu_background_threshold",
+            ),
+            updated_at_us=_persisted_policy_nonnegative_int(
+                row["updated_at_us"],
+                "updated_at_us",
+            ),
+            updated_by_actor_id=updated_actor,
         )
 
     def set_mode(self, mode: ResourceMode) -> ResourcePolicy:
@@ -651,6 +677,40 @@ class ResourceManager:
                 )
                 """
             )
+
+
+def _persisted_policy_nonnegative_int(value: object, field: str) -> int:
+    if type(value) is not int or value < 0:
+        raise RuntimeError(
+            f"Persisted resource policy {field} has an invalid storage value."
+        )
+    return value
+
+
+def _persisted_policy_fraction(value: object, field: str) -> float:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise RuntimeError(
+            f"Persisted resource policy {field} has an invalid storage value."
+        )
+    result = float(value)
+    if not math.isfinite(result) or not 0.0 <= result <= 1.0:
+        raise RuntimeError(
+            f"Persisted resource policy {field} has an invalid storage value."
+        )
+    return result
+
+
+def _persisted_policy_uuid(value: object, field: str) -> uuid.UUID:
+    if type(value) is not bytes or len(value) != 16:
+        raise RuntimeError(
+            f"Persisted resource policy {field} has an invalid storage value."
+        )
+    try:
+        return uuid_from_blob(value)
+    except (TypeError, ValueError) as exc:
+        raise RuntimeError(
+            f"Persisted resource policy {field} has an invalid storage value."
+        ) from exc
 
 
 def _resource_probe_snapshot(value: object) -> ResourceSnapshot:
