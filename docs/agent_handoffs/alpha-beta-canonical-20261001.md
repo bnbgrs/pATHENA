@@ -1,6 +1,53 @@
 # Alpha/Beta canonical handoff — 2026-10-01
 
 
+## RUNTIME CANDIDATE — PR #331 — headless LM Studio lifecycle — 2026-10-02
+
+Status: `IMPLEMENTED_PENDING_VERIFY`. Do not duplicate this slice while PR #331 is active.
+
+- Branch: `fix/lmstudio-headless-runtime-current-20261002-sol`
+- Product/test head before this handoff entry: `c5092d3deee8b6ebea2a9b3a0cfdb1b97d513829`
+- Base/merge-base: `develop/pathena-next@67174198e1494fd4c8678aad60756c39ef5c160b`
+- Collision boundary: only `src/athena/desktop/lmstudio_runtime.py` and `tests/unit/test_lmstudio_runtime_qol.py`; active Storage #325, Research UI #326, Qt CI #327, and Chat cancellation #329 are untouched.
+
+### Root cause / behavior
+
+Current Develop already had per-user `lms` discovery, selected-model persistence and Core-backed load confirmation, but the headless lifecycle still had concrete gaps:
+
+1. auto-start called `lms server start` without first ensuring the GUI-less LM Studio daemon;
+2. an accepted `::1` Core endpoint was always rebound to `127.0.0.1`;
+3. auto-load could publish pending model identity before `lms load` had successfully completed;
+4. failed/error/timeout model-load commands could retain stale confirmation state;
+5. CLI commands had no bounded hang protection;
+6. persisted bool/non-int idle values could be treated as integer minutes;
+7. Restart could abort before recovery if `server stop` failed because the server was already stopped.
+
+The candidate now:
+
+- runs idempotent `lms daemon up` before server start;
+- binds the server to the same validated loopback family as the configured endpoint;
+- derives pending model identity only from the exact successful load command;
+- clears model-load state on failure/error/timeout;
+- uses 30 s control-command and 10 min model-load timeouts;
+- allows Restart to continue through an already-stopped server into daemon-up/server-start;
+- rejects bool/non-int persisted idle TTLs to the safe default;
+- adds focused pure regression coverage for these boundaries.
+
+### Validation state
+
+- Local checkout/runtime validation is blocked in this execution environment because the container cannot resolve `github.com`; no local PASS is claimed.
+- Superseded head `fe0c2c45140f38f7ca2a00705c7c3e247f069928`: UI Focused PASS. Its Visual run failed only on existing PALLAS surface 08; Settings surface 07 was pixel-identical and this runtime diff contains no PALLAS file.
+- Exact final-code-head gates for `c5092d3deee8b6ebea2a9b3a0cfdb1b97d513829` were queued when this handoff entry was written.
+- Real Windows + installed LM Studio E2E remains required before claiming full runtime verification; GitHub-hosted runners do not prove a user's installed LM Studio lifecycle.
+
+### Next owner
+
+- Runtime/QA: consume PR #331 rather than old stale #297; inspect exact-head Quality/UI/Visual results and a real Windows LM Studio run.
+- Integrator: merge only after exact-head required gates are understood and any visual failure is classified from artifact evidence.
+- Other bots: do not modify this runtime file unless coordinating with #331; continue Storage/Research/Cancel/other disjoint work.
+
+
+
 ## POST-MERGE CANONICAL STATE — 2026-10-01 23:xx Europe/Berlin
 
 - PR #321 merged history-preserving into `develop/pathena-next`.
