@@ -56,9 +56,21 @@ def test_hardware_acceptance_projection_preserves_pass_evidence() -> None:
             "detected_gpus": ["AMD Radeon RX 7900 XTX"],
             "selected_model_id": "local-model",
             "checks": [
-                {"name": "target-gpu", "status": "PASS", "detail": "GPU matched"},
-                {"name": "lm-studio-model", "status": "PASS", "detail": "model loaded"},
-                {"name": "live-inference", "status": "PASS", "detail": "marker returned"},
+                {
+                    "name": "target-gpu",
+                    "status": "PASS",
+                    "detail": "GPU matched",
+                },
+                {
+                    "name": "lm-studio-model",
+                    "status": "PASS",
+                    "detail": "model loaded",
+                },
+                {
+                    "name": "live-inference",
+                    "status": "PASS",
+                    "detail": "marker returned",
+                },
             ],
         }
     )
@@ -108,7 +120,11 @@ def test_hardware_acceptance_projection_surfaces_first_real_failure() -> None:
                 "detected_gpus": ["AMD Radeon RX 7900 XTX"],
                 "selected_model_id": "local-model",
                 "checks": [
-                    {"name": "target-gpu", "status": "PASS", "detail": "GPU matched"},
+                    {
+                    "name": "target-gpu",
+                    "status": "PASS",
+                    "detail": "GPU matched",
+                },
                 ],
             },
             "PASS contradicts readiness fields",
@@ -122,7 +138,11 @@ def test_hardware_acceptance_projection_surfaces_first_real_failure() -> None:
                 "detected_gpus": ["AMD Radeon RX 7900 XTX"],
                 "selected_model_id": "local-model",
                 "checks": [
-                    {"name": "live-inference", "status": "FAIL", "detail": "marker missing"},
+                    {
+                    "name": "live-inference",
+                    "status": "FAIL",
+                    "detail": "marker missing",
+                },
                 ],
             },
             "PASS contradicts check statuses",
@@ -136,7 +156,11 @@ def test_hardware_acceptance_projection_surfaces_first_real_failure() -> None:
                 "detected_gpus": ["AMD Radeon RX 7900 XTX"],
                 "selected_model_id": "local-model",
                 "checks": [
-                    {"name": "live-inference", "status": "PASS", "detail": "marker returned"},
+                    {
+                    "name": "live-inference",
+                    "status": "PASS",
+                    "detail": "marker returned",
+                },
                 ],
             },
             "FAIL contradicts readiness fields",
@@ -162,7 +186,11 @@ def test_hardware_projection_rejects_success_without_evidence() -> None:
                 "detected_gpus": [],
                 "selected_model_id": "local-model",
                 "checks": [
-                    {"name": "live-inference", "status": "PASS", "detail": "marker returned"},
+                    {
+                    "name": "live-inference",
+                    "status": "PASS",
+                    "detail": "marker returned",
+                },
                 ],
             }
         )
@@ -181,9 +209,21 @@ def test_system_hardware_panel_loads_existing_machine_report(tmp_path: Path) -> 
                 "detected_gpus": ["AMD Radeon RX 7900 XTX"],
                 "selected_model_id": "loaded-model",
                 "checks": [
-                    {"name": "target-gpu", "status": "PASS", "detail": "GPU matched"},
-                    {"name": "lm-studio-model", "status": "PASS", "detail": "model loaded"},
-                    {"name": "live-inference", "status": "PASS", "detail": "marker returned"},
+                    {
+                    "name": "target-gpu",
+                    "status": "PASS",
+                    "detail": "GPU matched",
+                },
+                    {
+                    "name": "lm-studio-model",
+                    "status": "PASS",
+                    "detail": "model loaded",
+                },
+                    {
+                    "name": "live-inference",
+                    "status": "PASS",
+                    "detail": "marker returned",
+                },
                 ],
             }
         ),
