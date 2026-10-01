@@ -26,6 +26,11 @@ to lose its owner state.
 
 This is a terminal-state ownership bug, not a rendering problem.
 
+A second Backup-specific integrity bug was found in the same review: exit code 0 was
+treated as a verified list refresh even when one or more output rows did not match the
+canonical backup CLI framing. Malformed rows were silently skipped, so protocol drift
+could appear as an empty or partial successful backup list.
+
 ## Änderungen
 
 - Track whether the current helper run has already emitted a QProcess error.
@@ -39,6 +44,10 @@ This is a terminal-state ownership bug, not a rendering problem.
   controls from an error signal until QProcess is terminal.
 - Add focused regressions that explicitly execute error -> finished ordering for Hardware
   Acceptance, Recovery and Backup and assert the original detail survives.
+- Parse successful Backup list output as one strict canonical record stream; any malformed
+  non-empty row fails the refresh instead of being skipped.
+- Preserve the previously rendered snapshot list when a successful process returns invalid
+  framing, while surfacing diagnostic output when no snapshot detail is selected.
 
 ## Dateien
 
@@ -61,8 +70,8 @@ Packaging, or PALLAS agent file is touched.
 
 ## Validierung
 
-Focused regressions are included in the candidate. Exact-head GitHub Quality/UI checks are
-required before integration. No local native Qt execution is claimed from this chat runtime.
+Focused regressions are included for all three process-error races plus malformed Backup
+list framing/preservation. Exact-head GitHub Quality/UI checks are required before integration. No local native Qt execution is claimed from this chat runtime.
 
 ## Nächste Schritte
 
