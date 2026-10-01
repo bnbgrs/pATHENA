@@ -11,7 +11,7 @@ import traceback
 from collections.abc import Mapping
 from datetime import datetime, timezone
 from types import TracebackType
-from typing import Any
+from typing import Any, cast
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 from uuid import UUID
 
@@ -439,7 +439,8 @@ class JsonFormatter(logging.Formatter):
             "message": _safe_log_message(record),
         }
 
-        for raw_key, value in record.__dict__.items():
+        extra_fields = cast(Mapping[object, object], record.__dict__)
+        for raw_key, value in extra_fields.items():
             if isinstance(raw_key, str):
                 if raw_key in self._standard_fields or raw_key.startswith("_"):
                     continue
