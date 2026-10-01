@@ -160,3 +160,14 @@ Fresh exact-head workflows were created for `1cf0e0ad1752c66ad94735899c008449fea
 - pATHENA 11-Surface Visual Regression: queued
 
 No terminal PASS is claimed yet.
+
+
+### Diff-review correction
+
+Final ownership review found one self-introduced risk before integration: global filtering could reconcile selections in inactive Claim/Decision tabs and therefore trigger unnecessary hidden-tab detail subprocesses. Selection reconciliation is now limited to the currently visible canonical tab while visibility filtering remains global.
+
+- Product commit: `64c3f679580537efdc7d666a9ae7c0d6edf2ead8`
+- Regression: `200b9360283bd273c992f6d0970d795252052462`
+- Expected result: typing in the Knowledge filter cannot start hidden Claim/Decision detail I/O; switching tabs applies the same filter and reconciles that tab normally.
+
+After this handoff update, treat the resulting commit as the exact candidate head. Do not infer terminal CI success from superseded workflow runs.
