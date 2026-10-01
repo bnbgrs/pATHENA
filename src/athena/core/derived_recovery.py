@@ -1224,13 +1224,45 @@ def _inspect_canonical_embeddings(
             )
             continue
 
-        indexed_snapshot = int(state["indexed_commit_seq"])
-        dimensions = int(state["dimensions"])
-        document_count = int(state["document_count"])
+        indexed_snapshot = _persisted_integer(
+            state["indexed_commit_seq"],
+            minimum=0,
+        )
+        dimensions = _persisted_integer(
+            state["dimensions"],
+            minimum=1,
+        )
+        document_count = _persisted_integer(
+            state["document_count"],
+            minimum=0,
+        )
+
+        if (
+            indexed_snapshot is None
+            or dimensions is None
+            or document_count is None
+        ):
+            reports.append(
+                DerivedEmbeddingReport(
+                    storage_model_id=model_id,
+                    published=True,
+                    indexed_snapshot=indexed_snapshot,
+                    current_snapshot=current_snapshot,
+                    dimensions=dimensions,
+                    document_count=document_count,
+                    persisted_document_count=len(rows),
+                    unpublished_document_count=0,
+                    persisted_valid=False,
+                    embeddings_current=False,
+                    hnsw_files_plausible=False,
+                    embedding_rebuild_required=True,
+                    hnsw_rebuild_required=False,
+                )
+            )
+            continue
 
         persisted_valid = (
-            dimensions > 0
-            and len(rows) == document_count
+            len(rows) == document_count
             and _vectors_shape_valid(rows, dimensions)
         )
 
