@@ -61,7 +61,21 @@ Local Python/Qt execution is unavailable in this connector-only runtime, so no l
 
 ## Abhängigkeiten / Konfliktrisiko
 
-Current active parallel PRs were checked before mutation. No inspected active PR (#325, #327, #329, #330, #332, #333, #334) modifies either Source file in this slice.
+Initial active-PR inspection did not surface a Sources collision, but a later refreshed scan found active **#336 — Sources: queue multi-file imports sequentially**. #336 modifies the same `src/athena/desktop/files_workspace.py` and its current patch retains the ownership defect fixed here: import clears the selected detail pane and starts with `source_id=self._selected_source_id`.
+
+Do **not** merge competing full-file versions.
+
+Integration contract:
+- preserve #336's multi-file queue and accessibility work;
+- replay this slice's small ownership semantics onto that state:
+  - import has `source_id=None`;
+  - import start does not clear/mark the pre-existing selected Source detail busy;
+  - `_operation_owns_details()` requires a concrete operation Source ID;
+- carry the focused ownership regressions forward.
+
+The exact handoff was also posted as comments on both #336 and #348.
+
+Other inspected active PRs (#325, #327, #329, #330, #332, #333, #334) were file-disjoint.
 
 ## Commit / Branch
 
@@ -76,3 +90,13 @@ Current active parallel PRs were checked before mutation. No inspected active PR
 2. If a Source-specific regression appears, fix this branch rather than creating a duplicate slice.
 3. After terminal green evidence, hand to the Integrator for normal merge into fresh Develop.
 4. Manually exercise: selected Source -> Import -> cancel/success/failure, verifying the selected detail remains stable.
+
+
+## CI / integration update
+
+For product head `3e3f516e13ee2cf9b8322d6494424f38bf857bfc` before this documentation-only correction:
+- pATHENA UI Focused Candidate: PASS
+- pATHENA 11-Surface Visual Regression: PASS
+- ATHENA Quality Gate: still queued at last observation
+
+During the run, `develop/pathena-next` advanced to `467ef434236c320e4afe9d21a39c20a4a2b75728` via a Chat-cancellation integration. That Develop delta does not touch this Source slice, but the branch is formally behind/diverged. Integrator should apply the ownership delta to fresh Develop/#336 state rather than force-rebasing another worker's Sources work.
