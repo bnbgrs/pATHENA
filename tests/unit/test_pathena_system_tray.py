@@ -4,6 +4,7 @@ import os
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
+from PySide6.QtGui import QCloseEvent
 from PySide6.QtWidgets import QApplication, QListWidget, QMainWindow
 
 from athena.desktop.pathena_system_tray import PathenaSystemTrayController
@@ -12,6 +13,7 @@ from athena.desktop.pathena_system_tray import PathenaSystemTrayController
 class _TrayWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
+        self.close_events = 0
         self.navigation = QListWidget(self)
         for label in (
             "Workspace",
@@ -24,6 +26,10 @@ class _TrayWindow(QMainWindow):
         ):
             self.navigation.addItem(label)
         self.navigation.setCurrentRow(0)
+
+    def closeEvent(self, event: QCloseEvent) -> None:  # noqa: N802
+        self.close_events += 1
+        super().closeEvent(event)
 
 
 def _app() -> QApplication:
@@ -67,6 +73,50 @@ def test_system_status_reuses_existing_navigation_and_restores_window() -> None:
     assert not window.isMinimized()
 
     controller.shutdown()
+
+
+def test_close_to_tray_hides_without_delivering_main_window_close() -> None:
+    app = _app()
+    window = _TrayWindow()
+    window.show()
+    app.processEvents()
+    controller = PathenaSystemTrayController(window, app=app)
+
+    window.close()
+    app.processEvents()
+
+    assert window.close_events == 0
+    assert not window.isVisible()
+    assert controller.close_to_tray_enabled is True
+    assert window.property("pathenaCloseToTrayEnabled") is True
+
+    controller.open_window()
+    app.processEvents()
+    assert window.isVisible()
+
+    controller.shutdown()
+    window.close()
+
+
+def test_close_to_tray_can_be_disabled_and_shutdown_detaches_filter() -> None:
+    app = _app()
+    window = _TrayWindow()
+    controller = PathenaSystemTrayController(window, app=app)
+
+    controller.set_close_to_tray_enabled(False)
+    window.show()
+    window.close()
+    app.processEvents()
+    assert window.close_events == 1
+    assert window.property("pathenaCloseToTrayEnabled") is False
+
+    window.show()
+    controller.set_close_to_tray_enabled(True)
+    controller.shutdown()
+    window.close()
+    app.processEvents()
+    assert window.close_events == 2
+    assert controller.close_to_tray_enabled is False
 
 
 def test_tray_reflects_only_explicit_runtime_snapshot_states() -> None:
