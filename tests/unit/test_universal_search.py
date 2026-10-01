@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import sqlite3
 import uuid
 
@@ -53,7 +54,8 @@ class _Database:
             CREATE TABLE research_results (
                 result_id BLOB PRIMARY KEY,
                 scope_id BLOB NOT NULL,
-                content_json TEXT NOT NULL
+                content_json TEXT NOT NULL,
+                content_hash BLOB NOT NULL
             );
             """
         )
@@ -164,19 +166,33 @@ def _insert_rows(database: _Database) -> dict[str, uuid.UUID]:
         "INSERT INTO research_scopes(scope_id, job_id, query_text) VALUES (?, ?, 'Alpha secret study')",
         (ids["protected_scope"].bytes, ids["protected_job"].bytes),
     )
+    result_json = '{"summary":"Alpha result synthesis"}'
     connection.execute(
         """
-        INSERT INTO research_results(result_id, scope_id, content_json)
-        VALUES (?, ?, '{"summary":"Alpha result synthesis"}')
+        INSERT INTO research_results(
+            result_id, scope_id, content_json, content_hash
+        ) VALUES (?, ?, ?, ?)
         """,
-        (ids["result"].bytes, ids["scope"].bytes),
+        (
+            ids["result"].bytes,
+            ids["scope"].bytes,
+            result_json,
+            hashlib.sha256(result_json.encode("utf-8")).digest(),
+        ),
     )
+    protected_result_json = '{"summary":"Alpha protected synthesis"}'
     connection.execute(
         """
-        INSERT INTO research_results(result_id, scope_id, content_json)
-        VALUES (?, ?, '{"summary":"Alpha protected synthesis"}')
+        INSERT INTO research_results(
+            result_id, scope_id, content_json, content_hash
+        ) VALUES (?, ?, ?, ?)
         """,
-        (ids["protected_result"].bytes, ids["protected_scope"].bytes),
+        (
+            ids["protected_result"].bytes,
+            ids["protected_scope"].bytes,
+            protected_result_json,
+            hashlib.sha256(protected_result_json.encode("utf-8")).digest(),
+        ),
     )
     connection.commit()
     return ids
@@ -258,3 +274,69 @@ def test_universal_search_rejects_ambiguous_or_unbounded_filters() -> None:
 
     with pytest.raises(UniversalSearchError, match="between 1 and 100"):
         service.search("alpha", limit=101)
+
+
+def test_universal_search_operational_domains_share_token_or_semantics() -> None:
+    database = _Database()
+    ids = _insert_rows(database)
+    service = UniversalSearchService(
+        database,
+        _RevisionedSearch(),
+    )  # type: ignore[arg-type]
+
+    results = service.search(
+        "alpha token-that-does-not-exist",
+        entity_types=(
+            UniversalSearchEntityType.SOURCE,
+            UniversalSearchEntityType.RESEARCH_RESULT,
+            UniversalSearchEntityType.JOB,
+        ),
+    )
+
+    assert {item.result_ref for item in results} == {
+        f"source:{ids['source']}",
+        f"research_result:{ids['result']}",
+        f"job:{ids['job']}",
+    }
+
+
+def test_universal_search_rejects_tampered_research_result_content() -> None:
+    database = _Database()
+    ids = _insert_rows(database)
+    database.connection.execute(
+        """
+        UPDATE research_results
+        SET content_json = '{"summary":"Alpha tampered synthesis"}'
+        WHERE result_id = ?
+        """,
+        (ids["result"].bytes,),
+    )
+    database.connection.commit()
+    service = UniversalSearchService(
+        database,
+        _RevisionedSearch(),
+    )  # type: ignore[arg-type]
+
+    with pytest.raises(
+        UniversalSearchError,
+        match="content hash verification failed",
+    ):
+        service.search(
+            "alpha",
+            entity_types=(UniversalSearchEntityType.RESEARCH_RESULT,),
+        )
+
+
+@pytest.mark.parametrize("query", ["---", " ... "])
+def test_universal_search_rejects_punctuation_only_query(query: str) -> None:
+    database = _Database()
+    service = UniversalSearchService(
+        database,
+        _RevisionedSearch(),
+    )  # type: ignore[arg-type]
+
+    with pytest.raises(
+        UniversalSearchError,
+        match="at least one letter or digit",
+    ):
+        service.search(query)
