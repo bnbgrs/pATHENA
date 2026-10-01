@@ -107,6 +107,87 @@ def test_edit_rejects_assistant_message_without_new_revision(tmp_path) -> None:
     database.stop()
 
 
+def test_edit_fails_closed_for_protected_user_message(tmp_path) -> None:
+    database, service = _service(tmp_path)
+    chat_id = service.create_chat()
+    message = service.add_user_message(chat_id=chat_id, content="private")
+    message_blob = uuid_to_blob(message.message_id)
+    revision_blob = uuid_to_blob(message.revision_id)
+
+    def revision_count() -> int:
+        return int(
+            database.connection.execute(
+                "SELECT COUNT(*) FROM revisions WHERE entity_id = ?",
+                (message_blob,),
+            ).fetchone()[0]
+        )
+
+    database.connection.execute(
+        """
+        UPDATE chats
+        SET protection_scope_id = ?
+        WHERE chat_id = ?
+        """,
+        (b"c" * 16, uuid_to_blob(chat_id)),
+    )
+    with pytest.raises(UnsupportedMessageEditError):
+        service.edit_user_message(
+            chat_id=chat_id,
+            message_id=message.message_id,
+            content="should not persist",
+        )
+    assert revision_count() == 1
+
+    database.connection.execute(
+        """
+        UPDATE chats
+        SET protection_scope_id = NULL
+        WHERE chat_id = ?
+        """,
+        (uuid_to_blob(chat_id),),
+    )
+    database.connection.execute(
+        """
+        UPDATE entity_registry
+        SET protection_scope_id = ?
+        WHERE entity_id = ?
+        """,
+        (b"m" * 16, message_blob),
+    )
+    with pytest.raises(UnsupportedMessageEditError):
+        service.edit_user_message(
+            chat_id=chat_id,
+            message_id=message.message_id,
+            content="still blocked",
+        )
+    assert revision_count() == 1
+
+    database.connection.execute(
+        """
+        UPDATE entity_registry
+        SET protection_scope_id = NULL
+        WHERE entity_id = ?
+        """,
+        (message_blob,),
+    )
+    database.connection.execute(
+        """
+        UPDATE chat_message_revisions
+        SET protected_payload_id = ?
+        WHERE revision_id = ?
+        """,
+        (b"p" * 16, revision_blob),
+    )
+    with pytest.raises(UnsupportedMessageEditError):
+        service.edit_user_message(
+            chat_id=chat_id,
+            message_id=message.message_id,
+            content="also blocked",
+        )
+    assert revision_count() == 1
+    database.stop()
+
+
 def test_fork_chat_copies_history_through_exact_revision_with_provenance(tmp_path) -> None:
     database, service = _service(tmp_path)
     source_chat_id = service.create_chat()
@@ -245,6 +326,28 @@ def test_fork_fails_closed_for_protected_chat_or_message(tmp_path) -> None:
         WHERE chat_id = ?
         """,
         (uuid_to_blob(chat_id),),
+    )
+    database.connection.execute(
+        """
+        UPDATE entity_registry
+        SET protection_scope_id = ?
+        WHERE entity_id = ?
+        """,
+        (b"e" * 16, uuid_to_blob(message.message_id)),
+    )
+    with pytest.raises(UnsupportedChatForkError):
+        service.fork_chat_from_message(
+            chat_id=chat_id,
+            source_message_id=message.message_id,
+        )
+
+    database.connection.execute(
+        """
+        UPDATE entity_registry
+        SET protection_scope_id = NULL
+        WHERE entity_id = ?
+        """,
+        (uuid_to_blob(message.message_id),),
     )
     database.connection.execute(
         """
