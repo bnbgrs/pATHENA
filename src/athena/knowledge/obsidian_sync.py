@@ -121,6 +121,7 @@ class ObsidianVaultWatcher:
         """Inspect once; terminally process files unchanged for the stability window."""
 
         observed_at = time.monotonic() if now is None else now
+        self._assert_safe_vault_root()
         discovered = self._managed_files()
         discovered_paths = set(discovered)
         for missing in set(self._observed) - discovered_paths:
@@ -335,23 +336,29 @@ class ObsidianVaultWatchService:
 
     def start(self) -> None:
         with self._lock:
-            if self._state in {ObsidianSyncState.STARTING, ObsidianSyncState.RUNNING}:
+            if self._state in {
+                ObsidianSyncState.STARTING,
+                ObsidianSyncState.RUNNING,
+                ObsidianSyncState.PAUSED,
+            } and self._thread is not None:
                 return
             if self._state is ObsidianSyncState.STOPPING:
                 raise RuntimeError("Obsidian sync cannot start while it is stopping.")
 
+        initial_error: str | None = None
         try:
             _assert_safe_vault_root(self._vault_root)
         except (OSError, ValueError) as exc:
-            with self._lock:
-                self._state = ObsidianSyncState.PAUSED
-                self._last_error = str(exc)
-            return
+            initial_error = str(exc)
 
         self._stop_event.clear()
         with self._lock:
-            self._state = ObsidianSyncState.STARTING
-            self._last_error = None
+            self._state = (
+                ObsidianSyncState.PAUSED
+                if initial_error is not None
+                else ObsidianSyncState.STARTING
+            )
+            self._last_error = initial_error
             self._thread = threading.Thread(
                 target=self._run,
                 name="athena-obsidian-sync",
@@ -382,33 +389,60 @@ class ObsidianVaultWatchService:
                 self._state = ObsidianSyncState.STOPPED
 
     def _run(self) -> None:
-        database = SQLiteDatabase(self._database_path)
-        try:
-            database.start()
-            watcher = ObsidianVaultWatcher(
-                self._vault_root,
-                reconciler=ObsidianKnowledgeReconciler(
-                    repository=KnowledgeRepository(database),
-                    chat=ChatService(ChatRepository(database)),
-                ),
-                write_stamps=self._write_stamps,
-                stability_window_seconds=self._stability_window_seconds,
-                poll_interval_seconds=self._poll_interval_seconds,
-            )
-            with self._lock:
-                self._state = ObsidianSyncState.RUNNING
-            watcher.run(self._stop_event, on_result=self._record_result)
-        except Exception as exc:
-            with self._lock:
-                self._state = ObsidianSyncState.FAILED
-                self._last_error = f"{type(exc).__name__}: {exc}"
-        finally:
+        while not self._stop_event.is_set():
             try:
-                database.stop()
+                _assert_safe_vault_root(self._vault_root)
+            except (OSError, ValueError) as exc:
+                with self._lock:
+                    if self._state is not ObsidianSyncState.STOPPING:
+                        self._state = ObsidianSyncState.PAUSED
+                        self._last_error = str(exc)
+                self._stop_event.wait(self._poll_interval_seconds)
+                continue
+
+            database = SQLiteDatabase(self._database_path)
+            resume_after_vault_loss = False
+            try:
+                database.start()
+                watcher = ObsidianVaultWatcher(
+                    self._vault_root,
+                    reconciler=ObsidianKnowledgeReconciler(
+                        repository=KnowledgeRepository(database),
+                        chat=ChatService(ChatRepository(database)),
+                    ),
+                    write_stamps=self._write_stamps,
+                    stability_window_seconds=self._stability_window_seconds,
+                    poll_interval_seconds=self._poll_interval_seconds,
+                )
+                with self._lock:
+                    if self._state is not ObsidianSyncState.STOPPING:
+                        self._state = ObsidianSyncState.RUNNING
+                        self._last_error = None
+                try:
+                    watcher.run(self._stop_event, on_result=self._record_result)
+                except NotADirectoryError as exc:
+                    resume_after_vault_loss = True
+                    with self._lock:
+                        if self._state is not ObsidianSyncState.STOPPING:
+                            self._state = ObsidianSyncState.PAUSED
+                            self._last_error = str(exc)
             except Exception as exc:
                 with self._lock:
                     self._state = ObsidianSyncState.FAILED
                     self._last_error = f"{type(exc).__name__}: {exc}"
+                return
+            finally:
+                try:
+                    database.stop()
+                except Exception as exc:
+                    with self._lock:
+                        self._state = ObsidianSyncState.FAILED
+                        self._last_error = f"{type(exc).__name__}: {exc}"
+                    return
+
+            if not resume_after_vault_loss:
+                return
+            self._stop_event.wait(self._poll_interval_seconds)
 
     def _record_result(self, result: ObsidianWatchResult) -> None:
         with self._lock:
