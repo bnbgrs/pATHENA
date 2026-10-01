@@ -482,3 +482,30 @@ def test_controller_search_rejects_invalid_request_before_thread_start() -> None
         controller.search("alpha", limit=0)
 
     assert gateway.search_calls == []
+
+
+
+def test_controller_search_busy_state_spans_multiple_inflight_requests() -> None:
+    app = _app()
+    gateway = _SearchGateway()
+    pool = _pool()
+    controller = DesktopApiController(gateway, thread_pool=pool)
+    ready = QSignalSpy(controller.search_ready)
+    states = QSignalSpy(controller.search_state_changed)
+
+    first = controller.search("alpha")
+    second = controller.search("beta")
+
+    assert (first, second) == (1, 2)
+    assert controller.search_busy is True
+    assert pool.waitForDone(2_000)
+    app.processEvents()
+
+    assert ready.count() == 2
+    assert {ready.at(index)[0] for index in range(ready.count())} == {1, 2}
+    assert gateway.search_calls == [("alpha", 30), ("beta", 30)]
+    assert controller.search_busy is False
+    assert [states.at(index)[0] for index in range(states.count())] == [
+        True,
+        False,
+    ]
