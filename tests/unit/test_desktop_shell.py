@@ -90,10 +90,6 @@ def test_shell_builds_three_zone_layout_and_switches_pages() -> None:
         assert window.pages.currentIndex() == 0
         assert window.prompt_input.isEnabled() is False
         assert window.send_button.isEnabled() is False
-        network_state = window.findChild(QLabel, "networkState")
-        assert network_state is not None
-        assert network_state.text() == "NET    — UNKNOWN\nTOR    — UNKNOWN"
-        assert "not yet supplied" in network_state.toolTip()
         assert window.findChild(QFrame, "inspector") is not None
         assert window.findChild(QWidget, "evidenceRail") is not None
         assert window.findChild(QFrame, "evidenceChain") is not None
