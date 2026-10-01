@@ -50,9 +50,16 @@ def test_hardware_acceptance_projection_preserves_pass_evidence() -> None:
     presentation = project_hardware_acceptance_payload(
         {
             "overall_ready": True,
+            "gpu_ready": True,
+            "model_ready": True,
+            "inference_ready": True,
             "detected_gpus": ["AMD Radeon RX 7900 XTX"],
             "selected_model_id": "local-model",
-            "checks": [],
+            "checks": [
+                {"name": "target-gpu", "status": "PASS", "detail": "GPU matched"},
+                {"name": "lm-studio-model", "status": "PASS", "detail": "model loaded"},
+                {"name": "live-inference", "status": "PASS", "detail": "marker returned"},
+            ],
         }
     )
 
@@ -89,6 +96,78 @@ def test_hardware_acceptance_projection_surfaces_first_real_failure() -> None:
     assert presentation.detail.startswith("expected AMD Radeon RX 7900 XTX")
 
 
+@pytest.mark.parametrize(
+    ("payload", "message"),
+    (
+        (
+            {
+                "overall_ready": True,
+                "gpu_ready": False,
+                "model_ready": True,
+                "inference_ready": True,
+                "detected_gpus": ["AMD Radeon RX 7900 XTX"],
+                "selected_model_id": "local-model",
+                "checks": [
+                    {"name": "target-gpu", "status": "PASS", "detail": "GPU matched"},
+                ],
+            },
+            "PASS contradicts readiness fields",
+        ),
+        (
+            {
+                "overall_ready": True,
+                "gpu_ready": True,
+                "model_ready": True,
+                "inference_ready": True,
+                "detected_gpus": ["AMD Radeon RX 7900 XTX"],
+                "selected_model_id": "local-model",
+                "checks": [
+                    {"name": "live-inference", "status": "FAIL", "detail": "marker missing"},
+                ],
+            },
+            "PASS contradicts check statuses",
+        ),
+        (
+            {
+                "overall_ready": False,
+                "gpu_ready": True,
+                "model_ready": True,
+                "inference_ready": True,
+                "detected_gpus": ["AMD Radeon RX 7900 XTX"],
+                "selected_model_id": "local-model",
+                "checks": [
+                    {"name": "live-inference", "status": "PASS", "detail": "marker returned"},
+                ],
+            },
+            "FAIL contradicts readiness fields",
+        ),
+    ),
+)
+def test_hardware_projection_rejects_contradictory_machine_reports(
+    payload: dict[str, object],
+    message: str,
+) -> None:
+    with pytest.raises(ValueError, match=message):
+        project_hardware_acceptance_payload(payload)
+
+
+def test_hardware_projection_rejects_success_without_evidence() -> None:
+    with pytest.raises(ValueError, match="missing detected GPU evidence"):
+        project_hardware_acceptance_payload(
+            {
+                "overall_ready": True,
+                "gpu_ready": True,
+                "model_ready": True,
+                "inference_ready": True,
+                "detected_gpus": [],
+                "selected_model_id": "local-model",
+                "checks": [
+                    {"name": "live-inference", "status": "PASS", "detail": "marker returned"},
+                ],
+            }
+        )
+
+
 def test_system_hardware_panel_loads_existing_machine_report(tmp_path: Path) -> None:
     _app()
     report = tmp_path / "hardware.json"
@@ -96,9 +175,16 @@ def test_system_hardware_panel_loads_existing_machine_report(tmp_path: Path) -> 
         json.dumps(
             {
                 "overall_ready": True,
+                "gpu_ready": True,
+                "model_ready": True,
+                "inference_ready": True,
                 "detected_gpus": ["AMD Radeon RX 7900 XTX"],
                 "selected_model_id": "loaded-model",
-                "checks": [],
+                "checks": [
+                    {"name": "target-gpu", "status": "PASS", "detail": "GPU matched"},
+                    {"name": "lm-studio-model", "status": "PASS", "detail": "model loaded"},
+                    {"name": "live-inference", "status": "PASS", "detail": "marker returned"},
+                ],
             }
         ),
         encoding="utf-8",
