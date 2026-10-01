@@ -314,3 +314,44 @@ def test_switcher_and_command_palette_are_mutually_exclusive() -> None:
         commands.deleteLater()
         window.close()
         app.processEvents()
+
+
+
+def test_switcher_keeps_unresolved_deep_link_explanation_visible() -> None:
+    app, window, controller, switcher = _surface()
+    source_list = QListWidget(window)
+    source_list.setObjectName("sourceList")
+    source_list.addItem(QListWidgetItem("Different loaded source"))
+    source_list.item(0).setData(
+        Qt.ItemDataRole.UserRole,
+        "88888888-8888-8888-8888-888888888888",
+    )
+    missing_source_id = "99999999-9999-9999-9999-999999999999"
+
+    try:
+        switcher.open()
+        switcher.query.setText("missing source")
+        switcher._debounce.stop()
+        switcher._dispatch_search()
+        controller.search_ready.emit(
+            1,
+            "missing source",
+            (_result("source", missing_source_id),),
+        )
+        app.processEvents()
+
+        switcher._activate_current()
+        app.processEvents()
+
+        assert window.navigation.currentRow() == 4
+        assert switcher.dialog.isVisible()
+        assert switcher.status.text() == (
+            "Opened the owning workspace. The exact result is not loaded in "
+            "its current list yet."
+        )
+        assert source_list.currentItem() is None
+    finally:
+        switcher.deleteLater()
+        source_list.deleteLater()
+        window.close()
+        app.processEvents()
