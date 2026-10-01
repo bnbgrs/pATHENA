@@ -57,6 +57,11 @@ Added `src/athena/storage/canonical_commit_bundle.py` with:
 5. The module explicitly documents the Protected Metadata boundary: the
    serializer only receives already-selected records and cannot infer whether
    arbitrary metadata text is sensitive.
+6. Top-level `commit_id` now accepts `uuid.UUID`, matching
+   `commit_records.commit_id BLOB(16)` and ATHENA's canonical UUID primitives.
+   The bundle serializes the UUID to its canonical lowercase hyphenated text form
+   only at the wire-format boundary, avoiding multiple caller-supplied textual
+   representations of the same persistent commit identity.
 
 ### Focused tests added
 
@@ -75,6 +80,7 @@ Added `src/athena/storage/canonical_commit_bundle.py` with:
 - extra envelope fields;
 - invalid Unicode scalar;
 - invalid predecessor hash.
+- top-level commit identity rejects arbitrary strings and requires `uuid.UUID`.
 
 ## Security decision still required
 
