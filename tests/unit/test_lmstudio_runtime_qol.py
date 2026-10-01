@@ -6,10 +6,13 @@ from pathlib import Path
 import pytest
 
 from athena.desktop.lmstudio_runtime import (
+    _command_timeout_ms,
+    _endpoint,
     _endpoint_port,
     _find_lms,
     _model_confirmation_action,
     _process_command,
+    _server_start_steps,
     _should_attempt_auto_load,
     _should_attempt_auto_start,
 )
@@ -40,6 +43,51 @@ def test_endpoint_port_accepts_only_loopback_http(url: str, expected: int) -> No
 def test_endpoint_port_rejects_unsafe_or_invalid_targets(url: str) -> None:
     with pytest.raises(ValueError):
         _endpoint_port(url)
+
+
+@pytest.mark.parametrize(
+    ("url", "expected"),
+    [
+        ("http://127.0.0.1:1234", ("127.0.0.1", 1234)),
+        ("http://localhost:4321", ("127.0.0.1", 4321)),
+        ("http://[::1]:7777", ("::1", 7777)),
+    ],
+)
+def test_endpoint_preserves_loopback_bind_identity(
+    url: str, expected: tuple[str, int]
+) -> None:
+    assert _endpoint(url) == expected
+
+
+def test_headless_server_start_is_daemon_first_and_endpoint_bound() -> None:
+    daemon, server = _server_start_steps("http://[::1]:7777")
+    assert daemon.operation == "daemon_up"
+    assert daemon.arguments == ("daemon", "up")
+    assert server.operation == "server_start"
+    assert server.arguments == (
+        "server",
+        "start",
+        "--port",
+        "7777",
+        "--bind",
+        "::1",
+    )
+
+
+@pytest.mark.parametrize(
+    ("operation", "expected"),
+    [
+        ("daemon_up", 45_000),
+        ("server_start", 45_000),
+        ("server_stop", 45_000),
+        ("model_unload", 120_000),
+        ("model_load", 600_000),
+    ],
+)
+def test_lms_cli_operations_have_bounded_timeouts(
+    operation: str, expected: int
+) -> None:
+    assert _command_timeout_ms(operation) == expected
 
 
 def test_process_command_preserves_arguments_for_native_executable() -> None:
