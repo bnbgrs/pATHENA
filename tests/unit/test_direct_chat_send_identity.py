@@ -7,7 +7,8 @@ from pathlib import Path
 import pytest
 
 from athena.chat.direct import DirectChatService
-from athena.chat.generation import ChatGenerationService
+from athena.chat.generation import ChatGenerationService, GenerationCancelledError
+from athena.chat.models import MessageType
 from athena.chat.repository import ChatRepository
 from athena.chat.send_identity import (
     SendOperationState,
@@ -211,6 +212,82 @@ def test_direct_send_operation_persists_stable_turn_ids_and_blocks_reexecution(
 
     finally:
         database.stop()
+
+
+def test_explicit_cancel_between_chunks_marks_run_cancelled_and_keeps_user_only(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    database, chat, provider, service = _runtime(tmp_path)
+
+    try:
+        chat_id = chat.create_chat()
+        provider.stream_chat = _two_chunk_stream(provider)  # type: ignore[method-assign]
+        finished_statuses: list[str] = []
+        original_finish = service.model_runs.finish_run
+
+        def finish_run(
+            processing_run_id: uuid.UUID,
+            *,
+            status: str,
+            error_detail: str | None = None,
+        ):
+            finished_statuses.append(status)
+            return original_finish(
+                processing_run_id,
+                status=status,
+                error_detail=error_detail,
+            )
+
+        monkeypatch.setattr(service.model_runs, "finish_run", finish_run)
+        checks = 0
+
+        def cancel_requested() -> bool:
+            nonlocal checks
+            checks += 1
+            return checks >= 5
+
+        with pytest.raises(GenerationCancelledError):
+            service.send_message(
+                chat_id=chat_id,
+                content="cancel after first chunk",
+                requested_model_id="primary",
+                operation_id=_OPERATION_ID,
+                output_reserve=1000,
+                safety_margin=100,
+                cancel_requested=cancel_requested,
+            )
+
+        persisted = chat.load_chat(chat_id).messages
+        assert [message.message_type for message in persisted] == [
+            MessageType.USER,
+        ]
+        assert persisted[0].content == "cancel after first chunk"
+        assert finished_statuses == ["cancelled"]
+        assert provider.stream_calls == 1
+    finally:
+        database.stop()
+
+
+def _two_chunk_stream(provider: _Provider):
+    def stream_chat(
+        *,
+        model_id: str,
+        messages: Sequence[ModelChatMessage],
+        max_output_tokens: int | None = None,
+        reasoning_mode: str | None = None,
+        temperature: float | None = None,
+    ) -> Iterator[str]:
+        del messages
+        assert model_id == "primary"
+        assert max_output_tokens == 1000
+        assert reasoning_mode == "off"
+        assert temperature is None
+        provider.stream_calls += 1
+        yield "partial"
+        yield " should not persist"
+
+    return stream_chat
 
 
 def test_direct_send_operation_incomplete_fails_closed_before_provider(

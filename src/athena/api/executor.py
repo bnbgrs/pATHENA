@@ -25,6 +25,10 @@ from athena.api.contracts import (
     StorageHealthResponse,
 )
 from athena.api.ports import CoreDomainSurface
+from athena.chat.cancellation import (
+    ChatCancellationReservation,
+    ChatOperationActiveError,
+)
 from athena.core.application import ApplicationState, AthenaApplication
 
 _ResultT = TypeVar("_ResultT")
@@ -333,6 +337,24 @@ class SerializedCoreApiSurface:
     def list_models(self) -> tuple[ModelResponse, ...]:
         return self._executor.call(self._surface.list_models)
 
+    def reserve_chat_operation(
+        self,
+        operation_id: str,
+    ) -> ChatCancellationReservation | None:
+        """Reserve only thread-safe cancellation state outside the owner queue."""
+        return self._surface.reserve_chat_operation(operation_id)
+
+    def release_chat_operation(
+        self,
+        reservation: ChatCancellationReservation,
+    ) -> None:
+        """Release one exact control-plane reservation outside the owner queue."""
+        self._surface.release_chat_operation(reservation)
+
+    def cancel_chat_operation(self, operation_id: str) -> bool:
+        """Signal cancellation without waiting behind owner-thread generation."""
+        return self._surface.cancel_chat_operation(operation_id)
+
     def send_chat_message(
         self,
         chat_id: str,
@@ -383,21 +405,42 @@ class SerializedCoreApiSurface:
                     thinking_enabled=thinking_enabled,
                 )
             )
-        if (
-            effective_context_limit is None
-            and max_output_tokens is None
-            and temperature is None
-            and thinking_enabled is None
-        ):
-            return self._executor.call(
-                lambda: self._surface.send_chat_message(
-                    chat_id,
-                    content=content,
-                    requested_model_id=requested_model_id,
-                    operation_id=operation_id,
-                )
+
+        reservation = self._surface.reserve_chat_operation(operation_id)
+        if reservation is None:
+            raise ChatOperationActiveError(
+                "The chat send operation is already active."
             )
-        if max_output_tokens is None and temperature is None and thinking_enabled is None:
+
+        try:
+            if (
+                effective_context_limit is None
+                and max_output_tokens is None
+                and temperature is None
+                and thinking_enabled is None
+            ):
+                return self._executor.call(
+                    lambda: self._surface.send_chat_message(
+                        chat_id,
+                        content=content,
+                        requested_model_id=requested_model_id,
+                        operation_id=operation_id,
+                    )
+                )
+            if (
+                max_output_tokens is None
+                and temperature is None
+                and thinking_enabled is None
+            ):
+                return self._executor.call(
+                    lambda: self._surface.send_chat_message(
+                        chat_id,
+                        content=content,
+                        requested_model_id=requested_model_id,
+                        operation_id=operation_id,
+                        effective_context_limit=effective_context_limit,
+                    )
+                )
             return self._executor.call(
                 lambda: self._surface.send_chat_message(
                     chat_id,
@@ -405,20 +448,13 @@ class SerializedCoreApiSurface:
                     requested_model_id=requested_model_id,
                     operation_id=operation_id,
                     effective_context_limit=effective_context_limit,
+                    max_output_tokens=max_output_tokens,
+                    temperature=temperature,
+                    thinking_enabled=thinking_enabled,
                 )
             )
-        return self._executor.call(
-            lambda: self._surface.send_chat_message(
-                chat_id,
-                content=content,
-                requested_model_id=requested_model_id,
-                operation_id=operation_id,
-                effective_context_limit=effective_context_limit,
-                max_output_tokens=max_output_tokens,
-                temperature=temperature,
-                thinking_enabled=thinking_enabled,
-            )
-        )
+        finally:
+            self._surface.release_chat_operation(reservation)
 
     def send_unified_local_chat_message(
         self,

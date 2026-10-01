@@ -21,6 +21,7 @@ from athena.api.contracts import (
     RememberedChatMessageResponse,
     StorageHealthResponse,
 )
+from athena.chat.cancellation import ChatCancellationReservation
 
 
 class CoreDomainSurface(Protocol):
@@ -102,6 +103,18 @@ class CoreDomainSurface(Protocol):
     ) -> DeletionResultResponse: ...
 
     def list_models(self) -> tuple[ModelResponse, ...]: ...
+
+    def reserve_chat_operation(
+        self,
+        operation_id: str,
+    ) -> ChatCancellationReservation | None: ...
+
+    def release_chat_operation(
+        self,
+        reservation: ChatCancellationReservation,
+    ) -> None: ...
+
+    def cancel_chat_operation(self, operation_id: str) -> bool: ...
 
     def send_chat_message(
         self,

@@ -118,6 +118,7 @@ class _Direct:
         output_reserve: int = 2048,
         temperature: float | None = None,
         reasoning_mode: str | None = "off",
+        cancel_requested=None,
     ) -> object:
         del (
             requested_model_id,
@@ -126,6 +127,8 @@ class _Direct:
             temperature,
             reasoning_mode,
         )
+        if cancel_requested is not None:
+            assert cancel_requested() is False
 
         assert chat_id == CHAT_ID
         assert content == "hello"

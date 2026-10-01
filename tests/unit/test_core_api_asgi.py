@@ -198,6 +198,52 @@ def _news_app(tmp_path) -> tuple[CoreApiAsgiApp, LocalApiRuntime, str]:
     return CoreApiAsgiApp(facade=facade, runtime=runtime), runtime, token
 
 
+def test_asgi_chat_cancel_reports_known_and_unknown_operation_truthfully(
+    tmp_path,
+) -> None:
+    runtime = LocalApiRuntime(tmp_path / "cancel-api")
+    runtime.publish(port=32125)
+    token = runtime.token_path.read_text(encoding="utf-8").strip()
+    facade = _facade()
+    operation_id = "55555555-5555-4555-8555-555555555555"
+    reservation = facade.reserve_chat_operation(operation_id)
+    assert reservation is not None
+    app = CoreApiAsgiApp(facade=facade, runtime=runtime)
+
+    known_status, _, known = asyncio.run(
+        _request(
+            app,
+            runtime,
+            method="POST",
+            path=f"/api/v1/chat-operations/{operation_id}/cancel",
+            token=token,
+        )
+    )
+    assert known_status == 202
+    assert known == {
+        "accepted": True,
+        "operation_id": operation_id,
+    }
+    assert reservation.cancel_requested() is True
+
+    facade.release_chat_operation(reservation)
+
+    late_status, _, late = asyncio.run(
+        _request(
+            app,
+            runtime,
+            method="POST",
+            path=f"/api/v1/chat-operations/{operation_id}/cancel",
+            token=token,
+        )
+    )
+    assert late_status == 202
+    assert late == {
+        "accepted": False,
+        "operation_id": operation_id,
+    }
+
+
 def test_asgi_requires_session_token(tmp_path) -> None:
     app, runtime, _token = _app(tmp_path)
 
