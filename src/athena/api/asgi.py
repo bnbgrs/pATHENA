@@ -31,6 +31,7 @@ from athena.lifecycle.service import (
     LifecycleDeletionUnsupportedError,
 )
 from athena.model.adapters.lm_studio import ProviderOutputLimitError
+from athena.retrieval.universal import UniversalSearchEntityType
 
 AsgiMessage = dict[str, Any]
 AsgiScope = dict[str, Any]
@@ -116,6 +117,25 @@ class CoreApiAsgiApp:
 
             if method == "GET" and path == "/api/v1/capabilities":
                 await _send_contract(send, self._facade.capabilities(), request_id=request_id)
+                return
+
+            if method == "GET" and path == "/api/v1/search":
+                query, limit, entity_types = _universal_search_query(scope)
+                await _send_json(
+                    send,
+                    status=200,
+                    payload={
+                        "items": [
+                            item.to_dict()
+                            for item in self._facade.universal_search(
+                                query,
+                                limit=limit,
+                                entity_types=entity_types,
+                            )
+                        ]
+                    },
+                    request_id=request_id,
+                )
                 return
 
             if method == "GET" and path == "/api/v1/news/profile":
@@ -926,6 +946,7 @@ def _known_path(path: str) -> bool:
         "/api/v1/health",
         "/api/v1/storage/health",
         "/api/v1/capabilities",
+        "/api/v1/search",
         "/api/v1/news/profile",
         "/api/v1/chats",
         "/api/v1/models",
@@ -1046,6 +1067,47 @@ def _bearer_token(value: str | None) -> str | None:
     if not separator or scheme.lower() != "bearer" or not token:
         return None
     return token
+
+
+def _universal_search_query(
+    scope: AsgiScope,
+) -> tuple[str, int, tuple[UniversalSearchEntityType, ...] | None]:
+    raw_query = cast(bytes, scope.get("query_string", b""))
+    values = parse_qs(
+        raw_query.decode("ascii"),
+        keep_blank_values=True,
+    )
+    unknown = set(values) - {"q", "limit", "types"}
+    if unknown:
+        raise ValueError("Universal search request contains unsupported query parameters.")
+
+    raw_text = values.get("q")
+    if raw_text is None or len(raw_text) != 1 or not raw_text[0].strip():
+        raise ValueError("Query parameter 'q' must occur once and contain text.")
+    query = " ".join(raw_text[0].split())
+
+    limit = _positive_limit(scope, default=20, maximum=100)
+
+    raw_types = values.get("types")
+    if raw_types is None:
+        return query, limit, None
+    if len(raw_types) != 1:
+        raise ValueError("Query parameter 'types' must occur once.")
+
+    type_names = tuple(part.strip() for part in raw_types[0].split(","))
+    if not type_names or any(not part for part in type_names):
+        raise ValueError("Query parameter 'types' must contain entity type names.")
+    if len(set(type_names)) != len(type_names):
+        raise ValueError("Query parameter 'types' must not contain duplicates.")
+
+    try:
+        entity_types = tuple(
+            UniversalSearchEntityType(part)
+            for part in type_names
+        )
+    except ValueError as exc:
+        raise ValueError("Query parameter 'types' contains an unknown entity type.") from exc
+    return query, limit, entity_types
 
 
 def _positive_limit(scope: AsgiScope, *, default: int, maximum: int) -> int:
