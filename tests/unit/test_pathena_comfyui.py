@@ -186,6 +186,110 @@ def test_client_queue_and_free_are_explicit_requests(
     assert handler.freed == [{"unload_models": True, "free_memory": True}]
 
 
+def test_client_projects_truthful_terminal_history_states(
+    comfyui_server: tuple[str, type[_Handler]],
+) -> None:
+    endpoint, handler = comfyui_server
+    client = ComfyUiClient(endpoint)
+
+    handler.history = {
+        "succeeded": {
+            "status": {
+                "status_str": "success",
+                "completed": True,
+                "messages": [],
+            }
+        },
+        "failed": {
+            "status": {
+                "status_str": "error",
+                "completed": False,
+                "messages": [],
+            }
+        },
+        "stale": {
+            "status": {
+                "status_str": "running",
+                "completed": False,
+                "messages": [],
+            }
+        },
+    }
+
+    assert client.prompt_state("succeeded").state == "completed"
+    assert client.prompt_state("failed").state == "failed"
+    assert client.prompt_state("stale").state == "unknown"
+    assert client.prompt_state("missing").state == "unknown"
+
+
+@pytest.mark.parametrize(
+    "history_entry, error",
+    [
+        ({}, "no status object"),
+        ({"status": []}, "no status object"),
+        ({"status": {"completed": True}}, "status is incomplete"),
+        (
+            {"status": {"status_str": "success", "completed": "yes"}},
+            "completion flag is invalid",
+        ),
+        (
+            {"status": {"status_str": "success", "completed": False}},
+            "success without completion",
+        ),
+    ],
+)
+def test_client_fails_closed_on_malformed_history_status(
+    comfyui_server: tuple[str, type[_Handler]],
+    history_entry: object,
+    error: str,
+) -> None:
+    endpoint, handler = comfyui_server
+    handler.history = {"prompt-malformed": history_entry}
+    client = ComfyUiClient(endpoint)
+
+    with pytest.raises(ComfyUiError, match=error):
+        client.prompt_state("prompt-malformed")
+
+
+def test_dialog_projects_failed_history_without_fake_completion(
+    qt_app: QApplication,
+    comfyui_server: tuple[str, type[_Handler]],
+    tmp_path: Path,
+) -> None:
+    endpoint, handler = comfyui_server
+    host = QWidget()
+    palette = _Palette(host)
+    controller = install_comfyui_integration(
+        palette,
+        client=ComfyUiClient(endpoint),
+    )
+    dialog = controller.dialog
+    controller.load_workflow(_workflow_file(tmp_path))
+
+    assert controller.queue_selected_workflow() is True
+    handler.history = {
+        "prompt-1": {
+            "status": {
+                "status_str": "error",
+                "completed": False,
+                "messages": [],
+            }
+        }
+    }
+
+    assert controller.refresh_prompt_status() is True
+    qt_app.processEvents()
+
+    assert controller.job_status.property("pathenaUiState") == "failed"
+    assert dialog.property("pathenaComfyUiPromptState") == "failed"
+    assert "did not complete successfully" in controller.job_status.text()
+
+    controller.deleteLater()
+    dialog.deleteLater()
+    palette.deleteLater()
+    host.deleteLater()
+
+
 def test_dialog_projects_measured_vram_and_reference_hierarchy(
     qt_app: QApplication,
     comfyui_server: tuple[str, type[_Handler]],
