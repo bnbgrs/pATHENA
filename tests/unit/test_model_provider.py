@@ -175,6 +175,92 @@ def test_lm_studio_rejects_noncanonical_model_identity(model_key: str) -> None:
             provider.discover_models()
 
 
+@pytest.mark.parametrize(
+    "model_id",
+    (
+        " example/model-q4",
+        "example/model-q4 ",
+        "   ",
+    ),
+)
+def test_lm_studio_generation_rejects_noncanonical_model_id(model_id: str) -> None:
+    provider = LMStudioProvider("http://127.0.0.1:1234")
+    messages = (ModelChatMessage(role="user", content="test"),)
+
+    with pytest.raises(ValueError, match="canonical"):
+        tuple(
+            provider.stream_chat(
+                model_id=model_id,
+                messages=messages,
+            )
+        )
+
+    with pytest.raises(ValueError, match="canonical"):
+        provider.generate_structured(
+            model_id=model_id,
+            messages=messages,
+            schema_id="answer_v1",
+            json_schema={"type": "object"},
+        )
+
+    with pytest.raises(ValueError, match="canonical"):
+        provider.generate_controlled_structured(
+            model_id=model_id,
+            messages=(
+                ModelChatMessage(role="system", content="Return JSON."),
+                ModelChatMessage(role="user", content="test"),
+            ),
+            schema_id="answer_v1",
+            json_schema={"type": "object"},
+            reasoning_mode="off",
+            context_length=4096,
+            max_output_tokens=256,
+            temperature=0.0,
+            top_p=0.95,
+            top_k=40,
+            min_p=0.05,
+            repeat_penalty=1.1,
+        )
+
+
+def test_lm_studio_rejects_noncanonical_runtime_instance_identity() -> None:
+    provider = LMStudioProvider("http://127.0.0.1:1234")
+    response = FakeResponse(
+        {
+            "model_instance_id": " example/model-q4:runtime-1 ",
+            "output": [{"type": "message", "content": '{"answer":42}'}],
+            "stats": {
+                "input_tokens": 20,
+                "total_output_tokens": 5,
+                "reasoning_output_tokens": 0,
+            },
+        }
+    )
+
+    with patch(
+        "athena.model.adapters.lm_studio.open_local_request",
+        return_value=response,
+    ):
+        with pytest.raises(ProviderProtocolError, match="model_instance_id"):
+            provider.generate_controlled_structured(
+                model_id="example/model-q4",
+                messages=(
+                    ModelChatMessage(role="system", content="Return JSON."),
+                    ModelChatMessage(role="user", content="test"),
+                ),
+                schema_id="answer_v1",
+                json_schema={"type": "object"},
+                reasoning_mode="off",
+                context_length=4096,
+                max_output_tokens=256,
+                temperature=0.0,
+                top_p=0.95,
+                top_k=40,
+                min_p=0.05,
+                repeat_penalty=1.1,
+            )
+
+
 def test_lm_studio_health_is_unavailable_when_server_cannot_be_reached() -> None:
     provider = LMStudioProvider("http://127.0.0.1:1234")
 
