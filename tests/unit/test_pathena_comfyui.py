@@ -170,6 +170,76 @@ def test_client_reports_unavailable_vram_without_inventing_values(
     assert snapshot.vram_free_bytes is None
 
 
+@pytest.mark.parametrize(
+    "devices",
+    [
+        [
+            {"name": "gpu-a", "vram_total": 24 * _GIB},
+            {"name": "gpu-b", "vram_free": 12 * _GIB},
+        ],
+        [
+            {
+                "name": "gpu-a",
+                "vram_total": float("inf"),
+                "vram_free": 1 * _GIB,
+            }
+        ],
+        [
+            {
+                "name": "gpu-a",
+                "vram_total": 8 * _GIB,
+                "vram_free": 9 * _GIB,
+            }
+        ],
+        ["malformed-device"],
+    ],
+)
+def test_client_does_not_invent_vram_from_incomplete_or_invalid_devices(
+    comfyui_server: tuple[str, type[_Handler]],
+    devices: list[object],
+) -> None:
+    endpoint, handler = comfyui_server
+    handler.system_stats = {
+        "system": {"comfyui_version": "test-local"},
+        "devices": devices,
+    }
+    client = ComfyUiClient(endpoint)
+
+    snapshot = client.health()
+
+    assert snapshot.device_count == len(devices)
+    assert snapshot.vram_total_bytes is None
+    assert snapshot.vram_free_bytes is None
+
+
+def test_client_aggregates_vram_only_from_complete_per_device_pairs(
+    comfyui_server: tuple[str, type[_Handler]],
+) -> None:
+    endpoint, handler = comfyui_server
+    handler.system_stats = {
+        "system": {"comfyui_version": "test-local"},
+        "devices": [
+            {
+                "name": "gpu-a",
+                "vram_total": 8 * _GIB,
+                "vram_free": 6 * _GIB,
+            },
+            {
+                "name": "gpu-b",
+                "vram_total": 16 * _GIB,
+                "vram_free": 10 * _GIB,
+            },
+        ],
+    }
+    client = ComfyUiClient(endpoint)
+
+    snapshot = client.health()
+
+    assert snapshot.device_count == 2
+    assert snapshot.vram_total_bytes == 24 * _GIB
+    assert snapshot.vram_free_bytes == 16 * _GIB
+
+
 def test_client_queue_and_free_are_explicit_requests(
     comfyui_server: tuple[str, type[_Handler]], tmp_path: Path
 ) -> None:
