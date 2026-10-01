@@ -149,6 +149,24 @@ class CoreApiAsgiApp:
                 )
                 return
 
+            if method == "POST" and path == "/api/v1/news/profile/enable":
+                await _require_empty_body(receive)
+                await _send_contract(
+                    send,
+                    self._facade.enable_news(),
+                    request_id=request_id,
+                )
+                return
+
+            if method == "POST" and path == "/api/v1/news/profile/disable":
+                await _require_empty_body(receive)
+                await _send_contract(
+                    send,
+                    self._facade.disable_news(),
+                    request_id=request_id,
+                )
+                return
+
             if method == "GET" and path == "/api/v1/chats":
                 limit = _positive_limit(
                     scope,
@@ -872,6 +890,8 @@ def _known_path(path: str) -> bool:
         "/api/v1/storage/health",
         "/api/v1/capabilities",
         "/api/v1/news/profile",
+        "/api/v1/news/profile/enable",
+        "/api/v1/news/profile/disable",
         "/api/v1/chats",
         "/api/v1/models",
         "/api/v1/models/health",
