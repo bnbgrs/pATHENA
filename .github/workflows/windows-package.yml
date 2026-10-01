@@ -185,6 +185,15 @@ jobs:
             }
           }
 
+          $missingResultId = [guid]::NewGuid().ToString()
+          $researchResultProbe = Invoke-CapturedWorker -WorkerArguments @("-m", "athena.desktop.research_results_cli", "result", $missingResultId) -Label "research-result-missing"
+          if ($researchResultProbe.ExitCode -ne 2) {
+            throw "Research Results helper did not return the expected domain failure: $($researchResultProbe.Text)"
+          }
+          if ($researchResultProbe.Text -notmatch "RESEARCH_RESULT_ERROR" -or $researchResultProbe.Text -match "pATHENA worker error") {
+            throw "Research Results helper was not dispatched into its real application boundary: $($researchResultProbe.Text)"
+          }
+
           $created = Invoke-CapturedWorker -WorkerArguments @("-m", "athena", "chat", "new") -Label "chat-new"
           if ($created.ExitCode -ne 0) { throw "Packaged chat creation failed: $($created.Text)" }
           $match = [regex]::Match($created.Text, "Chat created:\s+([0-9a-fA-F-]{36})")
@@ -202,6 +211,26 @@ jobs:
           if ($listed.ExitCode -ne 0) { throw "Packaged Knowledge reload failed: $($listed.Text)" }
           if ($listed.Text -notmatch "kind=fact\s+title=Windows-package-smoke") {
             throw "Persisted Knowledge identity was not recovered after packaged restart: $($listed.Text)"
+          }
+
+          $knowledgeHelper = Invoke-CapturedWorker -WorkerArguments @("-m", "athena.desktop.knowledge_cli", "list", "--limit", "10") -Label "knowledge-helper-list"
+          if ($knowledgeHelper.ExitCode -ne 0) {
+            throw "Packaged Knowledge helper list failed: $($knowledgeHelper.Text)"
+          }
+          $knowledgeMatch = [regex]::Match($knowledgeHelper.Text, "(?m)^([0-9a-fA-F-]{36})\t.*Windows-package-smoke")
+          if (-not $knowledgeMatch.Success) {
+            throw "Packaged Knowledge helper did not recover the promoted item: $($knowledgeHelper.Text)"
+          }
+          $knowledgeId = $knowledgeMatch.Groups[1].Value
+
+          $vault = Join-Path $env:RUNNER_TEMP "pathena-obsidian-preview-vault"
+          New-Item -ItemType Directory -Force -Path $vault | Out-Null
+          $preview = Invoke-CapturedWorker -WorkerArguments @("-m", "athena.desktop.knowledge_obsidian_export", "preview", $knowledgeId, "--vault", $vault) -Label "obsidian-preview"
+          if ($preview.ExitCode -ne 0) {
+            throw "Packaged Obsidian preview helper failed: $($preview.Text)"
+          }
+          if ($preview.Text -notmatch '"kind":\s*"preview"') {
+            throw "Packaged Obsidian preview helper returned an unexpected response: $($preview.Text)"
           }
 
       - name: Verify truthful provider state without a test provider
