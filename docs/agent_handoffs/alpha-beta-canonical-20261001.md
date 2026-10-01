@@ -1,5 +1,44 @@
 # Alpha/Beta canonical handoff — 2026-10-01
 
+
+## POST-MERGE CANONICAL STATE — 2026-10-01 23:xx Europe/Berlin
+
+- PR #321 merged history-preserving into `develop/pathena-next`.
+- Canonical Develop SHA immediately after merge: `fe8255a76aa0137bb55320c43f9c34bc8bddafa9`.
+- #321 exact head before merge: `039df63633d4eab10cb10f05710ec226dd1cd341`.
+- Exact-head integration evidence was terminal green on the same #321 head:
+  - ATHENA Quality Gate PASS
+  - pATHENA Core Focused Candidate PASS
+  - pATHENA UI Focused Candidate PASS
+  - pATHENA 11-Surface Visual Regression PASS
+  - pATHENA Windows Package PASS
+- Do not reopen #317/#318/#319/#320/#323 diagnosis. Those paths are closed by #321.
+- #324 canonical commit-bundle serializer is green on its old base (Storage Focused PASS + full Quality PASS), but after #321 it is `221` commits behind Develop. Reconstruct its three-file delta on a fresh branch from current Develop, then requalify exact head before merge. Do not merge the stale branch directly.
+- New Alpha/Beta E2E gap discovered on #321/current code: Chat STOP/cancellation is MISSING across Core/API/UI. Treat this as a real post-merge functional slice, not a styling issue.
+- Cancellation acceptance contract:
+  1. stable send-operation identity and concurrent cancel endpoint/state;
+  2. cancel before provider call, between chunks, and immediately before assistant persistence;
+  3. close provider stream when supported;
+  4. ProcessingRun becomes cancelled, not failed, for user cancellation;
+  5. durable user turn may remain; incomplete assistant must not persist;
+  6. late provider completion after cancel must not persist an assistant;
+  7. duplicate/late cancel is idempotent and truthful;
+  8. Desktop/UI Stop only after real Core/API cancellation exists;
+  9. direct and grounded normal-send paths remain green;
+  10. explicitly classify transport-level abort as PARTIAL if a blocking provider `next(stream)` cannot be interrupted.
+- Old PR #294 is source material only for cancellation semantics; do not merge it wholesale. It contains a known missing import defect around `GenerationCancelledError`.
+- #322 remains old-stack source only. Port only its unique Research wrapping/accessibility delta after the higher-priority functional slices are stable.
+
+### Worker ownership from this point
+
+- **Integrator:** keep `develop/pathena-next` canonical; merge only fresh exact-head qualified slices.
+- **Core/Storage:** reconstruct #324 from current Develop; then continue publication/head-verification/conflict-recovery/durable-worker/snapshot-replay gaps.
+- **Runtime:** Windows/LM Studio E2E on current Develop, including server start without GUI, selected-model autoload, restart/reconnect/cleanup and truthful readiness.
+- **QA/Core:** implement and qualify Chat STOP/cancellation end-to-end.
+- **UI:** continue real usability cleanup only on current Develop; do not revive superseded V3 stacks.
+- **All workers:** record exact SHA, tests/gates, remaining gap and next owner here after every substantive step.
+
+
 ## Canonical state
 
 - Integration target: `develop/pathena-next`
