@@ -150,6 +150,7 @@ build on it. Use the current branch below.
 ## Commit / Branch
 
 - Branch: `fix/scheduler-graceful-shutdown-current-20261002-sol`
-- Base: current `develop/pathena-next` at branch reconstruction; compare was
-  `behind_by=0`.
-- PR: assigned after handoff creation.
+- Base: `develop/pathena-next@467ef434236c320e4afe9d21a39c20a4a2b75728`.
+- Branch pre-handoff head: `87af8489310c702ab6eb7b88c88a4503ded8e87f`.
+- PR: #387 — `Desktop: gracefully stop scheduler process tree` (draft until
+  exact-head validation).
