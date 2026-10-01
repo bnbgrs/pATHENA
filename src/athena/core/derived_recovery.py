@@ -1102,6 +1102,24 @@ def _actual_archive_fts_digest(
     )
 
 
+def _persisted_integer(
+    value: object,
+    *,
+    minimum: int,
+) -> int | None:
+    """Read a canonical persisted SQLite integer without coercing other storage classes."""
+    if isinstance(value, bool) or not isinstance(value, int) or value < minimum:
+        return None
+    return value
+
+
+def _persisted_blob(value: object) -> bytes | None:
+    """Read persisted SQLite BLOB bytes without coercing TEXT or numeric values."""
+    if not isinstance(value, (bytes, bytearray, memoryview)):
+        return None
+    return bytes(value)
+
+
 def _inspect_canonical_embeddings(
     connection: sqlite3.Connection,
     *,
