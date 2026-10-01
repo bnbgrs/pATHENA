@@ -21,6 +21,7 @@ class PackagedTarget(StrEnum):
     CORE = "core"
     ATHENA_CLI = "athena-cli"
     JOBS_CLI = "jobs-cli"
+    SOURCES_CLI = "sources-cli"
     HARDWARE_ACCEPTANCE = "hardware-acceptance"
     RECOVERY = "recovery"
 
@@ -39,6 +40,7 @@ _MODULE_TARGETS = {
     "athena.api.process": PackagedTarget.CORE,
     "athena": PackagedTarget.ATHENA_CLI,
     "athena.desktop.jobs_cli": PackagedTarget.JOBS_CLI,
+    "athena.desktop.sources_cli": PackagedTarget.SOURCES_CLI,
     "athena.hardware_acceptance": PackagedTarget.HARDWARE_ACCEPTANCE,
     "athena.recovery_cli": PackagedTarget.RECOVERY,
 }
