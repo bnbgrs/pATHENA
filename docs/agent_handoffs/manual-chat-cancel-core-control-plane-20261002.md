@@ -7,7 +7,8 @@
 - Exact base: `8d8097eda3cdc389e721f7077ddad1881b93afbe`.
 - Working branch: `fix/chat-cancel-core-control-plane-20261002-sol`.
 - Implementation PR: #329 — `Chat: add out-of-band Core cancellation control plane`.
-- Code head before this documentation-only commit: `0b6193820547a69874c6f618844814cdb119b2e0`.
+- Exact focused-validated code/test head: `39361f665add54bf43f2955777ea06b069a2c04f`.
+- Documentation / temporary-CI cleanup commits may follow this SHA; use PR #329 head for integration, but do not discard the exact evidence anchored to `39361f6…`.
 - Source architecture handoff: PR #328 / `docs/agent_handoffs/alpha-beta-chat-cancel-20261001.md`.
 - #321 is already integrated and green. Do not reopen #317/#318/#319/#320/#323 diagnosis.
 
@@ -191,6 +192,7 @@ operation ID and boolean acceptance state.
 - `src/athena/chat/cancellation.py`
 - `src/athena/chat/direct.py`
 - `src/athena/chat/generation.py`
+- `src/athena/chat/unified.py`
 - `tests/unit/test_chat_cancellation_registry.py`
 - `tests/unit/test_core_api_asgi.py`
 - `tests/unit/test_core_api_chat_cancellation.py`
@@ -202,21 +204,30 @@ Code-head delta versus base before this handoff document: 16 commits, 14 files, 
 
 ## Validation status
 
-No local repository/runtime execution was available in this Chat run, so no local pytest/ruff/mypy result
-is claimed. PR #329 is intentionally draft and is the exact-head CI vehicle.
+Focused exact-head evidence is now available for code/test head
+`39361f665add54bf43f2955777ea06b069a2c04f`.
 
-Required before integration:
+Temporary diagnostic workflow run `36935048398`, job `110613218228`, completed successfully:
 
-1. focused cancellation tests above;
-2. existing send-operation reconciliation tests;
-3. direct-chat/context-package tests;
-4. Ruff + formatting + mypy;
-5. pATHENA Core Focused Candidate;
-6. full ATHENA Quality;
-7. normal direct send remains green;
-8. normal grounded send remains green;
-9. if the touched API files are covered by Windows package or smoke gates, retain that evidence on the
-   exact integration head.
+- Ruff 0.15.22 on every touched cancellation/API/chat source and focused test file: **PASS**
+  (`All checks passed!`).
+- mypy 2.3.0 with locked dev + desktop extras over the complete production tree:
+  **PASS — 493 source files, no issues**.
+- focused pytest over cancellation registry, owner-queue race, real threaded HTTP cancellation,
+  ASGI/client, direct-chat facade/reconciliation and direct-send identity:
+  **PASS — 46 tests in 3.27 s**.
+- final diagnostic enforcement observed `ruff=success`, `mypy=success`, `pytest=success`.
+
+The temporary workflow exists only to obtain fast exact-slice diagnostics and is not part of the intended
+project CI surface. It must be absent from the integration candidate.
+
+Still required before integration:
+
+1. full ATHENA Quality on the final PR head after documentation/temporary-workflow cleanup;
+2. normal direct-send regressions remain green in that full gate;
+3. normal grounded/unified send regressions remain green;
+4. retain any Windows/package evidence required by the current integration policy;
+5. integrate only from a fresh `develop/pathena-next` head and rerun the required post-integration gates.
 
 Do not merge because the design looks correct; merge only from exact-head evidence.
 
@@ -255,7 +266,7 @@ The Core/API control plane in this PR is useful and safe without solving that tr
 
 - Treat #329 as the only current implementation candidate for direct-chat Core/API cancellation.
 - Qualify its exact head; do not combine it with #325/#326/#327 before each slice has independent evidence.
-- If #329 is green, integrate history-preserving into fresh `develop/pathena-next`, then re-run required
+- If #329 full Quality is green after temporary-CI cleanup, integrate history-preserving into fresh `develop/pathena-next`, then re-run required
   integration gates on the resulting develop head.
 - After integration, update the canonical Alpha/Beta handoff with merged SHA and exact gate evidence.
 
@@ -295,8 +306,6 @@ The Core/API control plane in this PR is useful and safe without solving that tr
 
 ## Immediate NEXT_3_ACTIONS
 
-1. Run/inspect #329 exact-head CI and fix only evidenced failures.
-2. If Core/API is green, implement Desktop nonblocking Stop on a fresh branch from the new canonical
-   develop, using `CoreApiClient.cancel_chat_operation()` and the already-active operation ID.
-3. In parallel, Runtime proves or rejects bounded LM Studio transport abort; UI must label behavior
-   truthfully until that answer exists.
+1. Remove the temporary `_chat-cancel-diagnostic.yml` workflow, then qualify #329 with full ATHENA Quality on the resulting final PR head; fix only evidenced failures.
+2. If full Quality is green, integrate #329 into fresh `develop/pathena-next`, rerun required integration gates, then implement Desktop nonblocking Stop on a fresh branch using `CoreApiClient.cancel_chat_operation()` and the already-active operation ID.
+3. In parallel, Runtime proves or rejects bounded LM Studio transport abort; UI must label behavior truthfully until that answer exists.
