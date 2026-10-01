@@ -27,6 +27,7 @@ _HELPERS: tuple[tuple[ModuleType, tuple[str, ...], str], ...] = (
 
 @dataclass
 class _StorageLifecycle:
+    fail_stop: bool = False
     started: int = 0
     stopped: int = 0
 
@@ -35,11 +36,13 @@ class _StorageLifecycle:
 
     def stop(self) -> None:
         self.stopped += 1
+        if self.fail_stop:
+            raise RuntimeError("storage stop failed")
 
 
 class _HelperApp:
-    def __init__(self) -> None:
-        self.storage_bootstrap = _StorageLifecycle()
+    def __init__(self, *, fail_stop: bool = False) -> None:
+        self.storage_bootstrap = _StorageLifecycle(fail_stop=fail_stop)
 
     def start(self, **_kwargs: object) -> None:
         raise AssertionError("Desktop helper must not start the full Core lifecycle")
@@ -113,3 +116,34 @@ def test_desktop_helpers_stop_storage_after_command_failure(
         f"{error_prefix} RuntimeError: helper command failed"
         in capsys.readouterr().err
     )
+
+
+@pytest.mark.parametrize(
+    ("module", "argv", "error_prefix"),
+    _HELPERS,
+    ids=(
+        "canonical-memory",
+        "jobs",
+        "knowledge",
+        "research",
+        "research-results",
+        "sources",
+    ),
+)
+def test_desktop_helpers_fail_closed_when_storage_shutdown_fails(
+    monkeypatch,
+    capsys,
+    module: ModuleType,
+    argv: tuple[str, ...],
+    error_prefix: str,
+) -> None:
+    app = _HelperApp(fail_stop=True)
+    monkeypatch.setattr(module, "AthenaApplication", lambda: app)
+    monkeypatch.setattr(module, "_run", lambda _app, _args: 0)
+
+    result = module.main(argv)
+
+    assert result == 2
+    assert app.storage_bootstrap.started == 1
+    assert app.storage_bootstrap.stopped == 1
+    assert f"{error_prefix} RuntimeError: storage stop failed" in capsys.readouterr().err
