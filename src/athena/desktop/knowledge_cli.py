@@ -396,18 +396,22 @@ def _run(app: AthenaApplication, args: argparse.Namespace) -> int:
 def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(list(argv) if argv is not None else None)
     app = AthenaApplication()
+    exit_code = 0
     try:
+        # Desktop helpers need canonical storage, not ownership of global Core services.
         app.storage_bootstrap.start()
-        return _run(app, args)
+        exit_code = _run(app, args)
     except Exception as exc:
         print(f"KNOWLEDGE_ERROR {type(exc).__name__}: {exc}", file=sys.stderr)
-        return 2
-    finally:
-        try:
-            app.storage_bootstrap.stop()
-        except Exception:
-            pass
+        exit_code = 2
 
+    try:
+        app.storage_bootstrap.stop()
+    except Exception as exc:
+        print(f"KNOWLEDGE_ERROR {type(exc).__name__}: {exc}", file=sys.stderr)
+        exit_code = 2
+
+    return exit_code
 
 if __name__ == "__main__":
     raise SystemExit(main())
