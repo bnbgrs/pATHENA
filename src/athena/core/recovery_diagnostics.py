@@ -10,7 +10,10 @@ from athena.core.derived_recovery import (
     DerivedRecoveryService,
 )
 from athena.storage.paths import RuntimePaths
-from athena.storage.recovery import (\n    DatabaseRecoveryRequiredError,\n    inspect_database_read_only,\n)
+from athena.storage.recovery import (
+    DatabaseRecoveryRequiredError,
+    inspect_database_read_only,
+)
 
 
 class RecoveryDiagnosticStatus(str, Enum):
