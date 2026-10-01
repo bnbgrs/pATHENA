@@ -105,7 +105,13 @@ jobs:
           $worker = Join-Path $pkg "pATHENA-Worker.exe"
           foreach ($arguments in @(
             @("-m", "athena", "--help"),
-            @("-m", "athena.api.process", "--help")
+            @("-m", "athena.api.process", "--help"),
+            @("-m", "athena.desktop.jobs_cli", "--help"),
+            @("-m", "athena.desktop.research_cli", "--help"),
+            @("-m", "athena.desktop.sources_cli", "--help"),
+            @("-m", "athena.desktop.knowledge_cli", "--help"),
+            @("-m", "athena.desktop.knowledge_obsidian_export", "--help"),
+            @("-m", "athena.desktop.canonical_memory_cli", "--help")
           )) {
             $process = Start-Process -FilePath $worker -WorkingDirectory $pkg -ArgumentList $arguments -Wait -PassThru -NoNewWindow
             if ($process.ExitCode -ne 0) {
