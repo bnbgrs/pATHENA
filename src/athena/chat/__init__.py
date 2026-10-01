@@ -4,8 +4,8 @@ from athena.chat.models import ChatForkOrigin, ChatMessage, ChatSummary, ChatThr
 from athena.chat.repository import (
     ChatMessageNotFoundError,
     ChatNotFoundError,
-    ChatRevisionConflictError,
     ChatRepository,
+    ChatRevisionConflictError,
     UnsupportedChatForkError,
     UnsupportedMessageEditError,
 )
