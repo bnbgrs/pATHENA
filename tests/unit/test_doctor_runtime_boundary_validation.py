@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 
+from athena import doctor
 from athena.config.settings import AthenaSettings
 from athena.doctor import _check_runtime_write, run_doctor
 
@@ -22,6 +23,36 @@ def test_doctor_runtime_write_rejects_symlink_root(tmp_path: Path) -> None:
     assert result.status == "FAIL"
     assert "symbolic link" in result.detail
     assert not tuple(target.glob("athena-doctor-*.tmp"))
+
+
+
+
+
+def test_doctor_runtime_write_rejects_reparse_ancestor_before_probe(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    redirected_parent = tmp_path / "redirected"
+    redirected_parent.mkdir()
+    root = redirected_parent / "runtime"
+
+    monkeypatch.setattr(
+        doctor,
+        "is_link_boundary",
+        lambda path: path == redirected_parent,
+    )
+
+    def fail_probe(*args: object, **kwargs: object) -> object:
+        raise AssertionError("write probe must not run across a reparse boundary")
+
+    monkeypatch.setattr(doctor.tempfile, "NamedTemporaryFile", fail_probe)
+
+    result = doctor._check_runtime_write(root)
+
+    assert result.status == "FAIL"
+    assert "reparse-point" in result.detail
+    assert str(redirected_parent) in result.detail
+    assert not root.exists()
 
 
 def test_doctor_runtime_write_accepts_real_directory(tmp_path: Path) -> None:
