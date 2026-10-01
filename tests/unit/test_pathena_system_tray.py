@@ -4,6 +4,7 @@ import os
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QCloseEvent
 from PySide6.QtWidgets import QApplication, QListWidget, QMainWindow
 
@@ -165,3 +166,28 @@ def test_application_quit_signal_cleans_up_tray_lifecycle() -> None:
     assert not controller.tray.isVisible()
     assert app.quitOnLastWindowClosed() is previous_quit_on_last_window_closed
     assert controller._shutdown is True
+
+
+def test_open_window_preserves_hidden_maximized_state() -> None:
+    app = _app()
+    window = _TrayWindow()
+    controller = PathenaSystemTrayController(
+        window,
+        app=app,
+        minimize_on_close=True,
+        tray_available=True,
+    )
+    window.setWindowState(window.windowState() | Qt.WindowState.WindowMaximized)
+    window.show()
+    app.processEvents()
+    assert window.isMaximized()
+
+    window.hide()
+    controller.open_window()
+    app.processEvents()
+
+    assert window.isVisible()
+    assert window.isMaximized()
+
+    controller.shutdown()
+    window.hide()
