@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import os
 import stat
+import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -37,6 +38,7 @@ _LAYOUT_NAME = "structured-replication-v1"
 _MANIFEST_FORMAT = "athena.structured-replication-head"
 _MANIFEST_VERSION = 1
 _MANIFEST_LIMIT = 16 * 1024
+_BUNDLE_LIMIT = 256 * 1024 * 1024
 _HASH_LENGTH = 64
 _MANIFEST_KEYS = frozenset(
     {
@@ -280,7 +282,7 @@ class StructuredReplicationPublisher:
 
     def publish_staged_bundle(
         self,
-        target_id: object,
+        target_id: uuid.UUID,
         bundle: CanonicalCommitBundle,
     ) -> ReplicationTarget:
         if not isinstance(bundle, CanonicalCommitBundle):
@@ -522,7 +524,7 @@ class StructuredReplicationPublisher:
             try:
                 data = _read_regular_file(
                     bundle_path,
-                    max_bytes=max(1, bundle_path.stat().st_size),
+                    max_bytes=_BUNDLE_LIMIT,
                 )
             except FileNotFoundError as exc:
                 raise _TargetHistoryError(
@@ -538,6 +540,15 @@ class StructuredReplicationPublisher:
             if verified.bundle_hash != entry.head_hash:
                 raise _TargetHistoryError(
                     f"Structured replication bundle hash disagrees with manifest: "
+                    f"{entry.bundle_file}"
+                )
+            verified_body = json.loads(verified.data.decode("utf-8"))["body"]
+            if (
+                verified_body["commit_seq"] != entry.commit_seq
+                or verified_body["previous_hash"] != entry.previous_head_hash
+            ):
+                raise _TargetHistoryError(
+                    f"Structured replication bundle history disagrees with manifest: "
                     f"{entry.bundle_file}"
                 )
             referenced_bundles.add(entry.bundle_file)
