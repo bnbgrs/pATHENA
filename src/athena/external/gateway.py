@@ -541,6 +541,14 @@ class ExternalAccessGateway:
                     )
                     raise ExternalTransportError("Redirect response has no Location header.")
                 if redirect_count >= self._MAX_REDIRECTS:
+                    self._audit(
+                        authorization,
+                        url=current_url,
+                        outcome="failed",
+                        reason_code="redirect_limit_exceeded",
+                        response_bytes=len(response.body),
+                        source_id=None,
+                    )
                     raise ExternalTransportError("External redirect limit exceeded.")
                 current_url = urljoin(current_url, location)
                 continue
@@ -569,7 +577,10 @@ class ExternalAccessGateway:
                 raise ExternalResponsePolicyError(
                     "External response exceeded configured body limit."
                 )
-            self._require_authorized(authorization_id, url=response.final_url)
+            self._authorized_or_audit(
+                authorization_id,
+                url=response.final_url,
+            )
             break
         else:
             raise ExternalTransportError("External redirect processing failed.")
