@@ -156,3 +156,16 @@ Additional commit:
 
 Requalify the latest PR head, not the earlier 0f4c9631 intermediate head.
 
+## Fresh-Develop synchronization
+
+During this run develop/pathena-next advanced from 67174198e1494fd4c8678aad60756c39ef5c160b to 467ef434236c320e4afe9d21a39c20a4a2b75728 by merging PR #329 (Chat cancellation Core/API control plane).
+
+The #329 files do not overlap this Research desktop slice. This branch was synchronized with Develop using a normal two-parent merge commit, not a rebase and not a force-push:
+
+- merge commit: 377b9e271ff5874b23419ee4f860e1bb4ef2f747
+- compare versus 467ef434 immediately after merge: 0 behind
+- subsequent branch-owned formatting-only commit: 37c8e1dda869bd04bebb6e40a7e28c71cb720c2b
+- remaining diff versus Develop: only this handoff, research_workspace.py, research_workspace_protocol.py, and test_research_workspace_protocol.py
+
+Use the current PR #358 head as the qualification target. Do not qualify the earlier 6f3e8003 intermediate head.
+
