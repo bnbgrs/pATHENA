@@ -181,3 +181,107 @@ def test_watch_service_pauses_fail_closed_for_missing_vault(tmp_path: Path) -> N
     assert "existing real directory" in (service.last_error or "")
     service.stop()
     assert service.state is ObsidianSyncState.STOPPED
+
+def test_managed_file_move_into_subfolder_resolves_by_frontmatter_identity(
+    tmp_path: Path,
+) -> None:
+    database, repository, created, exporter, watcher = _runtime(tmp_path)
+    try:
+        result = exporter.export_snapshot(repository.load_current(created.knowledge_id))
+        watcher.scan_once(now=0.0)
+        ignored = watcher.scan_once(now=1.0)
+        assert len(ignored) == 1
+        assert ignored[0].status is ObsidianWatchStatus.SELF_WRITE_IGNORED
+
+        nested = result.path.parent / "Projects"
+        nested.mkdir()
+        moved = result.path.rename(nested / "Renamed by user.md")
+
+        assert watcher.scan_once(now=2.0) == ()
+        observed = watcher.scan_once(now=3.0)
+
+        assert len(observed) == 1
+        assert observed[0].status is ObsidianWatchStatus.UNCHANGED
+        assert observed[0].relative_path == "Knowledge/Projects/Renamed by user.md"
+        current = repository.load_current(created.knowledge_id).revision
+        assert current.revision_id == created.revision_id
+        assert current.revision_no == 1
+        assert moved.exists()
+    finally:
+        database.stop()
+
+
+def test_new_markdown_without_athena_id_is_an_import_candidate(tmp_path: Path) -> None:
+    database, repository, created, _exporter, watcher = _runtime(tmp_path)
+    try:
+        knowledge_root = tmp_path / "vault" / "Knowledge"
+        knowledge_root.mkdir()
+        manual = knowledge_root / "Manual note.md"
+        manual.write_text("# Manual note\n\nUser-authored body\n", encoding="utf-8")
+
+        assert watcher.scan_once(now=0.0) == ()
+        observed = watcher.scan_once(now=1.0)
+
+        assert len(observed) == 1
+        assert observed[0].status is ObsidianWatchStatus.IMPORT_CANDIDATE
+        assert observed[0].relative_path == "Knowledge/Manual note.md"
+        assert "explicit import" in (observed[0].detail or "")
+        current = repository.load_current(created.knowledge_id).revision
+        assert current.revision_id == created.revision_id
+        assert current.revision_no == 1
+    finally:
+        database.stop()
+
+
+def test_malformed_managed_identity_is_rejected_not_import_candidate(
+    tmp_path: Path,
+) -> None:
+    database, _repository, _created, _exporter, watcher = _runtime(tmp_path)
+    try:
+        knowledge_root = tmp_path / "vault" / "Knowledge"
+        knowledge_root.mkdir()
+        broken = knowledge_root / "Broken managed note.md"
+        broken.write_text(
+            "---\n"
+            'athena_id: "not-a-uuid"\n'
+            'entity_type: "knowledge_unit"\n'
+            "revision_no: 1\n"
+            "projection_version: 1\n"
+            "---\n\n"
+            "# Broken\n\n"
+            "Body\n",
+            encoding="utf-8",
+        )
+
+        assert watcher.scan_once(now=0.0) == ()
+        observed = watcher.scan_once(now=1.0)
+
+        assert len(observed) == 1
+        assert observed[0].status is ObsidianWatchStatus.REJECTED
+        assert observed[0].status is not ObsidianWatchStatus.IMPORT_CANDIDATE
+    finally:
+        database.stop()
+
+
+def test_nested_link_boundary_is_not_traversed(tmp_path: Path) -> None:
+    database, _repository, _created, _exporter, watcher = _runtime(tmp_path)
+    try:
+        knowledge_root = tmp_path / "vault" / "Knowledge"
+        knowledge_root.mkdir()
+        outside = tmp_path / "outside"
+        outside.mkdir()
+        (outside / "Foreign.md").write_text(
+            "# Foreign\n\nMust remain outside the managed vault.\n",
+            encoding="utf-8",
+        )
+        linked = knowledge_root / "linked"
+        try:
+            linked.symlink_to(outside, target_is_directory=True)
+        except OSError:
+            pytest.skip("Filesystem does not permit directory symlink creation.")
+
+        assert watcher.scan_once(now=0.0) == ()
+        assert watcher.scan_once(now=1.0) == ()
+    finally:
+        database.stop()
+
