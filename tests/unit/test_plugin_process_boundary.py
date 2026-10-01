@@ -88,6 +88,26 @@ def test_oversized_message_is_rejected_before_json_parse() -> None:
 
 
 @pytest.mark.parametrize(
+    "request_id,scope,match",
+    [
+        (" req-1", "source:123", "request_id"),
+        ("req-1 ", "source:123", "request_id"),
+        ("req-1", " source:123", "scope"),
+        ("req-1", "source:123 ", "scope"),
+    ],
+)
+def test_protocol_rejects_noncanonical_request_identity_and_scope(
+    request_id: str,
+    scope: str,
+    match: str,
+) -> None:
+    with pytest.raises(PluginProtocolError, match=match):
+        decode_plugin_capability_request(
+            _request(request_id=request_id, scope=scope)
+        )
+
+
+@pytest.mark.parametrize(
     "request_id",
     [
         "req\nforged",
