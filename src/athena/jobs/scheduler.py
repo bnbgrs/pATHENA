@@ -8,6 +8,7 @@ import time
 import uuid
 from dataclasses import dataclass
 from enum import Enum
+from threading import Event
 from typing import Protocol
 
 from athena.common.time import utc_now_us
@@ -565,8 +566,14 @@ class DurableJobScheduler:
         worker_id: str,
         max_ticks: int | None = None,
         lane: SchedulerLane = SchedulerLane.ALL,
+        stop_event: Event | None = None,
     ) -> SchedulerRunResult:
-        """Run a low-frequency persistent scheduler loop until interrupted/bounded."""
+        """Run a low-frequency persistent scheduler loop until interrupted/bounded.
+
+        Supervisor-owned loops may receive a stop event. The event is checked before
+        every tick and is also used to interrupt the otherwise long idle wait, so a
+        normal desktop shutdown never needs to wait for the polling interval.
+        """
         if max_ticks is not None and max_ticks <= 0:
             raise ValueError("Scheduler max_ticks must be positive when provided.")
         ticks = 0
@@ -578,6 +585,9 @@ class DurableJobScheduler:
         last_idle = False
 
         while max_ticks is None or ticks < max_ticks:
+            if stop_event is not None and stop_event.is_set():
+                break
+
             result = self.tick(
                 worker_id=worker_id,
                 lane=lane,
@@ -587,7 +597,10 @@ class DurableJobScheduler:
             if result.idle:
                 if max_ticks is not None and ticks >= max_ticks:
                     break
-                time.sleep(self.policy.idle_poll_seconds)
+                if stop_event is None:
+                    time.sleep(self.policy.idle_poll_seconds)
+                elif stop_event.wait(self.policy.idle_poll_seconds):
+                    break
                 continue
             dispatched += 1
             if result.final_state is JobState.COMPLETED:
