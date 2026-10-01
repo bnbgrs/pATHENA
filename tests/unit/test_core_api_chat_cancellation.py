@@ -15,7 +15,6 @@ from athena.chat.cancellation import (
 )
 from athena.chat.generation import GenerationCancelledError
 
-
 _OPERATION_ID = "11111111-2222-4333-8444-555555555555"
 _CHAT_ID = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee"
 
