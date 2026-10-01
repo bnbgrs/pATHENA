@@ -1,10 +1,25 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
+
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+
+from PySide6.QtCore import QProcess
+from PySide6.QtWidgets import QApplication
 
 from athena.config.settings import AthenaSettings
 from athena.core.application import AthenaApplication
-from athena.desktop.system_backup import _BACKUP_RE
+from athena.desktop.system_backup import BackupWorkspace, _BACKUP_RE
+
+
+
+
+def _qt_app() -> QApplication:
+    existing = QApplication.instance()
+    if isinstance(existing, QApplication):
+        return existing
+    return QApplication([])
 
 
 def _app(root: Path) -> AthenaApplication:
@@ -57,3 +72,21 @@ def test_explicit_backup_target_is_registered_verified_and_restored_isolated(
         assert (restore_root / "state" / "athena.db").is_file()
     finally:
         app.stop()
+
+def test_backup_process_error_is_not_overwritten_by_late_finished() -> None:
+    _qt_app()
+    workspace = BackupWorkspace()
+    workspace._operation = "list"
+
+    workspace._process_error(QProcess.ProcessError.FailedToStart)
+    error_status = workspace.status.text()
+
+    assert error_status == "Unable to start local backup command."
+    assert workspace._process_error_seen is True
+
+    workspace._finished(1, QProcess.ExitStatus.NormalExit)
+
+    assert workspace.status.text() == error_status
+    assert workspace._process_error_seen is False
+    assert workspace.refresh_button.isEnabled() is True
+
