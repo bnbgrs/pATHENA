@@ -445,7 +445,6 @@ class LMStudioRuntimeController(QObject):
             attempted_model_id=self._auto_load_attempted_model_id,
             busy=self.busy,
         ):
-            self._pending_model_id = selected.backend_model_id
             self._auto_load_attempted_model_id = selected.backend_model_id
             self.ensure_selected_model()
 
@@ -477,11 +476,10 @@ class LMStudioRuntimeController(QObject):
     def _model_selected(self, _index: int) -> None:
         model = self.window._selected_model()
         self._auto_load_attempted_model_id = None
+        self._pending_model_id = None
         self._model_confirmation_refreshes_remaining = 0
         if model is None:
-            self._pending_model_id = None
             return
-        self._pending_model_id = model.backend_model_id
         self._preferred_model_id = model.backend_model_id
         self._persist_settings()
         if self.auto_load.isChecked():
@@ -528,8 +526,8 @@ class LMStudioRuntimeController(QObject):
     def ensure_selected_model(self) -> None:
         model = self.window._selected_model()
         if model is None:
+            self._pending_model_id = None
             return
-        self._pending_model_id = model.backend_model_id
         self._model_confirmation_refreshes_remaining = 0
         if model.loaded:
             self._pending_model_id = None
@@ -538,9 +536,11 @@ class LMStudioRuntimeController(QObject):
         if self.busy:
             return
         if self._lms_path is None:
+            self._pending_model_id = None
             self._set_status("LM Studio runtime · lms CLI not found")
             return
 
+        self._pending_model_id = model.backend_model_id
         self._auto_load_attempted_model_id = model.backend_model_id
         arguments: list[str] = ["load", model.backend_model_id]
         context = self.window._effective_context_limit()
@@ -626,6 +626,8 @@ class LMStudioRuntimeController(QObject):
             return
         self._steps.clear()
         self._active_step = None
+        if step.operation == "model_load":
+            self._pending_model_id = None
         self._model_confirmation_refreshes_remaining = 0
         self.busy_changed.emit(False)
         self._set_status(f"LM Studio runtime · {step.operation} timed out")
@@ -648,6 +650,9 @@ class LMStudioRuntimeController(QObject):
         if exit_code != 0:
             self._steps.clear()
             self._active_step = None
+            if step.operation == "model_load":
+                self._pending_model_id = None
+                self._model_confirmation_refreshes_remaining = 0
             self.busy_changed.emit(False)
             detail = output.splitlines()[-1] if output else f"exit {exit_code}"
             self._set_status(f"LM Studio runtime · {step.operation} failed · {detail}")
@@ -671,6 +676,8 @@ class LMStudioRuntimeController(QObject):
         self._command_timer.stop()
         self._steps.clear()
         self._active_step = None
+        if step.operation == "model_load":
+            self._pending_model_id = None
         self._model_confirmation_refreshes_remaining = 0
         self.busy_changed.emit(False)
         label = step.operation if step is not None else "command"
