@@ -23,6 +23,7 @@ This is a containment/trust-boundary defect, not a checksum defect.
 - `_verify_path()` rejects redirected/non-directory snapshot roots.
 - `complete.marker`, `manifest.json`, and `athena.db` now pass through `_safe_existing_file()` before being read/opened.
 - `_safe_existing_file()` now uses the shared redirect-boundary predicate rather than `Path.is_symlink()`, strengthening the existing backup-object path on Windows as well.
+- Backup target roots and `.athena-backup-target.json` descriptors now use the same junction/reparse-aware predicate instead of POSIX-only symlink checks.
 - Error text was generalized from “backup object” to “backup file” because the helper now protects both object and snapshot-control files.
 
 ## Dateien
@@ -43,7 +44,9 @@ New focused tests cover:
 3. redirected `athena.db`;
 4. redirected snapshot directory in verifier;
 5. redirected snapshot directory in disaster restore before resolution;
-6. shared Windows junction/reparse-point contract in `_safe_existing_file()`.
+6. shared Windows junction/reparse-point contract in `_safe_existing_file()`;
+7. backup target descriptor reparse rejection;
+8. backup target root reparse rejection.
 
 Tests use monkeypatched `is_link_boundary()` so the cases are deterministic on Linux and Windows without requiring symlink privileges.
 
@@ -75,6 +78,8 @@ Commits:
 - `0462b5e7126c3b6cd994142b31ea8571ebb9d41f` — control-file regression tests
 - `27f0df9a73d17fb7a62a10d5ffc768dfdd191377` — fence redirected snapshot roots
 - `a927d755841803b11f946cb31817a88536a9aee7` — snapshot-root regression tests
+- `072056453bd9e9ca30bc579b1ee3d64f237334a2` — harden Windows target identity boundaries
+- `21977cecde1d10d76b8fb16ff1bd88bf4289f4dc` — target reparse regression tests
 
 ## Nächste sinnvolle Schritte
 
