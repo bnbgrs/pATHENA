@@ -654,6 +654,9 @@ class LMStudioRuntimeController(QObject):
         except ValueError as exc:
             self._steps.clear()
             self._active_step = None
+            if step.operation == "model_load":
+                self._pending_model_id = None
+                self._model_confirmation_refreshes_remaining = 0
             self.busy_changed.emit(False)
             self._set_status(f"LM Studio runtime · command rejected · {exc}")
             return
