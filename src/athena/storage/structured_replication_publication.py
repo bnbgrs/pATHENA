@@ -31,6 +31,7 @@ from athena.storage.structured_replication import (
     ReplicationCommitState,
     ReplicationTarget,
     ReplicationTargetState,
+    StructuredReplicationInvariantError,
     StructuredReplicationRepository,
 )
 
@@ -379,8 +380,8 @@ class StructuredReplicationPublisher:
                     commit_seq=commit_seq,
                     bundle=verified,
                 )
-                return self.repository.confirm_commit(
-                    target_id,
+                return self._confirm_or_observe(
+                    target_id=target_id,
                     commit_seq=commit_seq,
                     head_hash=verified.bundle_hash,
                 )
@@ -422,11 +423,43 @@ class StructuredReplicationPublisher:
             )
             raise StructuredReplicationConflictError(str(exc)) from exc
 
-        return self.repository.confirm_commit(
-            target_id,
+        return self._confirm_or_observe(
+            target_id=target_id,
             commit_seq=commit_seq,
             head_hash=verified.bundle_hash,
         )
+
+    def _confirm_or_observe(
+        self,
+        *,
+        target_id: uuid.UUID,
+        commit_seq: int,
+        head_hash: str,
+    ) -> ReplicationTarget:
+        latest_commit = self.repository.get_commit(target_id, commit_seq)
+        latest_target = self.repository.get_target(target_id)
+        if latest_commit.state is ReplicationCommitState.VERIFIED:
+            if latest_target.confirmed_commit_seq < commit_seq:
+                raise StructuredReplicationPublicationError(
+                    "Verified replication commit is not reflected by the target watermark."
+                )
+            return latest_target
+
+        try:
+            return self.repository.confirm_commit(
+                target_id,
+                commit_seq=commit_seq,
+                head_hash=head_hash,
+            )
+        except StructuredReplicationInvariantError:
+            latest_commit = self.repository.get_commit(target_id, commit_seq)
+            latest_target = self.repository.get_target(target_id)
+            if (
+                latest_commit.state is ReplicationCommitState.VERIFIED
+                and latest_target.confirmed_commit_seq >= commit_seq
+            ):
+                return latest_target
+            raise
 
     def _assert_canonical_commit_identity(
         self,
@@ -534,37 +567,6 @@ class StructuredReplicationPublisher:
                 raise _TargetHistoryError(
                     "Structured replication manifest predecessor chain is invalid."
                 )
-            bundle_path = commits_dir / entry.bundle_file
-            try:
-                data = _read_regular_file(
-                    bundle_path,
-                    max_bytes=_BUNDLE_LIMIT,
-                )
-            except FileNotFoundError as exc:
-                raise _TargetHistoryError(
-                    f"Structured replication manifest references a missing bundle: "
-                    f"{entry.bundle_file}"
-                ) from exc
-            try:
-                verified = verify_canonical_commit_bundle(data)
-            except CanonicalCommitBundleError as exc:
-                raise _TargetHistoryError(
-                    f"Structured replication bundle is invalid: {entry.bundle_file}"
-                ) from exc
-            if verified.bundle_hash != entry.head_hash:
-                raise _TargetHistoryError(
-                    f"Structured replication bundle hash disagrees with manifest: "
-                    f"{entry.bundle_file}"
-                )
-            verified_body = json.loads(verified.data.decode("utf-8"))["body"]
-            if (
-                verified_body["commit_seq"] != entry.commit_seq
-                or verified_body["previous_hash"] != entry.previous_head_hash
-            ):
-                raise _TargetHistoryError(
-                    f"Structured replication bundle history disagrees with manifest: "
-                    f"{entry.bundle_file}"
-                )
             referenced_bundles.add(entry.bundle_file)
             previous_hash = entry.head_hash
             expected_seq += 1
@@ -573,15 +575,74 @@ class StructuredReplicationPublisher:
             current_commit_seq,
             current_bundle.bundle_hash,
         )
+        present_bundles: set[str] = set()
         for path in sorted(commits_dir.iterdir(), key=lambda item: item.name):
             if path.name.startswith(".") and path.name.endswith(".partial"):
                 continue
+            if is_link_boundary(path):
+                raise _TargetHistoryError(
+                    f"Structured replication bundle is a link boundary: {path.name}"
+                )
+            try:
+                mode = path.stat(follow_symlinks=False).st_mode
+            except OSError as exc:
+                raise _TargetHistoryError(
+                    f"Structured replication bundle identity is unstable: {path.name}"
+                ) from exc
+            if not stat.S_ISREG(mode):
+                raise _TargetHistoryError(
+                    f"Structured replication bundle entry is not a file: {path.name}"
+                )
+            present_bundles.add(path.name)
             if path.name in referenced_bundles or path.name == allowed_orphan:
                 continue
             raise _TargetHistoryError(
                 f"Unexpected structured replication bundle entry: {path.name}"
             )
+
+        missing = referenced_bundles - present_bundles
+        if missing:
+            name = sorted(missing)[0]
+            raise _TargetHistoryError(
+                f"Structured replication manifest references a missing bundle: {name}"
+            )
+        if entries:
+            self._verify_manifest_bundle(commits_dir, entries[-1])
         return tuple(entries)
+
+    @staticmethod
+    def _verify_manifest_bundle(
+        commits_dir: Path,
+        entry: _ManifestEntry,
+    ) -> None:
+        bundle_path = commits_dir / entry.bundle_file
+        try:
+            data = _read_regular_file(bundle_path, max_bytes=_BUNDLE_LIMIT)
+        except FileNotFoundError as exc:
+            raise _TargetHistoryError(
+                f"Structured replication manifest references a missing bundle: "
+                f"{entry.bundle_file}"
+            ) from exc
+        try:
+            verified = verify_canonical_commit_bundle(data)
+        except CanonicalCommitBundleError as exc:
+            raise _TargetHistoryError(
+                f"Structured replication bundle is invalid: {entry.bundle_file}"
+            ) from exc
+        if verified.bundle_hash != entry.head_hash:
+            raise _TargetHistoryError(
+                f"Structured replication bundle hash disagrees with manifest: "
+                f"{entry.bundle_file}"
+            )
+        verified_body = json.loads(verified.data.decode("utf-8"))["body"]
+        if (
+            verified_body["commit_seq"] != entry.commit_seq
+            or verified_body["previous_hash"] != entry.previous_head_hash
+        ):
+            raise _TargetHistoryError(
+                f"Structured replication bundle history disagrees with manifest: "
+                f"{entry.bundle_file}"
+            )
 
     @staticmethod
     def _publish_or_verify_bundle(
