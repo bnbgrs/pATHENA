@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ipaddress
 import json
+import math
 import os
 import urllib.error
 import urllib.parse
@@ -140,21 +141,35 @@ def _queue_prompt_ids(items: object) -> tuple[str, ...]:
     return tuple(prompt_ids)
 
 
+def _vram_bytes(value: object) -> int | None:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    try:
+        numeric = float(value)
+    except OverflowError:
+        return None
+    if not math.isfinite(numeric) or numeric < 0:
+        return None
+    return int(numeric)
+
+
 def _device_vram(devices: list[object]) -> tuple[int | None, int | None]:
+    if not devices:
+        return None, None
+
     totals: list[int] = []
     frees: list[int] = []
     for device in devices:
         if not isinstance(device, dict):
-            continue
-        total = device.get("vram_total")
-        free = device.get("vram_free")
-        if isinstance(total, (int, float)) and not isinstance(total, bool) and total >= 0:
-            totals.append(int(total))
-        if isinstance(free, (int, float)) and not isinstance(free, bool) and free >= 0:
-            frees.append(int(free))
-    total_bytes = sum(totals) if totals else None
-    free_bytes = sum(frees) if frees and len(frees) == len(totals) else None
-    return total_bytes, free_bytes
+            return None, None
+        total = _vram_bytes(device.get("vram_total"))
+        free = _vram_bytes(device.get("vram_free"))
+        if total is None or free is None or free > total:
+            return None, None
+        totals.append(total)
+        frees.append(free)
+
+    return sum(totals), sum(frees)
 
 
 def _format_gib(value: int) -> str:
