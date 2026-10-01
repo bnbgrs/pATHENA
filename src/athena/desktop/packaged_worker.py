@@ -89,6 +89,11 @@ def dispatch_worker(argv: Sequence[str] | None = None) -> int:
 
         return jobs_main(invocation.arguments)
 
+    if invocation.target is PackagedTarget.SOURCES_CLI:
+        from athena.desktop.sources_cli import main as sources_main
+
+        return sources_main(invocation.arguments)
+
     if invocation.target is PackagedTarget.HARDWARE_ACCEPTANCE:
         from athena.hardware_acceptance import main as hardware_acceptance_main
 
