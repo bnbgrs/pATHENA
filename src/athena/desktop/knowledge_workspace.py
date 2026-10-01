@@ -811,6 +811,11 @@ class KnowledgeWorkspace(QWidget):
 
     def _apply_filter(self, text: str) -> None:
         needle = " ".join(text.casefold().split())
+        active_widget = {
+            0: self.knowledge_list,
+            1: self.claim_list,
+            2: self.review_list,
+        }.get(self.browser_tabs.currentIndex())
         for widget in (self.knowledge_list, self.claim_list, self.review_list):
             first_visible: QListWidgetItem | None = None
             for index in range(widget.count()):
@@ -821,6 +826,8 @@ class KnowledgeWorkspace(QWidget):
                 if not hidden and first_visible is None:
                     first_visible = item
 
+            if widget is not active_widget:
+                continue
             current = widget.currentItem()
             if current is not None and not current.isHidden():
                 continue
