@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from pathlib import Path
 
 import pytest
 
@@ -19,7 +20,9 @@ from athena.security.repository import (
 from athena.storage.database import SQLiteDatabase
 
 
-def _repository_with_scope(tmp_path):
+def _repository_with_scope(
+    tmp_path: Path,
+) -> tuple[SQLiteDatabase, ProtectionRepository, uuid.UUID, uuid.UUID]:
     database = SQLiteDatabase(tmp_path / "athena.db")
     database.start()
     repository = ProtectionRepository(database)
