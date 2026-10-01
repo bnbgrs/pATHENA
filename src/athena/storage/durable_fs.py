@@ -22,7 +22,6 @@ _FILE_SHARE_WRITE = 0x00000002
 _DELETE = 0x00010000
 _OPEN_EXISTING = 3
 _FILE_RENAME_INFO_CLASS = 3
-_FILE_DISPOSITION_INFO_CLASS = 13
 _ERROR_ALREADY_EXISTS = 183
 _ERROR_FILE_EXISTS = 80
 
@@ -196,46 +195,6 @@ def durable_replace(source: Path, destination: Path) -> None:
         return
 
     _posix_durable_replace(source_path, destination_path)
-
-
-def durable_unlink(path: Path, *, missing_ok: bool = False) -> None:
-    """Delete one file without allowing parent-path replacement to redirect deletion."""
-    target = Path(path)
-    if not isinstance(missing_ok, bool):
-        raise ValueError("Durable unlink missing_ok must be a boolean.")
-    parent = target.parent
-    _assert_real_directory(parent, label="Durable unlink parent")
-
-    if _is_windows():
-        try:
-            _windows_unlink_bound(target)
-        except OSError as exc:
-            if missing_ok and exc.errno in {2, 3}:
-                return
-            raise
-        return
-
-    parent_fd = _open_directory_fd(parent, label="Durable unlink parent")
-    try:
-        _assert_directory_fd_current(
-            parent,
-            parent_fd,
-            label="Durable unlink parent",
-        )
-        try:
-            os.unlink(target.name, dir_fd=parent_fd)
-        except FileNotFoundError:
-            if not missing_ok:
-                raise
-            return
-        os.fsync(parent_fd)
-        _assert_directory_fd_current(
-            parent,
-            parent_fd,
-            label="Durable unlink parent",
-        )
-    finally:
-        os.close(parent_fd)
 
 
 def _validated_file_mode(mode: object) -> int:
@@ -603,88 +562,6 @@ def _windows_close_handle(handle: int) -> None:
     close_handle.argtypes = (wintypes.HANDLE,)
     close_handle.restype = wintypes.BOOL
     close_handle(handle)
-
-
-def _windows_assert_bound_handle_path(path: Path, handle: int) -> None:
-    """Fail closed if an already-open Windows HANDLE no longer names *path*."""
-    import ctypes
-    from ctypes import wintypes
-
-    kernel32 = vars(ctypes)["WinDLL"]("kernel32", use_last_error=True)
-    get_last_error = vars(ctypes)["get_last_error"]
-    get_final_path = kernel32.GetFinalPathNameByHandleW
-    get_final_path.argtypes = (
-        wintypes.HANDLE,
-        wintypes.LPWSTR,
-        wintypes.DWORD,
-        wintypes.DWORD,
-    )
-    get_final_path.restype = wintypes.DWORD
-    buffer = ctypes.create_unicode_buffer(32768)
-    length = get_final_path(handle, buffer, len(buffer), 0)
-    if length == 0 or length >= len(buffer):
-        error = get_last_error()
-        raise OSError(
-            error,
-            f"GetFinalPathNameByHandleW failed with Windows error {error}.",
-            str(path),
-        )
-    if _windows_normalized_path(buffer.value) != _windows_normalized_path(path.absolute()):
-        raise OSError(f"Windows bound parent path identity changed: {path}")
-
-
-def _windows_unlink_bound(path: Path) -> None:
-    """Delete one real Windows file after binding both file and parent identities."""
-    import ctypes
-    from ctypes import wintypes
-
-    parent_handle = _windows_open_bound_handle(
-        path.parent,
-        access=_FILE_READ_ATTRIBUTES,
-        require_directory=True,
-    )
-    file_handle: int | None = None
-    try:
-        file_handle = _windows_open_bound_handle(
-            path,
-            access=_DELETE | _FILE_READ_ATTRIBUTES,
-            require_directory=False,
-            write_through=True,
-        )
-        _windows_assert_bound_handle_path(path.parent, parent_handle)
-
-        class _FileDispositionInfo(ctypes.Structure):
-            _fields_ = [("DeleteFile", wintypes.BOOL)]
-
-        kernel32 = vars(ctypes)["WinDLL"]("kernel32", use_last_error=True)
-        get_last_error = vars(ctypes)["get_last_error"]
-        set_information = kernel32.SetFileInformationByHandle
-        set_information.argtypes = (
-            wintypes.HANDLE,
-            ctypes.c_int,
-            wintypes.LPVOID,
-            wintypes.DWORD,
-        )
-        set_information.restype = wintypes.BOOL
-
-        information = _FileDispositionInfo()
-        information.DeleteFile = True
-        if not set_information(
-            file_handle,
-            _FILE_DISPOSITION_INFO_CLASS,
-            ctypes.byref(information),
-            ctypes.sizeof(information),
-        ):
-            error = get_last_error()
-            raise OSError(
-                error,
-                f"SetFileInformationByHandle failed with Windows error {error}.",
-                str(path),
-            )
-    finally:
-        if file_handle is not None:
-            _windows_close_handle(file_handle)
-        _windows_close_handle(parent_handle)
 
 
 def _windows_rename_relative(
