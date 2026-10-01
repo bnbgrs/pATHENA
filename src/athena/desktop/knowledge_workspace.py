@@ -39,6 +39,23 @@ from athena.desktop.knowledge_review import (
 from athena.desktop.pathena_ui_refinement_600 import set_pathena_ui_state
 
 
+_KNOWLEDGE_DETAIL_OPERATIONS = frozenset({"show", "history"})
+_CLAIM_DETAIL_OPERATIONS = frozenset({"claim-show", "claim-history"})
+_REVIEW_DETAIL_OPERATIONS = frozenset({"review-show"})
+_REVIEW_MUTATION_OPERATIONS = frozenset({"review-accept", "review-reject"})
+_ENTITY_OPERATIONS = (
+    _KNOWLEDGE_DETAIL_OPERATIONS
+    | _CLAIM_DETAIL_OPERATIONS
+    | _REVIEW_DETAIL_OPERATIONS
+    | _REVIEW_MUTATION_OPERATIONS
+)
+_READ_DETAIL_OPERATIONS = (
+    _KNOWLEDGE_DETAIL_OPERATIONS
+    | _CLAIM_DETAIL_OPERATIONS
+    | _REVIEW_DETAIL_OPERATIONS
+)
+
+
 class KnowledgeWorkspace(QWidget):
     """Browse durable canonical memory while preserving the live review inbox."""
 
@@ -51,6 +68,7 @@ class KnowledgeWorkspace(QWidget):
         self._selected_claim_id: str | None = None
         self._selected_review_id: str | None = None
         self._knowledge_operation = ""
+        self._knowledge_operation_entity_id: str | None = None
         self._knowledge_buffer = ""
         self._obsidian_operation = ""
         self._obsidian_buffer = ""
@@ -711,6 +729,12 @@ class KnowledgeWorkspace(QWidget):
                 ["show", self._selected_knowledge_id],
                 "Loading canonical Knowledge",
             )
+        elif (
+            self._selected_knowledge_id
+            and self._knowledge_operation in _KNOWLEDGE_DETAIL_OPERATIONS
+            and not self._operation_owns_detail()
+        ):
+            self._show_selection_pending(self.knowledge_details, "Knowledge")
 
     def _claim_selection_changed(
         self,
@@ -729,6 +753,12 @@ class KnowledgeWorkspace(QWidget):
                 ["claim-show", self._selected_claim_id],
                 "Loading canonical Claim evidence",
             )
+        elif (
+            self._selected_claim_id
+            and self._knowledge_operation in _CLAIM_DETAIL_OPERATIONS
+            and not self._operation_owns_detail()
+        ):
+            self._show_selection_pending(self.claim_details, "Claim")
 
     def _review_selection_changed(
         self,
@@ -747,6 +777,28 @@ class KnowledgeWorkspace(QWidget):
                 ["review-show", self._selected_review_id],
                 "Loading semantic decision",
             )
+        elif (
+            self._selected_review_id
+            and self._knowledge_operation
+            in (_REVIEW_DETAIL_OPERATIONS | _REVIEW_MUTATION_OPERATIONS)
+            and not self._operation_owns_detail()
+        ):
+            self._show_selection_pending(self.review_details, "Decision")
+
+    def _show_selection_pending(
+        self,
+        target: QPlainTextEdit,
+        label: str,
+    ) -> None:
+        owner = self._knowledge_operation_entity_id or ""
+        message = (
+            f"{label.upper()} SELECTION CHANGED · The previous local request is still "
+            "finishing. The selected item will load next."
+        )
+        target.setPlainText(message)
+        target.setProperty("pathenaBackgroundOperationOwner", owner)
+        target.setAccessibleDescription(message)
+        set_pathena_ui_state(target, "busy")
 
     def _tab_changed(self, _index: int) -> None:
         self._apply_filter(self.search_input.text())
@@ -755,10 +807,69 @@ class KnowledgeWorkspace(QWidget):
     def _apply_filter(self, text: str) -> None:
         needle = " ".join(text.casefold().split())
         for widget in (self.knowledge_list, self.claim_list, self.review_list):
+            first_visible: QListWidgetItem | None = None
             for index in range(widget.count()):
                 item = widget.item(index)
                 haystack = (item.text() + " " + item.toolTip()).casefold()
-                item.setHidden(bool(needle) and needle not in haystack)
+                hidden = bool(needle) and needle not in haystack
+                item.setHidden(hidden)
+                if not hidden and first_visible is None:
+                    first_visible = item
+
+            current = widget.currentItem()
+            if current is not None and not current.isHidden():
+                continue
+            if first_visible is not None:
+                widget.setCurrentItem(first_visible)
+            else:
+                widget.setCurrentRow(-1)
+                self._show_filter_empty_state(widget, bool(needle))
+
+    def _show_filter_empty_state(
+        self,
+        widget: QListWidget,
+        filtered: bool,
+    ) -> None:
+        if widget is self.knowledge_list:
+            if not filtered and widget.count() == 0:
+                self._empty_knowledge()
+                return
+            self._selected_knowledge_id = None
+            self.history_button.setEnabled(False)
+            self.obsidian_export_button.setEnabled(False)
+            self.obsidian_status.setText("Obsidian export · No visible knowledge selected.")
+            self.knowledge_details.setPlainText(
+                "No knowledge matches the current filter."
+                if filtered
+                else "Select a knowledge item to inspect its persisted detail."
+            )
+            set_pathena_ui_state(self.knowledge_details, "empty")
+            return
+        if widget is self.claim_list:
+            if not filtered and widget.count() == 0:
+                self._empty_claims()
+                return
+            self._selected_claim_id = None
+            self.claim_history_button.setEnabled(False)
+            self.claim_details.setPlainText(
+                "No claims match the current filter."
+                if filtered
+                else "Select a claim to inspect its persisted evidence."
+            )
+            set_pathena_ui_state(self.claim_details, "empty")
+            return
+        if not filtered and widget.count() == 0:
+            self._empty_reviews()
+            return
+        self._selected_review_id = None
+        self.review_accept_button.setEnabled(False)
+        self.review_reject_button.setEnabled(False)
+        self.review_details.setPlainText(
+            "No pending decisions match the current filter."
+            if filtered
+            else "Select a pending decision to inspect it."
+        )
+        set_pathena_ui_state(self.review_details, "empty")
 
     def _refresh_knowledge_if_visible(self) -> None:
         if self.isVisible() and not self._knowledge_busy():
@@ -777,6 +888,11 @@ class KnowledgeWorkspace(QWidget):
         label: str,
     ) -> None:
         self._knowledge_operation = operation
+        self._knowledge_operation_entity_id = (
+            str(arguments[1])
+            if operation in _ENTITY_OPERATIONS and len(arguments) > 1
+            else None
+        )
         self._knowledge_buffer = ""
         target = self._detail_target_for_operation(operation)
         if target is not None:
@@ -793,18 +909,61 @@ class KnowledgeWorkspace(QWidget):
             ["-m", "athena.desktop.knowledge_cli", *arguments],
         )
 
-    def _detail_target(self) -> QPlainTextEdit | None:
-        if self._knowledge_operation in {"show", "history"}:
-            return self.knowledge_details
-        if self._knowledge_operation in {"claim-show", "claim-history"}:
-            return self.claim_details
-        if self._knowledge_operation in {
-            "review-show",
-            "review-accept",
-            "review-reject",
-        }:
-            return self.review_details
+    def _selected_entity_id_for_operation(self, operation: str) -> str | None:
+        if operation in _KNOWLEDGE_DETAIL_OPERATIONS:
+            return self._selected_knowledge_id
+        if operation in _CLAIM_DETAIL_OPERATIONS:
+            return self._selected_claim_id
+        if operation in (_REVIEW_DETAIL_OPERATIONS | _REVIEW_MUTATION_OPERATIONS):
+            return self._selected_review_id
         return None
+
+    def _operation_owns_detail(
+        self,
+        operation: str | None = None,
+        entity_id: str | None = None,
+    ) -> bool:
+        operation = self._knowledge_operation if operation is None else operation
+        if operation not in _ENTITY_OPERATIONS:
+            return False
+        if entity_id is None:
+            entity_id = self._knowledge_operation_entity_id
+        return bool(entity_id) and (
+            self._selected_entity_id_for_operation(operation) == entity_id
+        )
+
+    def _detail_target(self) -> QPlainTextEdit | None:
+        if not self._operation_owns_detail():
+            return None
+        return self._detail_target_for_operation(self._knowledge_operation)
+
+    def _schedule_selected_detail_reload(self, operation: str) -> None:
+        def reload_selected() -> None:
+            if self._knowledge_busy():
+                return
+            if operation in _KNOWLEDGE_DETAIL_OPERATIONS and self._selected_knowledge_id:
+                self.knowledge_details.clear()
+                self._start_knowledge(
+                    "show",
+                    ["show", self._selected_knowledge_id],
+                    "Loading canonical Knowledge",
+                )
+            elif operation in _CLAIM_DETAIL_OPERATIONS and self._selected_claim_id:
+                self.claim_details.clear()
+                self._start_knowledge(
+                    "claim-show",
+                    ["claim-show", self._selected_claim_id],
+                    "Loading canonical Claim evidence",
+                )
+            elif operation in _REVIEW_DETAIL_OPERATIONS and self._selected_review_id:
+                self.review_details.clear()
+                self._start_knowledge(
+                    "review-show",
+                    ["review-show", self._selected_review_id],
+                    "Loading semantic decision",
+                )
+
+        QTimer.singleShot(0, reload_selected)
 
     def _drain_knowledge_output(self) -> None:
         chunk = bytes(self._knowledge_process.readAllStandardOutput().data()).decode(
@@ -825,8 +984,11 @@ class KnowledgeWorkspace(QWidget):
     ) -> None:
         self._drain_knowledge_output()
         operation = self._knowledge_operation
+        operation_entity_id = self._knowledge_operation_entity_id
+        owns_detail = self._operation_owns_detail(operation, operation_entity_id)
         output = self._knowledge_buffer
         self._knowledge_operation = ""
+        self._knowledge_operation_entity_id = None
         self.refresh_knowledge_button.setEnabled(True)
         self.history_button.setEnabled(bool(self._selected_knowledge_id))
         self.obsidian_export_button.setEnabled(bool(self._selected_knowledge_id))
@@ -835,18 +997,33 @@ class KnowledgeWorkspace(QWidget):
         self.review_accept_button.setEnabled(review_enabled)
         self.review_reject_button.setEnabled(review_enabled)
 
+        stale_read = operation in _READ_DETAIL_OPERATIONS and not owns_detail
         if exit_code != 0:
+            if stale_read:
+                self.browser_status.setText(
+                    "Previous detail request ended after the selection changed; "
+                    "loading the current selection."
+                )
+                self._schedule_selected_detail_reload(operation)
+                return
             self.browser_status.setText(f"Canonical memory command failed (exit {exit_code}).")
             target = self._detail_target_for_operation(operation)
-            if target is not None:
+            if target is not None and owns_detail:
                 set_pathena_ui_state(target, "error")
                 if output and not target.toPlainText():
                     target.setPlainText(output)
             return
 
+        if stale_read:
+            self.browser_status.setText(
+                "Selection changed while detail was loading; loading the current selection."
+            )
+            self._schedule_selected_detail_reload(operation)
+            return
+
         if operation in {"show", "claim-show"}:
             target = self._detail_target_for_operation(operation)
-            if target is not None:
+            if target is not None and owns_detail:
                 try:
                     review = parse_knowledge_entity_review(output)
                 except KnowledgeReviewError as exc:
@@ -890,10 +1067,11 @@ class KnowledgeWorkspace(QWidget):
         elif operation == "review-show":
             set_pathena_ui_state(self.review_details, "success")
             self.browser_status.setText("Pending contradiction decision loaded.")
-        elif operation in {"review-accept", "review-reject"}:
-            self._selected_review_id = None
-            self.review_accept_button.setEnabled(False)
-            self.review_reject_button.setEnabled(False)
+        elif operation in _REVIEW_MUTATION_OPERATIONS:
+            if self._selected_review_id == operation_entity_id:
+                self._selected_review_id = None
+                self.review_accept_button.setEnabled(False)
+                self.review_reject_button.setEnabled(False)
             action = "accepted" if operation == "review-accept" else "rejected"
             self.browser_status.setText(f"Contradiction decision {action}.")
             QTimer.singleShot(150, self.refresh_knowledge)
@@ -1049,7 +1227,11 @@ class KnowledgeWorkspace(QWidget):
         )
 
     def _knowledge_process_error(self, error: QProcess.ProcessError) -> None:
+        operation = self._knowledge_operation
+        operation_entity_id = self._knowledge_operation_entity_id
+        owns_detail = self._operation_owns_detail(operation, operation_entity_id)
         self._knowledge_operation = ""
+        self._knowledge_operation_entity_id = None
         self.refresh_knowledge_button.setEnabled(True)
         self.history_button.setEnabled(bool(self._selected_knowledge_id))
         self.obsidian_export_button.setEnabled(bool(self._selected_knowledge_id))
@@ -1057,6 +1239,18 @@ class KnowledgeWorkspace(QWidget):
         review_enabled = bool(self._selected_review_id)
         self.review_accept_button.setEnabled(review_enabled)
         self.review_reject_button.setEnabled(review_enabled)
+
+        if operation in _READ_DETAIL_OPERATIONS and not owns_detail:
+            self.browser_status.setText(
+                "Previous detail request failed after the selection changed; "
+                "loading the current selection."
+            )
+            self._schedule_selected_detail_reload(operation)
+            return
+
+        target = self._detail_target_for_operation(operation)
+        if target is not None and owns_detail:
+            set_pathena_ui_state(target, "error")
         if error == QProcess.ProcessError.FailedToStart:
             self.browser_status.setText("Unable to start the local pATHENA Knowledge command.")
         else:
