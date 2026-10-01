@@ -299,6 +299,35 @@ class JobsWorkspace(QWidget):
     def _operation_owns_details(self) -> bool:
         return self._operation_job_id == self._selected_job_id
 
+    def _reload_selected_details_if_idle(self) -> None:
+        if self._busy() or not self._selected_job_id:
+            return
+        current = self.jobs.currentItem()
+        if (
+            current is None
+            or current.data(Qt.ItemDataRole.UserRole) != self._selected_job_id
+        ):
+            return
+        self.details.setProperty("pathenaBackgroundOperationOwner", "")
+        set_pathena_ui_state(self.details, "busy")
+        selected_job_id = self._selected_job_id
+        self._start(
+            "show",
+            ["show", selected_job_id],
+            "Loading job details",
+            job_id=selected_job_id,
+        )
+
+    def _recover_background_selection(
+        self,
+        operation: str,
+        *,
+        owns_details: bool,
+    ) -> None:
+        if operation == "list" or owns_details or not self._selected_job_id:
+            return
+        QTimer.singleShot(0, self._reload_selected_details_if_idle)
+
     def _drain_output(self) -> None:
         chunk = bytes(self._process.readAllStandardOutput().data()).decode(
             "utf-8",
@@ -345,6 +374,10 @@ class JobsWorkspace(QWidget):
             if operation == "list" and self._selected_job_id is None:
                 self.details.setPlainText(output)
                 set_pathena_ui_state(self.details, "error")
+            self._recover_background_selection(
+                operation,
+                owns_details=owns_details,
+            )
             return
 
         if operation == "list":
@@ -374,6 +407,10 @@ class JobsWorkspace(QWidget):
             self._set_status(f"Job {job_label} details loaded.", "success")
             if owns_details:
                 set_pathena_ui_state(self.details, "success")
+            self._recover_background_selection(
+                operation,
+                owns_details=owns_details,
+            )
             return
 
         try:
@@ -393,6 +430,10 @@ class JobsWorkspace(QWidget):
                     f"JOB ACTION COULD NOT BE VERIFIED\n{exc}\n\nDiagnostic details:\n{output}"
                 )
                 set_pathena_ui_state(self.details, "error")
+            self._recover_background_selection(
+                operation,
+                owns_details=owns_details,
+            )
             return
 
         if owns_details:
@@ -408,6 +449,10 @@ class JobsWorkspace(QWidget):
         )
         if owns_details:
             set_pathena_ui_state(self.details, "success")
+        self._recover_background_selection(
+            operation,
+            owns_details=owns_details,
+        )
         QTimer.singleShot(120, self.refresh)
 
     def _render_job_list(self, rows: tuple[JobListEntry, ...]) -> None:
@@ -499,6 +544,10 @@ class JobsWorkspace(QWidget):
         self._set_status(message, "error")
         if owns_details:
             set_pathena_ui_state(self.details, "error")
+        self._recover_background_selection(
+            operation,
+            owns_details=owns_details,
+        )
 
 
 def install_jobs_workspace(
