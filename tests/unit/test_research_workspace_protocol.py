@@ -285,3 +285,47 @@ def test_process_error_is_not_overwritten_by_finished_signal(
     finally:
         workspace.close()
         app.processEvents()
+
+def test_background_show_completion_loads_current_research_selection(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = _app()
+    workspace = _workspace(monkeypatch)
+    old_item = _install_selected_job(workspace, job_id=JOB_ID, state="running")
+    new_item = QListWidgetItem("WAITING")
+    new_item.setData(Qt.ItemDataRole.UserRole, OTHER_JOB_ID)
+    new_item.setData(Qt.ItemDataRole.UserRole + 1, "waiting")
+    workspace.jobs.blockSignals(True)
+    workspace.jobs.addItem(new_item)
+    workspace.jobs.setCurrentItem(new_item)
+    workspace.jobs.blockSignals(False)
+    workspace._selected_job_id = OTHER_JOB_ID
+    workspace._selected_job_state = "waiting"
+    workspace._operation = "show"
+    workspace._operation_job_id = JOB_ID
+    workspace._buffer = f"JOB {JOB_ID}\nSTATE running\n"
+    workspace.details.setProperty("pathenaBackgroundOperationOwner", JOB_ID)
+    calls: list[tuple[str, list[str], str | None]] = []
+
+    def _record_start(
+        operation: str,
+        arguments: list[str],
+        _label: str,
+        *,
+        job_id: str | None = None,
+    ) -> None:
+        calls.append((operation, arguments, job_id))
+
+    monkeypatch.setattr(workspace, "_start", _record_start)
+    try:
+        workspace._process_finished(0, QProcess.ExitStatus.NormalExit)
+        app.processEvents()
+
+        assert workspace.jobs.currentItem() is new_item
+        assert calls == [("show", ["show", OTHER_JOB_ID], OTHER_JOB_ID)]
+        assert workspace.details.property("pathenaBackgroundOperationOwner") == ""
+        assert old_item.data(Qt.ItemDataRole.UserRole) == JOB_ID
+    finally:
+        workspace.close()
+        app.processEvents()
+
