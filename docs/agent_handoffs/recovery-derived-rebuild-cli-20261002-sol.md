@@ -16,7 +16,7 @@
 - Rebuild invariant tests: `63c464286c173f4c390c093c572531632740d08b`
 - Derived diagnostic truth tests: `c2308d6dd21cb789fff366fea43959765f374cb8`
 - Lazy Backup import: `6c4fa9407d62903edb4687343a4f0f66a4995cbf`
-- Recovery CLI import-boundary test: `bdaab08605b5603256d83193cda94ff65fe0a2e1`
+- Recovery CLI import-boundary test: `bdaab08605b5603256d83193cda94ff65fe0a2e1`\n- Installed CLI dispatch test: `6d19187eb2ec48d06b1426dd6f186342226f1049`
 
 ## Ausgangslage
 
@@ -100,7 +100,7 @@ Derived inspection:
 - exit 2 for expected rebuild failure;
 - unexpected `RuntimeError` **and** `ValueError` propagate;
 - unsupported targets fail before settings/runtime loading;
-- parser exposes only the bounded target set.
+- parser exposes only the bounded target set;\n- installed `athena-recover` `main()` dispatch reaches the requested rebuild target.
 
 ### `tests/unit/test_recovery_diagnostics_truth.py`
 
