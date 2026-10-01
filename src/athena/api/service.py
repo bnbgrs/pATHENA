@@ -120,6 +120,10 @@ class NewsProfileService(Protocol):
         local_minute: int | None = None,
     ) -> dict[str, Any]: ...
 
+    def consent_and_enable(self) -> str: ...
+
+    def disable(self) -> None: ...
+
 
 class MessageKnowledgeExtractor(Protocol):
     """Minimal message-scoped extraction boundary used by the API."""
@@ -288,6 +292,22 @@ class CoreApiFacade:
             )
         )
 
+    def enable_news(self) -> NewsProfileResponse:
+        """Explicitly consent to the current active News hosts and enable scheduling."""
+        news = self._news
+        if news is None:
+            raise RuntimeError("News profile is unavailable in this Core process.")
+        news.consent_and_enable()
+        return _news_profile_response(news.profile())
+
+    def disable_news(self) -> NewsProfileResponse:
+        """Disable scheduled News access without changing the stored schedule."""
+        news = self._news
+        if news is None:
+            raise RuntimeError("News profile is unavailable in this Core process.")
+        news.disable()
+        return _news_profile_response(news.profile())
+
     def attach_normal_search(self, search: NormalSearch) -> None:
         """Attach normal Hybrid Search exactly once after app construction."""
 
@@ -407,7 +427,13 @@ class CoreApiFacade:
         if self._normal_search is not None:
             features = (*features, "search.normal.hybrid")
         if self._news is not None:
-            features = (*features, "news.profile.read", "news.schedule.write")
+            features = (
+                *features,
+                "news.profile.read",
+                "news.schedule.write",
+                "news.automation.enable",
+                "news.automation.disable",
+            )
         return CapabilitiesResponse(
             api_version=API_VERSION,
             features=features,
