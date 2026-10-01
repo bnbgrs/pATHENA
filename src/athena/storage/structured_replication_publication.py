@@ -613,7 +613,6 @@ class StructuredReplicationPublisher:
             "manifests",
             "replication",
         }
-        allowed = {"repository.json", *directory_names}
         for item in target_root.iterdir():
             if item.name in directory_names:
                 if is_link_boundary(item) or not item.is_dir():
