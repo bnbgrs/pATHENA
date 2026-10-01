@@ -21,8 +21,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: pathena-core-focused-${{ github.event.pull_request.head.sha }}
-  cancel-in-progress: false
+  group: pathena-core-focused-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 
 jobs:
   focused-core-contract:

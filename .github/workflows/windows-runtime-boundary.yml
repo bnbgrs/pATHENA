@@ -22,8 +22,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: pathena-windows-runtime-${{ github.event.pull_request.head.sha || github.sha }}
-  cancel-in-progress: false
+  group: pathena-windows-runtime-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
