@@ -40,6 +40,12 @@ Consequently:
   desktop-parent EOF becomes a graceful process-tree stop request.
 - Supervisor-owned control/provider children receive the same `stop\n` command over
   their already-existing stdin pipes before any terminate/kill escalation.
+- Startup and readiness waits observe the same stop event. A desktop quit during the
+  potentially long provider-readiness phase now exits through the cooperative path
+  instead of waiting for readiness or relying on the desktop fallback.
+- Partial child-pipe writes are rejected as failed control requests.
+- The desktop graceful timeout is 7.5 seconds, deliberately longer than the lane
+  supervisor's bounded 3s graceful + 2s terminate + 1s kill cleanup chain.
 - Lane children retain the previous fail-fast parent-loss invariant: EOF from a lost
   scheduler supervisor still exits immediately with the dedicated parent-lost exit
   code.
@@ -69,7 +75,9 @@ Normal desktop shutdown should now follow:
 lanes -> durable app/lane-lock cleanup -> clean supervisor exit`.
 
 Only if that path does not finish inside the bounded grace window does the desktop
-fall back to OS termination and then kill.
+fall back to OS termination and then kill. The parent timeout budget is intentionally
+larger than the complete child-cleanup budget, so the owner cannot normally pre-empt
+its own supervisor's escalation sequence.
 
 Unexpected loss of the lane supervisor still uses the previous fail-fast watchdog
 rather than pretending that an uncontrolled parent crash was a normal shutdown.
@@ -104,16 +112,30 @@ so no local pytest, Ruff, mypy, Windows launch, or manual UI PASS is claimed.
 - supervisor-owned launch includes the internal control flag;
 - lane commands include control + parent watchdog flags;
 - child stop is sent through the existing stdin pipe;
+- partial child-pipe writes do not count as successful control requests;
 - a pre-set stop event prevents another scheduler tick;
-- a stop event raised during an idle tick interrupts a 60-second idle wait immediately.
+- a stop event raised during an idle tick interrupts a 60-second idle wait immediately;
+- a pre-set stop event aborts scheduler readiness waiting before its long timeout;
+- the desktop graceful wait exceeds the supervisor's complete child-cleanup budget.
+
+Existing `tests/integration/test_job_scheduler_cli.py` contracts were also inspected.
+The implementation preserves their historical test-double behavior: missing `stdin`
+means no graceful channel rather than an exception, legacy wait fakes returning
+`None` remain successful, and Namespace fixtures without the new hidden flag remain
+valid.
 
 GitHub CI must be treated as the executable validation source for this environment.
+At the time of this handoff update, exact-head workflows were still queued and no
+CI PASS was claimed.
 
 ## Bekannte Restprobleme
 
 - A scheduler lane that is inside a long-running blocking job cannot be cooperatively
   interrupted in the middle of that durable boundary by this slice. The bounded
-  desktop/supervisor escalation remains the safety fallback.
+  desktop/supervisor escalation remains the safety fallback. This matches Beta
+  chapter 12's distinction between controlled cancel/cleanup and hard-kill crash
+  recovery: a forced worker exit must recover through lease/fencing semantics rather
+  than being reported as clean completion.
 - The stop event is intentionally process-local and non-durable; it is lifecycle
   control, not job state.
 - No Windows workflow file is changed because active packaging PRs #339/#347 own that
@@ -151,6 +173,7 @@ build on it. Use the current branch below.
 
 - Branch: `fix/scheduler-graceful-shutdown-current-20261002-sol`
 - Base: `develop/pathena-next@467ef434236c320e4afe9d21a39c20a4a2b75728`.
-- Branch pre-handoff head: `87af8489310c702ab6eb7b88c88a4503ded8e87f`.
+- Last product/test head before this documentation update:
+  `140d31084e62c2ee7c99ad6b5083f71c2f8fceee`.
 - PR: #387 — `Desktop: gracefully stop scheduler process tree` (draft until
   exact-head validation).
