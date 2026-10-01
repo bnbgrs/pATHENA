@@ -1820,7 +1820,9 @@ def _request_scheduler_child_stop(
     if process.stdin is None:
         return False
     try:
-        process.stdin.write(_SCHEDULER_STOP_COMMAND)
+        written = process.stdin.write(_SCHEDULER_STOP_COMMAND)
+        if written != len(_SCHEDULER_STOP_COMMAND):
+            return False
         process.stdin.flush()
     except (BrokenPipeError, OSError, ValueError):
         return False
@@ -1881,8 +1883,9 @@ def _wait_scheduler_child_started(
     started_file: Path,
     *,
     timeout_seconds: float = _SCHEDULER_CHILD_START_TIMEOUT_SECONDS,
-) -> None:
-    """Require proof that the supervised child entered its startup boundary."""
+    stop_event: threading.Event | None = None,
+) -> bool:
+    """Require startup proof, or return False when owned shutdown interrupts it."""
     if timeout_seconds <= 0:
         raise ValueError(
             "Scheduler child start timeout must be positive."
@@ -1891,6 +1894,9 @@ def _wait_scheduler_child_started(
     deadline = time.monotonic() + timeout_seconds
 
     while not started_file.is_file():
+        if stop_event is not None and stop_event.is_set():
+            return False
+
         returncode = process.poll()
 
         if returncode is not None:
@@ -1911,6 +1917,8 @@ def _wait_scheduler_child_started(
             min(0.05, remaining)
         )
 
+    return True
+
 
 def _wait_scheduler_child_ready(
     lane: SchedulerLane,
@@ -1918,7 +1926,8 @@ def _wait_scheduler_child_ready(
     ready_file: Path,
     *,
     timeout_seconds: float = _SCHEDULER_CHILD_READY_TIMEOUT_SECONDS,
-) -> None:
+    stop_event: threading.Event | None = None,
+) -> bool:
     if timeout_seconds <= 0:
         raise ValueError(
             "Scheduler child readiness timeout must be positive."
@@ -1927,6 +1936,9 @@ def _wait_scheduler_child_ready(
     deadline = time.monotonic() + timeout_seconds
 
     while not ready_file.is_file():
+        if stop_event is not None and stop_event.is_set():
+            return False
+
         returncode = process.poll()
         if returncode is not None:
             raise JobSchedulerError(
@@ -1944,6 +1956,8 @@ def _wait_scheduler_child_ready(
         time.sleep(
             min(0.05, remaining)
         )
+
+    return True
 
 
 def _run_scheduler_supervisor(args: argparse.Namespace) -> int:
@@ -1975,16 +1989,24 @@ def _run_scheduler_supervisor(args: argparse.Namespace) -> int:
                 stdin=subprocess.PIPE,
             )
             children.append((SchedulerLane.CONTROL, control))
-            _wait_scheduler_child_started(
+            if not _wait_scheduler_child_started(
                 SchedulerLane.CONTROL,
                 control,
                 control_started,
-            )
-            _wait_scheduler_child_ready(
+                stop_event=stop_event,
+            ):
+                _stop_scheduler_children(children)
+                print("Scheduler supervisor stopped during startup.", flush=True)
+                return 0
+            if not _wait_scheduler_child_ready(
                 SchedulerLane.CONTROL,
                 control,
                 control_ready,
-            )
+                stop_event=stop_event,
+            ):
+                _stop_scheduler_children(children)
+                print("Scheduler supervisor stopped during startup.", flush=True)
+                return 0
 
             provider_started = ready_root / "provider.started"
             provider_ready = ready_root / "provider.ready"
@@ -1999,16 +2021,24 @@ def _run_scheduler_supervisor(args: argparse.Namespace) -> int:
                 stdin=subprocess.PIPE,
             )
             children.append((SchedulerLane.PROVIDER, provider))
-            _wait_scheduler_child_started(
+            if not _wait_scheduler_child_started(
                 SchedulerLane.PROVIDER,
                 provider,
                 provider_started,
-            )
-            _wait_scheduler_child_ready(
+                stop_event=stop_event,
+            ):
+                _stop_scheduler_children(children)
+                print("Scheduler supervisor stopped during startup.", flush=True)
+                return 0
+            if not _wait_scheduler_child_ready(
                 SchedulerLane.PROVIDER,
                 provider,
                 provider_ready,
-            )
+                stop_event=stop_event,
+            ):
+                _stop_scheduler_children(children)
+                print("Scheduler supervisor stopped during startup.", flush=True)
+                return 0
 
             print(
                 "Scheduler supervisor lanes started: "
