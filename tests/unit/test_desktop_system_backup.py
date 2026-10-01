@@ -3,6 +3,8 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+import pytest
+
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtCore import QProcess
@@ -10,7 +12,7 @@ from PySide6.QtWidgets import QApplication
 
 from athena.config.settings import AthenaSettings
 from athena.core.application import AthenaApplication
-from athena.desktop.system_backup import BackupWorkspace, _BACKUP_RE
+from athena.desktop.system_backup import BackupWorkspace, _BACKUP_RE, parse_backup_list
 
 
 def _qt_app() -> QApplication:
@@ -39,6 +41,32 @@ def test_desktop_backup_line_parser_matches_canonical_cli_shape() -> None:
     assert match.group("verify") == "verified_light"
     assert match.group("commit") == "42"
     assert match.group("objects") == "7"
+
+
+def test_backup_list_parser_rejects_malformed_rows_instead_of_partial_success() -> None:
+    valid = (
+        "018f6a7d-6f5d-7c6d-8a2e-123456789abc "
+        "state=complete verify=verified_light commit=42 objects=7 "
+        "path=snapshots/018f6a7d"
+    )
+
+    with pytest.raises(ValueError, match="row 2"):
+        parse_backup_list(valid + "\nBROKEN BACKUP ROW\n")
+
+
+def test_backup_list_success_with_invalid_output_preserves_existing_rows() -> None:
+    _qt_app()
+    workspace = BackupWorkspace()
+    workspace.snapshots.addItem("existing snapshot")
+    workspace._operation = "list"
+    workspace._buffer = "BROKEN BACKUP ROW\n"
+
+    workspace._finished(0, QProcess.ExitStatus.NormalExit)
+
+    assert workspace.snapshots.count() == 1
+    assert workspace.snapshots.item(0).text() == "existing snapshot"
+    assert "could not be refreshed" in workspace.status.text()
+    assert "BACKUP REFRESH COULD NOT BE VERIFIED" in workspace.details.toPlainText()
 
 
 def test_explicit_backup_target_is_registered_verified_and_restored_isolated(
