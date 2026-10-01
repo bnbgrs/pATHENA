@@ -4,7 +4,8 @@
 
 - Repository: `bnbgrs/pATHENA`
 - Integration target: `develop/pathena-next`
-- Exact base: `67174198e1494fd4c8678aad60756c39ef5c160b`
+- Branch creation base: `67174198e1494fd4c8678aad60756c39ef5c160b`
+- Current PR base observed after #329 merged: `467ef434236c320e4afe9d21a39c20a4a2b75728`
 - Branch: `fix/recovery-derived-corruption-doctor-boundaries-20261002-sol2`
 - Code head before this handoff: `6075213b156badbc77cd020be748c54d3bd56adf`
 - Active Chat, LM Studio, Knowledge, Jobs, Research, Sources, Backup, Settings, Storage, Obsidian, PALLAS, Update, Security and Windows-helper PRs were inspected before selecting this work. This slice intentionally avoids their file sets.
@@ -87,7 +88,9 @@ Completed in this run:
 - only five intended product/test files changed before this handoff;
 - branch was 11 commits ahead / 0 behind the exact base before this handoff;
 - all five changed Python files were statically checked for >100-character lines; none found;
-- source was re-read after each write.
+- source was re-read after each write;
+- schema verification confirmed canonical `search_embeddings.vector_blob` is BLOB-affinity with a length check rather than a STRICT storage-class constraint, and archive `vector_blob` is likewise non-STRICT, so the TEXT-in-BLOB regression models a real SQLite corruption boundary;
+- Develop advanced during the run via Chat cancellation #329; its changed file set is disjoint from this slice and PR #379 remained mergeable without rebasing or force-pushing.
 
 Not available in this execution environment:
 
@@ -117,8 +120,7 @@ Conflict risk is low unless another bot begins modifying `derived_recovery.py` o
 
 ## Nächste sinnvolle Schritte
 
-1. Open a draft PR against `develop/pathena-next`.
-2. Read exact-head Quality/focused CI; fix only failures caused by this slice.
+1. Read exact-head Quality/focused CI for draft PR #379; fix only failures caused by this slice.
 3. Run native Windows junction/reparse acceptance when an appropriate Windows runner is available.
 4. If exact-head green, integrate without pulling unrelated active bot branches into this slice.
 5. Continue auditing Recovery for reconstructible-state corruption paths that still escalate to `recovery-required` through generic exceptions.
@@ -128,4 +130,5 @@ Conflict risk is low unless another bot begins modifying `derived_recovery.py` o
 - Base: `67174198e1494fd4c8678aad60756c39ef5c160b`
 - Branch: `fix/recovery-derived-corruption-doctor-boundaries-20261002-sol2`
 - Product/test head before handoff: `6075213b156badbc77cd020be748c54d3bd56adf`
-- PR: pending creation after this handoff commit
+- PR: #379
+- Product/test head after spacing cleanup: `636f813b827dea7022f484bcbed5824c36dffa9a`
