@@ -107,6 +107,7 @@ def test_system_workspace_exposes_diagnosis_without_restore_action() -> None:
     assert workspace.recovery.run_button.text() == "Run diagnosis"
     assert workspace.recovery.status.text() == "NOT CHECKED"
 
+
 @pytest.mark.parametrize(
     ("payload", "message"),
     (
