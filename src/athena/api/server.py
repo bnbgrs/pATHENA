@@ -324,30 +324,32 @@ class CoreApiServer:
         try:
             thread.start()
             thread_started = True
+            self._server = server
+            self._thread = thread
             discovery = self.runtime.publish(port=actual_port)
         except BaseException:
             if thread_started:
                 try:
-                    server.shutdown()
+                    self.stop()
                 except BaseException:
-                    logger.exception("Failed to shut down ATHENA Core API after startup error")
-            try:
-                server.server_close()
-            except BaseException:
-                logger.exception("Failed to close ATHENA Core API after startup error")
-            if thread_started:
+                    logger.exception(
+                        "Failed to fully roll back ATHENA Core API startup"
+                    )
+            else:
                 try:
-                    thread.join(timeout=_THREAD_JOIN_TIMEOUT_SECONDS)
+                    server.server_close()
                 except BaseException:
-                    logger.exception("Failed to join ATHENA Core API thread after startup error")
-            try:
-                self.runtime.clear()
-            except BaseException:
-                logger.exception("Failed to clear ATHENA Core API runtime after startup error")
+                    logger.exception(
+                        "Failed to close ATHENA Core API after thread startup error"
+                    )
+                try:
+                    self.runtime.clear()
+                except BaseException:
+                    logger.exception(
+                        "Failed to clear ATHENA Core API runtime after startup error"
+                    )
             raise
 
-        self._server = server
-        self._thread = thread
         self._discovery = discovery
         logger.info(
             "ATHENA Core API listening",
