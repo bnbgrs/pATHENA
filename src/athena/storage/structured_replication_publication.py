@@ -498,6 +498,16 @@ class StructuredReplicationPublisher:
         current_bundle: CanonicalCommitBundle,
         current_commit_seq: int,
     ) -> tuple[_ManifestEntry, ...]:
+        if (
+            is_link_boundary(commits_dir)
+            or is_link_boundary(manifest_dir)
+            or not commits_dir.is_dir()
+            or not manifest_dir.is_dir()
+        ):
+            raise _TargetHistoryError(
+                "Structured replication managed directories are unsafe."
+            )
+
         entries: list[_ManifestEntry] = []
         for path in sorted(manifest_dir.iterdir(), key=lambda item: item.name):
             if path.name.startswith(".") and path.name.endswith(".partial"):
