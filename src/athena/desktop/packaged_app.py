@@ -22,6 +22,7 @@ class PackagedTarget(StrEnum):
     ATHENA_CLI = "athena-cli"
     JOBS_CLI = "jobs-cli"
     RESEARCH_CLI = "research-cli"
+    RESEARCH_RESULTS_CLI = "research-results-cli"
     SOURCES_CLI = "sources-cli"
     KNOWLEDGE_CLI = "knowledge-cli"
     KNOWLEDGE_OBSIDIAN_EXPORT = "knowledge-obsidian-export"
@@ -45,6 +46,7 @@ _MODULE_TARGETS = {
     "athena": PackagedTarget.ATHENA_CLI,
     "athena.desktop.jobs_cli": PackagedTarget.JOBS_CLI,
     "athena.desktop.research_cli": PackagedTarget.RESEARCH_CLI,
+    "athena.desktop.research_results_cli": PackagedTarget.RESEARCH_RESULTS_CLI,
     "athena.desktop.sources_cli": PackagedTarget.SOURCES_CLI,
     "athena.desktop.knowledge_cli": PackagedTarget.KNOWLEDGE_CLI,
     "athena.desktop.knowledge_obsidian_export": PackagedTarget.KNOWLEDGE_OBSIDIAN_EXPORT,
