@@ -352,3 +352,78 @@ def test_legacy_target_identity_recovery_rejects_redirected_snapshot_root(
         assert app.backup.get_target(snapshot.target_id).status == "offline"
     finally:
         app.stop()
+
+
+@pytest.mark.parametrize(
+    "blocked_name",
+    ("manifest.json", "athena.db"),
+)
+def test_restore_copy_rechecks_snapshot_control_files_after_verification(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    blocked_name: str,
+) -> None:
+    app, snapshot, snapshot_root = _create_snapshot(tmp_path)
+    target = tmp_path / "backup"
+    blocked = snapshot_root / blocked_name
+    real_is_link_boundary = backup_module.is_link_boundary
+
+    def redirected(path: Path) -> bool:
+        return path == blocked or real_is_link_boundary(path)
+
+    monkeypatch.setattr(backup_module, "is_link_boundary", redirected)
+    destination = tmp_path / "restored"
+    try:
+        with pytest.raises(BackupRestoreError):
+            app.backup._restore_verified_path(
+                target=target,
+                snapshot_root=snapshot_root,
+                destination_root=destination,
+                deletion_records=(),
+                deletion_ledger_source="test",
+                deletion_currentness_guaranteed=False,
+            )
+        assert not destination.exists()
+    finally:
+        app.stop()
+
+
+def test_startup_recovery_does_not_finalize_redirected_completion_marker(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app, snapshot, snapshot_root = _create_snapshot(tmp_path)
+    with app.database.write_transaction() as connection:
+        connection.execute(
+            """
+            UPDATE backup_snapshots
+            SET state = 'creating',
+                verification_status = 'unverified',
+                completed_at_us = NULL,
+                last_verified_at_us = NULL
+            WHERE snapshot_id = ?
+            """,
+            (snapshot.snapshot_id.bytes,),
+        )
+    row = app.database.connection.execute(
+        "SELECT * FROM backup_snapshots WHERE snapshot_id = ?",
+        (snapshot.snapshot_id.bytes,),
+    ).fetchone()
+    assert row is not None
+    marker = snapshot_root / "complete.marker"
+    real_is_link_boundary = backup_module.is_link_boundary
+
+    def redirected(path: Path) -> bool:
+        return path == marker or real_is_link_boundary(path)
+
+    monkeypatch.setattr(backup_module, "is_link_boundary", redirected)
+    try:
+        assert app.backup._recover_incomplete_row_locked(
+            row=row,
+            target=tmp_path / "backup",
+        ) is False
+        recovered = app.backup.get_snapshot(snapshot.snapshot_id)
+        assert recovered.state == "failed"
+        assert recovered.verification_status == "failed"
+    finally:
+        app.stop()
