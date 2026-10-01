@@ -25,9 +25,6 @@ def test_doctor_runtime_write_rejects_symlink_root(tmp_path: Path) -> None:
     assert not tuple(target.glob("athena-doctor-*.tmp"))
 
 
-
-
-
 def test_doctor_runtime_write_rejects_reparse_ancestor_before_probe(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
