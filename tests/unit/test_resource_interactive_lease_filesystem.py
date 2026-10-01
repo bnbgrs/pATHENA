@@ -112,7 +112,7 @@ def test_older_lease_revision_cannot_overwrite_newer_renewal(
     assert current.expires_at_us == 12_000_000
 
 
-def test_interactive_active_removes_link_backed_lease_without_following_it(
+def test_interactive_active_ignores_link_backed_lease_without_following_it(
     tmp_path: Path,
 ) -> None:
     manager = _manager(tmp_path)
@@ -131,4 +131,4 @@ def test_interactive_active_removes_link_backed_lease_without_following_it(
 
     assert not manager.interactive_demand_active(now_us=0)
     assert outside.exists()
-    assert not lease_link.exists()
+    assert lease_link.is_symlink()
