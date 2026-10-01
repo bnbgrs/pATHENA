@@ -94,6 +94,11 @@ def dispatch_worker(argv: Sequence[str] | None = None) -> int:
 
         return research_main(invocation.arguments)
 
+    if invocation.target is PackagedTarget.RESEARCH_RESULTS_CLI:
+        from athena.desktop.research_results_cli import main as research_results_main
+
+        return research_results_main(invocation.arguments)
+
     if invocation.target is PackagedTarget.SOURCES_CLI:
         from athena.desktop.sources_cli import main as sources_main
 
