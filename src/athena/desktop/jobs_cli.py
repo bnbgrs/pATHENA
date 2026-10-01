@@ -104,6 +104,27 @@ def _print_json_field(label: str, raw: str | None) -> None:
     print(f"{label} {json.dumps(value, ensure_ascii=False, sort_keys=True, indent=2)}")
 
 
+def _compact_progress_summary(raw: str | None) -> str:
+    """Render persisted checkpoint progress without inventing percentages."""
+    if not raw:
+        return "-"
+    try:
+        value: Any = json.loads(raw)
+    except json.JSONDecodeError:
+        value = raw
+    rendered = (
+        json.dumps(
+            value,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        if not isinstance(value, str)
+        else value
+    )
+    return rendered.replace("\t", " ").replace("\n", " ").strip()[:240] or "-"
+
+
 def _print_show(app: AthenaApplication, job_id: uuid.UUID) -> None:
     job = app.jobs.get(job_id)
     print(f"JOB {job.job_id}")
@@ -130,6 +151,8 @@ def _print_show(app: AthenaApplication, job_id: uuid.UUID) -> None:
 
     checkpoints = app.jobs.checkpoints(job_id)
     print(f"CHECKPOINTS {len(checkpoints)}")
+    latest_progress = checkpoints[-1].progress_state_json if checkpoints else None
+    print(f"CURRENT_PROGRESS {_compact_progress_summary(latest_progress)}")
     for checkpoint in checkpoints[-10:]:
         print(
             "CHECKPOINT "
@@ -174,14 +197,18 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(list(argv) if argv is not None else None)
     app = AthenaApplication()
     try:
-        app.start(run_startup_maintenance=False)
+        # The desktop helper only needs the canonical storage/database lifecycle.
+        # Starting the whole application would also bootstrap News and other
+        # unrelated services, turning read-only list/show commands into hidden
+        # cross-subsystem writes.
+        app.storage_bootstrap.start()
         return _run(app, args)
     except Exception as exc:
         print(f"JOBS_ERROR {type(exc).__name__}: {exc}", file=sys.stderr)
         return 2
     finally:
         try:
-            app.stop()
+            app.storage_bootstrap.stop()
         except Exception:
             pass
 
