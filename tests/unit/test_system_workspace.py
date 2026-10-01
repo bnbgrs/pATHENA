@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import pytest
 from PySide6.QtWidgets import (
     QApplication,
     QFrame,
@@ -114,7 +115,13 @@ class _SystemWorkspaceHost(QMainWindow):
         self.setCentralWidget(self.pages)
 
 
-def test_install_system_workspace_owns_real_close_to_tray_lifecycle() -> None:
+def test_install_system_workspace_owns_real_close_to_tray_lifecycle(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "athena.desktop.pathena_system_tray._system_tray_available",
+        lambda: True,
+    )
     app = _app()
     window = _SystemWorkspaceHost()
     workspace = install_system_workspace(window, None)
