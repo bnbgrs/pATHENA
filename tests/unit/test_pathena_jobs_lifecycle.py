@@ -176,6 +176,11 @@ def test_successful_transition_updates_selected_persisted_state_and_controls(
         assert workspace.status.text() == "PAUSE completed for job 11111111 · PAUSED."
         assert "transition" not in workspace.status.text().casefold()
         assert "persisted" not in workspace.status.text().casefold()
+        details = workspace.details.toPlainText()
+        assert "JOB_PAUSE" not in details
+        assert "PAUSE completed · PAUSED" in details
+        assert "Refreshing current details" in details
+        assert workspace.details.property("pathenaUiState") == "busy"
     finally:
         workspace.close()
         app.processEvents()
@@ -207,6 +212,7 @@ def test_unverified_receipt_fails_closed_and_preserves_raw_output(
     finally:
         workspace.close()
         app.processEvents()
+
 
 def _job_list_line(
     *,
