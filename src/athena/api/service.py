@@ -396,7 +396,11 @@ class CoreApiFacade:
     def capabilities(self) -> CapabilitiesResponse:
         features: tuple[str, ...] = self._FEATURES
         if self._direct_chat is not None:
-            features = (*features, "chat.send.direct")
+            features = (
+                *features,
+                "chat.send.direct",
+                "chat.cancel",
+            )
         if self._unified_local_chat is not None:
             features = (*features, "chat.send.unified_local")
         if self._lifecycle_deletion is not None:
