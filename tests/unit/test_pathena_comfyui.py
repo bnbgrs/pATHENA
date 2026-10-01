@@ -372,3 +372,9 @@ def test_invalid_endpoint_fails_closed() -> None:
         ComfyUiClient("https://example.com:8188")
     with pytest.raises(ComfyUiError, match="loopback"):
         ComfyUiClient("http://example.com:8188")
+    with pytest.raises(ComfyUiError, match="invalid port"):
+        ComfyUiClient("http://127.0.0.1:not-a-port")
+    with pytest.raises(ComfyUiError, match="invalid port"):
+        ComfyUiClient("http://127.0.0.1:0")
+    with pytest.raises(ComfyUiError, match="valid URL"):
+        ComfyUiClient("http://[::1")
