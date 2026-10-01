@@ -212,6 +212,11 @@ class UniversalSearchService:
             WHERE entity.lifecycle_state != 'deleted'
               AND s.lifecycle_state != 'deleted'
               AND protected.source_id IS NULL
+              AND NOT EXISTS (
+                    SELECT 1
+                    FROM source_protection_transitions AS transition
+                    WHERE transition.source_id = s.source_id
+              )
               AND {predicate}
             ORDER BY s.source_id ASC
             LIMIT ?
