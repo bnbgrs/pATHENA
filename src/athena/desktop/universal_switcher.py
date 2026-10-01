@@ -63,6 +63,7 @@ class UniversalSearchSwitcher(QObject):
         self.controller = controller
         self._latest_request_id: int | None = None
         self._latest_query = ""
+        self._results_by_ref: dict[str, SearchResultResponse] = {}
 
         self.dialog = QDialog(window)
         self.dialog.setObjectName("universalSearchDialog")
@@ -163,6 +164,7 @@ class UniversalSearchSwitcher(QObject):
         self._latest_query = ""
         self.query.clear()
         self.results.clear()
+        self._results_by_ref.clear()
         self._set_status(
             "Type to search local pATHENA data.",
             state="idle",
@@ -187,6 +189,7 @@ class UniversalSearchSwitcher(QObject):
         self._latest_request_id = None
         self._latest_query = normalized
         self.results.clear()
+        self._results_by_ref.clear()
 
         if not normalized:
             self._set_status(
@@ -241,6 +244,10 @@ class UniversalSearchSwitcher(QObject):
             return
 
         self.results.clear()
+        self._results_by_ref = {
+            result.result_ref: result
+            for result in payload
+        }
         for result in payload:
             self.results.addItem(_result_item(result))
 
@@ -275,6 +282,7 @@ class UniversalSearchSwitcher(QObject):
         if not self._is_current_delivery(request_id, query):
             return
         self.results.clear()
+        self._results_by_ref.clear()
         self._set_status(
             f"Search unavailable · {message}",
             state="error",
@@ -313,8 +321,11 @@ class UniversalSearchSwitcher(QObject):
 
     @Slot(QListWidgetItem)
     def _activate_item(self, item: QListWidgetItem) -> None:
-        result = item.data(Qt.ItemDataRole.UserRole)
-        if not isinstance(result, SearchResultResponse):
+        result_ref = item.data(Qt.ItemDataRole.UserRole)
+        if not isinstance(result_ref, str):
+            return
+        result = self._results_by_ref.get(result_ref)
+        if result is None:
             return
         self._open_result(result)
 
@@ -395,9 +406,9 @@ def _result_item(result: SearchResultResponse) -> QListWidgetItem:
         text += f"\n{body}"
 
     item = QListWidgetItem(text)
-    item.setData(Qt.ItemDataRole.UserRole, result)
-    item.setData(Qt.ItemDataRole.UserRole + 1, result.result_ref)
-    item.setData(Qt.ItemDataRole.UserRole + 2, result.revision_id)
+    item.setData(Qt.ItemDataRole.UserRole, result.result_ref)
+    item.setData(Qt.ItemDataRole.UserRole + 1, result.revision_id)
+    item.setData(Qt.ItemDataRole.UserRole + 2, result.entity_type)
     item.setToolTip(
         f"{result.result_ref}\n"
         f"retrieval={', '.join(result.retrieval_methods)}\n"
