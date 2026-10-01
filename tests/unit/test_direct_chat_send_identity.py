@@ -8,6 +8,7 @@ import pytest
 
 from athena.chat.direct import DirectChatService
 from athena.chat.generation import ChatGenerationService, GenerationCancelledError
+from athena.chat.models import MessageType
 from athena.chat.repository import ChatRepository
 from athena.chat.send_identity import (
     SendOperationState,
@@ -259,7 +260,7 @@ def test_explicit_cancel_between_chunks_marks_run_cancelled_and_keeps_user_only(
 
         persisted = chat.load_chat(chat_id).messages
         assert [message.message_type for message in persisted] == [
-            persisted[0].message_type.USER,
+            MessageType.USER,
         ]
         assert persisted[0].content == "cancel after first chunk"
         assert finished_statuses == ["cancelled"]
