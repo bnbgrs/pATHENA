@@ -38,6 +38,7 @@ class PluginCapabilityRequest:
         if (
             not isinstance(self.request_id, str)
             or not self.request_id
+            or self.request_id != self.request_id.strip()
             or len(self.request_id) > PLUGIN_IPC_MAX_REQUEST_ID_LENGTH
             or _contains_unsafe_text(self.request_id)
         ):
@@ -47,6 +48,7 @@ class PluginCapabilityRequest:
         if self.scope is not None and (
             not isinstance(self.scope, str)
             or not self.scope.strip()
+            or self.scope != self.scope.strip()
             or len(self.scope) > PLUGIN_IPC_MAX_SCOPE_LENGTH
             or _contains_unsafe_text(self.scope)
         ):
