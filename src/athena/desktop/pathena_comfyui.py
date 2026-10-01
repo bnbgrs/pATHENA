@@ -67,7 +67,10 @@ def _loopback_endpoint(value: str) -> str:
     raw = value.strip()
     if not raw:
         raise ComfyUiError("ComfyUI endpoint must not be empty.")
-    parsed = urllib.parse.urlsplit(raw)
+    try:
+        parsed = urllib.parse.urlsplit(raw)
+    except ValueError as exc:
+        raise ComfyUiError("ComfyUI endpoint is not a valid URL.") from exc
     if parsed.scheme != "http":
         raise ComfyUiError("ComfyUI must use local HTTP.")
     if parsed.username is not None or parsed.password is not None:
@@ -89,7 +92,12 @@ def _loopback_endpoint(value: str) -> str:
             raise ComfyUiError("ComfyUI endpoint must use localhost or a loopback IP.") from exc
         if not address.is_loopback:
             raise ComfyUiError("ComfyUI endpoint must use a loopback IP.")
-    port = parsed.port
+    try:
+        port = parsed.port
+    except ValueError as exc:
+        raise ComfyUiError("ComfyUI endpoint contains an invalid port.") from exc
+    if port is not None and not 1 <= port <= 65535:
+        raise ComfyUiError("ComfyUI endpoint contains an invalid port.")
     netloc = f"[{hostname}]" if ":" in hostname else hostname
     if port is not None:
         netloc = f"{netloc}:{port}"
