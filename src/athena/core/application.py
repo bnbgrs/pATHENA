@@ -681,11 +681,11 @@ class AthenaApplication:
 
         self.state = ApplicationState.STARTING
         self.health.mark_starting()
-        configure_logging(self.settings.numeric_log_level)
-
-        logger.info("ATHENA Core starting", extra={"event": "core.starting"})
 
         try:
+            configure_logging(self.settings.numeric_log_level)
+            logger.info("ATHENA Core starting", extra={"event": "core.starting"})
+
             # Canonical integrity is established before storage bootstrap can
             # perform even temporary filesystem write probes or migration work.
             inspect_database_read_only(self.paths.database_path)
