@@ -8,6 +8,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 pytest.importorskip("PySide6")
 
+from PySide6.QtCore import QProcess
 from PySide6.QtWidgets import QApplication
 
 from athena.desktop.system_recovery import (
@@ -38,6 +39,7 @@ def test_recovery_projection_preserves_healthy_degraded_and_required_states() ->
         {
             "status": "healthy",
             "canonical_database": "healthy",
+            "canonical_integrity_confirmed": True,
             "normal_core_start_allowed": True,
             "issues": [],
         }
@@ -46,6 +48,7 @@ def test_recovery_projection_preserves_healthy_degraded_and_required_states() ->
         {
             "status": "degraded-derived",
             "canonical_database": "healthy",
+            "canonical_integrity_confirmed": True,
             "normal_core_start_allowed": True,
             "issues": [
                 {
@@ -59,6 +62,7 @@ def test_recovery_projection_preserves_healthy_degraded_and_required_states() ->
         {
             "status": "recovery-required",
             "canonical_database": "invalid-or-incompatible",
+            "canonical_integrity_confirmed": False,
             "normal_core_start_allowed": False,
             "issues": [
                 {
@@ -85,6 +89,7 @@ def test_recovery_projection_rejects_unknown_status() -> None:
             {
                 "status": "invented",
                 "canonical_database": "healthy",
+                "canonical_integrity_confirmed": True,
                 "normal_core_start_allowed": True,
             }
         )
@@ -101,3 +106,108 @@ def test_system_workspace_exposes_diagnosis_without_restore_action() -> None:
     assert workspace.recovery.property("pathenaRecoveryRestoreAvailable") is False
     assert workspace.recovery.run_button.text() == "Run diagnosis"
     assert workspace.recovery.status.text() == "NOT CHECKED"
+
+@pytest.mark.parametrize(
+    ("payload", "message"),
+    (
+        (
+            {
+                "status": "healthy",
+                "canonical_database": "healthy",
+                "canonical_integrity_confirmed": True,
+                "normal_core_start_allowed": False,
+                "issues": [],
+            },
+            "contradicts canonical/start safety fields",
+        ),
+        (
+            {
+                "status": "degraded-derived",
+                "canonical_database": "healthy",
+                "canonical_integrity_confirmed": False,
+                "normal_core_start_allowed": True,
+                "issues": [],
+            },
+            "contradicts canonical/start safety fields",
+        ),
+        (
+            {
+                "status": "recovery-required",
+                "canonical_database": "healthy",
+                "canonical_integrity_confirmed": True,
+                "normal_core_start_allowed": True,
+                "issues": [],
+            },
+            "cannot allow normal Core start",
+        ),
+        (
+            {
+                "status": "healthy",
+                "canonical_database": "",
+                "canonical_integrity_confirmed": True,
+                "normal_core_start_allowed": True,
+                "issues": [],
+            },
+            "missing canonical_database",
+        ),
+    ),
+)
+def test_recovery_projection_rejects_contradictory_safety_fields(
+    payload: dict[str, object],
+    message: str,
+) -> None:
+    with pytest.raises(ValueError, match=message):
+        project_recovery_payload(payload)
+
+
+@pytest.mark.parametrize(
+    ("status", "exit_code"),
+    (
+        ("healthy", 0),
+        ("degraded-derived", 3),
+        ("recovery-required", 4),
+    ),
+)
+def test_recovery_projection_binds_status_to_cli_exit_code(
+    status: str,
+    exit_code: int,
+) -> None:
+    required = status == "recovery-required"
+    payload = {
+        "status": status,
+        "canonical_database": "healthy",
+        "canonical_integrity_confirmed": True,
+        "normal_core_start_allowed": not required,
+        "issues": [],
+    }
+
+    project_recovery_payload(payload, exit_code=exit_code)
+
+    with pytest.raises(ValueError, match="status/exit-code mismatch"):
+        project_recovery_payload(payload, exit_code=99)
+
+
+def test_recovery_process_error_is_not_overwritten_by_finished_signal() -> None:
+    app = _app()
+    panel = SystemRecoveryPanel()
+
+    try:
+        panel._handle_process_error(QProcess.ProcessError.FailedToStart)
+        error_status = panel.status.text()
+        error_detail = panel.detail.text()
+
+        assert error_status == "FAIL"
+        assert "process error" in error_detail
+        assert panel._process_error_reported is True
+
+        panel._handle_finished(0, QProcess.ExitStatus.NormalExit)
+
+        assert panel.status.text() == error_status
+        assert panel.detail.text() == error_detail
+        assert panel._process_error_reported is False
+        assert panel.run_button.text() == "Run again"
+        assert panel.run_button.isEnabled()
+    finally:
+        panel.close()
+        app.processEvents()
+
