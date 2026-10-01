@@ -312,7 +312,7 @@ def test_existing_conflicting_orphan_is_never_overwritten_and_marks_conflict(
             previous_hash=None,
         )
 
-        commits_dir, manifest_dir = _initialize_repository_root(
+        commits_dir, _manifest_dir = _initialize_repository_root(
             target_root,
             target.target_id,
         )
@@ -513,6 +513,7 @@ def test_bundle_commit_identity_must_match_canonical_local_history(
         )
     finally:
         database.stop()
+
 
 def test_concurrent_confirmation_of_same_bundle_is_idempotent(
     tmp_path: Path,
