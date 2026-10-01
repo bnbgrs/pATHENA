@@ -472,7 +472,6 @@ def _verify_or_write_commit_object(
                 message="Existing long-term commit object is invalid.",
                 now_us=now_us,
             )
-            raise AssertionError("unreachable") from exc
         if existing != bundle.data or verified.bundle_hash != bundle.bundle_hash:
             _mark_conflict(
                 repository,
@@ -508,7 +507,6 @@ def _verify_or_write_commit_object(
             message="Long-term commit object failed post-write verification.",
             now_us=now_us,
         )
-        raise AssertionError("unreachable") from exc
     if published != bundle.data or verified.bundle_hash != bundle.bundle_hash:
         _mark_conflict(
             repository,
@@ -553,6 +551,20 @@ def publish_staged_commit(
     if commit.head_hash != header.head_hash or commit.previous_head_hash != header.previous_hash:
         raise LongTermPublicationError(
             "Staged replication state does not match the canonical bundle."
+        )
+    if target.state is ReplicationTargetState.CONFLICT:
+        raise LongTermPublicationConflictError(
+            "Long-term replication target is already in conflict."
+        )
+    if (
+        commit.state is ReplicationCommitState.PENDING
+        and target.state not in {
+            ReplicationTargetState.PENDING,
+            ReplicationTargetState.ACTIVE,
+        }
+    ):
+        raise LongTermPublicationError(
+            f"Replication target state {target.state.value!r} cannot publish new history."
         )
 
     root = target_root
