@@ -21,7 +21,9 @@ from athena.api.contracts import (
     RememberedChatMessageResponse,
     StorageHealthResponse,
 )
+from athena.api.search_contracts import SearchResultResponse
 from athena.chat.cancellation import ChatCancellationReservation
+from athena.retrieval.universal import UniversalSearchEntityType
 
 
 class CoreDomainSurface(Protocol):
@@ -103,6 +105,14 @@ class CoreDomainSurface(Protocol):
     ) -> DeletionResultResponse: ...
 
     def list_models(self) -> tuple[ModelResponse, ...]: ...
+
+    def universal_search(
+        self,
+        query: str,
+        *,
+        limit: int = 20,
+        entity_types: tuple[UniversalSearchEntityType, ...] | None = None,
+    ) -> tuple[SearchResultResponse, ...]: ...
 
     def reserve_chat_operation(
         self,
