@@ -81,7 +81,7 @@ Hardened:
 
 Added `_remove_tree_without_redirect()`.
 
-Every recursive delete in `backup/service.py` now passes through one redirect guard. Best-effort failure cleanup skips an unsafe redirected root rather than handing it to `shutil.rmtree()`; normal retention cleanup fails closed.
+Every recursive delete in `backup/service.py` now passes through one redirect guard. The guard checks the deletion root and its full parent chain. Best-effort failure cleanup skips an unsafe redirected path rather than handing it to `shutil.rmtree()`; normal retention cleanup fails closed.
 
 ## Work package B — Backup target locking
 
@@ -132,7 +132,7 @@ Snapshot/service suite covers:
 12. metadata publication;
 13. restore-copy recheck;
 14. startup recovery;
-15. recursive cleanup refusing redirect roots.
+15. recursive cleanup refusing redirect roots and redirecting parent chains.
 
 Target-lock suite additionally covers:
 
@@ -177,6 +177,8 @@ Branch: `fix/backup-filesystem-redirect-boundaries-current-20261002-sol`
 - `454c92ec12bd9d59e898054c4d37fce0095e5eb4` — target-lock redirect-boundary implementation
 - `d63e0468a228d3ae0a5e457fc96d1f907187b1af` — snapshot/service redirect regression suite
 - `f08688625d339c71562cb5b50089a9f24f0738d5` — target-lock redirect regression suite
+- `23f3b27fda788b32af6a0d35a78198f85d719409` — guard recursive cleanup ancestor chain
+- `f1e7e0cd0de513be0c3611e4edce83bd642d12fc` — redirected cleanup ancestor regression
 
 ## Known limitations / non-claims
 
