@@ -95,3 +95,68 @@ No active PR in that set touches either modified Knowledge file.
 2. If a failure is specific to this slice, fix on this branch rather than opening a duplicate Knowledge PR.
 3. After green gates, Integrator may merge normally into fresh `develop/pathena-next`.
 4. Then exercise Knowledge filtering + rapid selection manually in the real Qt build and continue with another disjoint Alpha/Beta workflow gap.
+
+
+## Erweiterung desselben Slices — List transport truthfulness
+
+A second Knowledge-specific integrity defect was found while qualifying the ownership fix.
+
+### Ausgangslage / Root Cause
+
+Knowledge/Claim/Review list transport is line-delimited TSV.
+
+- `knowledge_cli._safe()` removed tab/CR/LF only. Python `splitlines()` also recognizes VT, FF, NEL, U+2028 and U+2029, so user-controlled Knowledge titles or review reasons containing those separators could split one canonical record into multiple UI records.
+- The Qt list renderers silently skipped malformed lines and still reported refresh success. An exit-0 but corrupted/truncated response could therefore partially replace a previously verified list.
+
+### Änderungen
+
+`src/athena/desktop/knowledge_cli.py`
+- single-line fields now collapse all `splitlines()` separators plus tabs before emission.
+
+`src/athena/desktop/knowledge_review.py`
+- added pure all-or-nothing parsers for canonical Knowledge lists, Claim lists and pending Review lists;
+- validates canonical UUID identity, revision number, single-line metadata and finite review confidence in [0, 1];
+- malformed records fail closed through `KnowledgeReviewError`.
+
+`src/athena/desktop/knowledge_workspace.py`
+- list responses are fully parsed before any QListWidget mutation;
+- invalid exit-0 output preserves the previously verified list;
+- browser status becomes explicit error with diagnostic tooltip/accessibility description;
+- successful list parse clears the error UI state.
+
+Tests:
+- `tests/unit/test_pathena_knowledge_review.py` now covers valid records, split/malformed records, invalid review confidence/identity and preservation of an existing UI list on corrupt exit-0 output;
+- older direct detail tests were aligned with the new explicit request/entity ownership contract;
+- `tests/unit/test_knowledge_cli_framing.py` covers tab, CRLF, VT, FF, NEL, U+2028 and U+2029 framing boundaries.
+
+### Additional commits
+
+- `b8c95cad069a31b420d30e1981beaaed4c6cf324` — align existing Knowledge detail tests with request ownership
+- `bfdc96cafb644d23458236fce5a23dcf11c6ec3b` — canonical list parsers
+- `b1dea1ab8e4f1f31bbfa5326f376f5996f323f75` — CLI single-record framing
+- `07cfb49ed94863467da001f44f3afc78fd6f207b` — fail closed before Qt list mutation
+- `f821147bc6b08ecb0202275671904aa1a9595d1f` — import normalization
+- `258613a139b6adb6731e4c8c2c3b9ca8eccaf247` — list protocol/UI preservation regressions
+- `1cf0e0ad1752c66ad94735899c008449fea5f09c` — CLI framing regressions
+
+### Visual gate evidence from superseded head
+
+The earlier exact head `65de262ff9a4dbb6ac05fc414f974240729ef367` completed 11/11 Windows captures. Its Knowledge surface passed comparator policy:
+- changed_ratio 0.00114339 <= 0.002
+- mean_delta 0.11345896 <= 0.35
+
+That workflow failed only on autonomous PALLAS capture:
+- changed_ratio 0.01056006
+- mean_delta 0.64363388
+
+This branch did not touch PALLAS. PR #352 now owns the demonstrated PALLAS visual-capture determinism defect. Do not weaken thresholds or update PALLAS baseline in #343.
+
+### Validation state after extension
+
+Fresh exact-head workflows were created for `1cf0e0ad1752c66ad94735899c008449fea5f09c` before this handoff edit:
+- ATHENA Quality Gate: queued
+- pATHENA Core Focused Candidate: queued
+- pATHENA UI Focused Candidate: queued
+- pATHENA 11-Surface Visual Regression: queued
+
+No terminal PASS is claimed yet.
