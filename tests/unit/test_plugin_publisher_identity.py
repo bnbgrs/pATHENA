@@ -16,7 +16,7 @@ from athena.plugins.identity import (
     canonical_plugin_identity_payload,
     verify_plugin_publisher_identity,
 )
-from athena.plugins.manifest import PluginManifest
+from athena.plugins.manifest import PluginManifest, PluginManifestError
 
 
 def _manifest(*, name: str = "Example", publisher: str = "Display Corp") -> PluginManifest:
@@ -227,4 +227,24 @@ def test_verification_rejects_malformed_trust_root_inputs() -> None:
                     object(),
                 )
             },
+        )
+
+
+
+def test_publisher_metadata_rejects_duplicate_normalized_keys() -> None:
+    with pytest.raises(PluginManifestError, match="duplicate normalized keys"):
+        PluginManifest.from_mapping(
+            {
+                "plugin_id": "example.plugin",
+                "name": "Example",
+                "version": "1.0.0",
+                "api_version": "1",
+                "entrypoint": "example.plugin:activate",
+                "permissions": [],
+                "capabilities": [],
+                "publisher": {
+                    "name": "Display Corp",
+                    " name ": "Spoof Corp",
+                },
+            }
         )
