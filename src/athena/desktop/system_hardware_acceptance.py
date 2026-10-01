@@ -117,6 +117,7 @@ class SystemHardwareAcceptancePanel(QFrame):
         self._report_path = report_path or default_hardware_acceptance_report_path()
         self._executable = executable or sys.executable
         self._process = QProcess(self)
+        self._process_error_seen = False
         self._process.setProcessChannelMode(QProcess.ProcessChannelMode.MergedChannels)
         self._process.finished.connect(self._handle_finished)
         self._process.errorOccurred.connect(self._handle_process_error)
@@ -202,6 +203,7 @@ class SystemHardwareAcceptancePanel(QFrame):
         if self._process.state() != QProcess.ProcessState.NotRunning:
             return False
 
+        self._process_error_seen = False
         try:
             self._report_path.parent.mkdir(parents=True, exist_ok=True)
             self._report_path.unlink(missing_ok=True)
@@ -240,6 +242,12 @@ class SystemHardwareAcceptancePanel(QFrame):
             self._process.waitForFinished(1_000)
 
     def _handle_finished(self, exit_code: int, _exit_status: object) -> None:
+        if self._process_error_seen:
+            self._process_error_seen = False
+            self.run_button.setText("Run again")
+            self.run_button.setEnabled(os.name == "nt")
+            return
+
         loaded = self.load_existing_report()
         if not loaded and self.status.text() != "INVALID":
             output = bytes(self._process.readAllStandardOutput().data()).decode(
@@ -257,6 +265,7 @@ class SystemHardwareAcceptancePanel(QFrame):
         self.run_button.setEnabled(os.name == "nt")
 
     def _handle_process_error(self, error: QProcess.ProcessError) -> None:
+        self._process_error_seen = True
         if error == QProcess.ProcessError.Crashed:
             detail = "Hardware acceptance process crashed before completion."
         else:
@@ -265,6 +274,7 @@ class SystemHardwareAcceptancePanel(QFrame):
             HardwareAcceptancePresentation(status="FAIL", detail=detail, state="error")
         )
         if self._process.state() == QProcess.ProcessState.NotRunning:
+            self.run_button.setText("Run again")
             self.run_button.setEnabled(os.name == "nt")
 
     def _apply_presentation(self, presentation: HardwareAcceptancePresentation) -> None:
