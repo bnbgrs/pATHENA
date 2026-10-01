@@ -52,6 +52,10 @@ class UnsupportedChatHistoryError(ValueError):
     """Raised when the current slice cannot represent persisted chat history."""
 
 
+class GenerationCancelledError(RuntimeError):
+    """Raised when explicit user cancellation stops local generation."""
+
+
 @dataclass(frozen=True, slots=True)
 class ChatGenerationResult:
     """Completed and canonically persisted assistant generation."""
@@ -397,6 +401,7 @@ class ChatGenerationService:
         on_delta: Callable[[str], None] | None = None,
         grounding_contract: GroundingContract | None = None,
         on_before_provider_call: Callable[[], None] | None = None,
+        cancel_requested: Callable[[], bool] | None = None,
     ) -> ChatGenerationResult:
         """Generate strictly from ContextPackage sections, without DB history access."""
         if user_message.chat_id != chat_id:
@@ -466,6 +471,7 @@ class ChatGenerationService:
                     reasoning_mode=reasoning_mode,
                     temperature=temperature,
                     on_before_provider_call=on_before_provider_call,
+                    cancel_requested=cancel_requested,
                     interactive_lease=lease,
                 )
 
@@ -481,6 +487,7 @@ class ChatGenerationService:
             reasoning_mode=reasoning_mode,
             temperature=temperature,
             on_before_provider_call=on_before_provider_call,
+            cancel_requested=cancel_requested,
             interactive_lease=None,
         )
 
@@ -498,6 +505,7 @@ class ChatGenerationService:
         reasoning_mode: str | None,
         temperature: float | None,
         on_before_provider_call: Callable[[], None] | None,
+        cancel_requested: Callable[[], bool] | None,
         interactive_lease: InteractiveDemandLease | None,
     ) -> ChatGenerationResult:
         if max_output_tokens is not None and max_output_tokens < 1:
@@ -517,6 +525,9 @@ class ChatGenerationService:
         attempt_history = history
 
         for attempt_index in range(attempt_limit):
+            if cancel_requested is not None and cancel_requested():
+                raise GenerationCancelledError("Chat generation was cancelled.")
+
             if interactive_lease is not None:
                 demand = self.interactive_demand
                 if demand is None:
@@ -531,6 +542,9 @@ class ChatGenerationService:
 
             if on_before_provider_call is not None:
                 on_before_provider_call()
+
+            if cancel_requested is not None and cancel_requested():
+                raise GenerationCancelledError("Chat generation was cancelled.")
 
             chunks: list[str] = []
 
@@ -561,19 +575,37 @@ class ChatGenerationService:
                     messages=attempt_history,
                 )
 
-            for chunk in stream:
-                chunks.append(chunk)
-
-                if interactive_lease is not None:
-                    demand = self.interactive_demand
-                    if demand is None:
-                        raise RuntimeError(
-                            "Interactive lease exists without a ResourceManager."
+            try:
+                for chunk in stream:
+                    if cancel_requested is not None and cancel_requested():
+                        raise GenerationCancelledError(
+                            "Chat generation was cancelled."
                         )
-                    interactive_lease = demand.renew_interactive_demand(interactive_lease)
 
-                if grounding_contract is None and on_delta is not None:
-                    on_delta(chunk)
+                    chunks.append(chunk)
+
+                    if interactive_lease is not None:
+                        demand = self.interactive_demand
+                        if demand is None:
+                            raise RuntimeError(
+                                "Interactive lease exists without a ResourceManager."
+                            )
+                        interactive_lease = demand.renew_interactive_demand(
+                            interactive_lease
+                        )
+
+                    if grounding_contract is None and on_delta is not None:
+                        on_delta(chunk)
+
+                if cancel_requested is not None and cancel_requested():
+                    raise GenerationCancelledError(
+                        "Chat generation was cancelled."
+                    )
+            except GenerationCancelledError:
+                closer = getattr(stream, "close", None)
+                if callable(closer):
+                    closer()
+                raise
 
             assistant_text = "".join(chunks)
 
@@ -610,6 +642,11 @@ class ChatGenerationService:
                     on_delta(provenance_manifest)
 
                 assistant_text += provenance_manifest
+
+            if cancel_requested is not None and cancel_requested():
+                raise GenerationCancelledError(
+                    "Chat generation was cancelled."
+                )
 
             assistant_message = self.chat.add_assistant_message(
                 chat_id=chat_id,
