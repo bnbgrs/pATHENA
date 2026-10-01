@@ -129,21 +129,34 @@ class ObsidianVaultWatcher:
 
         results: list[ObsidianWatchResult] = []
         for relative_path, path in discovered.items():
-            before = path.stat(follow_symlinks=False)
-            signature = (before.st_size, before.st_mtime_ns)
-            previous = self._observed.get(relative_path)
-            if previous is None or (previous.size, previous.mtime_ns) != signature:
-                self._observed[relative_path] = _ObservedFile(
-                    size=signature[0],
-                    mtime_ns=signature[1],
-                    stable_since=observed_at,
-                )
-                continue
-            if observed_at - previous.stable_since < self._stability_window_seconds:
+            try:
+                if is_link_boundary(path):
+                    self._forget_observation(relative_path)
+                    continue
+                before = path.stat(follow_symlinks=False)
+                signature = (before.st_size, before.st_mtime_ns)
+                previous = self._observed.get(relative_path)
+                if previous is None or (previous.size, previous.mtime_ns) != signature:
+                    self._observed[relative_path] = _ObservedFile(
+                        size=signature[0],
+                        mtime_ns=signature[1],
+                        stable_since=observed_at,
+                    )
+                    continue
+                if observed_at - previous.stable_since < self._stability_window_seconds:
+                    continue
+
+                if is_link_boundary(path):
+                    self._forget_observation(relative_path)
+                    continue
+                payload = path.read_bytes()
+                after = path.stat(follow_symlinks=False)
+            except FileNotFoundError:
+                # Editors commonly implement save/rename as atomic replacement. A
+                # vanished discovery is a transient observation, not a sync failure.
+                self._forget_observation(relative_path)
                 continue
 
-            payload = path.read_bytes()
-            after = path.stat(follow_symlinks=False)
             if (after.st_size, after.st_mtime_ns) != signature:
                 self._observed[relative_path] = _ObservedFile(
                     size=after.st_size,
@@ -158,6 +171,10 @@ class ObsidianVaultWatcher:
             self._processed_hashes[relative_path] = digest
             results.append(self._process_stable(relative_path, payload))
         return tuple(results)
+
+    def _forget_observation(self, relative_path: str) -> None:
+        self._observed.pop(relative_path, None)
+        self._processed_hashes.pop(relative_path, None)
 
     def run(
         self,
@@ -241,7 +258,15 @@ class ObsidianVaultWatcher:
         pending = [knowledge_root]
         while pending:
             directory = pending.pop()
-            for path in sorted(directory.iterdir(), key=lambda item: item.name.casefold()):
+            try:
+                entries = sorted(
+                    directory.iterdir(),
+                    key=lambda item: item.name.casefold(),
+                )
+            except FileNotFoundError:
+                # A nested directory may be renamed between discovery passes.
+                continue
+            for path in entries:
                 if is_link_boundary(path):
                     continue
                 if path.is_dir():
