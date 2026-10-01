@@ -88,7 +88,10 @@ def test_workspace_renders_verified_claim_and_marks_state() -> None:
     workspace.browser_tabs.setCurrentIndex(3)
     app.processEvents()
     try:
+        claim_id = "11111111-1111-1111-1111-111111111111"
+        workspace._selected_claim_id = claim_id
         workspace._knowledge_operation = "claim-show"
+        workspace._knowledge_operation_entity_id = claim_id
         workspace._knowledge_buffer = _claim_output()
         workspace._knowledge_process_finished(0, QProcess.ExitStatus.NormalExit)
 
@@ -109,7 +112,10 @@ def test_workspace_keeps_raw_output_when_detail_is_unreadable() -> None:
     workspace.browser_tabs.setCurrentIndex(3)
     app.processEvents()
     try:
+        knowledge_id = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+        workspace._selected_knowledge_id = knowledge_id
         workspace._knowledge_operation = "show"
+        workspace._knowledge_operation_entity_id = knowledge_id
         workspace._knowledge_buffer = "not-a-persisted-detail"
         workspace._knowledge_process_finished(0, QProcess.ExitStatus.NormalExit)
 
