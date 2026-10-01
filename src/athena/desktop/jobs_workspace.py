@@ -342,8 +342,9 @@ class JobsWorkspace(QWidget):
             self._set_status(message, "error")
             if owns_details:
                 set_pathena_ui_state(self.details, "error")
-            if operation == "list":
+            if operation == "list" and self._selected_job_id is None:
                 self.details.setPlainText(output)
+                set_pathena_ui_state(self.details, "error")
             return
 
         if operation == "list":
