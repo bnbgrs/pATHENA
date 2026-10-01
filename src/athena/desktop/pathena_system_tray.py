@@ -7,21 +7,36 @@ instead of fabricating success.
 
 from __future__ import annotations
 
-from PySide6.QtCore import QObject, Slot
-from PySide6.QtGui import QAction, QIcon
+from PySide6.QtCore import QEvent, QObject, Slot
+from PySide6.QtGui import QAction, QCloseEvent, QIcon
 from PySide6.QtWidgets import QApplication, QMenu, QStyle, QSystemTrayIcon, QWidget
 
 
 class PathenaSystemTrayController(QObject):
     """Own one persistent system-tray icon and its desktop-shell actions."""
 
-    def __init__(self, window: QWidget, *, app: QApplication | None = None) -> None:
+    def __init__(
+        self,
+        window: QWidget,
+        *,
+        app: QApplication | None = None,
+        minimize_on_close: bool = True,
+        tray_available: bool | None = None,
+    ) -> None:
         super().__init__(window)
         self.window = window
         application = app or QApplication.instance()
         if not isinstance(application, QApplication):
             raise RuntimeError("pATHENA system tray requires QApplication ownership")
         self.app: QApplication = application
+        self.minimize_on_close = minimize_on_close
+        self._tray_available = (
+            QSystemTrayIcon.isSystemTrayAvailable()
+            if tray_available is None
+            else tray_available
+        )
+        self._previous_quit_on_last_window_closed = self.app.quitOnLastWindowClosed()
+        self._shutdown = False
 
         self.menu = QMenu()
         self.menu.setObjectName("pathenaTrayMenu")
@@ -34,6 +49,9 @@ class PathenaSystemTrayController(QObject):
         self.model_load_action = self._unavailable_action("Load primary model")
         self.model_unload_action = self._unavailable_action("Unload primary model")
         self.internet_action = self._unavailable_action("Internet on/off")
+        self.lock_protected_content_action = self._unavailable_action(
+            "Lock protected content"
+        )
         self.background_pause_action = self._unavailable_action("Pause background tasks")
 
         self.menu.addSeparator()
@@ -59,8 +77,18 @@ class PathenaSystemTrayController(QObject):
         self.tray.setToolTip("pATHENA · Awaiting system status")
         self.tray.setProperty("pathenaRuntimeState", "unavailable")
         self.tray.setContextMenu(self.menu)
+        self.tray.setProperty("pathenaTrayAvailable", self._tray_available)
         self.tray.activated.connect(self._activate)
-        self.tray.show()
+
+        if self._tray_available:
+            self.tray.show()
+        else:
+            self.tray.hide()
+
+        if self.minimize_on_close and self._tray_available:
+            self.app.setQuitOnLastWindowClosed(False)
+            self.window.installEventFilter(self)
+        self.app.aboutToQuit.connect(self.shutdown)
 
     def _unavailable_action(self, label: str) -> QAction:
         action = QAction(f"{label} · unavailable", self.menu)
@@ -90,6 +118,21 @@ class PathenaSystemTrayController(QObject):
         self.tray.setToolTip(f"pATHENA · {label}")
         self.tray.setProperty("pathenaRuntimeState", normalized)
 
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:  # noqa: N802
+        """Hide the main window on Close only when a real tray can restore it."""
+        if (
+            watched is self.window
+            and isinstance(event, QCloseEvent)
+            and event.type() == QEvent.Type.Close
+            and self.minimize_on_close
+            and self._tray_available
+            and not self._shutdown
+        ):
+            event.ignore()
+            self.window.hide()
+            return True
+        return super().eventFilter(watched, event)
+
     @Slot()
     def open_window(self) -> None:
         """Restore and focus the real pATHENA main window."""
@@ -115,17 +158,29 @@ class PathenaSystemTrayController(QObject):
             self.open_window()
 
     def shutdown(self) -> None:
-        """Remove the tray icon before Qt application teardown."""
+        """Remove tray ownership and restore QApplication close semantics."""
+        if self._shutdown:
+            return
+        self._shutdown = True
+        self.window.removeEventFilter(self)
         self.tray.hide()
         self.menu.close()
+        self.app.setQuitOnLastWindowClosed(
+            self._previous_quit_on_last_window_closed
+        )
 
 
 def install_system_tray(
     window: QWidget,
     *,
     app: QApplication | None = None,
+    minimize_on_close: bool = True,
 ) -> PathenaSystemTrayController:
     """Install the single desktop tray lifecycle controller."""
-    controller = PathenaSystemTrayController(window, app=app)
+    controller = PathenaSystemTrayController(
+        window,
+        app=app,
+        minimize_on_close=minimize_on_close,
+    )
     window.setProperty("pathenaSystemTrayInstalled", True)
     return controller
