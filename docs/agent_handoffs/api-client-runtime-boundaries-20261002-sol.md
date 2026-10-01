@@ -10,13 +10,14 @@ response decoder also accepted NaN/Infinity.
 ## Root Cause
 
 Python bool is an int subtype, ordinary comparison checks do not reject NaN, and
-the client normalized response floats without an explicit finiteness check.
+the client normalized response floats without an explicit finiteness check or a
+bounded failure path for integer-to-float overflow.
 
 ## Änderungen
 
 - require positive finite numeric transport and generation timeouts;
 - reject bool and non-integer chat list limit/offset before discovery or HTTP;
-- reject non-finite numeric response fields with `invalid_response`;
+- reject non-finite or float-overflowing numeric response fields with `invalid_response`;
 - add focused regression coverage for all three boundaries.
 
 ## Dateien
@@ -28,8 +29,9 @@ the client normalized response floats without an explicit finiteness check.
 ## Verhalten danach
 
 Malformed client configuration/request values fail deterministically before any
-Core lookup or network request. Corrupt/non-standard JSON numeric values cannot
-cross the client response boundary as valid floats.
+Core lookup or network request. Corrupt/non-standard JSON numeric values, including enormous integers that
+cannot be represented as floats, cannot escape the client response boundary as
+raw conversion errors or valid floats.
 
 ## Validierung
 
