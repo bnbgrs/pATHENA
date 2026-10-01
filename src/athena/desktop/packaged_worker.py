@@ -89,6 +89,36 @@ def dispatch_worker(argv: Sequence[str] | None = None) -> int:
 
         return jobs_main(invocation.arguments)
 
+    if invocation.target is PackagedTarget.RESEARCH_CLI:
+        from athena.desktop.research_cli import main as research_main
+
+        return research_main(invocation.arguments)
+
+    if invocation.target is PackagedTarget.RESEARCH_RESULTS_CLI:
+        from athena.desktop.research_results_cli import main as research_results_main
+
+        return research_results_main(invocation.arguments)
+
+    if invocation.target is PackagedTarget.SOURCES_CLI:
+        from athena.desktop.sources_cli import main as sources_main
+
+        return sources_main(invocation.arguments)
+
+    if invocation.target is PackagedTarget.KNOWLEDGE_CLI:
+        from athena.desktop.knowledge_cli import main as knowledge_main
+
+        return knowledge_main(invocation.arguments)
+
+    if invocation.target is PackagedTarget.KNOWLEDGE_OBSIDIAN_EXPORT:
+        from athena.desktop.knowledge_obsidian_export import main as obsidian_export_main
+
+        return obsidian_export_main(invocation.arguments)
+
+    if invocation.target is PackagedTarget.CANONICAL_MEMORY_CLI:
+        from athena.desktop.canonical_memory_cli import main as canonical_memory_main
+
+        return canonical_memory_main(invocation.arguments)
+
     if invocation.target is PackagedTarget.HARDWARE_ACCEPTANCE:
         from athena.hardware_acceptance import main as hardware_acceptance_main
 
