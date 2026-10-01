@@ -184,8 +184,7 @@ def test_workspace_preserves_existing_list_on_invalid_exit_zero_response() -> No
     app.processEvents()
     try:
         existing_id = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
-        existing = workspace.knowledge_list.addItem("EXISTING VERIFIED ITEM")
-        assert existing is None
+        workspace.knowledge_list.addItem("EXISTING VERIFIED ITEM")
         workspace._knowledge_operation = "list"
         workspace._knowledge_buffer = (
             f"{existing_id}\t1\tdecision\taccepted\tactive\tValid prefix\n"
