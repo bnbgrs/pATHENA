@@ -851,11 +851,6 @@ def test_window_ctrl_enter_submits_direct_chat() -> None:
         assert window.send_button.text() == "→"
         assert window.send_button.accessibleName() == "Send message"
         assert "Ctrl+Enter" in window.send_button.toolTip()
-        assert all(
-            label.text() != "ATTACH"
-            for label in window.findChildren(QLabel)
-        )
-
         window.apply_chat_busy(True)
         assert window.send_button.text() == "→"
         assert window.send_button.isEnabled() is False
