@@ -6,7 +6,11 @@ from pathlib import Path
 import pytest
 
 from athena.desktop.lmstudio_runtime import (
+    _accepted_model_load_id,
+    _coerce_idle_minutes,
     _command_timeout_ms,
+    _continue_after_failed_step,
+    _CommandStep,
     _endpoint,
     _endpoint_port,
     _find_lms,
@@ -227,6 +231,54 @@ def test_model_confirmation_ignores_a_different_selected_model() -> None:
         loaded=False,
         refreshes_remaining=3,
     ) == ("none", 3)
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        (30, 30),
+        (0, 0),
+        (-1, 0),
+        (2000, 1440),
+        ("30", 30),
+        (None, 30),
+        (True, 30),
+    ],
+)
+def test_idle_minutes_requires_a_genuine_bounded_integer(
+    value: object, expected: int
+) -> None:
+    assert _coerce_idle_minutes(value) == expected
+
+
+def test_pending_model_identity_comes_only_from_completed_load_command() -> None:
+    load = _CommandStep(
+        operation="model_load",
+        arguments=("load", "model-id", "--context-length", "8192"),
+        status="Loading model",
+    )
+    assert _accepted_model_load_id(load) == "model-id"
+
+    not_load = _CommandStep(
+        operation="server_start",
+        arguments=("server", "start"),
+        status="Starting server",
+    )
+    assert _accepted_model_load_id(not_load) is None
+
+    malformed = _CommandStep(
+        operation="model_load",
+        arguments=("load", ""),
+        status="Loading model",
+    )
+    assert _accepted_model_load_id(malformed) is None
+
+
+def test_restart_continues_only_after_a_failed_stop_step() -> None:
+    stop = _CommandStep("server_stop", ("server", "stop"), "Stopping server")
+    load = _CommandStep("model_load", ("load", "model-id"), "Loading model")
+    assert _continue_after_failed_step(stop) is True
+    assert _continue_after_failed_step(load) is False
 
 
 def test_find_lms_discovers_standard_per_user_install(
