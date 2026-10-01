@@ -218,6 +218,15 @@ class JobsWorkspace(QWidget):
                     self._operation_job_id or "",
                 )
                 set_pathena_ui_state(self.details, "idle")
+                self.progress.setText(
+                    "PROGRESS · Details pending while the background operation finishes."
+                )
+                self.progress.setToolTip("")
+                set_pathena_ui_state(self.progress, "busy")
+            elif current is None:
+                self.progress.setText("PROGRESS · Select a job.")
+                self.progress.setToolTip("")
+                set_pathena_ui_state(self.progress, "empty")
             return
 
         self.details.setProperty("pathenaBackgroundOperationOwner", "")
@@ -225,6 +234,7 @@ class JobsWorkspace(QWidget):
             selected_job_id = self._selected_job_id
             set_pathena_ui_state(self.details, "busy")
             self.progress.setText("PROGRESS · Loading durable checkpoint state …")
+            self.progress.setToolTip("")
             set_pathena_ui_state(self.progress, "busy")
             self._start(
                 "show",
@@ -365,6 +375,7 @@ class JobsWorkspace(QWidget):
                     self.progress.setText(
                         "PROGRESS · No durable checkpoint progress recorded."
                     )
+                    self.progress.setToolTip("")
                     set_pathena_ui_state(self.progress, "idle")
                 else:
                     self.progress.setText(f"PROGRESS · {progress}")
@@ -516,6 +527,10 @@ class JobsWorkspace(QWidget):
             self.status.setText(
                 f"{label}{subject} encountered {error.name}; waiting for process exit."
             )
+            if owns_details and operation == "show":
+                self.progress.setText("PROGRESS · Awaiting terminal process state …")
+                self.progress.setToolTip("")
+                set_pathena_ui_state(self.progress, "error")
             self._sync_action_buttons(force_disabled=True)
 
         set_pathena_ui_state(self.status, "error")
