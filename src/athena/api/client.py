@@ -42,12 +42,24 @@ from athena.api.contracts import (
     RememberedChatMessageResponse,
 )
 from athena.config.settings import AthenaSettings
+from athena.storage.durable_fs import is_link_boundary
 from athena.storage.paths import RuntimePaths
 
 _DISCOVERY_FILE = "core-api.json"
 _TOKEN_FILE = "core-api.token"
 _LOOPBACK_HOST = "127.0.0.1"
 _DEFAULT_TIMEOUT_SECONDS = 5.0
+
+
+def _path_has_link_boundary(path: Path) -> bool:
+    cursor = path
+    while True:
+        if is_link_boundary(cursor):
+            return True
+        parent = cursor.parent
+        if parent == cursor:
+            return False
+        cursor = parent
 
 
 def _positive_finite_seconds(value: object, label: str) -> float:
@@ -815,12 +827,12 @@ class CoreApiClient:
 
     def _load_bootstrap(self) -> _Bootstrap:
         root = self.runtime_root
-        if root.is_symlink():
+        if _path_has_link_boundary(root):
             raise CoreApiClientError(
                 "ATHENA API runtime directory is not trusted.",
                 code="invalid_discovery",
             )
-        if self.discovery_path.is_symlink():
+        if is_link_boundary(self.discovery_path):
             raise CoreApiClientError(
                 "ATHENA API discovery file is not trusted.",
                 code="invalid_discovery",
@@ -883,7 +895,7 @@ class CoreApiClient:
                 "ATHENA Core token path cannot be validated.",
                 code="invalid_discovery",
             ) from exc
-        if resolved_token != resolved_expected or token_path.is_symlink():
+        if resolved_token != resolved_expected or is_link_boundary(token_path):
             raise CoreApiClientError(
                 "ATHENA Core discovery attempted an unexpected token path.",
                 code="invalid_discovery",
