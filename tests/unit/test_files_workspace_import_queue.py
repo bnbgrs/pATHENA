@@ -38,6 +38,7 @@ class _QueueHarness:
         self.status = _TextSurface()
         self.starts: list[tuple[str, list[str], str, str | None]] = []
         self.sync_calls = 0
+        self.refresh_calls = 0
 
     def _busy(self) -> bool:
         return self.process_busy
@@ -69,6 +70,9 @@ class _QueueHarness:
 
     def _drain_output(self) -> None:
         return
+
+    def refresh(self) -> None:
+        self.refresh_calls += 1
 
     def _operation_owns_details(self) -> bool:
         return self._operation_source_id == self._selected_source_id
@@ -144,15 +148,12 @@ def test_successful_import_continues_queue_without_intermediate_refresh(
     first = _touch(tmp_path / "first.md")
     second = _touch(tmp_path / "second.md")
     captured = "11111111-1111-1111-1111-111111111111"
-    refreshes: list[bool] = []
-
     harness._operation = "import"
     harness._operation_source_id = None
     harness._selected_source_id = None
     harness._active_import_path = first
     harness._pending_imports = [second]
     harness._buffer = f"SOURCE_CAPTURED {captured}\nPROCESS_QUEUED\n"
-    setattr(harness, "refresh", lambda: refreshes.append(True))
     FilesWorkspace._process_finished(
         harness,  # type: ignore[arg-type]
         0,
@@ -170,7 +171,7 @@ def test_successful_import_continues_queue_without_intermediate_refresh(
             captured,
         )
     ]
-    assert refreshes == []
+    assert harness.refresh_calls == 0
 
 
 def test_failed_import_continues_with_next_queued_file(tmp_path: Path) -> None:
@@ -235,18 +236,21 @@ def test_file_picker_allows_multiple_files_and_delegates_to_queue(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    harness = _QueueHarness()
     first = _touch(tmp_path / "first.md")
     second = _touch(tmp_path / "second.pdf")
     queued: list[list[str]] = []
+
+    class PickerHarness(_QueueHarness):
+        def import_paths(self, paths: list[str]) -> None:
+            queued.append(paths)
+
+    harness = PickerHarness()
 
     monkeypatch.setattr(
         QFileDialog,
         "getOpenFileNames",
         lambda *_args, **_kwargs: ([first, second], ""),
     )
-    setattr(harness, "import_paths", lambda paths: queued.append(paths))
-
     FilesWorkspace._choose_file(harness)  # type: ignore[arg-type]
 
     assert queued == [[first, second]]
