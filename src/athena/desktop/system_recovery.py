@@ -41,22 +41,53 @@ def _first_issue_action(payload: Mapping[str, object]) -> str | None:
     return None
 
 
-def project_recovery_payload(payload: Mapping[str, object]) -> RecoveryPresentation:
-    """Project the payload-free Recovery matrix into a compact operator state."""
+def project_recovery_payload(
+    payload: Mapping[str, object],
+    *,
+    exit_code: int | None = None,
+) -> RecoveryPresentation:
+    """Project one verified Recovery matrix into a compact operator state."""
     raw_status = payload.get("status")
     if not isinstance(raw_status, str):
         raise ValueError("Recovery diagnosis is missing status.")
     status = raw_status.strip()
 
     canonical_raw = payload.get("canonical_database")
-    canonical = (
-        canonical_raw.strip()
-        if isinstance(canonical_raw, str) and canonical_raw.strip()
-        else "unknown"
-    )
+    if not isinstance(canonical_raw, str) or not canonical_raw.strip():
+        raise ValueError("Recovery diagnosis is missing canonical_database.")
+    canonical = canonical_raw.strip()
+
+    integrity_confirmed = payload.get("canonical_integrity_confirmed")
+    if not isinstance(integrity_confirmed, bool):
+        raise ValueError("Recovery diagnosis is missing canonical_integrity_confirmed.")
+
     normal_start = payload.get("normal_core_start_allowed")
     if not isinstance(normal_start, bool):
         raise ValueError("Recovery diagnosis is missing normal_core_start_allowed.")
+
+    expected_exit_codes = {
+        "healthy": 0,
+        "degraded-derived": 3,
+        "recovery-required": 4,
+    }
+    expected_exit_code = expected_exit_codes.get(status)
+    if expected_exit_code is None:
+        raise ValueError(f"Unsupported Recovery diagnostic status: {status!r}.")
+    if exit_code is not None and exit_code != expected_exit_code:
+        raise ValueError(
+            "Recovery diagnosis status/exit-code mismatch: "
+            f"{status!r} requires exit {expected_exit_code}, got {exit_code}."
+        )
+
+    if status in {"healthy", "degraded-derived"}:
+        if canonical != "healthy" or not integrity_confirmed or not normal_start:
+            raise ValueError(
+                f"Recovery diagnosis {status!r} contradicts canonical/start safety fields."
+            )
+    elif normal_start:
+        raise ValueError(
+            "Recovery diagnosis 'recovery-required' cannot allow normal Core start."
+        )
 
     action = _first_issue_action(payload)
     if status == "healthy":
@@ -93,6 +124,7 @@ class SystemRecoveryPanel(QFrame):
         self.setProperty("pathenaRecoveryRestoreAvailable", False)
         self._executable = executable or sys.executable
         self._process = QProcess(self)
+        self._process_error_reported = False
         self._process.setProcessChannelMode(QProcess.ProcessChannelMode.MergedChannels)
         self._process.finished.connect(self._handle_finished)
         self._process.errorOccurred.connect(self._handle_process_error)
@@ -148,6 +180,7 @@ class SystemRecoveryPanel(QFrame):
             )
             return False
 
+        self._process_error_reported = False
         self.status.setText("RUNNING")
         self.detail.setText(
             "Inspecting canonical integrity and Derived State read-only; no repair is running…"
@@ -169,6 +202,12 @@ class SystemRecoveryPanel(QFrame):
             self._process.waitForFinished(1_000)
 
     def _handle_finished(self, exit_code: int, _exit_status: object) -> None:
+        if self._process_error_reported:
+            self._process_error_reported = False
+            self.run_button.setText("Run again")
+            self.run_button.setEnabled(True)
+            return
+
         output = bytes(self._process.readAllStandardOutput().data()).decode(
             "utf-8", errors="replace"
         ).strip()
@@ -179,7 +218,7 @@ class SystemRecoveryPanel(QFrame):
             payload = json.loads(lines[-1])
             if not isinstance(payload, Mapping):
                 raise ValueError("Recovery diagnosis must return a JSON object.")
-            presentation = project_recovery_payload(payload)
+            presentation = project_recovery_payload(payload, exit_code=exit_code)
         except (json.JSONDecodeError, ValueError) as exc:
             clipped = output[-220:] if output else "no diagnostic output"
             presentation = RecoveryPresentation(
@@ -192,11 +231,13 @@ class SystemRecoveryPanel(QFrame):
         self.run_button.setEnabled(True)
 
     def _handle_process_error(self, error: QProcess.ProcessError) -> None:
+        self._process_error_reported = True
         if error == QProcess.ProcessError.Crashed:
             detail = "Recovery diagnostic process crashed before completion."
         else:
             detail = f"Recovery diagnostic process error: {self._process.errorString()}"
         self._apply_presentation(RecoveryPresentation("FAIL", detail, "error"))
+        self.run_button.setText("Run again")
         self.run_button.setEnabled(True)
 
     def _apply_presentation(self, presentation: RecoveryPresentation) -> None:
