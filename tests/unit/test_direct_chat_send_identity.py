@@ -223,6 +223,7 @@ def test_explicit_cancel_between_chunks_marks_run_cancelled_and_keeps_user_only(
     try:
         chat_id = chat.create_chat()
         provider.stream_chat = _two_chunk_stream(provider)  # type: ignore[method-assign]
+        deltas: list[str] = []
         finished_statuses: list[str] = []
         original_finish = service.model_runs.finish_run
 
@@ -255,9 +256,11 @@ def test_explicit_cancel_between_chunks_marks_run_cancelled_and_keeps_user_only(
                 operation_id=_OPERATION_ID,
                 output_reserve=1000,
                 safety_margin=100,
+                on_delta=deltas.append,
                 cancel_requested=cancel_requested,
             )
 
+        assert deltas == []
         persisted = chat.load_chat(chat_id).messages
         assert [message.message_type for message in persisted] == [
             MessageType.USER,
@@ -265,6 +268,94 @@ def test_explicit_cancel_between_chunks_marks_run_cancelled_and_keeps_user_only(
         assert persisted[0].content == "cancel after first chunk"
         assert finished_statuses == ["cancelled"]
         assert provider.stream_calls == 1
+    finally:
+        database.stop()
+
+
+class _FailingCloseStream:
+    def __init__(self) -> None:
+        self._chunks = iter(("partial", " should not persist"))
+        self.close_calls = 0
+
+    def __iter__(self) -> "_FailingCloseStream":
+        return self
+
+    def __next__(self) -> str:
+        return next(self._chunks)
+
+    def close(self) -> None:
+        self.close_calls += 1
+        raise RuntimeError("synthetic provider stream close failure")
+
+
+def test_cancel_cleanup_failure_preserves_cancelled_run_state(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    database, chat, provider, service = _runtime(tmp_path)
+
+    try:
+        chat_id = chat.create_chat()
+        stream = _FailingCloseStream()
+
+        def stream_chat(
+            *,
+            model_id: str,
+            messages: Sequence[ModelChatMessage],
+            max_output_tokens: int | None = None,
+            reasoning_mode: str | None = None,
+            temperature: float | None = None,
+        ) -> Iterator[str]:
+            del messages
+            assert model_id == "primary"
+            assert max_output_tokens == 1000
+            assert reasoning_mode == "off"
+            assert temperature is None
+            provider.stream_calls += 1
+            return stream
+
+        provider.stream_chat = stream_chat  # type: ignore[method-assign]
+        finished_statuses: list[str] = []
+        original_finish = service.model_runs.finish_run
+
+        def finish_run(
+            processing_run_id: uuid.UUID,
+            *,
+            status: str,
+            error_detail: str | None = None,
+        ):
+            finished_statuses.append(status)
+            return original_finish(
+                processing_run_id,
+                status=status,
+                error_detail=error_detail,
+            )
+
+        monkeypatch.setattr(service.model_runs, "finish_run", finish_run)
+        checks = 0
+
+        def cancel_requested() -> bool:
+            nonlocal checks
+            checks += 1
+            return checks >= 5
+
+        with pytest.raises(GenerationCancelledError) as raised:
+            service.send_message(
+                chat_id=chat_id,
+                content="cancel with failing cleanup",
+                requested_model_id="primary",
+                operation_id=_OPERATION_ID,
+                output_reserve=1000,
+                safety_margin=100,
+                cancel_requested=cancel_requested,
+            )
+
+        assert isinstance(raised.value.__cause__, RuntimeError)
+        assert stream.close_calls == 1
+        assert finished_statuses == ["cancelled"]
+        assert [message.message_type for message in chat.load_chat(chat_id).messages] == [
+            MessageType.USER,
+        ]
     finally:
         database.stop()
 
