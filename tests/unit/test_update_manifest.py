@@ -102,6 +102,7 @@ def test_package_rejects_hash_mismatch_and_symlink(tmp_path: Path) -> None:
     with pytest.raises(UpdateVerificationError, match="package"):
         verify_package(link, manifest)
 
+
 @pytest.mark.parametrize(
     "overrides",
     [
@@ -145,6 +146,14 @@ def test_schema_compatibility_rejects_non_integer_runtime_values(
     manifest = _manifest()
 
     assert manifest.supports_schema(schema_version) is False  # type: ignore[arg-type]
+
+
+def test_manifest_parser_runtime_boundaries_fail_closed() -> None:
+    with pytest.raises(UpdateVerificationError, match="bytes"):
+        UpdateManifest.from_bytes("{}")  # type: ignore[arg-type]
+
+    with pytest.raises(UpdateVerificationError, match="too large"):
+        UpdateManifest.from_bytes(b" " * (64 * 1024 + 1))
 
 
 @pytest.mark.parametrize(
