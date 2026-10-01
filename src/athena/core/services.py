@@ -59,6 +59,8 @@ class ServiceManager:
 
     Startup is transactional at the service-lifecycle level: if service N
     fails, every service successfully started before it is stopped again.
+    A service whose stop fails remains tracked so later cleanup can retry the
+    same resource owner instead of treating the failed release as complete.
     """
 
     def __init__(self, services: tuple[LifecycleService, ...] = ()) -> None:
