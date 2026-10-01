@@ -8,8 +8,10 @@ desktop index and it never exposes protected Source, Research, or Job text.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import math
+import re
 import sqlite3
 import uuid
 from dataclasses import dataclass
@@ -129,6 +131,7 @@ class UniversalSearchService:
         entity_types: tuple[UniversalSearchEntityType, ...] | None = None,
     ) -> tuple[UniversalSearchResult, ...]:
         normalized_query = _query_text(query)
+        query_terms = _query_terms(normalized_query)
         validated_limit = _limit(limit)
         selected_types = _entity_filter(entity_types)
         candidates: list[_Candidate] = []
@@ -149,17 +152,30 @@ class UniversalSearchService:
         connection = self.database.connection
         if UniversalSearchEntityType.SOURCE in selected_types:
             candidates.extend(
-                self._search_sources(connection, normalized_query, validated_limit)
+                self._search_sources(
+                    connection,
+                    normalized_query,
+                    query_terms,
+                    validated_limit,
+                )
             )
         if UniversalSearchEntityType.RESEARCH_RESULT in selected_types:
             candidates.extend(
                 self._search_research_results(
-                    connection, normalized_query, validated_limit
+                    connection,
+                    normalized_query,
+                    query_terms,
+                    validated_limit,
                 )
             )
         if UniversalSearchEntityType.JOB in selected_types:
             candidates.extend(
-                self._search_jobs(connection, normalized_query, validated_limit)
+                self._search_jobs(
+                    connection,
+                    normalized_query,
+                    query_terms,
+                    validated_limit,
+                )
             )
 
         ordered = sorted(
@@ -187,10 +203,20 @@ class UniversalSearchService:
     def _search_sources(
         connection: sqlite3.Connection,
         query: str,
+        query_terms: tuple[str, ...],
         limit: int,
     ) -> tuple[_Candidate, ...]:
+        match_sql, match_parameters = _sql_any_term_match(
+            query_terms,
+            (
+                "coalesce(s.original_name, '') || ' ' || "
+                "coalesce(s.source_type, '') || ' ' || "
+                "coalesce(s.mime_type, '') || ' ' || "
+                "coalesce(s.source_uri, '')"
+            ),
+        )
         rows = connection.execute(
-            """
+            f"""
             SELECT
                 s.source_id,
                 s.original_name,
@@ -203,21 +229,12 @@ class UniversalSearchService:
             LEFT JOIN protected_sources AS protected
               ON protected.source_id = s.source_id
             WHERE entity.lifecycle_state != 'deleted'
-              AND s.lifecycle_state != 'deleted'
               AND protected.source_id IS NULL
-              AND instr(
-                    lower(
-                        coalesce(s.original_name, '') || ' ' ||
-                        coalesce(s.source_type, '') || ' ' ||
-                        coalesce(s.mime_type, '') || ' ' ||
-                        coalesce(s.source_uri, '')
-                    ),
-                    lower(?)
-                  ) > 0
+              AND ({match_sql})
             ORDER BY s.source_id ASC
             LIMIT ?
             """,
-            (query, min(400, max(limit * 8, 40))),
+            (*match_parameters, min(400, max(limit * 8, 40))),
         ).fetchall()
         output: list[_Candidate] = []
         for row in rows:
@@ -249,14 +266,20 @@ class UniversalSearchService:
     def _search_research_results(
         connection: sqlite3.Connection,
         query: str,
+        query_terms: tuple[str, ...],
         limit: int,
     ) -> tuple[_Candidate, ...]:
+        match_sql, match_parameters = _sql_any_term_match(
+            query_terms,
+            "scope.query_text || ' ' || result.content_json",
+        )
         rows = connection.execute(
-            """
+            f"""
             SELECT
                 result.result_id,
                 scope.query_text,
-                result.content_json
+                result.content_json,
+                result.content_hash
             FROM research_results AS result
             JOIN research_scopes AS scope
               ON scope.scope_id = result.scope_id
@@ -264,20 +287,26 @@ class UniversalSearchService:
               ON job.job_id = scope.job_id
             WHERE job.protection_scope_id IS NULL
               AND job.protected_payload_id IS NULL
-              AND instr(
-                    lower(scope.query_text || ' ' || result.content_json),
-                    lower(?)
-                  ) > 0
+              AND ({match_sql})
             ORDER BY result.result_id ASC
             LIMIT ?
             """,
-            (query, min(400, max(limit * 8, 40))),
+            (*match_parameters, min(400, max(limit * 8, 40))),
         ).fetchall()
         output: list[_Candidate] = []
         for row in rows:
             entity_id = _uuid_blob(row["result_id"], "Research result_id")
             title = _optional_text(row["query_text"])
-            content = _json_preview(_optional_text(row["content_json"]) or "")
+            content_json = _optional_text(row["content_json"]) or ""
+            content_hash = _sha256_blob(
+                row["content_hash"],
+                "Research content_hash",
+            )
+            if hashlib.sha256(content_json.encode("utf-8")).digest() != content_hash:
+                raise UniversalSearchError(
+                    "Research result content hash verification failed."
+                )
+            content = _json_preview(content_json)
             output.append(
                 _Candidate(
                     result_ref=f"research_result:{entity_id}",
@@ -295,10 +324,20 @@ class UniversalSearchService:
     def _search_jobs(
         connection: sqlite3.Connection,
         query: str,
+        query_terms: tuple[str, ...],
         limit: int,
     ) -> tuple[_Candidate, ...]:
+        match_sql, match_parameters = _sql_any_term_match(
+            query_terms,
+            (
+                "job_type || ' ' || state || ' ' || "
+                "coalesce(current_stage, '') || ' ' || "
+                "coalesce(blocked_reason, '') || ' ' || "
+                "coalesce(requested_scope_json, '')"
+            ),
+        )
         rows = connection.execute(
-            """
+            f"""
             SELECT
                 job_id,
                 job_type,
@@ -309,20 +348,11 @@ class UniversalSearchService:
             FROM jobs
             WHERE protection_scope_id IS NULL
               AND protected_payload_id IS NULL
-              AND instr(
-                    lower(
-                        job_type || ' ' ||
-                        state || ' ' ||
-                        coalesce(current_stage, '') || ' ' ||
-                        coalesce(blocked_reason, '') || ' ' ||
-                        coalesce(requested_scope_json, '')
-                    ),
-                    lower(?)
-                  ) > 0
+              AND ({match_sql})
             ORDER BY job_id ASC
             LIMIT ?
             """,
-            (query, min(400, max(limit * 8, 40))),
+            (*match_parameters, min(400, max(limit * 8, 40))),
         ).fetchall()
         output: list[_Candidate] = []
         for row in rows:
@@ -360,6 +390,28 @@ def _query_text(value: object) -> str:
             "Universal search query must not exceed 512 characters."
         )
     return normalized
+
+
+def _query_terms(query: str) -> tuple[str, ...]:
+    terms = tuple(dict.fromkeys(re.findall(r"\w+", query, flags=re.UNICODE)))
+    if not terms:
+        raise UniversalSearchError(
+            "Universal search query must contain at least one letter or digit."
+        )
+    return terms
+
+
+def _sql_any_term_match(
+    terms: tuple[str, ...],
+    haystack_sql: str,
+) -> tuple[str, tuple[str, ...]]:
+    if not terms:
+        raise UniversalSearchError("Universal search query terms must not be empty.")
+    clause = " OR ".join(
+        f"instr(lower({haystack_sql}), lower(?)) > 0"
+        for _term in terms
+    )
+    return clause, terms
 
 
 def _limit(value: object) -> int:
@@ -402,8 +454,17 @@ def _revisioned_candidate(
         entity_type=entity_type,
         title=result.title,
         preview=_preview(result.text),
-        relevance=_relevance(query, result.title, result.text),
+        relevance=_relevance(query, result.title, result.text) + float(result.score),
     )
+
+
+def _sha256_blob(value: object, label: str) -> bytes:
+    if not isinstance(value, (bytes, bytearray, memoryview)):
+        raise TypeError(f"{label} must be persisted as BLOB bytes.")
+    raw = bytes(value)
+    if len(raw) != 32:
+        raise ValueError(f"{label} must contain exactly 32 bytes.")
+    return raw
 
 
 def _uuid_blob(value: object, label: str) -> uuid.UUID:
@@ -479,5 +540,14 @@ def _relevance(query: str, title: str | None, body: str) -> float:
         score += 1.0
         occurrences = body_text.count(needle)
         score += min(2.0, math.log2(max(1, occurrences)) * 0.25)
+
+    for term in _query_terms(query):
+        folded = term.casefold()
+        if folded == needle:
+            continue
+        if folded in title_text:
+            score += 1.5
+        if folded in body_text:
+            score += 0.5
 
     return score
