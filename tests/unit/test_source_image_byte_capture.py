@@ -6,12 +6,22 @@ import pytest
 
 from athena.config.settings import AthenaSettings
 from athena.core.application import AthenaApplication
+from athena.security.models import Argon2idParameters
+from athena.security.service import ProtectionScopeLockedError
 from athena.source.blob_store import (
     BlobIntegrityError,
     BlobReadTooLargeError,
     SourceChangedDuringCaptureError,
 )
 from athena.source.models import SourceType
+
+
+_TEST_KDF = Argon2idParameters(
+    iterations=1,
+    lanes=1,
+    memory_cost_kib=8 * 1024,
+    length=32,
+)
 
 
 def _started_app(tmp_path: Path) -> AthenaApplication:
@@ -227,5 +237,64 @@ def test_image_byte_read_rejects_non_image_source(
         app.sources.read_image_bytes(
             captured.source.source_id,
             max_bytes=1024,
+        )
+    app.stop()
+
+
+def test_protected_image_byte_read_preserves_bounds_and_lock_state(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = _started_app(tmp_path)
+    payload = _png_payload()
+    password = b"image-byte-protection-password"
+    app.protected_content.initialize_password(
+        password,
+        parameters=_TEST_KDF,
+    )
+    scope = app.protected_content.create_scope(
+        password,
+        neutral_label="image-byte-test",
+    )
+    app.protected_content.unlock_scope(
+        scope.protection_scope_id,
+        password,
+    )
+    captured = app.sources.capture_image_bytes(
+        payload,
+        original_name="clipboard-image.png",
+        source_uri="clipboard://composer",
+    )
+    protected = app.sources.protect_existing_source(
+        captured.source.source_id,
+        scope.protection_scope_id,
+    )
+
+    assert protected.source.source_type is SourceType.IMAGE
+    assert app.sources.read_image_bytes(
+        protected.source.source_id,
+        max_bytes=len(payload),
+    ) == payload
+
+    def unexpected_decrypt(_source_id: object) -> bytes:
+        raise AssertionError("oversized image must fail before blob decryption")
+
+    monkeypatch.setattr(
+        app.sources,
+        "read_protected_bytes",
+        unexpected_decrypt,
+    )
+    with pytest.raises(BlobReadTooLargeError, match="read limit"):
+        app.sources.read_image_bytes(
+            protected.source.source_id,
+            max_bytes=len(payload) - 1,
+        )
+
+    monkeypatch.undo()
+    app.protected_content.lock_scope(scope.protection_scope_id)
+    with pytest.raises(ProtectionScopeLockedError):
+        app.sources.read_image_bytes(
+            protected.source.source_id,
+            max_bytes=len(payload),
         )
     app.stop()
