@@ -193,3 +193,37 @@ QA owner should proceed to real Alpha/Beta E2E flows once this exact Quality rep
 - **Core:** continue disjoint Alpha/Beta gaps.
 - **Runtime:** continue Windows/LM Studio E2E.
 - **All workers:** update this file with exact SHA, evidence, merged PR/commit, remaining gap and next owner after every substantive step.
+
+## UI truthful composer/network slice — 2026-10-02 00:4x Europe/Berlin
+
+- Branch: `fix/chat-composer-truthful-controls-20261002-sol`
+- PR: #330
+- Product-code head before this handoff commit: `f9d36e04b95c5554251d6990c61fc254090d75a3`
+- Base at PR creation: `develop/pathena-next@67174198e1494fd4c8678aad60756c39ef5c160b`
+- Ausgangslage / Root Cause:
+  - Chat Send mutated its visible label between `SEND` and `WORKING`, while constructor/build paths also disagreed on button text. The control therefore had unstable/competing presentation instead of one identity.
+  - Composer rendered `ATTACH` as a static label although no attachment action or Core contract exists. This looked like capability without functionality.
+  - Rail hard-coded `NET ONLINE` and `TOR OFF` although the current Desktop/Core snapshot exposes neither network nor TOR truth.
+- Änderungen:
+  - Send is one stable `→` control with accessible name `Send message`; real busy state remains disabled and is exposed through accessible description + tooltip instead of fake label replacement.
+  - Removed the non-functional `ATTACH` affordance.
+  - Network/TOR display now fails closed to `UNKNOWN` and states why it cannot claim a measured value.
+  - Added focused Qt regression assertions for all three behaviors.
+- Dateien:
+  - `src/athena/desktop/window.py`
+  - `tests/unit/test_desktop_direct_chat.py`
+  - `tests/unit/test_desktop_shell.py`
+- Parallelität / Konfliktrisiko:
+  - No overlap with #329 Core cancellation files, #325 Storage, #326 Research workspace, or #327 Quality harness.
+  - Stale #298 is source material only; #330 is the fresh current-Develop reconstruction and should supersede that old-base send-button slice if qualified.
+  - Future Desktop STOP UI must build on real cancellation after #329 is integrated; do not reintroduce fake `WORKING`/STOP text before Core cancellation is available on the target base.
+- Validierung:
+  - Source diff reviewed against current Develop; #330 was 4 commits ahead / 0 behind at PR creation and contained only the three product/test files above.
+  - Focused regression tests are committed. GitHub exact-head workflows were not yet visible immediately after PR creation; do not mark the slice integrated until terminal exact-head evidence exists.
+  - Native interactive UI was not run in this environment because repository checkout/desktop execution is unavailable here; rely on the repository's Windows UI/visual workflows for native evidence.
+- Nächster Schritt:
+  1. qualify #330 exact head with UI Focused + Quality + visual/native evidence;
+  2. fix any exact-head failure on #330 rather than weakening gates;
+  3. merge only after those gates are green and re-check current Develop for drift;
+  4. then close/supersede stale #298 rather than merging both.
+
