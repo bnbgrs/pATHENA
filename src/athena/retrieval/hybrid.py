@@ -23,8 +23,19 @@ from athena.retrieval.semantic import (
 _TYPE_AUTHORITY = {
     SearchEntityType.KNOWLEDGE: 1.00,
     SearchEntityType.CLAIM: 0.88,
+    SearchEntityType.RESEARCH_RESULT: 0.86,
+    SearchEntityType.SOURCE: 0.82,
     SearchEntityType.CHAT_MESSAGE: 0.68,
+    SearchEntityType.JOB: 0.56,
 }
+
+_SEMANTIC_ENTITY_TYPES = frozenset(
+    {
+        SearchEntityType.KNOWLEDGE,
+        SearchEntityType.CLAIM,
+        SearchEntityType.CHAT_MESSAGE,
+    }
+)
 
 _RETRIEVAL_METHOD_ORDER = ("lexical", "semantic")
 _DIVERSITY_THRESHOLD = 0.82
@@ -89,7 +100,7 @@ def _validate_retrieval_methods(value: object) -> tuple[str, ...]:
 @dataclass(frozen=True, slots=True)
 class HybridSearchResult:
     entity_id: uuid.UUID
-    revision_id: uuid.UUID
+    revision_id: uuid.UUID | None
     entity_type: SearchEntityType
     title: str | None
     text: str
@@ -105,8 +116,8 @@ class HybridSearchResult:
     def __post_init__(self) -> None:
         if not isinstance(self.entity_id, uuid.UUID):
             raise TypeError("Hybrid result entity_id must be a UUID.")
-        if not isinstance(self.revision_id, uuid.UUID):
-            raise TypeError("Hybrid result revision_id must be a UUID.")
+        if self.revision_id is not None and not isinstance(self.revision_id, uuid.UUID):
+            raise TypeError("Hybrid result revision_id must be a UUID or None.")
         if not isinstance(self.entity_type, SearchEntityType):
             raise TypeError("Hybrid result entity_type must be a SearchEntityType.")
         if self.title is not None and not isinstance(self.title, str):
@@ -139,7 +150,7 @@ class HybridSearchResult:
 @dataclass(slots=True)
 class _Candidate:
     entity_id: uuid.UUID
-    revision_id: uuid.UUID
+    revision_id: uuid.UUID | None
     entity_type: SearchEntityType
     title: str | None
     text: str
@@ -221,17 +232,19 @@ class HybridRetrievalService:
             entity_type=entity_type,
         )
 
-        semantic_candidate_limit = min(400, max(60, limit * 8))
-        try:
-            semantic_results = self.semantic.search(
-                query,
-                model_id=model_id,
-                limit=semantic_candidate_limit,
-            )
-        except (SemanticSearchError, ModelProviderError) as exc:
-            raise SemanticRetrievalUnavailableError(
-                "knowledge_semantic_unavailable"
-            ) from exc
+        semantic_results: tuple[SemanticSearchResult, ...] = ()
+        if entity_type is None or entity_type in _SEMANTIC_ENTITY_TYPES:
+            semantic_candidate_limit = min(400, max(60, limit * 8))
+            try:
+                semantic_results = self.semantic.search(
+                    query,
+                    model_id=model_id,
+                    limit=semantic_candidate_limit,
+                )
+            except (SemanticSearchError, ModelProviderError) as exc:
+                raise SemanticRetrievalUnavailableError(
+                    "knowledge_semantic_unavailable"
+                ) from exc
 
         return self._fuse(
             lexical_results=lexical_results,
