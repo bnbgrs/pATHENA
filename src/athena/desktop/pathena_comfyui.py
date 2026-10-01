@@ -248,8 +248,32 @@ class ComfyUiClient:
 
         encoded = urllib.parse.quote(normalized, safe="")
         history = self._request("GET", f"/history/{encoded}")
-        if normalized in history:
+        if normalized not in history:
+            return ComfyUiPromptState(normalized, "unknown")
+
+        entry = history[normalized]
+        if not isinstance(entry, dict):
+            raise ComfyUiError("Local ComfyUI history entry is malformed.")
+        status = entry.get("status")
+        if not isinstance(status, dict):
+            raise ComfyUiError("Local ComfyUI history entry has no status object.")
+
+        status_value = status.get("status_str")
+        completed = status.get("completed")
+        if not isinstance(status_value, str) or not status_value.strip():
+            raise ComfyUiError("Local ComfyUI history status is incomplete.")
+        if not isinstance(completed, bool):
+            raise ComfyUiError("Local ComfyUI history completion flag is invalid.")
+
+        normalized_status = status_value.strip().casefold()
+        if normalized_status == "success":
+            if not completed:
+                raise ComfyUiError(
+                    "Local ComfyUI history reports success without completion."
+                )
             return ComfyUiPromptState(normalized, "completed")
+        if completed or normalized_status in {"error", "failed", "interrupted"}:
+            return ComfyUiPromptState(normalized, "failed")
         return ComfyUiPromptState(normalized, "unknown")
 
     def release_vram(self) -> None:
@@ -669,8 +693,9 @@ class ComfyUiController(QObject):
         labels = {
             "pending": "Waiting in the local queue.",
             "running": "Running locally in ComfyUI.",
-            "completed": "Completed.",
-            "unknown": "No longer present in the current queue or history.",
+            "completed": "Completed successfully.",
+            "failed": "ComfyUI reports that this workflow did not complete successfully.",
+            "unknown": "No terminal result is available in the current queue or history.",
         }
         self._set_job_status(state.state, labels[state.state])
         return True
