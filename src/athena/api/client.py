@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
@@ -47,6 +48,15 @@ _DISCOVERY_FILE = "core-api.json"
 _TOKEN_FILE = "core-api.token"
 _LOOPBACK_HOST = "127.0.0.1"
 _DEFAULT_TIMEOUT_SECONDS = 5.0
+
+
+def _positive_finite_seconds(value: object, label: str) -> float:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise TypeError(f"{label} must be numeric.")
+    normalized = float(value)
+    if not math.isfinite(normalized) or normalized <= 0:
+        raise ValueError(f"{label} must be a positive finite number.")
+    return normalized
 
 
 class CoreApiClientError(RuntimeError):
@@ -94,20 +104,21 @@ class CoreApiClient:
         timeout_seconds: float = _DEFAULT_TIMEOUT_SECONDS,
         generation_timeout_seconds: float | None = None,
     ) -> None:
-        if timeout_seconds <= 0:
-            raise ValueError("ATHENA API client timeout must be positive.")
-        resolved_generation_timeout = (
-            timeout_seconds
-            if generation_timeout_seconds is None
-            else generation_timeout_seconds
+        resolved_timeout = _positive_finite_seconds(
+            timeout_seconds,
+            "ATHENA API client timeout",
         )
-        if resolved_generation_timeout <= 0:
-            raise ValueError(
-                "ATHENA API generation timeout must be positive."
+        resolved_generation_timeout = (
+            resolved_timeout
+            if generation_timeout_seconds is None
+            else _positive_finite_seconds(
+                generation_timeout_seconds,
+                "ATHENA API generation timeout",
             )
+        )
         self.runtime_root = Path(runtime_root)
         self.discovery_path = self.runtime_root / _DISCOVERY_FILE
-        self.timeout_seconds = timeout_seconds
+        self.timeout_seconds = resolved_timeout
         self.generation_timeout_seconds = resolved_generation_timeout
 
     @classmethod
@@ -169,8 +180,12 @@ class CoreApiClient:
         limit: int = 50,
         offset: int = 0,
     ) -> tuple[ChatSummaryResponse, ...]:
+        if isinstance(limit, bool) or not isinstance(limit, int):
+            raise ValueError("Chat list limit must be an integer.")
         if not 1 <= limit <= 200:
             raise ValueError("Chat list limit must be between 1 and 200.")
+        if isinstance(offset, bool) or not isinstance(offset, int):
+            raise ValueError("Chat list offset must be an integer.")
         if offset < 0:
             raise ValueError("Chat list offset must be zero or greater.")
 
@@ -967,7 +982,13 @@ def _required_float(payload: dict[str, JsonValue], key: str) -> float:
             f"ATHENA Core response field {key!r} is invalid.",
             code="invalid_response",
         )
-    return float(value)
+    normalized = float(value)
+    if not math.isfinite(normalized):
+        raise CoreApiClientError(
+            f"ATHENA Core response field {key!r} is not finite.",
+            code="invalid_response",
+        )
+    return normalized
 
 
 def _optional_int(payload: dict[str, JsonValue], key: str) -> int | None:
