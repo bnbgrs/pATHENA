@@ -21,8 +21,7 @@ Concrete false-success examples before the change:
 - status=healthy + normal_core_start_allowed=false was still rendered as HEALTHY with "normal Core start allowed";
 - status=recovery-required + normal_core_start_allowed=true was still rendered as RECOVERY REQUIRED while the payload simultaneously claimed normal start was allowed;
 - status=healthy emitted with exit 4 could still render HEALTHY;
-- missing canonical_database degraded to the string "unknown" instead of failing the diagnostic trust boundary;
-- QProcess.errorOccurred could be followed by finished, allowing a second terminal callback to overwrite the first process-specific failure.
+- missing canonical_database degraded to the string "unknown" instead of failing the diagnostic trust boundary.
 
 ## Root Cause
 
@@ -47,13 +46,9 @@ project_recovery_payload now:
   - or normal Core start is not allowed;
 - rejects recovery-required when normal Core start is simultaneously claimed as allowed.
 
-SystemRecoveryPanel now:
+SystemRecoveryPanel now passes the real QProcess exit code into the Recovery payload validator.
 
-- resets process-error ownership at the beginning of each diagnosis;
-- records errorOccurred as the terminal diagnostic failure;
-- ignores the following finished callback for that same process failure, preventing a second misleading terminal projection;
-- presents the Retry action consistently after a process error;
-- passes the real QProcess exit code into the Recovery payload validator.
+The separate QProcess errorOccurred -> finished terminal-race repair is owned by active PR #367 and is intentionally not duplicated in this branch.
 
 No restore/repair action was added. The panel remains read-only.
 
@@ -65,8 +60,7 @@ Regression coverage added for:
 - contradictory degraded canonical-integrity fields;
 - recovery-required incorrectly allowing normal Core start;
 - missing canonical database identity;
-- exact status-to-exit-code binding 0/3/4;
-- errorOccurred -> finished preserving the first process error.
+- exact status-to-exit-code binding 0/3/4.
 
 Existing healthy/degraded/recovery-required fixture payloads were updated to include the canonical_integrity_confirmed field that the real RecoveryDiagnosticReport always emits.
 
@@ -103,7 +97,9 @@ Required exact-head validation:
 
 ## Parallel work / conflict risk
 
-No active branch overlapped these files at implementation time.
+No active branch overlapped these files at initial implementation time. During the same run, PR #367 appeared and took ownership of System helper terminal-signal races in system_recovery.py and system_hardware_acceptance.py.
+
+After inspecting #367, this branch explicitly removed its duplicate errorOccurred -> finished handling and duplicate test. #373 now owns only Recovery protocol/status truth. Preserve #367's terminal-race work when integrating the two slices.
 
 Do not fold Windows packaging/helper-routing work from #360 into this branch. The Recovery panel launch-routing behavior is a separate packaging concern and was intentionally left untouched.
 
@@ -113,8 +109,9 @@ Do not expand this slice into Backup restore behavior; active backup/security wo
 
 1. Qualify the exact PR head through focused System Recovery tests and canonical Quality.
 2. If CI finds a branch-owned issue, fix it on this branch.
-3. If develop/pathena-next moves again before integration, compare the new base and update only if necessary; do not overwrite parallel work.
-4. After integration, keep Recovery UI read-only unless an explicit, separately specified restore workflow is approved.
+3. Integrate or otherwise preserve #367's helper-terminal-race change; do not re-add that duplicate fix here.
+4. If develop/pathena-next moves again before integration, compare the new base and update only if necessary; do not overwrite parallel work.
+5. After integration, keep Recovery UI read-only unless an explicit, separately specified restore workflow is approved.
 
 ## Commit / Branch
 
@@ -125,3 +122,5 @@ Implementation commits before this handoff:
 - cbf5440c816d90ada49d56e60e4bf890988cfb44 — fail closed on contradictory Recovery diagnostics
 - f8e525d41bd6a76806838286db61dd484d976572 — Recovery protocol contradiction/process-race tests
 - 96fc920dae876e8ad6e0e1cbfbb3e4395c75d93a — regression-file formatting cleanup
+- 81759decb99a71816292f000ee1e5366b5445d27 — remove duplicate helper-terminal race owned by #367
+- cab9945a52a1ccd9864548a60af64dac2140d1a9 — remove duplicate terminal-race test owned by #367
