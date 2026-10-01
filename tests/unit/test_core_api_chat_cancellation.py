@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import threading
+import time
 import uuid
 from collections.abc import Callable
 from typing import Any
 
+from athena.api.client import CoreApiClient, CoreApiClientError
 from athena.api.executor import SerializedCoreApiSurface
+from athena.api.server import CoreApiServer
 from athena.chat.cancellation import (
     ChatCancellationRegistry,
     ChatCancellationReservation,
@@ -132,3 +135,105 @@ def test_unknown_cancel_does_not_enter_owner_executor() -> None:
 
     assert serialized.cancel_chat_operation(_OPERATION_ID) is False
     assert executor.calls == 0
+
+
+class _BlockingHttpSurface:
+    def __init__(self) -> None:
+        self.registry = ChatCancellationRegistry()
+        self.send_started = threading.Event()
+
+    def reserve_chat_operation(
+        self,
+        operation_id: str,
+    ) -> ChatCancellationReservation | None:
+        return self.registry.reserve(uuid.UUID(operation_id))
+
+    def release_chat_operation(
+        self,
+        reservation: ChatCancellationReservation,
+    ) -> None:
+        self.registry.release(reservation)
+
+    def cancel_chat_operation(self, operation_id: str) -> bool:
+        return self.registry.cancel(uuid.UUID(operation_id))
+
+    def send_chat_message(
+        self,
+        chat_id: str,
+        *,
+        content: str,
+        requested_model_id: str | None = None,
+        operation_id: str | None = None,
+        effective_context_limit: int | None = None,
+        max_output_tokens: int | None = None,
+        temperature: float | None = None,
+        thinking_enabled: bool | None = None,
+    ) -> object:
+        del (
+            chat_id,
+            content,
+            requested_model_id,
+            effective_context_limit,
+            max_output_tokens,
+            temperature,
+            thinking_enabled,
+        )
+        assert operation_id is not None
+        reservation = self.registry.get_or_reserve(uuid.UUID(operation_id))
+        self.send_started.set()
+        deadline = time.monotonic() + 2.0
+        try:
+            while not reservation.cancel_requested():
+                if time.monotonic() >= deadline:
+                    raise AssertionError(
+                        "HTTP cancellation did not reach the active send."
+                    )
+                time.sleep(0.01)
+            raise GenerationCancelledError("cancelled through HTTP control plane")
+        finally:
+            self.registry.release(reservation)
+
+
+def test_threaded_local_http_server_accepts_cancel_while_send_is_blocked(
+    tmp_path,
+) -> None:
+    surface = _BlockingHttpSurface()
+    runtime_root = tmp_path / "api"
+    server = CoreApiServer(
+        facade=surface,  # type: ignore[arg-type]
+        runtime_root=runtime_root,
+    )
+    errors: list[CoreApiClientError] = []
+
+    server.start()
+    try:
+        client = CoreApiClient(
+            runtime_root,
+            timeout_seconds=2.0,
+            generation_timeout_seconds=3.0,
+        )
+
+        def send_message() -> None:
+            try:
+                client.send_chat_message(
+                    _CHAT_ID,
+                    content="block until cancelled",
+                    operation_id=_OPERATION_ID,
+                )
+            except CoreApiClientError as exc:
+                errors.append(exc)
+
+        thread = threading.Thread(target=send_message)
+        thread.start()
+
+        assert surface.send_started.wait(2.0)
+        assert client.cancel_chat_operation(_OPERATION_ID) is True
+
+        thread.join(3.0)
+        assert thread.is_alive() is False
+        assert len(errors) == 1
+        assert errors[0].status == 409
+        assert errors[0].code == "generation_cancelled"
+        assert surface.registry.is_active(uuid.UUID(_OPERATION_ID)) is False
+    finally:
+        server.stop()
