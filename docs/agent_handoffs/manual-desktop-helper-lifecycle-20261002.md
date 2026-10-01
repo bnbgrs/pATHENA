@@ -53,7 +53,8 @@ promotion behavior, or UI layout changed.
 - full `AthenaApplication.stop()` is never called;
 - storage bootstrap starts exactly once;
 - storage bootstrap stops exactly once;
-- storage cleanup still occurs when the command raises.
+- storage cleanup still occurs when the command raises;
+- storage shutdown failure is surfaced as a helper error instead of a false Exit 0.
 
 ## Behavior after
 
@@ -62,6 +63,10 @@ existing service graph, but it no longer impersonates a second global Core
 instance. The long-lived Core process remains the owner of News bootstrap,
 protection-transition recovery, Obsidian watcher lifetime and global Core
 logging.
+
+The helper entry points also no longer swallow `storage_bootstrap.stop()`
+failures. Command failure and cleanup failure both leave the process at Exit 2;
+a successful command whose cleanup fails is therefore not reported as success.
 
 ## Parallel work / conflict risk
 
@@ -112,7 +117,8 @@ Required exact-head validation:
 
 ## Result / remaining risks
 
-Implementation is complete but not yet CI-verified.
+Implementation is complete but not yet CI-verified. Exact-head CI was queued
+for PR #353 after the final product/test changes.
 
 The change deliberately preserves `StorageBootstrapService.start()`, because
 the helpers still require canonical storage layout, migration/preflight and live
