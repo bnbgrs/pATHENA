@@ -8,7 +8,6 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
-from athena.backup.service import BackupRestoreError, BackupService
 from athena.config.settings import AthenaSettings, ConfigurationError
 from athena.core.derived_recovery import (
     DerivedRecoveryError,
@@ -92,6 +91,8 @@ def run_restore_path(
     destination_root: Path,
 ) -> int:
     """Execute one isolated restore without constructing AthenaApplication."""
+    from athena.backup.service import BackupRestoreError, BackupService
+
     try:
         settings = AthenaSettings.from_environment()
         paths = RuntimePaths.from_settings(settings)
