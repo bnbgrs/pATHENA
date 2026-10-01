@@ -31,6 +31,8 @@ class _Handler(BaseHTTPRequestHandler):
     queue_running: list[list[object]] = []
     queue_pending: list[list[object]] = []
     history: dict[str, object] = {}
+    system_stats_redirect: str | None = None
+    redirect_target_hits = 0
     system_stats: dict[str, object] = {
         "system": {"comfyui_version": "test-local"},
         "devices": [
@@ -55,6 +57,16 @@ class _Handler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:  # noqa: N802
         if self.path == "/system_stats":
+            redirect = type(self).system_stats_redirect
+            if redirect is not None:
+                self.send_response(302)
+                self.send_header("Location", redirect)
+                self.end_headers()
+                return
+            self._json(type(self).system_stats)
+            return
+        if self.path == "/redirect-target":
+            type(self).redirect_target_hits += 1
             self._json(type(self).system_stats)
             return
         if self.path == "/queue":
@@ -98,6 +110,8 @@ def comfyui_server() -> tuple[str, type[_Handler]]:
     _Handler.queue_running = []
     _Handler.queue_pending = []
     _Handler.history = {}
+    _Handler.system_stats_redirect = None
+    _Handler.redirect_target_hits = 0
     _Handler.system_stats = {
         "system": {"comfyui_version": "test-local"},
         "devices": [
@@ -153,6 +167,19 @@ def test_client_projects_live_system_stats(comfyui_server: tuple[str, type[_Hand
     assert snapshot.device_count == 1
     assert snapshot.vram_total_bytes == 24 * _GIB
     assert snapshot.vram_free_bytes == 18 * _GIB
+
+
+def test_client_rejects_http_redirects_before_leaving_loopback_origin(
+    comfyui_server: tuple[str, type[_Handler]],
+) -> None:
+    endpoint, handler = comfyui_server
+    handler.system_stats_redirect = f"{endpoint}/redirect-target"
+    client = ComfyUiClient(endpoint)
+
+    with pytest.raises(ComfyUiError, match="must not follow HTTP redirects"):
+        client.health()
+
+    assert handler.redirect_target_hits == 0
 
 
 def test_client_reports_unavailable_vram_without_inventing_values(
