@@ -340,6 +340,8 @@ class ResearchWorkspace(QWidget):
             self._operation = ""
             self._operation_job_id = None
             self._set_controls_enabled(True)
+            if self.details.property("pathenaBackgroundOperationOwner"):
+                QTimer.singleShot(0, self._reload_selected_details_if_idle)
             return
 
         operation = self._operation
