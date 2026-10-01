@@ -127,6 +127,19 @@ jobs:
           $helperRuntime = Join-Path $env:RUNNER_TEMP "pathena-workspace-helper-smoke"
           New-Item -ItemType Directory -Force -Path $helperRuntime | Out-Null
           $env:ATHENA_LOCAL_ROOT = $helperRuntime
+
+          $sourceFixture = Join-Path $env:RUNNER_TEMP "pathena-packaged-source-smoke.txt"
+          Set-Content -LiteralPath $sourceFixture -Value "pATHENA packaged Source helper smoke" -Encoding UTF8
+          foreach ($arguments in @(
+            @("-m", "athena.desktop.sources_cli", "import", $sourceFixture),
+            @("-m", "athena.desktop.research_cli", "enqueue", "pATHENA packaged Research helper smoke")
+          )) {
+            $process = Start-Process -FilePath $worker -WorkingDirectory $pkg -ArgumentList $arguments -Wait -PassThru -NoNewWindow
+            if ($process.ExitCode -ne 0) {
+              throw "Packaged workspace helper mutation smoke failed with exit code $($process.ExitCode): $($arguments -join ' ')"
+            }
+          }
+
           foreach ($arguments in @(
             @("-m", "athena.desktop.jobs_cli", "list", "--limit", "1"),
             @("-m", "athena.desktop.research_cli", "list", "--limit", "1"),
