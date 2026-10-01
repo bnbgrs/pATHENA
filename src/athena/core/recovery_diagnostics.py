@@ -10,7 +10,7 @@ from athena.core.derived_recovery import (
     DerivedRecoveryService,
 )
 from athena.storage.paths import RuntimePaths
-from athena.storage.recovery import inspect_database_read_only
+from athena.storage.recovery import (\n    DatabaseRecoveryRequiredError,\n    inspect_database_read_only,\n)
 
 
 class RecoveryDiagnosticStatus(str, Enum):
@@ -116,7 +116,7 @@ class RecoveryDiagnosticsService:
             preflight = inspect_database_read_only(
                 self.paths.database_path
             )
-        except Exception:
+        except DatabaseRecoveryRequiredError:
             return RecoveryDiagnosticReport(
                 status=(
                     RecoveryDiagnosticStatus.RECOVERY_REQUIRED
@@ -137,6 +137,29 @@ class RecoveryDiagnosticsService:
                             RecoveryIssueSeverity.RECOVERY_REQUIRED
                         ),
                         action="restore-or-investigate-canonical-db",
+                    ),
+                ),
+                canonical_embedding_profiles=0,
+                archive_embedding_profiles=0,
+            )
+        except Exception:
+            return RecoveryDiagnosticReport(
+                status=(
+                    RecoveryDiagnosticStatus.RECOVERY_REQUIRED
+                ),
+                canonical_database="inspection-failed",
+                canonical_integrity_confirmed=False,
+                normal_core_start_allowed=False,
+                protected_scopes_locked=True,
+                optional_components_required=False,
+                issues=(
+                    RecoveryIssue(
+                        code="canonical.database_inspection_failed",
+                        layer="canonical",
+                        severity=(
+                            RecoveryIssueSeverity.RECOVERY_REQUIRED
+                        ),
+                        action="investigate-recovery-diagnostics",
                     ),
                 ),
                 canonical_embedding_profiles=0,
