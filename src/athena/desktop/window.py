@@ -446,8 +446,11 @@ class AthenaMainWindow(QMainWindow):
         layout.addStretch(1)
         layout.addWidget(_rule())
 
-        net = QLabel("NET    ■ ONLINE\nTOR    □ OFF")
+        net = QLabel("NET    — UNKNOWN\nTOR    — UNKNOWN")
         net.setObjectName("networkState")
+        net.setToolTip(
+            "Network and TOR state are not yet supplied by the Core status snapshot."
+        )
         layout.addWidget(net)
         layout.addWidget(_rule())
         layout.addWidget(self.local_model_metric)
