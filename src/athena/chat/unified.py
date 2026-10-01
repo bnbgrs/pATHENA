@@ -9,7 +9,11 @@ from dataclasses import dataclass
 from typing import Any, cast
 
 from athena.chat.durable_grounded_generation import DurableGroundedGenerationService
-from athena.chat.generation import ChatGenerationResult, ChatGenerationService
+from athena.chat.generation import (
+    ChatGenerationResult,
+    ChatGenerationService,
+    GenerationCancelledError,
+)
 from athena.chat.grounded_context_package import GroundedContextPackageRepository
 from athena.chat.grounded_recovery import GroundedRecoveryState, GroundedRecoveryStatus
 from athena.chat.grounded_send import GroundedSendCoordinator
@@ -494,7 +498,10 @@ class _UnifiedDurableGenerationAdapter(ChatGenerationService):
         on_delta: Callable[[str], None] | None = None,
         grounding_contract: GroundingContract | None = None,
         on_before_provider_call: Callable[[], None] | None = None,
+        cancel_requested: Callable[[], bool] | None = None,
     ) -> ChatGenerationResult:
+        if cancel_requested is not None and cancel_requested():
+            raise GenerationCancelledError("Chat generation was cancelled.")
         if chat_id != self._state.chat_id:
             raise RuntimeError("Unified generation escaped its durable chat identity.")
         if operation_id is not None and operation_id != self._state.operation_id:
@@ -529,6 +536,8 @@ class _UnifiedDurableGenerationAdapter(ChatGenerationService):
             )
 
         def before_provider() -> None:
+            if cancel_requested is not None and cancel_requested():
+                raise GenerationCancelledError("Chat generation was cancelled.")
             UnifiedReplayInputRepository(self._coordinator.database).store(
                 operation_id=self._state.operation_id,
                 chat_id=chat_id,
