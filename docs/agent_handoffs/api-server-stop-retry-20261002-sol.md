@@ -1,4 +1,4 @@
-# Core API shutdown retry handoff — 2026-10-02
+# Core API lifecycle retry handoff — 2026-10-02
 
 ## Ausgangslage
 
@@ -19,6 +19,11 @@ transiently and release retryability is required.
 Ownership was released optimistically at the beginning of shutdown instead of after each
 resource reached a proven terminal state.
 
+The same ownership gap existed during startup rollback: after the HTTP thread started,
+`runtime.publish()` could fail and the rollback could itself fail, but the server object had
+not yet adopted the server/thread references. That made an incomplete startup rollback
+unretryable as well.
+
 ## Änderungen
 
 `src/athena/api/server.py`
@@ -34,6 +39,16 @@ resource reached a proven terminal state.
 This allows a subsequent `stop()` call to retry only the ownership that did not reach a
 confirmed terminal state.
 
+### Startup rollback
+
+`CoreApiServer.start()` now adopts the server/thread immediately after the thread has
+successfully started, before publishing discovery state. If publication fails, rollback is
+delegated through the same retry-aware `stop()` path. A complete rollback releases ownership;
+an incomplete rollback keeps the still-live resources reachable for a later `stop()` retry.
+
+Thread-start failure still uses the direct pre-thread cleanup path, avoiding a call to
+`BaseServer.shutdown()` when `serve_forever()` never began.
+
 ## Tests
 
 Extended `tests/unit/test_api_server_lifecycle_boundaries.py`:
@@ -42,6 +57,8 @@ Extended `tests/unit/test_api_server_lifecycle_boundaries.py`:
   retry;
 - a server + live thread are retained after failed shutdown and successfully released on the
   next stop;
+- a failed discovery publication whose first rollback shutdown fails retains the live
+  server/thread, and a later explicit stop completes cleanup;
 - existing interrupt cleanup behavior remains compatible: if close/join prove resources are
   already terminal, ownership is released before re-raising the interrupt.
 
