@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 import sqlite3
 import uuid
@@ -24,12 +25,24 @@ class SearchEntityType(str, Enum):
     KNOWLEDGE = "knowledge"
     CLAIM = "claim"
     CHAT_MESSAGE = "chat_message"
+    RESEARCH_RESULT = "research_result"
+    SOURCE = "source"
+    JOB = "job"
+
+
+_OPERATIONAL_ENTITY_TYPES = frozenset(
+    {
+        SearchEntityType.RESEARCH_RESULT,
+        SearchEntityType.SOURCE,
+        SearchEntityType.JOB,
+    }
+)
 
 
 @dataclass(frozen=True, slots=True)
 class SearchResult:
     entity_id: uuid.UUID
-    revision_id: uuid.UUID
+    revision_id: uuid.UUID | None
     entity_type: SearchEntityType
     title: str | None
     snippet: str
@@ -66,6 +79,42 @@ class LocalSearchService:
         if not 1 <= limit <= 200:
             raise SearchError("Search limit must be between 1 and 200.")
 
+        tokens = _search_tokens(query)
+        indexed_results: tuple[SearchResult, ...] = ()
+        if entity_type not in _OPERATIONAL_ENTITY_TYPES:
+            indexed_results = self._search_indexed(
+                query,
+                limit=limit,
+                entity_type=entity_type,
+            )
+
+        operational_results: tuple[SearchResult, ...] = ()
+        if entity_type is None or entity_type in _OPERATIONAL_ENTITY_TYPES:
+            operational_results = self._search_operational(
+                tokens,
+                limit=limit,
+                entity_type=entity_type,
+            )
+
+        combined = (*indexed_results, *operational_results)
+        return tuple(
+            sorted(
+                combined,
+                key=lambda item: (
+                    -item.score,
+                    item.entity_type.value,
+                    item.entity_id.hex,
+                ),
+            )[:limit]
+        )
+
+    def _search_indexed(
+        self,
+        query: str,
+        *,
+        limit: int,
+        entity_type: SearchEntityType | None,
+    ) -> tuple[SearchResult, ...]:
         fts_query = _safe_fts_query(query)
         self._ensure_current()
 
@@ -108,6 +157,279 @@ class LocalSearchService:
             raise SearchError("SQLite rejected the normalized FTS query.") from exc
 
         return tuple(self._row_to_result(row) for row in rows)
+
+    def _search_operational(
+        self,
+        tokens: tuple[str, ...],
+        *,
+        limit: int,
+        entity_type: SearchEntityType | None,
+    ) -> tuple[SearchResult, ...]:
+        searchers = (
+            (SearchEntityType.RESEARCH_RESULT, self._search_research_results),
+            (SearchEntityType.SOURCE, self._search_sources),
+            (SearchEntityType.JOB, self._search_jobs),
+        )
+        results: list[SearchResult] = []
+        for candidate_type, searcher in searchers:
+            if entity_type is not None and entity_type is not candidate_type:
+                continue
+            results.extend(searcher(tokens, limit=limit))
+
+        results.sort(
+            key=lambda item: (
+                -item.score,
+                item.entity_type.value,
+                item.entity_id.hex,
+            )
+        )
+        return tuple(results[:limit])
+
+    def _search_research_results(
+        self,
+        tokens: tuple[str, ...],
+        *,
+        limit: int,
+    ) -> tuple[SearchResult, ...]:
+        token_clauses: list[str] = []
+        parameters: list[object] = []
+        for token in tokens:
+            normalized = token.lower()
+            token_clauses.append(
+                """
+                (
+                    instr(lower(rs.query_text), ?) > 0
+                    OR EXISTS (
+                        SELECT 1
+                        FROM json_tree(rr.content_json) AS content_value
+                        WHERE content_value.type IN ('text', 'integer', 'real')
+                          AND instr(
+                                lower(CAST(content_value.value AS TEXT)),
+                                ?
+                              ) > 0
+                    )
+                )
+                """
+            )
+            parameters.extend((normalized, normalized))
+
+        candidate_limit = min(1000, max(80, limit * 8))
+        parameters.append(candidate_limit)
+        rows = self.database.connection.execute(
+            f"""
+            SELECT
+                rr.result_id AS entity_id,
+                rs.query_text AS title,
+                rr.content_json,
+                rr.created_at_us
+            FROM research_results AS rr
+            JOIN research_scopes AS rs
+              ON rs.scope_id = rr.scope_id
+            JOIN jobs AS parent_job
+              ON parent_job.job_id = rs.job_id
+            WHERE ({' OR '.join(token_clauses)})
+              AND parent_job.protection_scope_id IS NULL
+              AND parent_job.protected_payload_id IS NULL
+            ORDER BY rr.created_at_us DESC, rr.result_id DESC
+            LIMIT ?
+            """,
+            tuple(parameters),
+        ).fetchall()
+
+        output: list[SearchResult] = []
+        for row in rows:
+            title = str(row["title"])
+            semantic_text = _json_value_text(str(row["content_json"]))
+            text = _bounded_preview((title, semantic_text))
+            output.append(
+                SearchResult(
+                    entity_id=_uuid_from_blob(row["entity_id"]),
+                    revision_id=None,
+                    entity_type=SearchEntityType.RESEARCH_RESULT,
+                    title=title,
+                    snippet=text,
+                    text=text,
+                    score=_operational_score(text, title=title, tokens=tokens),
+                    contradiction_count=0,
+                )
+            )
+        return tuple(output)
+
+    def _search_sources(
+        self,
+        tokens: tuple[str, ...],
+        *,
+        limit: int,
+    ) -> tuple[SearchResult, ...]:
+        searchable_columns = (
+            "s.original_name",
+            "s.source_uri",
+            "s.mime_type",
+            "s.source_type",
+            "s.lifecycle_state",
+        )
+        token_clauses: list[str] = []
+        parameters: list[object] = []
+        for token in tokens:
+            normalized = token.lower()
+            predicates = [
+                f"instr(lower(COALESCE({column}, '')), ?) > 0"
+                for column in searchable_columns
+            ]
+            token_clauses.append("(" + " OR ".join(predicates) + ")")
+            parameters.extend(normalized for _column in searchable_columns)
+
+        candidate_limit = min(1000, max(80, limit * 8))
+        parameters.append(candidate_limit)
+        rows = self.database.connection.execute(
+            f"""
+            SELECT
+                s.source_id AS entity_id,
+                s.original_name,
+                s.source_uri,
+                s.mime_type,
+                s.source_type,
+                s.lifecycle_state,
+                s.acquired_at_us
+            FROM sources AS s
+            JOIN entity_registry AS source_entity
+              ON source_entity.entity_id = s.source_id
+             AND source_entity.lifecycle_state != 'deleted'
+            LEFT JOIN protected_sources AS protected
+              ON protected.source_id = s.source_id
+            WHERE ({' OR '.join(token_clauses)})
+              AND protected.protection_scope_id IS NULL
+              AND protected.protected_metadata_payload_id IS NULL
+            ORDER BY s.acquired_at_us DESC, s.source_id DESC
+            LIMIT ?
+            """,
+            tuple(parameters),
+        ).fetchall()
+
+        output: list[SearchResult] = []
+        for row in rows:
+            original_name = (
+                None if row["original_name"] is None else str(row["original_name"])
+            )
+            source_uri = None if row["source_uri"] is None else str(row["source_uri"])
+            title = original_name or source_uri or f"Source {str(row['source_type'])}"
+            text = _bounded_preview(
+                (
+                    title,
+                    source_uri,
+                    None if row["mime_type"] is None else str(row["mime_type"]),
+                    str(row["source_type"]),
+                    str(row["lifecycle_state"]),
+                )
+            )
+            output.append(
+                SearchResult(
+                    entity_id=_uuid_from_blob(row["entity_id"]),
+                    revision_id=None,
+                    entity_type=SearchEntityType.SOURCE,
+                    title=title,
+                    snippet=text,
+                    text=text,
+                    score=_operational_score(text, title=title, tokens=tokens),
+                    contradiction_count=0,
+                )
+            )
+        return tuple(output)
+
+    def _search_jobs(
+        self,
+        tokens: tuple[str, ...],
+        *,
+        limit: int,
+    ) -> tuple[SearchResult, ...]:
+        searchable_columns = (
+            "j.job_type",
+            "j.state",
+            "j.current_stage",
+            "j.blocked_reason",
+        )
+        token_clauses: list[str] = []
+        parameters: list[object] = []
+        for token in tokens:
+            normalized = token.lower()
+            predicates = [
+                f"instr(lower(COALESCE({column}, '')), ?) > 0"
+                for column in searchable_columns
+            ]
+            parameters.extend(normalized for _column in searchable_columns)
+            predicates.append(
+                """
+                EXISTS (
+                    SELECT 1
+                    FROM json_tree(j.requested_scope_json) AS scope_value
+                    WHERE scope_value.type IN ('text', 'integer', 'real')
+                      AND instr(lower(CAST(scope_value.value AS TEXT)), ?) > 0
+                )
+                """
+            )
+            parameters.append(normalized)
+            token_clauses.append("(" + " OR ".join(predicates) + ")")
+
+        candidate_limit = min(1000, max(80, limit * 8))
+        parameters.append(candidate_limit)
+        rows = self.database.connection.execute(
+            f"""
+            SELECT
+                j.job_id AS entity_id,
+                j.job_type,
+                j.state,
+                j.requested_scope_json,
+                j.current_stage,
+                j.blocked_reason,
+                j.updated_at_us
+            FROM jobs AS j
+            WHERE ({' OR '.join(token_clauses)})
+              AND j.protection_scope_id IS NULL
+              AND j.protected_payload_id IS NULL
+            ORDER BY j.updated_at_us DESC, j.job_id DESC
+            LIMIT ?
+            """,
+            tuple(parameters),
+        ).fetchall()
+
+        output: list[SearchResult] = []
+        for row in rows:
+            title = str(row["job_type"])
+            scope_text = (
+                ""
+                if row["requested_scope_json"] is None
+                else _json_value_text(str(row["requested_scope_json"]))
+            )
+            text = _bounded_preview(
+                (
+                    title,
+                    f"state {str(row['state'])}",
+                    (
+                        None
+                        if row["current_stage"] is None
+                        else f"stage {str(row['current_stage'])}"
+                    ),
+                    (
+                        None
+                        if row["blocked_reason"] is None
+                        else f"blocked {str(row['blocked_reason'])}"
+                    ),
+                    scope_text,
+                )
+            )
+            output.append(
+                SearchResult(
+                    entity_id=_uuid_from_blob(row["entity_id"]),
+                    revision_id=None,
+                    entity_type=SearchEntityType.JOB,
+                    title=title,
+                    snippet=text,
+                    text=text,
+                    score=_operational_score(text, title=title, tokens=tokens),
+                    contradiction_count=0,
+                )
+            )
+        return tuple(output)
 
     def indexed_commit_seq(self) -> int:
         row = self.database.connection.execute(
@@ -514,9 +836,14 @@ class LocalSearchService:
     @staticmethod
     def _row_to_result(row: sqlite3.Row) -> SearchResult:
         entity_type = SearchEntityType(str(row["entity_type"]))
+        revision_value = row["revision_id"]
         return SearchResult(
             entity_id=_uuid_from_hex(row["entity_id"]),
-            revision_id=_uuid_from_hex(row["revision_id"]),
+            revision_id=(
+                None
+                if revision_value is None
+                else _uuid_from_hex(revision_value)
+            ),
             entity_type=entity_type,
             title=None if row["title"] is None else str(row["title"]),
             snippet=str(row["snippet"]),
@@ -578,12 +905,87 @@ def _searchable_chat_text(
     return strip_turn_local_grounding_markers(text)
 
 
-def _safe_fts_query(query: str) -> str:
-    tokens = re.findall(r"\w+", query, flags=re.UNICODE)
+def _search_tokens(query: str) -> tuple[str, ...]:
+    if not isinstance(query, str):
+        raise SearchError("Search query must be text.")
+    tokens = tuple(re.findall(r"\w+", query, flags=re.UNICODE))
     if not tokens:
         raise SearchError("Search query must contain at least one letter or digit.")
+    return tokens
+
+
+def _safe_fts_query(query: str) -> str:
+    tokens = _search_tokens(query)
     # Quoted terms prevent user input from being interpreted as FTS operators.
     return " OR ".join(f'"{token.replace(chr(34), chr(34) * 2)}"' for token in tokens)
+
+
+def _bounded_preview(
+    parts: tuple[str | None, ...],
+    *,
+    max_chars: int = 1200,
+) -> str:
+    text = " · ".join(
+        re.sub(r"\s+", " ", part).strip()
+        for part in parts
+        if part is not None and part.strip()
+    )
+    if len(text) <= max_chars:
+        return text
+    return text[: max_chars - 1].rstrip() + "…"
+
+
+def _json_value_text(raw: str) -> str:
+    try:
+        value = json.loads(raw)
+    except (json.JSONDecodeError, TypeError) as exc:
+        raise SearchError("Searchable operational JSON is invalid.") from exc
+
+    parts: list[str] = []
+
+    def visit(item: object) -> None:
+        if isinstance(item, str):
+            normalized = re.sub(r"\s+", " ", item).strip()
+            if normalized:
+                parts.append(normalized)
+            return
+        if item is None or isinstance(item, bool):
+            return
+        if isinstance(item, (int, float)):
+            parts.append(str(item))
+            return
+        if isinstance(item, list):
+            for child in item:
+                visit(child)
+            return
+        if isinstance(item, dict):
+            for key in sorted(item):
+                visit(item[key])
+
+    visit(value)
+    return _bounded_preview(tuple(parts), max_chars=1200)
+
+
+def _operational_score(
+    text: str,
+    *,
+    title: str | None,
+    tokens: tuple[str, ...],
+) -> float:
+    normalized_text = text.casefold()
+    normalized_title = "" if title is None else title.casefold()
+    matched = sum(token.casefold() in normalized_text for token in tokens)
+    title_matches = sum(token.casefold() in normalized_title for token in tokens)
+    return 0.000001 * (matched + (2 * title_matches))
+
+
+def _uuid_from_blob(value: object) -> uuid.UUID:
+    if not isinstance(value, (bytes, bytearray, memoryview)):
+        raise SearchError("Operational search contains an invalid UUID.")
+    raw = bytes(value)
+    if len(raw) != 16:
+        raise SearchError("Operational search contains an invalid UUID.")
+    return uuid.UUID(bytes=raw)
 
 
 def _uuid_from_hex(value: object) -> uuid.UUID:
