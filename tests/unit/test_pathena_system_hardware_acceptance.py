@@ -178,6 +178,44 @@ def test_hardware_projection_rejects_contradictory_machine_reports(
         project_hardware_acceptance_payload(payload)
 
 
+def test_hardware_projection_accepts_real_configuration_failure_receipt() -> None:
+    presentation = project_hardware_acceptance_payload(
+        {
+            "overall_ready": False,
+            "checks": [
+                {
+                    "name": "configuration",
+                    "status": "FAIL",
+                    "detail": "runtime configuration is invalid",
+                }
+            ],
+        }
+    )
+
+    assert presentation.status == "FAIL"
+    assert presentation.detail == "runtime configuration is invalid"
+
+
+def test_hardware_projection_rejects_partially_missing_readiness() -> None:
+    with pytest.raises(ValueError, match="missing readiness fields"):
+        project_hardware_acceptance_payload(
+            {
+                "overall_ready": False,
+                "gpu_ready": False,
+                "inference_ready": False,
+                "detected_gpus": ["AMD Radeon RX 7900 XTX"],
+                "selected_model_id": None,
+                "checks": [
+                    {
+                        "name": "lm-studio-model",
+                        "status": "FAIL",
+                        "detail": "model missing",
+                    }
+                ],
+            }
+        )
+
+
 def test_hardware_projection_rejects_success_without_evidence() -> None:
     with pytest.raises(ValueError, match="missing detected GPU evidence"):
         project_hardware_acceptance_payload(
