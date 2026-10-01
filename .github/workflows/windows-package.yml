@@ -124,6 +124,22 @@ jobs:
             throw "Worker accepted an unsupported module dispatch."
           }
 
+          $helperRuntime = Join-Path $env:RUNNER_TEMP "pathena-workspace-helper-smoke"
+          New-Item -ItemType Directory -Force -Path $helperRuntime | Out-Null
+          $env:ATHENA_LOCAL_ROOT = $helperRuntime
+          foreach ($arguments in @(
+            @("-m", "athena.desktop.jobs_cli", "list", "--limit", "1"),
+            @("-m", "athena.desktop.research_cli", "list", "--limit", "1"),
+            @("-m", "athena.desktop.sources_cli", "list", "--limit", "1"),
+            @("-m", "athena.desktop.knowledge_cli", "list", "--limit", "1"),
+            @("-m", "athena.desktop.canonical_memory_cli", "merge-list", "--limit", "1")
+          )) {
+            $process = Start-Process -FilePath $worker -WorkingDirectory $pkg -ArgumentList $arguments -Wait -PassThru -NoNewWindow
+            if ($process.ExitCode -ne 0) {
+              throw "Packaged workspace helper lifecycle smoke failed with exit code $($process.ExitCode): $($arguments -join ' ')"
+            }
+          }
+
       - name: Verify persistent Knowledge across packaged restarts
         shell: pwsh
         run: |
