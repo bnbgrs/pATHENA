@@ -10,6 +10,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 pytest.importorskip("PySide6")
 
+from PySide6.QtCore import QProcess
 from PySide6.QtWidgets import QApplication
 
 from athena.desktop.system_hardware_acceptance import (
@@ -123,3 +124,27 @@ def test_system_workspace_exposes_compact_target_hardware_panel() -> None:
     assert workspace.hardware_acceptance.run_button.accessibleName() == "Run hardware check"
     assert workspace.hardware_acceptance.property("pathenaTargetHardwareAcceptance") is True
     assert workspace.hardware_acceptance.status.text() in {"NOT RUN", "PASS", "FAIL", "INVALID"}
+
+def test_hardware_process_error_is_not_overwritten_by_late_finished(
+    tmp_path: Path,
+) -> None:
+    _app()
+    panel = SystemHardwareAcceptancePanel(
+        report_path=tmp_path / "hardware.json",
+        executable=r"C:\pATHENA\missing-worker.exe",
+    )
+
+    panel._handle_process_error(QProcess.ProcessError.FailedToStart)
+    error_detail = panel.detail.text()
+
+    assert panel.status.text() == "FAIL"
+    assert "Hardware acceptance process error:" in error_detail
+    assert panel._process_error_seen is True
+
+    panel._handle_finished(1, None)
+
+    assert panel.status.text() == "FAIL"
+    assert panel.detail.text() == error_detail
+    assert panel._process_error_seen is False
+    assert panel.run_button.text() == "Run again"
+
