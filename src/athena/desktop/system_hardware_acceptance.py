@@ -54,6 +54,8 @@ def hardware_acceptance_launch_spec(
 
 def project_hardware_acceptance_payload(
     payload: Mapping[str, object],
+    *,
+    exit_code: int | None = None,
 ) -> HardwareAcceptancePresentation:
     """Project one internally coherent machine report into an operator state."""
     overall = payload.get("overall_ready")
@@ -115,6 +117,22 @@ def project_hardware_acceptance_payload(
             raise ValueError(
                 "Hardware acceptance report is missing readiness fields."
             )
+    if complete_readiness == (None, None, None):
+        expected_exit_code = 5
+    elif complete_readiness[0] is False:
+        expected_exit_code = 2
+    elif complete_readiness[1] is False:
+        expected_exit_code = 3
+    elif complete_readiness[2] is False:
+        expected_exit_code = 4
+    else:
+        expected_exit_code = 0
+    if exit_code is not None and exit_code != expected_exit_code:
+        raise ValueError(
+            "Hardware acceptance report/exit-code mismatch: "
+            f"expected exit {expected_exit_code}, got {exit_code}."
+        )
+
     if overall:
         if complete_readiness != (True, True, True):
             raise ValueError(
@@ -249,19 +267,27 @@ class SystemHardwareAcceptancePanel(QFrame):
     def report_path(self) -> Path:
         return self._report_path
 
-    def load_existing_report(self) -> bool:
+    def load_existing_report(self, *, exit_code: int | None = None) -> bool:
         if not self._report_path.is_file():
             return False
         try:
             payload = json.loads(self._report_path.read_text(encoding="utf-8"))
             if not isinstance(payload, Mapping):
                 raise ValueError("Hardware acceptance report must be a JSON object.")
-            presentation = project_hardware_acceptance_payload(payload)
+            presentation = project_hardware_acceptance_payload(
+                payload,
+                exit_code=exit_code,
+            )
         except (OSError, json.JSONDecodeError, ValueError) as exc:
+            prefix = (
+                "Stored hardware report is unreadable"
+                if exit_code is None
+                else "Hardware acceptance report could not be verified"
+            )
             self._apply_presentation(
                 HardwareAcceptancePresentation(
                     status="INVALID",
-                    detail=f"Stored hardware report is unreadable: {exc}",
+                    detail=f"{prefix}: {exc}",
                     state="error",
                 )
             )
@@ -327,7 +353,7 @@ class SystemHardwareAcceptancePanel(QFrame):
             self.run_button.setEnabled(os.name == "nt")
             return
 
-        loaded = self.load_existing_report()
+        loaded = self.load_existing_report(exit_code=exit_code)
         if not loaded and self.status.text() != "INVALID":
             output = bytes(self._process.readAllStandardOutput().data()).decode(
                 "utf-8", errors="replace"
