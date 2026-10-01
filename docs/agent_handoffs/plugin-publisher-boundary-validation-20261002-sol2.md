@@ -81,12 +81,11 @@ Low. No active Plugin PR was found and the slice does not touch Plugin Host, cap
 
 ## Nächste Schritte
 
-1. Open a draft PR against `develop/pathena-next`.
-2. Triage exact-head CI and fix only failures attributable to this slice.
-3. If green, integrate independently from the Recovery/Doctor PR.
+1. Triage exact-head CI for draft PR #393 and fix only failures attributable to this slice.
+2. If green, integrate independently from the Recovery/Doctor PR.
 
 ## Commit / PR
 
 - Base: `467ef434236c320e4afe9d21a39c20a4a2b75728`
 - Product/test head before handoff: `f2ed758334f4c299cfa271001784ebbdc316fc8f`
-- PR: pending creation after this handoff commit
+- PR: #393
