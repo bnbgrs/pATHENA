@@ -228,7 +228,7 @@ def test_universal_search_filter_does_not_query_unselected_revisioned_domains() 
     service = UniversalSearchService(database, revisioned)  # type: ignore[arg-type]
 
     results = service.search(
-        "alpha",
+        "design alpha",
         entity_types=(UniversalSearchEntityType.SOURCE,),
     )
 
