@@ -644,18 +644,18 @@ def apply_ui_refinements(window: QWidget) -> tuple[int, ...]:
         _named_child(window, QPlainTextEdit, "backupDetails"),
         _accessible("Backup verification and restore details"),
     )
-    for task_id, button_text, label in (
-        (87, "Create backup…", "Create verified backup"),
-        (88, "Verify", "Verify selected backup"),
-        (89, "Deep verify", "Deep verify selected backup"),
-        (90, "Restore copy…", "Restore selected backup to isolated location"),
-        (91, "Targets", "Show backup targets"),
-        (92, "Add target…", "Add backup target"),
+    for task_id, object_name, label in (
+        (87, "backupCreateButton", "Create verified backup"),
+        (88, "backupVerifyButton", "Verify selected backup"),
+        (89, "backupDeepVerifyButton", "Deep verify selected backup"),
+        (90, "backupRestoreButton", "Restore selected backup to isolated location"),
+        (91, "backupTargetsButton", "Show backup targets"),
+        (92, "backupAddTargetButton", "Add backup target"),
     ):
         _apply(
             applied,
             task_id,
-            _button_with_text(system, button_text),
+            _named_child(window, QPushButton, object_name),
             _accessible(label),
         )
 
