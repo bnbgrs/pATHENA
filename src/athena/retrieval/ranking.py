@@ -16,7 +16,10 @@ from athena.retrieval.search import (
 _TYPE_AUTHORITY = {
     SearchEntityType.KNOWLEDGE: 1.00,
     SearchEntityType.CLAIM: 0.88,
+    SearchEntityType.RESEARCH_RESULT: 0.86,
+    SearchEntityType.SOURCE: 0.82,
     SearchEntityType.CHAT_MESSAGE: 0.68,
+    SearchEntityType.JOB: 0.56,
 }
 
 # Ranking only. These values never change canonical truth or lifecycle state.
@@ -36,7 +39,7 @@ def _search_limit(value: object) -> int:
 @dataclass(frozen=True, slots=True)
 class RankedSearchResult:
     entity_id: uuid.UUID
-    revision_id: uuid.UUID
+    revision_id: uuid.UUID | None
     entity_type: SearchEntityType
     title: str | None
     snippet: str
