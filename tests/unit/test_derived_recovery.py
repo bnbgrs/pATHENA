@@ -506,9 +506,6 @@ def test_hnsw_rebuild_uses_persisted_vectors_without_provider_call(
         app.stop()
 
 
-
-
-
 def test_malformed_embedding_storage_degrades_to_rebuildable_derived_state(
     tmp_path: Path,
 ) -> None:
