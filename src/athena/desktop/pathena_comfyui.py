@@ -36,6 +36,22 @@ class ComfyUiError(RuntimeError):
     """Raised when the local ComfyUI contract cannot be used truthfully."""
 
 
+class _RejectRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """Keep the local ComfyUI bridge on its configured loopback origin."""
+
+    def redirect_request(
+        self,
+        req: urllib.request.Request,
+        fp: Any,
+        code: int,
+        msg: str,
+        headers: Any,
+        newurl: str,
+    ) -> urllib.request.Request | None:
+        del req, fp, code, msg, headers, newurl
+        raise ComfyUiError("Local ComfyUI requests must not follow HTTP redirects.")
+
+
 @dataclass(frozen=True, slots=True)
 class ComfyUiHealth:
     endpoint: str
@@ -183,7 +199,10 @@ class ComfyUiClient:
         candidate = endpoint or os.environ.get(COMFYUI_URL_ENV, DEFAULT_COMFYUI_URL)
         self.endpoint = _loopback_endpoint(candidate)
         self.timeout = timeout
-        self._opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+        self._opener = urllib.request.build_opener(
+            urllib.request.ProxyHandler({}),
+            _RejectRedirectHandler(),
+        )
 
     def _request(
         self,
@@ -717,7 +736,9 @@ class ComfyUiController(QObject):
             "pending": "Waiting in the local queue.",
             "running": "Running locally in ComfyUI.",
             "completed": "Completed successfully.",
-            "failed": "ComfyUI reports that this workflow did not complete successfully.",
+            "failed": (
+                "ComfyUI reports that this workflow did not complete successfully."
+            ),
             "unknown": "No terminal result is available in the current queue or history.",
         }
         self._set_job_status(state.state, labels[state.state])
