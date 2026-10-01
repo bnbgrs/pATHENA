@@ -33,7 +33,7 @@ def test_visual_pallas_capture_stops_wall_clock_and_uses_exact_tick_count() -> N
     _advance_pallas_living_capture(living)
 
     assert living._timer.stop_calls == 1
-    assert living.ticks == _PALLAS_VISUAL_CAPTURE_TICKS == 12
+    assert living.ticks == _PALLAS_VISUAL_CAPTURE_TICKS == 1
 
 
 def test_visual_pallas_capture_rejects_zero_tick_fixture() -> None:
