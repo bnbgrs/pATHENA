@@ -32,6 +32,12 @@ Changed production behavior:
 - directories/special files disguised as partials fail closed;
 - apply the guard to root-level `.repository.json.*.partial` residue;
 - apply the guard to managed `commits/` and `manifests/` residue;
+- validate every reserved managed directory slot (`commits`, `snapshots`,
+  `manifests`, `replication`) before creation/use;
+- an existing file/link/non-directory in one of those reserved slots is classified
+  as target-history corruption rather than leaking a raw filesystem exception;
+- creation races that replace a managed directory slot with a non-directory fail
+  through the same persisted conflict path;
 - target history is marked `unexpected_target_history` through #385's existing
   conflict path; the unexpected entry is never removed or followed.
 
