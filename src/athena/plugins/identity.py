@@ -116,6 +116,8 @@ def verify_plugin_publisher_identity(
         raise TypeError("Plugin package bytes must be bytes.")
     if not isinstance(signer_key_id, str) or not _KEY_ID_RE.fullmatch(signer_key_id):
         raise PluginPublisherIdentityError("Plugin signer key_id is invalid.")
+    if not isinstance(trust_roots, Mapping):
+        raise TypeError("Plugin trust_roots must be a mapping.")
     trusted = trust_roots.get(signer_key_id)
     if trusted is None:
         raise PluginPublisherIdentityError("Plugin signer is not trusted.")
@@ -125,8 +127,6 @@ def verify_plugin_publisher_identity(
         raise PluginPublisherIdentityError(
             "Plugin trust root key_id does not match its map key."
         )
-    if not isinstance(trust_roots, Mapping):
-        raise TypeError("Plugin trust_roots must be a mapping.")
     if not isinstance(signature_b64, str) or not signature_b64:
         raise PluginPublisherIdentityError("Plugin publisher signature is missing.")
     try:
