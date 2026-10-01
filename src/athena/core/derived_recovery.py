@@ -1639,12 +1639,29 @@ def _archive_vectors_shape_valid(
     dimensions_seen: set[int] = set()
 
     for row in rows:
-        row_dimensions = int(row["dimensions"])
+        row_dimensions = _persisted_integer(
+            row["dimensions"],
+            minimum=1,
+        )
+        vector_blob = _persisted_blob(
+            row["vector_blob"]
+        )
+        chunk_id = _persisted_blob(
+            row["chunk_id"]
+        )
+        text_sha256 = _persisted_blob(
+            row["text_sha256"]
+        )
 
-        if row_dimensions <= 0:
+        if (
+            row_dimensions is None
+            or vector_blob is None
+            or chunk_id is None
+            or text_sha256 is None
+        ):
             return False
 
-        if len(bytes(row["vector_blob"])) != row_dimensions * 4:
+        if len(vector_blob) != row_dimensions * 4:
             return False
 
         dimensions_seen.add(row_dimensions)
@@ -1655,9 +1672,7 @@ def _archive_vectors_shape_valid(
         ):
             return False
 
-        metadata = chunk_metadata.get(
-            bytes(row["chunk_id"])
-        )
+        metadata = chunk_metadata.get(chunk_id)
 
         if metadata is None:
             return False
@@ -1667,7 +1682,7 @@ def _archive_vectors_shape_valid(
         if not visible:
             return False
 
-        if bytes(row["text_sha256"]) != content_hash:
+        if text_sha256 != content_hash:
             return False
 
     return (
