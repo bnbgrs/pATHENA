@@ -130,8 +130,7 @@ class LMStudioProvider:
         temperature: float | None = None,
     ) -> Iterator[str]:
         """Stream assistant text from LM Studio using SSE chat completions."""
-        if not model_id:
-            raise ValueError("model_id must not be empty.")
+        self._require_canonical_model_id(model_id)
         if not messages:
             raise ValueError("At least one chat message is required.")
         if max_output_tokens is not None and max_output_tokens < 1:
@@ -225,8 +224,7 @@ class LMStudioProvider:
         max_output_tokens: int | None = None,
     ) -> Mapping[str, Any]:
         """Generate one JSON object constrained by LM Studio structured output."""
-        if not model_id:
-            raise ValueError("model_id must not be empty.")
+        self._require_canonical_model_id(model_id)
         if not messages:
             raise ValueError("At least one chat message is required.")
         normalized_schema_id = schema_id.strip()
@@ -389,8 +387,7 @@ class LMStudioProvider:
         supplies the schema as an explicit model contract, parses exactly one JSON object,
         and leaves strict stage-specific validation to the Core before any artifact commit.
         """
-        if not model_id:
-            raise ValueError("model_id must not be empty.")
+        self._require_canonical_model_id(model_id)
         if len(messages) != 2 or messages[0].role != "system" or messages[1].role != "user":
             raise ValueError(
                 "Controlled structured generation requires exactly one system and one user message."
@@ -507,14 +504,17 @@ class LMStudioProvider:
             )
 
         model_instance_id = payload.get("model_instance_id")
-        if not isinstance(model_instance_id, str) or not model_instance_id.strip():
+        if (
+            not isinstance(model_instance_id, str)
+            or not model_instance_id.strip()
+            or model_instance_id != model_instance_id.strip()
+        ):
             raise ProviderProtocolError(
-                "LM Studio controlled structured response is missing model_instance_id."
+                "LM Studio controlled structured response has invalid model_instance_id."
             )
-        normalized_instance_id = model_instance_id.strip()
         if pinned_instance_id is None:
-            self._controlled_instance_ids[instance_key] = normalized_instance_id
-        elif normalized_instance_id != pinned_instance_id:
+            self._controlled_instance_ids[instance_key] = model_instance_id
+        elif model_instance_id != pinned_instance_id:
             raise ProviderProtocolError(
                 "LM Studio switched model instances during one controlled extraction runtime."
             )
@@ -815,6 +815,16 @@ class LMStudioProvider:
                 f"LM Studio model entry has non-canonical {field!r}."
             )
         return value
+
+    @staticmethod
+    def _require_canonical_model_id(model_id: object) -> str:
+        if (
+            not isinstance(model_id, str)
+            or not model_id.strip()
+            or model_id != model_id.strip()
+        ):
+            raise ValueError("model_id must be canonical non-empty text.")
+        return model_id
 
     @staticmethod
     def _optional_positive_int(value: object) -> int | None:
