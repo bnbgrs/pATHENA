@@ -4355,16 +4355,42 @@ def _remove_tree_without_redirect(
 
 
 def _safe_existing_file(root: Path, relative: Path) -> Path:
-    if is_link_boundary(root) or not root.is_dir():
+    if (
+        relative.is_absolute()
+        or relative.drive
+        or relative.root
+        or ".." in relative.parts
+    ):
+        raise BackupRestoreError(
+            f"Backup file path is not a safe relative path: {relative}."
+        )
+
+    cursor = root
+    while True:
+        if is_link_boundary(cursor):
+            raise BackupRestoreError(
+                f"Backup trusted root has a redirecting filesystem boundary: {cursor}."
+            )
+        parent = cursor.parent
+        if parent == cursor:
+            break
+        cursor = parent
+
+    if not root.is_dir():
         raise BackupRestoreError(
             f"Backup trusted root is not a stable real directory: {root}."
         )
+
     root_resolved = root.resolve()
-    candidate = root_resolved / relative
-    if is_link_boundary(candidate):
-        raise BackupRestoreError(
-            f"Backup file must not be a symlink, junction, or reparse point: {candidate}."
-        )
+    candidate = root_resolved
+    for part in relative.parts:
+        candidate = candidate / part
+        if is_link_boundary(candidate):
+            raise BackupRestoreError(
+                "Backup file path crosses a symlink, junction, or reparse point: "
+                f"{candidate}."
+            )
+
     try:
         resolved = candidate.resolve(strict=True)
     except OSError as exc:
