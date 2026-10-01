@@ -187,3 +187,59 @@ def test_reference_inspector_follows_grounding_and_non_chat_navigation() -> None
         assert window.prompt_input.objectName() == "promptInput"
     finally:
         window.close()
+
+
+class _CancelControllerStub:
+    def __init__(self) -> None:
+        self.can_cancel_active_chat = True
+        self.chat_cancel_pending = False
+        self.cancel_calls = 0
+
+    def cancel_active_chat_operation(self) -> bool:
+        self.cancel_calls += 1
+        self.chat_cancel_pending = True
+        return True
+
+
+def test_reference_composer_exposes_stop_only_for_real_direct_send() -> None:
+    app = _app()
+    window = PathenaMainWindow()
+    controller = _CancelControllerStub()
+    try:
+        window.api_controller = controller  # type: ignore[assignment]
+        window._core_ready = True
+        window._chat_busy = True
+        window.pending_chat_id = None
+
+        window._sync_composer_enabled()
+        app.processEvents()
+
+        assert window.prompt_input.isEnabled() is False
+        assert window.ground_button.isEnabled() is False
+        assert window.send_button.isEnabled() is True
+        assert window.send_button.text() == "■"
+        assert window.send_button.accessibleName() == "Stop response"
+
+        window.send_button.click()
+        assert controller.cancel_calls == 1
+
+        window._sync_composer_enabled()
+        assert window.send_button.isEnabled() is False
+        assert window.send_button.text() == "…"
+        assert window.send_button.accessibleName() == "Cancellation requested"
+
+        controller.chat_cancel_pending = False
+        controller.can_cancel_active_chat = False
+        window._sync_composer_enabled()
+
+        assert window.send_button.isEnabled() is False
+        assert window.send_button.text() == "…"
+        assert window.send_button.accessibleName() == "Generation in progress"
+
+        window._chat_busy = False
+        window._sync_composer_enabled()
+
+        assert window.send_button.text() == "→"
+        assert window.send_button.accessibleName() == "Send message"
+    finally:
+        window.close()
