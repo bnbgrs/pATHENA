@@ -169,3 +169,46 @@ Until bounded abort is proven:
 - Do not add a fake Stop button before Core/API exists.
 - Do not claim prompt provider abort from chunk polling alone.
 - Do not persist an incomplete assistant after cancellation.
+
+
+## Minimal safe implementation shape on the current architecture
+
+The current Desktop already runs the blocking send client call in a worker task and already assigns a stable operation ID. Therefore **new NDJSON token streaming is not required just to deliver truthful Stop/cancellation**.
+
+A smaller current-line implementation can preserve the existing blocking send response:
+
+1. Add a lock/Event cancellation registry to the Core facade or a dedicated small control-plane object.
+2. During the owner-thread `send_chat_message(... operation_id=...)` call, register/reuse the active operation Event and pass `event.is_set` through direct -> generation.
+3. Add a narrowly documented `cancel_chat_operation(operation_id)` method whose implementation does **only** thread-safe registry signalling.
+4. In `SerializedCoreApiSurface`, this one control-plane method must deliberately bypass `executor.call()` and invoke only the thread-safe cancellation signal path directly. All ordinary domain methods remain serialized.
+5. Add `POST /api/v1/chat-operations/{operation_id}/cancel` to ASGI and a matching client method. No DB access occurs in the cancel request thread.
+6. Desktop keeps its existing blocking send worker, retains the active operation ID, and runs the cancel client call in a second nonblocking task.
+7. The original send request returns/raises only after the Core owner thread has performed final cancellation reconciliation. Desktop then reloads/reconciles durable state as it already does for send recovery.
+
+This is materially smaller than porting #294's streaming transport and avoids mixing cancellation with token-delta presentation.
+
+### Required guard on the executor bypass
+
+The executor bypass must be explicit and narrow. A regression test should prove that:
+- `cancel_chat_operation` does not call `CoreDomainExecutor.call()`;
+- it can set the active Event while the owner thread is intentionally blocked inside a synthetic generation;
+- no other Core API method gains an executor bypass.
+
+### Registration race to resolve
+
+The implementation must define the race where Desktop knows the operation ID and sends cancellation before the owner-thread send has installed its active Event.
+
+Do not silently return a misleading success.
+
+Safe options include:
+- reserve/register the operation's cancellation token through the thread-safe control plane before queueing the owner-thread send; or
+- another bounded reservation mechanism with explicit lifecycle cleanup.
+
+Whichever option is chosen must test:
+- cancel immediately after send dispatch;
+- cleanup after normal completion;
+- cleanup after cancellation/error;
+- an unknown/expired operation ID returns a truthful non-accepted result;
+- a stale cancellation signal cannot affect a later operation.
+
+Do not solve this by creating unbounded tombstone Events for arbitrary unknown operation IDs.
