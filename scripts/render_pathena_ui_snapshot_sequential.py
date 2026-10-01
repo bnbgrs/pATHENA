@@ -100,6 +100,33 @@ def _safe_name(value: str) -> str:
     return normalized or "screen"
 
 
+_PALLAS_VISUAL_CAPTURE_TICKS = 1
+
+
+def _pause_pallas_living_capture(controller: object) -> None:
+    """Stop wall-clock PALLAS ticks before applying the visual fixture."""
+    timer = getattr(controller, "_timer", None)
+    stop = getattr(timer, "stop", None)
+    if not callable(stop):
+        raise RuntimeError("PALLAS visual capture cannot control the living-field timer.")
+    stop()
+
+
+def _advance_pallas_living_capture(
+    controller: object,
+    *,
+    ticks: int = _PALLAS_VISUAL_CAPTURE_TICKS,
+) -> None:
+    """Advance the living renderer by an exact simulated tick count."""
+    if ticks < 1:
+        raise ValueError("PALLAS visual capture requires at least one deterministic tick.")
+    tick = getattr(controller, "_tick", None)
+    if not callable(tick):
+        raise RuntimeError("PALLAS visual capture cannot advance the living field.")
+    for _ in range(ticks):
+        tick()
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
     parser.add_argument("--runtime-root", type=Path, required=True)
@@ -522,13 +549,22 @@ def main(argv: Sequence[str] | None = None) -> int:
         grounded = window.property("pathenaPallasGroundedController")
         if not isinstance(grounded, PallasGroundedFieldController):
             raise RuntimeError("Real PALLAS grounded controller is unavailable.")
-        grounded.apply_snapshot(diagnostic_pallas_snapshot())
         full_view = getattr(window, "_pathena_pallas_full_view_controller", None)
         if full_view is None or not callable(getattr(full_view, "open_workspace", None)):
             raise RuntimeError("Real PALLAS full-view controller is unavailable.")
+        living = getattr(full_view, "living_controller", None)
+        if living is None:
+            raise RuntimeError("Real PALLAS living controller is unavailable.")
         try:
+            # Product PALLAS intentionally runs from a wall-clock QTimer. A visual
+            # fixture must not depend on how many 30 FPS events the CI runner happened
+            # to deliver before capture. Freeze first, then advance simulated time by
+            # one exact tick count.
+            _pause_pallas_living_capture(living)
+            grounded.apply_snapshot(diagnostic_pallas_snapshot())
             full_view.open_workspace()
             app.processEvents()
+            _advance_pallas_living_capture(living)
             workspace = getattr(full_view, "workspace", None)
             if (
                 workspace is None
@@ -542,8 +578,18 @@ def main(argv: Sequence[str] | None = None) -> int:
                 raise RuntimeError("PALLAS reference capture did not reach ready state.")
             if int(workspace.field.property("pathenaPallasNodeCount") or 0) != 5:
                 raise RuntimeError("PALLAS reference graph did not render all diagnostic nodes.")
+            engine_tick = int(getattr(getattr(living, "engine", None), "tick", -1))
+            if engine_tick != _PALLAS_VISUAL_CAPTURE_TICKS:
+                raise RuntimeError(
+                    "PALLAS visual fixture advanced an unexpected number of ticks: "
+                    f"{engine_tick}."
+                )
+            workspace.field.fit_all()
+            app.processEvents()
             save_widget(window, ordinal=8, label="PALLAS", kind="full-pallas")
             captures[-1]["fixture"] = "diagnostic semantic graph; presentation only"
+            captures[-1]["living_capture_ticks"] = _PALLAS_VISUAL_CAPTURE_TICKS
+            captures[-1]["living_engine_tick"] = engine_tick
         finally:
             if callable(getattr(full_view, "close_workspace", None)):
                 full_view.close_workspace()
