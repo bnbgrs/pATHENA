@@ -317,6 +317,24 @@ def _assert_safe_partial_file(path: Path) -> None:
             f"Structured replication partial entry is not a regular file: {path.name}"
         )
 
+def _ensure_managed_directory(path: Path) -> None:
+    """Create or verify one managed directory without tolerating type redirection."""
+    if is_link_boundary(path):
+        raise _TargetHistoryError(
+            f"Structured replication managed path is a link boundary: {path.name}"
+        )
+    if path.exists() and not path.is_dir():
+        raise _TargetHistoryError(
+            f"Structured replication managed path is not a directory: {path.name}"
+        )
+    try:
+        durable_mkdir(path, parents=False, exist_ok=True)
+    except (FileExistsError, NotADirectoryError) as exc:
+        raise _TargetHistoryError(
+            f"Structured replication managed path changed during preparation: {path.name}"
+        ) from exc
+
+
 def _parse_manifest(path: Path) -> _ManifestEntry:
     data = _read_regular_file(path, max_bytes=_MANIFEST_LIMIT)
     try:
@@ -451,10 +469,10 @@ class StructuredReplicationPublisher:
                 target=target,
                 target_root=target_root,
             )
-            durable_mkdir(commits_dir, parents=False, exist_ok=True)
-            durable_mkdir(snapshots_dir, parents=False, exist_ok=True)
-            durable_mkdir(manifest_dir, parents=False, exist_ok=True)
-            durable_mkdir(replication_dir, parents=False, exist_ok=True)
+            _ensure_managed_directory(commits_dir)
+            _ensure_managed_directory(snapshots_dir)
+            _ensure_managed_directory(manifest_dir)
+            _ensure_managed_directory(replication_dir)
 
             entries = self._scan_target(
                 commits_dir=commits_dir,
