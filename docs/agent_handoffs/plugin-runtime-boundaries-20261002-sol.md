@@ -36,7 +36,9 @@ Added `PluginManifest.__post_init__()` so every manifest instance enforces:
 
 `src/athena/plugins/protocol.py`
 
-Added `PluginCapabilityRequest.__post_init__()` enforcing the same request-ID, capability type and scope bounds/anti-spoofing rules for directly constructed instances that the JSON decoder enforces.
+Added `PluginCapabilityRequest.__post_init__()` enforcing request-ID, capability type and scope bounds/anti-spoofing rules for directly constructed instances.
+
+Request IDs and scopes must now also be canonical (no leading/trailing whitespace), so the JSON decoder cannot produce multiple textual identities for the same logical opaque value.
 
 This makes the broker's "validated request" type contract true independently of object origin.
 
@@ -57,6 +59,7 @@ Added/expanded:
   - non-mapping trust-root container.
 - `tests/unit/test_plugin_process_boundary.py`
   - direct request construction cannot bypass request-ID/capability/scope validation;
+  - decoder rejects noncanonical padded request IDs/scopes;
   - valid direct request remains broker-authorizable.
 
 ## Dateien
