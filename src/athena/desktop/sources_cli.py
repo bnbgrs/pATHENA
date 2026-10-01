@@ -245,14 +245,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(list(argv) if argv is not None else None)
     app = AthenaApplication()
     try:
-        app.start(run_startup_maintenance=False)
+        app.storage_bootstrap.start()
         return _run(app, args)
     except Exception as exc:
         print(f"SOURCES_ERROR {type(exc).__name__}: {exc}", file=sys.stderr)
         return 2
     finally:
         try:
-            app.stop()
+            app.storage_bootstrap.stop()
         except Exception:
             pass
 
