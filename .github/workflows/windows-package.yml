@@ -212,7 +212,7 @@ jobs:
             }
           }
 
-          $queued = Invoke-CapturedHelper -WorkerArguments @("-m", "athena.desktop.research_cli", "enqueue", "pATHENA packaged Research helper smoke") -Label "research-enqueue"
+          $queued = Invoke-CapturedHelper -WorkerArguments @("-m", "athena.desktop.research_cli", "enqueue", "pathena-packaged-research-helper-smoke") -Label "research-enqueue"
           if ($queued.ExitCode -ne 0) {
             throw "Packaged Research enqueue failed: $($queued.Text)"
           }
