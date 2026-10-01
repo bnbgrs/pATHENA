@@ -6,6 +6,8 @@ from pathlib import Path
 import pytest
 
 from athena.desktop.lmstudio_runtime import (
+    _accepted_model_load_id,
+    _CommandStep,
     _command_timeout_ms,
     _endpoint,
     _endpoint_port,
@@ -88,6 +90,39 @@ def test_lms_cli_operations_have_bounded_timeouts(
     operation: str, expected: int
 ) -> None:
     assert _command_timeout_ms(operation) == expected
+
+
+def test_pending_model_identity_requires_a_well_formed_dispatched_load() -> None:
+    assert (
+        _accepted_model_load_id(
+            _CommandStep(
+                operation="model_load",
+                arguments=("load", "model-id", "--context-length", "8192"),
+                status="Loading model",
+            )
+        )
+        == "model-id"
+    )
+    assert (
+        _accepted_model_load_id(
+            _CommandStep(
+                operation="server_start",
+                arguments=("server", "start"),
+                status="Starting server",
+            )
+        )
+        is None
+    )
+    assert (
+        _accepted_model_load_id(
+            _CommandStep(
+                operation="model_load",
+                arguments=("load", "   "),
+                status="Loading model",
+            )
+        )
+        is None
+    )
 
 
 def test_process_command_preserves_arguments_for_native_executable() -> None:
