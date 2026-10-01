@@ -460,8 +460,10 @@ class ResourceManager:
             raise RuntimeError("ATHENA resource policy row is missing.")
 
         raw_mode = row["mode"]
-        if type(raw_mode) is not str:
-            raise RuntimeError("Persisted resource policy mode has an invalid storage type.")
+        if not isinstance(raw_mode, str):
+            raise RuntimeError(
+                "Persisted resource policy mode has an invalid storage type."
+            )
         try:
             mode = ResourceMode(raw_mode)
         except ValueError as exc:
@@ -679,7 +681,7 @@ class ResourceManager:
 
 
 def _persisted_policy_nonnegative_int(value: object, field: str) -> int:
-    if type(value) is not int or value < 0:
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
         raise RuntimeError(
             f"Persisted resource policy {field} has an invalid storage value."
         )
@@ -700,7 +702,7 @@ def _persisted_policy_fraction(value: object, field: str) -> float:
 
 
 def _persisted_policy_uuid(value: object, field: str) -> uuid.UUID:
-    if type(value) is not bytes or len(value) != 16:
+    if not isinstance(value, bytes) or len(value) != 16:
         raise RuntimeError(
             f"Persisted resource policy {field} has an invalid storage value."
         )
