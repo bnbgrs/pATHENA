@@ -560,6 +560,11 @@ class CoreApiFacade:
             if parsed_operation_id is None
             else self._chat_cancellations.get_or_reserve(parsed_operation_id)
         )
+        cancel_requested = (
+            None
+            if cancellation_reservation is None
+            else cancellation_reservation.cancel_requested
+        )
 
         try:
             if parsed_operation_id is None:
@@ -614,7 +619,7 @@ class CoreApiFacade:
                     content=content,
                     requested_model_id=requested_model_id,
                     operation_id=parsed_operation_id,
-                    cancel_requested=cancellation_reservation.cancel_requested,
+                    cancel_requested=cancel_requested,
                 )
             elif (
                 max_output_tokens is None
@@ -627,7 +632,7 @@ class CoreApiFacade:
                     requested_model_id=requested_model_id,
                     operation_id=parsed_operation_id,
                     effective_context_limit=effective_context_limit,
-                    cancel_requested=cancellation_reservation.cancel_requested,
+                    cancel_requested=cancel_requested,
                 )
             else:
                 self._direct_chat.send_message(
@@ -647,7 +652,7 @@ class CoreApiFacade:
                         if thinking_enabled is True
                         else "off"
                     ),
-                    cancel_requested=cancellation_reservation.cancel_requested,
+                    cancel_requested=cancel_requested,
                 )
 
         except SendOperationStateError as exc:
