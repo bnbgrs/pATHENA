@@ -239,6 +239,7 @@ class SettingsRuntimeController(QObject):
         window.temperature_spin.valueChanged.connect(self._persist_from_control)
         window.thinking_checkbox.toggled.connect(self._persist_from_control)
         window.model_selector.activated.connect(self._hydrate_after_selection)
+        window.settings_model_selector.activated.connect(self._hydrate_after_selection)
         self.news_save.clicked.connect(self.save_news_schedule)
 
         if controller is not None:
