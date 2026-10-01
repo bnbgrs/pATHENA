@@ -11,7 +11,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, BinaryIO, cast
+from typing import Any, BinaryIO, Never, cast
 
 from athena.common.ids import uuid_from_blob
 from athena.storage.canonical_commit_bundle import (
@@ -335,6 +335,10 @@ def _read_descriptor(path: Path, *, target_id: uuid.UUID) -> None:
 
 
 def _read_head(path: Path, *, target_id: uuid.UUID) -> _PhysicalHead | None:
+    if is_link_boundary(path):
+        raise LongTermPublicationError(
+            "Long-term replication head is a symlink or reparse point."
+        )
     if not path.exists():
         return None
     data = _read_regular_bytes(
@@ -379,7 +383,7 @@ def _mark_conflict(
     code: str,
     message: str,
     now_us: int | None,
-) -> None:
+) -> Never:
     repository.mark_conflict(target_id, conflict_code=code, now_us=now_us)
     raise LongTermPublicationConflictError(message)
 
@@ -391,6 +395,14 @@ def _ensure_descriptor(
     *,
     now_us: int | None,
 ) -> None:
+    if is_link_boundary(descriptor_path):
+        _mark_conflict(
+            repository,
+            target.target_id,
+            code="repository_identity_mismatch",
+            message="Long-term repository descriptor is a symlink or reparse point.",
+            now_us=now_us,
+        )
     if descriptor_path.exists():
         try:
             _read_descriptor(descriptor_path, target_id=target.target_id)
@@ -436,6 +448,14 @@ def _verify_or_write_commit_object(
     allow_create: bool,
     now_us: int | None,
 ) -> None:
+    if is_link_boundary(commit_path):
+        _mark_conflict(
+            repository,
+            target_id,
+            code="commit_object_invalid",
+            message="Long-term commit object is a symlink or reparse point.",
+            now_us=now_us,
+        )
     if commit_path.exists():
         try:
             existing = _read_regular_bytes(
@@ -548,6 +568,7 @@ def publish_staged_commit(
 
     with _publication_lock(replication_root):
         target = repository.get_target(target_id)
+        commit = repository.get_commit(target_id, header.commit_seq)
         if target.state is ReplicationTargetState.CONFLICT:
             raise LongTermPublicationConflictError(
                 "Long-term replication target is already in conflict."
@@ -560,9 +581,13 @@ def publish_staged_commit(
         )
 
         if commit.state is ReplicationCommitState.VERIFIED:
+            if target.confirmed_commit_seq < header.commit_seq:
+                raise LongTermPublicationError(
+                    "Verified replication commit is ahead of the target watermark."
+                )
             if (
-                target.confirmed_commit_seq != header.commit_seq
-                or target.confirmed_head_hash != header.head_hash
+                target.confirmed_commit_seq == header.commit_seq
+                and target.confirmed_head_hash != header.head_hash
             ):
                 raise LongTermPublicationError(
                     "Verified replication commit disagrees with the target watermark."
@@ -579,8 +604,8 @@ def publish_staged_commit(
                 )
             if (
                 physical is None
-                or physical.commit_seq != header.commit_seq
-                or physical.head_hash != header.head_hash
+                or physical.commit_seq != target.confirmed_commit_seq
+                or physical.head_hash != target.confirmed_head_hash
             ):
                 _mark_conflict(
                     repository,
