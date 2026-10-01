@@ -1656,6 +1656,10 @@ class BackupService(DeletionLedgerStorageMixin):
         requested_snapshot = snapshot_root.expanduser()
         if not requested_snapshot.is_absolute():
             raise BackupRestoreError("Backup snapshot path must be absolute.")
+        if is_link_boundary(requested_snapshot):
+            raise BackupRestoreError(
+                "Backup snapshot directory must not be a symlink, junction, or reparse point."
+            )
         snapshot = requested_snapshot.resolve()
         if snapshot.parent.name != "snapshots":
             raise BackupRestoreError(
@@ -4049,6 +4053,8 @@ class BackupService(DeletionLedgerStorageMixin):
         expected_snapshot_id: uuid.UUID | None = None,
         progress_callback: Callable[[], None] | None = None,
     ) -> bool:
+        if is_link_boundary(snapshot_root) or not snapshot_root.is_dir():
+            return False
         try:
             marker = _safe_existing_file(snapshot_root, Path("complete.marker"))
             marker_value = marker.read_text(encoding="ascii").strip()
