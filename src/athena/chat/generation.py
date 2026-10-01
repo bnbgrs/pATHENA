@@ -576,6 +576,11 @@ class ChatGenerationService:
                 )
 
             try:
+                if cancel_requested is not None and cancel_requested():
+                    raise GenerationCancelledError(
+                        "Chat generation was cancelled."
+                    )
+
                 for chunk in stream:
                     if cancel_requested is not None and cancel_requested():
                         raise GenerationCancelledError(
