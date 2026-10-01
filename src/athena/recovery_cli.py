@@ -221,7 +221,6 @@ def run_rebuild_derived(
     except (
         DerivedRecoveryError,
         OSError,
-        ValueError,
     ) as exc:
         print(
             f"ATHENA recovery rebuild error: {type(exc).__name__}: {exc}",
