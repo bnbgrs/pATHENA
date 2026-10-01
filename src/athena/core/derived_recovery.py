@@ -1271,10 +1271,22 @@ def _inspect_canonical_embeddings(
             and canonical_fts.status is DerivedLayerStatus.CURRENT
         ):
             for row in rows:
+                entity_id = _persisted_blob(row["entity_id"])
+                revision_id = _persisted_blob(row["revision_id"])
+                text_sha256 = _persisted_blob(row["text_sha256"])
+
+                if (
+                    entity_id is None
+                    or revision_id is None
+                    or text_sha256 is None
+                ):
+                    persisted_valid = False
+                    break
+
                 key = (
                     str(row["entity_type"]),
-                    bytes(row["entity_id"]),
-                    bytes(row["revision_id"]),
+                    entity_id,
+                    revision_id,
                 )
                 body = fts_bodies.get(key)
 
@@ -1282,7 +1294,7 @@ def _inspect_canonical_embeddings(
                     persisted_valid = False
                     break
 
-                if bytes(row["text_sha256"]) != hashlib.sha256(
+                if text_sha256 != hashlib.sha256(
                     body.encode("utf-8")
                 ).digest():
                     persisted_valid = False
