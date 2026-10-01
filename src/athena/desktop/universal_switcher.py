@@ -381,13 +381,14 @@ class UniversalSearchSwitcher(QObject):
             return
 
         # The stable entity is real but the current workspace page may not have
-        # loaded it yet. Do not pretend a selection succeeded.
+        # loaded it yet. Keep the switcher visible and explain that the deep
+        # selection did not complete instead of silently pretending success.
         self._set_status(
             "Opened the owning workspace. The exact result is not loaded in "
             "its current list yet.",
             state="ready",
         )
-        self.dialog.hide()
+        self.query.setFocus(Qt.FocusReason.ShortcutFocusReason)
 
 
 def _normalize_query(text: str) -> str:
