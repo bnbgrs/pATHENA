@@ -35,6 +35,10 @@ class UnsupportedMessageEditError(ValueError):
     """Raised when an immutable chat-message edit is not permitted."""
 
 
+class UnsupportedChatForkError(ValueError):
+    """Raised when a chat cannot be forked without weakening protection semantics."""
+
+
 class UnsupportedArchiveModeError(ValueError):
     """Raised when this persistent repository cannot safely handle a mode."""
 
@@ -231,10 +235,13 @@ class ChatRepository:
                 """
                 SELECT
                     m.sequence_no,
-                    h.current_revision_id AS revision_id
+                    h.current_revision_id AS revision_id,
+                    c.protection_scope_id
                 FROM chat_messages AS m
                 JOIN entity_heads AS h
                   ON h.entity_id = m.message_id
+                JOIN chats AS c
+                  ON c.chat_id = m.chat_id
                 WHERE m.chat_id = ?
                   AND m.message_id = ?
                 """,
@@ -245,6 +252,11 @@ class ChatRepository:
             ).fetchone()
             if fork_point is None:
                 raise ChatMessageNotFoundError(str(source_message_id))
+
+            if fork_point["protection_scope_id"] is not None:
+                raise UnsupportedChatForkError(
+                    "Protected chats require protection-scope-aware fork semantics."
+                )
 
             fork_sequence = int(fork_point["sequence_no"])
             fork_revision_id = uuid_from_blob(bytes(fork_point["revision_id"]))
@@ -257,8 +269,10 @@ class ChatRepository:
                     m.message_type,
                     m.actor_id,
                     r.revision_id,
+                    r.payload_hash,
                     mr.content,
-                    mr.content_format
+                    mr.content_format,
+                    mr.protected_payload_id
                 FROM chat_messages AS m
                 JOIN entity_heads AS h
                   ON h.entity_id = m.message_id
@@ -272,6 +286,11 @@ class ChatRepository:
                 """,
                 (uuid_to_blob(chat_id), fork_sequence),
             ).fetchall()
+
+            if any(row["protected_payload_id"] is not None for row in source_rows):
+                raise UnsupportedChatForkError(
+                    "Protected message revisions require protection-scope-aware fork semantics."
+                )
 
             chat_commit_seq = self._insert_commit(
                 connection,
@@ -346,21 +365,13 @@ class ChatRepository:
                 forked_message_id = new_uuid7()
                 forked_revision_id = new_uuid7()
                 message_provenance_id = new_uuid7()
-                message_commit_id = new_uuid7()
-                message_commit_seq = self._insert_commit(
-                    connection,
-                    commit_id=message_commit_id,
-                    actor_id=actor_id,
-                    operation_type="chat_message.fork",
-                    committed_at_us=forked_at_us,
-                )
                 self._insert_entity(
                     connection,
                     entity_id=forked_message_id,
                     entity_type="chat_message",
                     actor_id=actor_id,
                     created_at_us=forked_at_us,
-                    commit_seq=message_commit_seq,
+                    commit_seq=chat_commit_seq,
                 )
                 self._insert_provenance(
                     connection,
@@ -401,8 +412,8 @@ class ChatRepository:
                         forked_at_us,
                         uuid_to_blob(actor_id),
                         uuid_to_blob(message_provenance_id),
-                        _message_payload_hash(content, content_format),
-                        uuid_to_blob(message_commit_id),
+                        bytes(row["payload_hash"]),
+                        uuid_to_blob(chat_commit_id),
                     ),
                 )
                 connection.execute(
@@ -453,7 +464,7 @@ class ChatRepository:
                     ) VALUES (?, ?, ?, 'create')
                     """,
                     (
-                        message_commit_seq,
+                        chat_commit_seq,
                         uuid_to_blob(forked_message_id),
                         uuid_to_blob(forked_revision_id),
                     ),
@@ -1154,10 +1165,7 @@ class ChatRepository:
         )
 
 
-def _message_payload_hash(
-    content: str | None,
-    content_format: str | None,
-) -> bytes:
+def _message_payload_hash(content: str, content_format: str) -> bytes:
     # For this payload shape (string-only fields), Python's sorted compact JSON
     # encoding is the RFC 8785 canonical representation. A general JCS encoder
     # will be introduced before payloads can contain numeric/object extensions.
