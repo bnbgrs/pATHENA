@@ -7,6 +7,9 @@ from pathlib import Path
 
 import pytest
 
+from athena.desktop.packaged_app import PackagedTarget, route_packaged_argv
+from athena.desktop.packaged_worker import dispatch_worker
+
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _BUILD_SCRIPT = _REPO_ROOT / "scripts" / "build_windows_portable.ps1"
 _PACKAGING_SAFETY = _REPO_ROOT / "scripts" / "windows_packaging_safety.ps1"
@@ -74,6 +77,38 @@ def _windows_repo(tmp_path: Path) -> tuple[Path, Path]:
     (repo_root / "src").mkdir()
     default_output = repo_root / "dist" / "windows-portable"
     return repo_root, default_output
+
+
+def test_packaged_router_accepts_sources_cli_role() -> None:
+    invocation = route_packaged_argv(
+        ("-m", "athena.desktop.sources_cli", "list", "--limit", "7")
+    )
+
+    assert invocation.target is PackagedTarget.SOURCES_CLI
+    assert invocation.arguments == ("list", "--limit", "7")
+
+
+def test_packaged_worker_dispatches_sources_cli(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import athena.desktop.sources_cli as sources_cli
+
+    calls: list[tuple[str, ...]] = []
+
+    def fake_sources_main(arguments: tuple[str, ...]) -> int:
+        calls.append(tuple(arguments))
+        return 17
+
+    monkeypatch.setattr(sources_cli, "main", fake_sources_main)
+
+    result = dispatch_worker(
+        ("-m", "athena.desktop.sources_cli", "show", "00000000-0000-0000-0000-000000000001")
+    )
+
+    assert result == 17
+    assert calls == [
+        ("show", "00000000-0000-0000-0000-000000000001")
+    ]
 
 
 def test_windows_portable_keeps_desktop_worker_two_exe_topology() -> None:
