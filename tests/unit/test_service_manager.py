@@ -78,4 +78,27 @@ def test_stop_attempts_all_services_even_if_one_fails() -> None:
         manager.stop_all()
 
     assert events[-2:] == ["stop:two", "stop:one"]
+    assert manager.started_service_names == ("one",)
+
+
+def test_failed_stop_remains_tracked_and_can_be_retried() -> None:
+    events: list[str] = []
+    one = FakeService("one", events, fail_stop=True)
+    two = FakeService("two", events)
+    manager = ServiceManager((one, two))
+    manager.start_all()
+
+    with pytest.raises(ShutdownError):
+        manager.stop_all()
+
+    one.fail_stop = False
+    manager.stop_all()
+
+    assert events == [
+        "start:one",
+        "start:two",
+        "stop:two",
+        "stop:one",
+        "stop:one",
+    ]
     assert manager.started_service_names == ()

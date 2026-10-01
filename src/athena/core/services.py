@@ -119,6 +119,7 @@ class ServiceManager:
 
     def _stop_started_best_effort(self) -> tuple[ServiceFailure, ...]:
         failures: list[ServiceFailure] = []
+        failed_started: list[tuple[LifecycleService, str]] = []
 
         while self._started:
             service, service_name = self._started.pop()
@@ -128,5 +129,10 @@ class ServiceManager:
                 failures.append(
                     ServiceFailure(service_name=service_name, error=exc)
                 )
+                failed_started.append((service, service_name))
 
+        # A failed stop does not prove that the service released its resources.
+        # Keep failed services in original start order so a later stop_all() can
+        # retry them in the same reverse-order shutdown sequence.
+        self._started.extend(reversed(failed_started))
         return tuple(failures)

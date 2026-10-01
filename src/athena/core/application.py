@@ -752,6 +752,14 @@ class AthenaApplication:
                         },
                     )
         except Exception as exc:
+            try:
+                self.services.stop_all()
+            except BaseException:
+                logger.exception(
+                    "ATHENA Core startup rollback failed",
+                    extra={"event": "core.start_rollback_failed"},
+                )
+
             recovery_error = _database_recovery_error(exc)
 
             if recovery_error is not None:
