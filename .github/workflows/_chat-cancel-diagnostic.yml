@@ -36,17 +36,19 @@ jobs:
         run: |
           python -m pip install --disable-pip-version-check "uv==0.11.21"
           uv lock --check
-          uv sync --locked --extra dev
+          uv sync --locked --extra dev --extra desktop
 
       - name: Ruff touched cancellation slice
         id: ruff
         continue-on-error: true
         run: |
           files="src/athena/api/asgi.py src/athena/api/client.py src/athena/api/executor.py src/athena/api/ports.py src/athena/api/service.py src/athena/chat/cancellation.py src/athena/chat/direct.py src/athena/chat/generation.py src/athena/chat/unified.py tests/unit/test_chat_cancellation_registry.py tests/unit/test_core_api_chat_cancellation.py tests/unit/test_core_api_asgi.py tests/unit/test_core_api_client.py tests/unit/test_core_api_direct_chat.py tests/unit/test_core_api_send_operation_reconciliation.py tests/unit/test_direct_chat_send_identity.py"
-          uv run --locked --extra dev --no-sync ruff check $files
+          set +e
+          uv run --locked --extra dev --extra desktop --no-sync ruff check $files
           status=$?
+          set -e
           if [ "$status" -ne 0 ]; then
-            uv run --locked --extra dev --no-sync ruff check --fix $files || true
+            uv run --locked --extra dev --extra desktop --no-sync ruff check --fix $files || true
             echo "----- RUFF FIX DIFF -----"
             git diff -- $files
             git reset --hard HEAD
@@ -56,13 +58,13 @@ jobs:
       - name: Mypy production tree
         id: mypy
         continue-on-error: true
-        run: uv run --locked --extra dev --no-sync python -m mypy src/athena
+        run: uv run --locked --extra dev --extra desktop --no-sync python -m mypy src/athena
 
       - name: Focused cancellation pytest
         id: pytest
         continue-on-error: true
         run: |
-          uv run --locked --extra dev --no-sync pytest -q \
+          uv run --locked --extra dev --extra desktop --no-sync pytest -q \
             tests/unit/test_chat_cancellation_registry.py \
             tests/unit/test_core_api_chat_cancellation.py \
             tests/unit/test_core_api_asgi.py \
@@ -74,6 +76,9 @@ jobs:
       - name: Enforce diagnostics
         if: always()
         run: |
+          echo "ruff=${{ steps.ruff.outcome }}"
+          echo "mypy=${{ steps.mypy.outcome }}"
+          echo "pytest=${{ steps.pytest.outcome }}"
           test "${{ steps.ruff.outcome }}" = "success"
           test "${{ steps.mypy.outcome }}" = "success"
           test "${{ steps.pytest.outcome }}" = "success"
