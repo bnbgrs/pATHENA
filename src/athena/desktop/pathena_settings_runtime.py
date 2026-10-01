@@ -482,6 +482,11 @@ class SettingsRuntimeController(QObject):
     @Slot(str)
     def _apply_news_failure(self, message: str) -> None:
         self._news_task = None
+        if self._news_profile is None:
+            # Initial profile loading is snapshot-driven. Allow a later fresh
+            # Core snapshot to retry instead of permanently latching the first
+            # transient failure in this controller instance.
+            self._news_requested = False
         self.news_status.setText(f"News schedule unavailable · {message}")
         self.news_status.setProperty("pathenaUiState", "error")
         self.news_status.setAccessibleDescription(self.news_status.text())
