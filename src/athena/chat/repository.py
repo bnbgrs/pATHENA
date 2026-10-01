@@ -31,6 +31,10 @@ class ChatMessageNotFoundError(LookupError):
     """Raised when a requested message is not part of the requested chat."""
 
 
+class ChatRevisionConflictError(RuntimeError):
+    """Raised when a chat mutation targets a stale message revision."""
+
+
 class UnsupportedMessageEditError(ValueError):
     """Raised when an immutable chat-message edit is not permitted."""
 
@@ -213,6 +217,7 @@ class ChatRepository:
         *,
         chat_id: uuid.UUID,
         source_message_id: uuid.UUID,
+        source_revision_id: uuid.UUID,
         actor_id: uuid.UUID,
     ) -> uuid.UUID:
         """Create an independent standard chat through one exact source revision.
@@ -256,6 +261,14 @@ class ChatRepository:
             if fork_point is None:
                 raise ChatMessageNotFoundError(str(source_message_id))
 
+            current_fork_revision_id = uuid_from_blob(
+                bytes(fork_point["revision_id"])
+            )
+            if current_fork_revision_id != source_revision_id:
+                raise ChatRevisionConflictError(
+                    "The requested fork point revision is no longer current."
+                )
+
             if (
                 fork_point["chat_protection_scope_id"] is not None
                 or fork_point["entity_protection_scope_id"] is not None
@@ -265,7 +278,6 @@ class ChatRepository:
                 )
 
             fork_sequence = int(fork_point["sequence_no"])
-            fork_revision_id = uuid_from_blob(bytes(fork_point["revision_id"]))
 
             source_rows = connection.execute(
                 """
@@ -346,7 +358,7 @@ class ChatRepository:
                 connection,
                 provenance_id=chat_provenance_id,
                 input_entity_id=source_message_id,
-                input_revision_id=fork_revision_id,
+                input_revision_id=source_revision_id,
                 input_role="fork_point",
                 ordinal=0,
             )
@@ -490,6 +502,7 @@ class ChatRepository:
         *,
         chat_id: uuid.UUID,
         message_id: uuid.UUID,
+        expected_revision_id: uuid.UUID,
         actor_id: uuid.UUID,
         content: str,
         content_format: str = "text/plain",
@@ -535,6 +548,14 @@ class ChatRepository:
             ).fetchone()
             if row is None:
                 raise ChatMessageNotFoundError(str(message_id))
+            current_revision_id = uuid_from_blob(
+                bytes(row["current_revision_id"])
+            )
+            if current_revision_id != expected_revision_id:
+                raise ChatRevisionConflictError(
+                    "The user message changed before this edit was applied."
+                )
+
             if str(row["message_type"]) != MessageType.USER.value:
                 raise UnsupportedMessageEditError(
                     "Only user-authored chat messages can be edited."
@@ -559,7 +580,7 @@ class ChatRepository:
                     "A user message can only be edited by its original actor."
                 )
 
-            parent_revision_id = uuid_from_blob(bytes(row["current_revision_id"]))
+            parent_revision_id = current_revision_id
             revision_no = int(row["current_revision_no"]) + 1
 
             commit_seq = self._insert_commit(
