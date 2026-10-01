@@ -87,6 +87,59 @@ class UpdateManifest:
     maximum_schema_version: int
     manifest_version: int = _MANIFEST_VERSION
 
+    def __post_init__(self) -> None:
+        if not isinstance(self.channel, UpdateChannel):
+            raise UpdateVerificationError(
+                "Application update channel must be an UpdateChannel value."
+            )
+        if (
+            isinstance(self.manifest_version, bool)
+            or not isinstance(self.manifest_version, int)
+            or self.manifest_version != _MANIFEST_VERSION
+        ):
+            raise UpdateVerificationError(
+                f"Unsupported update-manifest version {self.manifest_version!r}."
+            )
+        if (
+            not isinstance(self.app_version, str)
+            or _VERSION_PATTERN.fullmatch(self.app_version) is None
+        ):
+            raise UpdateVerificationError("Application update version is invalid.")
+        if (
+            not isinstance(self.package_name, str)
+            or _PACKAGE_NAME_PATTERN.fullmatch(self.package_name) is None
+        ):
+            raise UpdateVerificationError("Update package name is invalid.")
+        if (
+            isinstance(self.package_size, bool)
+            or not isinstance(self.package_size, int)
+            or self.package_size < 1
+        ):
+            raise UpdateVerificationError(
+                "Update package size must be a positive integer."
+            )
+        if (
+            not isinstance(self.package_sha256, str)
+            or _SHA256_PATTERN.fullmatch(self.package_sha256) is None
+        ):
+            raise UpdateVerificationError("Update package SHA-256 is invalid.")
+        if (
+            isinstance(self.minimum_schema_version, bool)
+            or not isinstance(self.minimum_schema_version, int)
+            or self.minimum_schema_version < 1
+        ):
+            raise UpdateVerificationError(
+                "Minimum schema version must be a positive integer."
+            )
+        if (
+            isinstance(self.maximum_schema_version, bool)
+            or not isinstance(self.maximum_schema_version, int)
+            or self.maximum_schema_version < self.minimum_schema_version
+        ):
+            raise UpdateVerificationError(
+                "Maximum schema version must be an integer not below the minimum."
+            )
+
     @classmethod
     def from_bytes(cls, raw: bytes) -> UpdateManifest:
         """Parse strict canonical JSON after signature verification."""
@@ -165,6 +218,8 @@ class UpdateManifest:
 
     def supports_schema(self, schema_version: int) -> bool:
         """Return whether this package declares compatibility with a database schema."""
+        if isinstance(schema_version, bool) or not isinstance(schema_version, int):
+            return False
         return self.minimum_schema_version <= schema_version <= self.maximum_schema_version
 
 
@@ -175,10 +230,22 @@ def verify_signed_manifest(
     public_key: bytes,
 ) -> UpdateManifest:
     """Verify the detached Ed25519 signature before accepting update metadata."""
+    if not isinstance(raw, bytes):
+        raise UpdateVerificationError("Update manifest payload must be bytes.")
+    if not isinstance(signature_base64, str):
+        raise UpdateVerificationError("Update manifest signature must be base64 text.")
+    if len(signature_base64) > 128:
+        raise UpdateVerificationError("Update manifest signature is invalid.")
+    if not isinstance(public_key, bytes) or len(public_key) != 32:
+        raise UpdateVerificationError("Update manifest public key is invalid.")
     try:
         signature = base64.b64decode(signature_base64, validate=True)
+        if len(signature) != 64:
+            raise UpdateVerificationError("Update manifest signature is invalid.")
         verifier = Ed25519PublicKey.from_public_bytes(public_key)
         verifier.verify(signature, raw)
+    except UpdateVerificationError:
+        raise
     except (ValueError, binascii.Error, InvalidSignature) as exc:
         raise UpdateVerificationError("Update manifest signature is invalid.") from exc
     return UpdateManifest.from_bytes(raw)
