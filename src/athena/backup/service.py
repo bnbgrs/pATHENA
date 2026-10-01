@@ -52,6 +52,7 @@ from athena.storage.durable_fs import (
     durable_mkdir,
     durable_replace,
     fsync_directory,
+    is_link_boundary,
 )
 from athena.storage.paths import RuntimePaths
 from athena.storage.schema import (
@@ -718,12 +719,19 @@ class BackupService(DeletionLedgerStorageMixin):
                 )
             return self.get_snapshot(snapshot_id)
         except BaseException as exc:
-            shutil.rmtree(staging_root, ignore_errors=True)
-            marker_published = (snapshot_root / "complete.marker").is_file()
+            _remove_tree_without_redirect(staging_root, ignore_errors=True)
+            try:
+                _safe_existing_file(
+                    snapshot_root,
+                    Path("complete.marker"),
+                )
+                marker_published = True
+            except BackupRestoreError:
+                marker_published = False
             if not marker_published:
                 # No completion marker means there is no restore point. Clean
                 # any partially published directory and release pins.
-                shutil.rmtree(snapshot_root, ignore_errors=True)
+                _remove_tree_without_redirect(snapshot_root, ignore_errors=True)
                 with self.database.write_transaction() as connection:
                     connection.execute(
                         "DELETE FROM backup_snapshot_pins WHERE snapshot_id = ?",
@@ -827,8 +835,6 @@ class BackupService(DeletionLedgerStorageMixin):
             / "snapshots"
             / f".{snapshot_id}.partial"
         )
-        marker = snapshot_root / "complete.marker"
-
         valid = False
         manifest_sha256: bytes | None = None
         db_sha256: bytes | None = None
@@ -837,7 +843,16 @@ class BackupService(DeletionLedgerStorageMixin):
         deletion_ledger_watermark: int | None = None
         objects: list[Any] | None = None
 
-        if marker.is_file():
+        marker: Path | None
+        try:
+            marker = _safe_existing_file(
+                snapshot_root,
+                Path("complete.marker"),
+            )
+        except BackupRestoreError:
+            marker = None
+
+        if marker is not None:
             try:
                 manifest_sha256 = bytes.fromhex(
                     marker.read_text(
@@ -862,7 +877,10 @@ class BackupService(DeletionLedgerStorageMixin):
 
         if valid and manifest_sha256 is not None:
             manifest = _read_manifest(
-                snapshot_root / "manifest.json"
+                _safe_existing_file(
+                    snapshot_root,
+                    Path("manifest.json"),
+                )
             )
             database_meta = manifest.get(
                 "database"
@@ -984,18 +1002,18 @@ class BackupService(DeletionLedgerStorageMixin):
                         ),
                     )
 
-            shutil.rmtree(
+            _remove_tree_without_redirect(
                 staging_root,
                 ignore_errors=True,
             )
 
             return cursor.rowcount == 1
 
-        shutil.rmtree(
+        _remove_tree_without_redirect(
             staging_root,
             ignore_errors=True,
         )
-        shutil.rmtree(
+        _remove_tree_without_redirect(
             snapshot_root,
             ignore_errors=True,
         )
@@ -1655,6 +1673,10 @@ class BackupService(DeletionLedgerStorageMixin):
         requested_snapshot = snapshot_root.expanduser()
         if not requested_snapshot.is_absolute():
             raise BackupRestoreError("Backup snapshot path must be absolute.")
+        if is_link_boundary(requested_snapshot):
+            raise BackupRestoreError(
+                "Backup snapshot directory must not be a symlink, junction, or reparse point."
+            )
         snapshot = requested_snapshot.resolve()
         if snapshot.parent.name != "snapshots":
             raise BackupRestoreError(
@@ -1667,9 +1689,10 @@ class BackupService(DeletionLedgerStorageMixin):
                 "Backup snapshot directory name must be its UUID."
             ) from exc
         target = snapshot.parent.parent
-        marker = snapshot / "complete.marker"
-        if not marker.is_file():
-            raise BackupRestoreError("Backup snapshot has no complete.marker.")
+        try:
+            marker = _safe_existing_file(snapshot, Path("complete.marker"))
+        except BackupRestoreError as exc:
+            raise BackupRestoreError("Backup snapshot has no safe complete.marker.") from exc
         try:
             expected_manifest_sha256 = bytes.fromhex(
                 marker.read_text(encoding="ascii").strip()
@@ -1767,7 +1790,15 @@ class BackupService(DeletionLedgerStorageMixin):
         publication_identity: tuple[int, int] | None = None
 
         try:
-            manifest = _read_manifest(snapshot_root / "manifest.json")
+            manifest_path = _safe_existing_file(
+                snapshot_root,
+                Path("manifest.json"),
+            )
+            snapshot_database = _safe_existing_file(
+                snapshot_root,
+                Path("athena.db"),
+            )
+            manifest = _read_manifest(manifest_path)
 
             raw_snapshot_deletion_watermark = (
                 manifest.get(
@@ -1810,7 +1841,7 @@ class BackupService(DeletionLedgerStorageMixin):
             )
             restored_db = state_root / "athena.db"
             _copy_file_with_progress(
-                snapshot_root / "athena.db",
+                snapshot_database,
                 restored_db,
                 progress_callback=progress_callback,
             )
@@ -1994,7 +2025,7 @@ class BackupService(DeletionLedgerStorageMixin):
             return destination
 
         except BaseException:
-            shutil.rmtree(
+            _remove_tree_without_redirect(
                 staging,
                 ignore_errors=True,
             )
@@ -2022,7 +2053,7 @@ class BackupService(DeletionLedgerStorageMixin):
                     )
                     == publication_identity
                 ):
-                    shutil.rmtree(
+                    _remove_tree_without_redirect(
                         destination
                     )
                     fsync_directory(
@@ -2096,7 +2127,7 @@ class BackupService(DeletionLedgerStorageMixin):
                 / relative
             )
 
-            if path.is_symlink():
+            if is_link_boundary(path):
                 raise BackupRestoreError(
                     "Restored deleted Source blob "
                     "resolved to a symbolic link."
@@ -2148,7 +2179,7 @@ class BackupService(DeletionLedgerStorageMixin):
 
             if (
                 path.exists()
-                or path.is_symlink()
+                or is_link_boundary(path)
             ):
                 raise BackupRestoreError(
                     "Restored deleted Source blob "
@@ -2954,7 +2985,7 @@ class BackupService(DeletionLedgerStorageMixin):
                 )
             raise
 
-        shutil.rmtree(
+        _remove_tree_without_redirect(
             trash_path
         )
 
@@ -2973,7 +3004,7 @@ class BackupService(DeletionLedgerStorageMixin):
             return
 
         if (
-            trash_root.is_symlink()
+            is_link_boundary(trash_root)
             or not trash_root.is_dir()
         ):
             raise BackupRestoreError(
@@ -2984,7 +3015,7 @@ class BackupService(DeletionLedgerStorageMixin):
             trash_root.iterdir(),
             key=lambda path: path.name,
         ):
-            if item.is_symlink() or not item.is_dir():
+            if is_link_boundary(item) or not item.is_dir():
                 raise BackupRestoreError(
                     "Unexpected retention-trash entry."
                 )
@@ -3057,7 +3088,7 @@ class BackupService(DeletionLedgerStorageMixin):
                     "exists outside retention trash."
                 )
 
-            shutil.rmtree(
+            _remove_tree_without_redirect(
                 item
             )
 
@@ -3090,7 +3121,7 @@ class BackupService(DeletionLedgerStorageMixin):
             return 0
 
         if (
-            objects_root.is_symlink()
+            is_link_boundary(objects_root)
             or not objects_root.is_dir()
         ):
             raise BackupRestoreError(
@@ -3103,7 +3134,7 @@ class BackupService(DeletionLedgerStorageMixin):
             objects_root.rglob("*.blob"),
             key=lambda item: item.as_posix(),
         ):
-            if path.is_symlink() or not path.is_file():
+            if is_link_boundary(path) or not path.is_file():
                 raise BackupRestoreError(
                     "Backup object store contains "
                     "an unsafe object entry."
@@ -3175,7 +3206,7 @@ class BackupService(DeletionLedgerStorageMixin):
             return set()
 
         if (
-            snapshots_root.is_symlink()
+            is_link_boundary(snapshots_root)
             or not snapshots_root.is_dir()
         ):
             raise BackupRestoreError(
@@ -3191,7 +3222,7 @@ class BackupService(DeletionLedgerStorageMixin):
         ):
             if (
                 snapshot_root.name.startswith(".")
-                or snapshot_root.is_symlink()
+                or is_link_boundary(snapshot_root)
                 or not snapshot_root.is_dir()
             ):
                 raise BackupRestoreError(
@@ -3209,24 +3240,18 @@ class BackupService(DeletionLedgerStorageMixin):
                     "blocks object GC."
                 ) from exc
 
-            marker = (
-                snapshot_root
-                / "complete.marker"
-            )
-
-            if not marker.is_file():
-                raise BackupRestoreError(
-                    "Snapshot without completion marker "
-                    "blocks object GC."
-                )
-
             try:
+                marker = _safe_existing_file(
+                    snapshot_root,
+                    Path("complete.marker"),
+                )
                 manifest_sha256 = bytes.fromhex(
                     marker.read_text(
                         encoding="ascii"
                     ).strip()
                 )
             except (
+                BackupRestoreError,
                 OSError,
                 ValueError,
             ) as exc:
@@ -3258,8 +3283,10 @@ class BackupService(DeletionLedgerStorageMixin):
 
             completed_count += 1
             manifest = _read_manifest(
-                snapshot_root
-                / "manifest.json"
+                _safe_existing_file(
+                    snapshot_root,
+                    Path("manifest.json"),
+                )
             )
             objects = manifest.get(
                 "objects"
@@ -3496,13 +3523,12 @@ class BackupService(DeletionLedgerStorageMixin):
                     )
                 )
 
-                if not (
-                    snapshot_root.is_dir()
-                    and (
-                        snapshot_root
-                        / "complete.marker"
-                    ).is_file()
-                ):
+                try:
+                    _safe_existing_file(
+                        snapshot_root,
+                        Path("complete.marker"),
+                    )
+                except BackupRestoreError:
                     self._set_target_status(
                         record.target_id,
                         "offline",
@@ -3556,7 +3582,7 @@ class BackupService(DeletionLedgerStorageMixin):
         if not path.exists():
             return None
 
-        if path.is_symlink() or not path.is_file():
+        if is_link_boundary(path) or not path.is_file():
             raise BackupRestoreError(
                 "Backup target descriptor is unsafe."
             )
@@ -3685,9 +3711,9 @@ class BackupService(DeletionLedgerStorageMixin):
                 "Backup target must be an absolute path."
             )
 
-        if target.exists() and target.is_symlink():
+        if target.exists() and is_link_boundary(target):
             raise BackupRestoreError(
-                "Backup target root must not be a symlink."
+                "Backup target root must not be a symlink, junction, or reparse point."
             )
 
         target = target.resolve()
@@ -3772,50 +3798,43 @@ class BackupService(DeletionLedgerStorageMixin):
         expected_manifest_sha256: bytes,
         expected_snapshot_id: uuid.UUID | None = None,
     ) -> bool:
-        marker = (
-            snapshot_root
-            / "complete.marker"
-        )
-
-        if not marker.is_file():
+        if (
+            is_link_boundary(snapshot_root)
+            or not snapshot_root.is_dir()
+        ):
             return False
 
         try:
+            marker = _safe_existing_file(
+                snapshot_root,
+                Path("complete.marker"),
+            )
+            manifest_path = _safe_existing_file(
+                snapshot_root,
+                Path("manifest.json"),
+            )
+            database_path = _safe_existing_file(
+                snapshot_root,
+                Path("athena.db"),
+            )
             marker_value = (
                 marker.read_text(
                     encoding="ascii"
                 ).strip()
             )
-        except OSError:
+            manifest_bytes = (
+                manifest_path.read_bytes()
+            )
+        except (
+            BackupRestoreError,
+            OSError,
+        ):
             return False
 
         if (
             marker_value
             != expected_manifest_sha256.hex()
         ):
-            return False
-
-        manifest_path = (
-            snapshot_root
-            / "manifest.json"
-        )
-
-        database_path = (
-            snapshot_root
-            / "athena.db"
-        )
-
-        if (
-            not manifest_path.is_file()
-            or not database_path.is_file()
-        ):
-            return False
-
-        try:
-            manifest_bytes = (
-                manifest_path.read_bytes()
-            )
-        except OSError:
             return False
 
         if (
@@ -4047,12 +4066,12 @@ class BackupService(DeletionLedgerStorageMixin):
         expected_snapshot_id: uuid.UUID | None = None,
         progress_callback: Callable[[], None] | None = None,
     ) -> bool:
-        marker = snapshot_root / "complete.marker"
-        if not marker.is_file():
+        if is_link_boundary(snapshot_root) or not snapshot_root.is_dir():
             return False
         try:
+            marker = _safe_existing_file(snapshot_root, Path("complete.marker"))
             marker_value = marker.read_text(encoding="ascii").strip()
-        except OSError:
+        except (BackupRestoreError, OSError):
             return False
         if marker_value != expected_manifest_sha256.hex():
             return False
@@ -4073,13 +4092,11 @@ class BackupService(DeletionLedgerStorageMixin):
         expected_snapshot_id: uuid.UUID | None = None,
         progress_callback: Callable[[], None] | None = None,
     ) -> bool:
-        manifest_path = snapshot_root / "manifest.json"
-        database_path = snapshot_root / "athena.db"
-        if not manifest_path.is_file() or not database_path.is_file():
-            return False
         try:
+            manifest_path = _safe_existing_file(snapshot_root, Path("manifest.json"))
+            database_path = _safe_existing_file(snapshot_root, Path("athena.db"))
             manifest_bytes = manifest_path.read_bytes()
-        except OSError:
+        except (BackupRestoreError, OSError):
             return False
         if hashlib.sha256(manifest_bytes).digest() != expected_manifest_sha256:
             return False
@@ -4314,19 +4331,75 @@ def _manifest_matches_database(manifest: dict[str, Any], database_path: Path) ->
         check.close()
 
 
+def _remove_tree_without_redirect(
+    path: Path,
+    *,
+    ignore_errors: bool = False,
+) -> None:
+    """Remove one directory tree without following a redirected root."""
+    try:
+        if is_link_boundary(path):
+            raise BackupRestoreError(
+                f"Refusing to recursively remove redirected backup path: {path}."
+            )
+        if not path.exists():
+            return
+        if not path.is_dir():
+            raise BackupRestoreError(
+                f"Refusing to recursively remove non-directory backup path: {path}."
+            )
+        shutil.rmtree(path)
+    except (BackupRestoreError, OSError):
+        if ignore_errors:
+            return
+        raise
+
+
 def _safe_existing_file(root: Path, relative: Path) -> Path:
+    if (
+        relative.is_absolute()
+        or relative.drive
+        or relative.root
+        or ".." in relative.parts
+    ):
+        raise BackupRestoreError(
+            f"Backup file path is not a safe relative path: {relative}."
+        )
+
+    cursor = root
+    while True:
+        if is_link_boundary(cursor):
+            raise BackupRestoreError(
+                f"Backup trusted root has a redirecting filesystem boundary: {cursor}."
+            )
+        parent = cursor.parent
+        if parent == cursor:
+            break
+        cursor = parent
+
+    if not root.is_dir():
+        raise BackupRestoreError(
+            f"Backup trusted root is not a stable real directory: {root}."
+        )
+
     root_resolved = root.resolve()
-    candidate = root_resolved / relative
-    if candidate.is_symlink():
-        raise BackupRestoreError(f"Backup object must not be a symlink: {candidate}.")
+    candidate = root_resolved
+    for part in relative.parts:
+        candidate = candidate / part
+        if is_link_boundary(candidate):
+            raise BackupRestoreError(
+                "Backup file path crosses a symlink, junction, or reparse point: "
+                f"{candidate}."
+            )
+
     try:
         resolved = candidate.resolve(strict=True)
     except OSError as exc:
-        raise BackupRestoreError(f"Backup object is unavailable: {candidate}.") from exc
+        raise BackupRestoreError(f"Backup file is unavailable: {candidate}.") from exc
     if root_resolved != resolved and root_resolved not in resolved.parents:
-        raise BackupRestoreError("Backup object resolved outside the backup target.")
+        raise BackupRestoreError("Backup file resolved outside its trusted root.")
     if not resolved.is_file():
-        raise BackupRestoreError(f"Backup object is not a regular file: {resolved}.")
+        raise BackupRestoreError(f"Backup file is not a regular file: {resolved}.")
     return resolved
 
 
@@ -4558,7 +4631,7 @@ def _fsync_existing(path: Path) -> None:
 def _write_fsynced(path: Path, data: bytes) -> None:
     """Write and durably publish one new backup metadata file."""
 
-    if path.exists() or path.is_symlink():
+    if path.exists() or is_link_boundary(path):
         raise FileExistsError(
             f"Durable backup metadata destination already exists: {path}."
         )
