@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 
+import pytest
+
 from athena.backup.target_lock import backup_target_lock
 from athena.common.ids import uuid_to_blob
 from athena.common.time import utc_now_us
@@ -10,11 +12,12 @@ from athena.core.application import AthenaApplication
 from athena.jobs.backup import (
     _DAY_US,
     BACKUP_CREATE_JOB_TYPE,
+    BackupJobError,
     daily_backup_slot_us,
 )
 from athena.jobs.backup_verify_durable_service import BackupDeepVerifyDurableJobService
 from athena.jobs.backup_verify_payload import BACKUP_VERIFY_DEEP_JOB_TYPE
-from athena.jobs.models import JobState
+from athena.jobs.models import JobPriority, JobState
 from athena.jobs.scheduler import SchedulerLane
 
 
@@ -312,5 +315,44 @@ def test_scheduler_dispatches_due_deep_verify_job(tmp_path, monkeypatch) -> None
         assert app.backup.get_snapshot(snapshot.snapshot_id).verification_status == (
             "verified_deep"
         )
+    finally:
+        app.stop()
+
+
+def test_negative_durable_schedule_slot_fails_closed_without_creating_snapshot(
+    tmp_path,
+) -> None:
+    app = _app(tmp_path)
+
+    try:
+        target = app.backup.register_target(
+            tmp_path / "backup"
+        )
+        queued = app.jobs.create(
+            job_type=BACKUP_CREATE_JOB_TYPE,
+            priority=JobPriority.DATA_SAFETY,
+            requested_scope={
+                "schedule_slot_us": -1,
+                "target_id": str(target.target_id),
+            },
+        )
+        leased = app.jobs.acquire(
+            queued.job_id,
+            worker_id="negative-backup-slot-test",
+            lease_seconds=120,
+        )
+
+        with pytest.raises(
+            BackupJobError,
+            match="has no valid schedule slot",
+        ):
+            app.backup_worker.process_leased(
+                leased
+            )
+
+        assert _complete_snapshot_count(
+            app,
+            target.target_id,
+        ) == 0
     finally:
         app.stop()
