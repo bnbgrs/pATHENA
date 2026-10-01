@@ -357,7 +357,10 @@ class ResearchWorkspace(QWidget):
             if operation == "list":
                 message = f"Research jobs could not be refreshed (exit {exit_code})."
             elif operation == "show" and job_label:
-                message = f"Research run {job_label} details could not be loaded (exit {exit_code})."
+                message = (
+                    f"Research run {job_label} details could not be loaded "
+                    f"(exit {exit_code})."
+                )
             elif operation == "cancel" and job_label:
                 message = f"Research run {job_label} cancellation failed (exit {exit_code})."
             elif operation == "enqueue":
