@@ -314,7 +314,7 @@ def test_safe_existing_file_rejects_redirected_trusted_root(
 
     with pytest.raises(
         BackupRestoreError,
-        match="trusted root is not a stable real directory",
+        match="trusted root has a redirecting filesystem boundary",
     ):
         backup_module._safe_existing_file(root, Path("payload.bin"))
 
@@ -464,3 +464,70 @@ def test_recursive_cleanup_never_follows_redirected_root(
 
     assert called is False
     assert redirected.exists()
+
+
+def test_safe_existing_file_rejects_redirected_root_ancestor(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    target = tmp_path / "target"
+    snapshots = target / "snapshots"
+    root = snapshots / "snapshot-id"
+    root.mkdir(parents=True)
+    (root / "manifest.json").write_text("{}", encoding="utf-8")
+    real_is_link_boundary = backup_module.is_link_boundary
+
+    def redirected(path: Path) -> bool:
+        return path == snapshots or real_is_link_boundary(path)
+
+    monkeypatch.setattr(backup_module, "is_link_boundary", redirected)
+
+    with pytest.raises(
+        BackupRestoreError,
+        match="trusted root has a redirecting filesystem boundary",
+    ):
+        backup_module._safe_existing_file(root, Path("manifest.json"))
+
+
+def test_safe_existing_file_rejects_redirected_intermediate_component(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = tmp_path / "backup-root"
+    nested = root / "objects"
+    nested.mkdir(parents=True)
+    candidate = nested / "payload.bin"
+    candidate.write_bytes(b"payload")
+    real_is_link_boundary = backup_module.is_link_boundary
+
+    def redirected(path: Path) -> bool:
+        return path == nested or real_is_link_boundary(path)
+
+    monkeypatch.setattr(backup_module, "is_link_boundary", redirected)
+
+    with pytest.raises(
+        BackupRestoreError,
+        match="path crosses a symlink, junction, or reparse point",
+    ):
+        backup_module._safe_existing_file(
+            root,
+            Path("objects") / "payload.bin",
+        )
+
+
+@pytest.mark.parametrize(
+    "relative",
+    (Path("../escape.bin"), Path("/absolute.bin")),
+)
+def test_safe_existing_file_rejects_non_relative_paths(
+    tmp_path: Path,
+    relative: Path,
+) -> None:
+    root = tmp_path / "backup-root"
+    root.mkdir()
+
+    with pytest.raises(
+        BackupRestoreError,
+        match="not a safe relative path",
+    ):
+        backup_module._safe_existing_file(root, relative)
