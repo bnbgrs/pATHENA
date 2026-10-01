@@ -120,3 +120,77 @@ def test_result_and_proposal_workflow_is_explicit(capsys) -> None:
     rejected = capsys.readouterr().out
     assert "REJECTED" in rejected
     assert promotion.reject_calls == 1
+
+class _Comparison:
+    def __init__(self, payload: dict[str, object] | None) -> None:
+        self.payload = payload
+        self.previous_calls: list[uuid.UUID] = []
+        self.explicit_calls: list[tuple[uuid.UUID, uuid.UUID]] = []
+
+    def compare_previous(self, identifier: uuid.UUID):
+        self.previous_calls.append(identifier)
+        if self.payload is None:
+            return None
+        return SimpleNamespace(as_dict=lambda: self.payload)
+
+    def compare(self, identifier: uuid.UUID, *, baseline_identifier: uuid.UUID):
+        self.explicit_calls.append((identifier, baseline_identifier))
+        if self.payload is None:
+            raise AssertionError("explicit comparison requires a payload")
+        return SimpleNamespace(as_dict=lambda: self.payload)
+
+
+def test_compare_command_surfaces_real_delta_or_honest_unavailable_state(capsys) -> None:
+    promotion = _Promotion()
+    payload = {
+        "available": True,
+        "comparison_mode": "exact_persisted_text_and_provenance",
+        "query": "What changed?",
+        "baseline": {},
+        "current": {},
+        "changes": {},
+    }
+    comparison = _Comparison(payload)
+    app = SimpleNamespace(
+        research_promotion=promotion,
+        research_comparison=comparison,
+    )
+
+    assert _run(
+        app,
+        argparse.Namespace(
+            command="compare",
+            identifier=promotion.job_id,
+            baseline=None,
+        ),
+    ) == 0
+    output = capsys.readouterr().out
+    assert "exact_persisted_text_and_provenance" in output
+    assert comparison.previous_calls == [promotion.job_id]
+
+    baseline = uuid.uuid4()
+    assert _run(
+        app,
+        argparse.Namespace(
+            command="compare",
+            identifier=promotion.job_id,
+            baseline=baseline,
+        ),
+    ) == 0
+    capsys.readouterr()
+    assert comparison.explicit_calls == [(promotion.job_id, baseline)]
+
+    unavailable = _Comparison(None)
+    app.research_comparison = unavailable
+    assert _run(
+        app,
+        argparse.Namespace(
+            command="compare",
+            identifier=promotion.job_id,
+            baseline=None,
+        ),
+    ) == 0
+    output = capsys.readouterr().out
+    assert '"available": false' in output
+    assert "No earlier comparable completed ResearchResult exists." in output
+

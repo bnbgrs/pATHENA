@@ -12,7 +12,9 @@ from PySide6.QtWidgets import QApplication, QListWidgetItem
 from athena.desktop.research_results_extension import ResearchResultsExtension
 from athena.desktop.research_review import (
     ResearchReviewError,
+    parse_research_delta_review,
     parse_research_result_review,
+    render_research_delta_review,
     render_research_result_review,
 )
 from athena.desktop.research_workspace import ResearchWorkspace
@@ -188,3 +190,113 @@ def test_background_result_never_overwrites_newer_run_selection() -> None:
     finally:
         extension.refresh_timer.stop()
         workspace.close()
+
+def _delta_payload(*, available: bool = True) -> str:
+    if not available:
+        return json.dumps(
+            {
+                "available": False,
+                "reason": "No earlier comparable completed ResearchResult exists.",
+            }
+        )
+    return json.dumps(
+        {
+            "available": True,
+            "comparison_mode": "exact_persisted_text_and_provenance",
+            "query": "How should local memory evolve?",
+            "baseline": {
+                "result_id": "11111111-1111-1111-1111-111111111111",
+                "job_id": "21111111-1111-1111-1111-111111111111",
+                "snapshot_commit_seq": 40,
+                "model_signature_id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "coverage_ratio": 0.5,
+                "summary": "Old summary",
+                "uncertainty": "Old uncertainty",
+            },
+            "current": {
+                "result_id": "33333333-3333-3333-3333-333333333333",
+                "job_id": "22222222-2222-2222-2222-222222222222",
+                "snapshot_commit_seq": 42,
+                "model_signature_id": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+                "coverage_ratio": 1.0,
+                "summary": "New summary",
+                "uncertainty": "New uncertainty",
+            },
+            "changes": {
+                "summary_changed": True,
+                "uncertainty_changed": True,
+                "model_signature_changed": True,
+                "added_findings": ["Added finding"],
+                "removed_findings": ["Removed finding"],
+                "added_contradictions": ["Added contradiction"],
+                "removed_contradictions": [],
+                "added_source_ids": ["dddddddd-dddd-dddd-dddd-dddddddddddd"],
+                "removed_source_ids": ["cccccccc-cccc-cccc-cccc-cccccccccccc"],
+            },
+        }
+    )
+
+
+def test_research_delta_review_reports_exact_persisted_changes_and_method() -> None:
+    review = parse_research_delta_review(_delta_payload())
+
+    assert review.available is True
+    assert review.added_findings == ("Added finding",)
+    assert review.removed_source_ids == (
+        "cccccccc-cccc-cccc-cccc-cccccccccccc",
+    )
+    rendered = render_research_delta_review(review)
+    assert "RESEARCH CHANGES" in rendered
+    assert "50.0% → 100.0% (+50.0 percentage points)" in rendered
+    assert "+ Added finding" in rendered
+    assert "- Removed finding" in rendered
+    assert "no model decides semantic equivalence" in rendered
+    assert "Model signature changed between runs" in rendered
+
+
+def test_research_delta_unavailable_state_is_explicit_not_faked() -> None:
+    review = parse_research_delta_review(_delta_payload(available=False))
+
+    assert review.available is False
+    assert render_research_delta_review(review) == (
+        "RESEARCH CHANGES\n\n"
+        "No earlier comparable completed ResearchResult exists."
+    )
+
+
+def test_completed_run_comparison_renders_only_for_owned_selection() -> None:
+    workspace, extension = _extension()
+    try:
+        extension._operation = "compare"
+        extension._operation_job_id = workspace._selected_job_id
+        extension._buffer = _delta_payload()
+        extension._finished(0, QProcess.ExitStatus.NormalExit)
+
+        assert workspace.details.toPlainText().startswith("RESEARCH CHANGES\n")
+        assert workspace.details.property("pathenaResearchComparisonState") == "ready"
+        assert workspace.details.property("pathenaResearchBaselineResultId") == (
+            "11111111-1111-1111-1111-111111111111"
+        )
+        assert workspace.details.property("pathenaResearchResultId") == (
+            "33333333-3333-3333-3333-333333333333"
+        )
+    finally:
+        extension.refresh_timer.stop()
+        workspace.close()
+
+
+def test_missing_prior_comparison_has_honest_unavailable_ui_state() -> None:
+    workspace, extension = _extension()
+    try:
+        extension._operation = "compare"
+        extension._operation_job_id = workspace._selected_job_id
+        extension._buffer = _delta_payload(available=False)
+        extension._finished(0, QProcess.ExitStatus.NormalExit)
+
+        assert workspace.details.property("pathenaResearchComparisonState") == "unavailable"
+        assert "No earlier comparable" in workspace.details.toPlainText()
+        assert extension.compare_button.isEnabled()
+    finally:
+        extension.refresh_timer.stop()
+        workspace.close()
+
