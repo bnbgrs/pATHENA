@@ -84,6 +84,18 @@ def _command_timeout_ms(operation: str) -> int:
     return _CONTROL_COMMAND_TIMEOUT_MS
 
 
+def _accepted_model_load_id(step: _CommandStep) -> str | None:
+    """Return the model identity only for a well-formed load command."""
+    if (
+        step.operation != "model_load"
+        or len(step.arguments) < 2
+        or step.arguments[0] != "load"
+    ):
+        return None
+    model_id = step.arguments[1].strip()
+    return model_id or None
+
+
 def _server_start_steps(base_url: str) -> tuple[_CommandStep, _CommandStep]:
     """Build the idempotent headless daemon/server startup sequence."""
     bind_host, port = _endpoint(base_url)
@@ -552,7 +564,6 @@ class LMStudioRuntimeController(QObject):
             self._set_status("LM Studio runtime · lms CLI not found")
             return
 
-        self._pending_model_id = model.backend_model_id
         self._auto_load_attempted_model_id = model.backend_model_id
         arguments: list[str] = ["load", model.backend_model_id]
         context = self.window._effective_context_limit()
@@ -631,6 +642,17 @@ class LMStudioRuntimeController(QObject):
             self.busy_changed.emit(False)
             self._set_status(f"LM Studio runtime · command rejected · {exc}")
             return
+        if step.operation == "model_load":
+            accepted_model_id = _accepted_model_load_id(step)
+            if accepted_model_id is None:
+                self._steps.clear()
+                self._active_step = None
+                self._pending_model_id = None
+                self._model_confirmation_refreshes_remaining = 0
+                self.busy_changed.emit(False)
+                self._set_status("LM Studio runtime · invalid model-load command state")
+                return
+            self._pending_model_id = accepted_model_id
         self.process.start(program, arguments)
         self._command_timer.start(_command_timeout_ms(step.operation))
 
