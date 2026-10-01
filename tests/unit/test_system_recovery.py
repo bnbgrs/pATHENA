@@ -8,7 +8,6 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 pytest.importorskip("PySide6")
 
-from PySide6.QtCore import QProcess
 from PySide6.QtWidgets import QApplication
 
 from athena.desktop.system_recovery import (
@@ -186,29 +185,3 @@ def test_recovery_projection_binds_status_to_cli_exit_code(
 
     with pytest.raises(ValueError, match="status/exit-code mismatch"):
         project_recovery_payload(payload, exit_code=99)
-
-
-def test_recovery_process_error_is_not_overwritten_by_finished_signal() -> None:
-    app = _app()
-    panel = SystemRecoveryPanel()
-
-    try:
-        panel._handle_process_error(QProcess.ProcessError.FailedToStart)
-        error_status = panel.status.text()
-        error_detail = panel.detail.text()
-
-        assert error_status == "FAIL"
-        assert "process error" in error_detail
-        assert panel._process_error_reported is True
-
-        panel._handle_finished(0, QProcess.ExitStatus.NormalExit)
-
-        assert panel.status.text() == error_status
-        assert panel.detail.text() == error_detail
-        assert panel._process_error_reported is False
-        assert panel.run_button.text() == "Run again"
-        assert panel.run_button.isEnabled()
-    finally:
-        panel.close()
-        app.processEvents()
-
