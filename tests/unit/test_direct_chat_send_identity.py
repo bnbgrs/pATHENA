@@ -272,6 +272,76 @@ def test_explicit_cancel_between_chunks_marks_run_cancelled_and_keeps_user_only(
         database.stop()
 
 
+class _FirstReadGuardStream:
+    def __init__(self) -> None:
+        self.next_calls = 0
+        self.close_calls = 0
+
+    def __iter__(self) -> "_FirstReadGuardStream":
+        return self
+
+    def __next__(self) -> str:
+        self.next_calls += 1
+        return "must not be read"
+
+    def close(self) -> None:
+        self.close_calls += 1
+
+
+def test_cancel_after_stream_creation_never_enters_first_provider_read(
+    tmp_path: Path,
+) -> None:
+    database, chat, provider, service = _runtime(tmp_path)
+
+    try:
+        chat_id = chat.create_chat()
+        stream = _FirstReadGuardStream()
+
+        def stream_chat(
+            *,
+            model_id: str,
+            messages: Sequence[ModelChatMessage],
+            max_output_tokens: int | None = None,
+            reasoning_mode: str | None = None,
+            temperature: float | None = None,
+        ) -> Iterator[str]:
+            del messages
+            assert model_id == "primary"
+            assert max_output_tokens == 1000
+            assert reasoning_mode == "off"
+            assert temperature is None
+            provider.stream_calls += 1
+            return stream
+
+        provider.stream_chat = stream_chat  # type: ignore[method-assign]
+        checks = 0
+
+        def cancel_requested() -> bool:
+            nonlocal checks
+            checks += 1
+            return checks >= 4
+
+        with pytest.raises(GenerationCancelledError):
+            service.send_message(
+                chat_id=chat_id,
+                content="cancel before first read",
+                requested_model_id="primary",
+                operation_id=_OPERATION_ID,
+                output_reserve=1000,
+                safety_margin=100,
+                cancel_requested=cancel_requested,
+            )
+
+        assert provider.stream_calls == 1
+        assert stream.next_calls == 0
+        assert stream.close_calls == 1
+        assert [message.message_type for message in chat.load_chat(chat_id).messages] == [
+            MessageType.USER,
+        ]
+    finally:
+        database.stop()
+
+
 class _FailingCloseStream:
     def __init__(self) -> None:
         self._chunks = iter(("partial", " should not persist"))
