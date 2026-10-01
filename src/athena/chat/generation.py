@@ -582,8 +582,6 @@ class ChatGenerationService:
                             "Chat generation was cancelled."
                         )
 
-                    chunks.append(chunk)
-
                     if interactive_lease is not None:
                         demand = self.interactive_demand
                         if demand is None:
@@ -593,6 +591,13 @@ class ChatGenerationService:
                         interactive_lease = demand.renew_interactive_demand(
                             interactive_lease
                         )
+
+                    if cancel_requested is not None and cancel_requested():
+                        raise GenerationCancelledError(
+                            "Chat generation was cancelled."
+                        )
+
+                    chunks.append(chunk)
 
                     if grounding_contract is None and on_delta is not None:
                         on_delta(chunk)
@@ -604,7 +609,12 @@ class ChatGenerationService:
             except GenerationCancelledError:
                 closer = getattr(stream, "close", None)
                 if callable(closer):
-                    closer()
+                    try:
+                        closer()
+                    except Exception as close_exc:
+                        raise GenerationCancelledError(
+                            "Chat generation was cancelled; provider stream cleanup failed."
+                        ) from close_exc
                 raise
 
             assistant_text = "".join(chunks)
