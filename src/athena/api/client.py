@@ -363,6 +363,38 @@ class CoreApiClient:
             )
         )
 
+    def cancel_chat_operation(self, operation_id: str) -> bool:
+        """Request cancellation for one currently reserved chat operation."""
+        try:
+            canonical_operation_id = str(uuid.UUID(operation_id))
+        except (ValueError, AttributeError) as exc:
+            raise ValueError(
+                "Chat operation_id must be a valid UUID."
+            ) from exc
+
+        payload = self._request(
+            "POST",
+            (
+                "/api/v1/chat-operations/"
+                + canonical_operation_id
+                + "/cancel"
+            ),
+            expected_status=202,
+        )
+        accepted = payload.get("accepted")
+        returned_id = payload.get("operation_id")
+        if not isinstance(accepted, bool):
+            raise CoreApiClientError(
+                "ATHENA Core returned invalid cancellation state.",
+                code="invalid_response",
+            )
+        if returned_id != canonical_operation_id:
+            raise CoreApiClientError(
+                "ATHENA Core returned cancellation state for another operation.",
+                code="invalid_response",
+            )
+        return accepted
+
     def send_unified_local_chat_message(
         self,
         chat_id: str,
