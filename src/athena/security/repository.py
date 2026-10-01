@@ -49,6 +49,28 @@ class ProtectionRepositoryIntegrityError(
     """Raised when persisted security state violates runtime invariants."""
 
 
+def _require_persisted_blob(
+    value: object,
+    *,
+    label: str,
+    exact_length: int | None = None,
+    minimum_length: int | None = None,
+) -> bytes:
+    if not isinstance(value, bytes):
+        raise ProtectionRepositoryIntegrityError(
+            f"{label} has an invalid persisted type."
+        )
+    if exact_length is not None and len(value) != exact_length:
+        raise ProtectionRepositoryIntegrityError(
+            f"{label} has an invalid persisted length."
+        )
+    if minimum_length is not None and len(value) < minimum_length:
+        raise ProtectionRepositoryIntegrityError(
+            f"{label} has an invalid persisted length."
+        )
+    return value
+
+
 class ProtectionRepository:
     """Persistence adapter for key slots, scopes, scope keys, and payloads."""
 
@@ -616,44 +638,56 @@ class ProtectionRepository:
 
         return ProtectedPayloadRecord(
             protected_payload_id=uuid_from_blob(
-                bytes(
-                    row[
-                        "protected_payload_id"
-                    ]
+                _require_persisted_blob(
+                    row["protected_payload_id"],
+                    label="Protected payload identity",
+                    exact_length=16,
                 )
             ),
             protection_scope_id=uuid_from_blob(
-                bytes(
-                    row[
-                        "protection_scope_id"
-                    ]
+                _require_persisted_blob(
+                    row["protection_scope_id"],
+                    label="Protected payload scope identity",
+                    exact_length=16,
                 )
             ),
             scope_key_id=uuid_from_blob(
-                bytes(
-                    row["scope_key_id"]
+                _require_persisted_blob(
+                    row["scope_key_id"],
+                    label="Protected payload Scope Key identity",
+                    exact_length=16,
                 )
             ),
             cipher_suite=str(
                 row["cipher_suite"]
             ),
-            ciphertext=bytes(
-                row["ciphertext"]
+            ciphertext=_require_persisted_blob(
+                row["ciphertext"],
+                label="Protected payload ciphertext",
+                minimum_length=16,
             ),
-            nonce=bytes(
-                row["nonce"]
+            nonce=_require_persisted_blob(
+                row["nonce"],
+                label="Protected payload nonce",
+                exact_length=12,
             ),
-            wrapped_dek=bytes(
-                row["wrapped_dek"]
+            wrapped_dek=_require_persisted_blob(
+                row["wrapped_dek"],
+                label="Protected payload wrapped DEK",
+                exact_length=48,
             ),
-            dek_wrap_nonce=bytes(
-                row["dek_wrap_nonce"]
+            dek_wrap_nonce=_require_persisted_blob(
+                row["dek_wrap_nonce"],
+                label="Protected payload DEK wrap nonce",
+                exact_length=12,
             ),
             aad_version=int(
                 row["aad_version"]
             ),
-            ciphertext_hash=bytes(
-                row["ciphertext_hash"]
+            ciphertext_hash=_require_persisted_blob(
+                row["ciphertext_hash"],
+                label="Protected payload ciphertext hash",
+                exact_length=32,
             ),
             created_at_us=int(
                 row["created_at_us"]
@@ -805,15 +839,17 @@ class ProtectionRepository:
 
         return ProtectionScopeKeyRecord(
             scope_key_id=uuid_from_blob(
-                bytes(
-                    row["scope_key_id"]
+                _require_persisted_blob(
+                    row["scope_key_id"],
+                    label="ProtectionScope Key identity",
+                    exact_length=16,
                 )
             ),
             protection_scope_id=uuid_from_blob(
-                bytes(
-                    row[
-                        "protection_scope_id"
-                    ]
+                _require_persisted_blob(
+                    row["protection_scope_id"],
+                    label="ProtectionScope identity",
+                    exact_length=16,
                 )
             ),
             key_version=int(
@@ -822,11 +858,15 @@ class ProtectionRepository:
             wrap_algorithm=str(
                 row["wrap_algorithm"]
             ),
-            wrap_nonce=bytes(
-                row["wrap_nonce"]
+            wrap_nonce=_require_persisted_blob(
+                row["wrap_nonce"],
+                label="ProtectionScope Key nonce",
+                exact_length=12,
             ),
-            wrapped_scope_key=bytes(
-                row["wrapped_scope_key"]
+            wrapped_scope_key=_require_persisted_blob(
+                row["wrapped_scope_key"],
+                label="ProtectionScope wrapped key",
+                exact_length=48,
             ),
             created_at_us=int(
                 row["created_at_us"]
