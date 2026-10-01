@@ -185,6 +185,57 @@ def test_watch_service_pauses_fail_closed_for_missing_vault(tmp_path: Path) -> N
     assert service.state is ObsidianSyncState.STOPPED
 
 
+
+def test_watch_service_resumes_when_missing_vault_appears(tmp_path: Path) -> None:
+    vault = tmp_path / "missing-vault"
+    service = ObsidianVaultWatchService(
+        vault,
+        database_path=tmp_path / "athena.db",
+        write_stamps=ObsidianWriteStampRegistry(),
+        poll_interval_seconds=0.01,
+    )
+
+    try:
+        service.start()
+        assert service.state is ObsidianSyncState.PAUSED
+
+        vault.mkdir()
+
+        _wait_until(lambda: service.state is ObsidianSyncState.RUNNING)
+        assert service.last_error is None
+    finally:
+        service.stop()
+
+    assert service.state is ObsidianSyncState.STOPPED
+
+
+def test_watch_service_pauses_and_resumes_after_runtime_vault_loss(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    service = ObsidianVaultWatchService(
+        vault,
+        database_path=tmp_path / "athena.db",
+        write_stamps=ObsidianWriteStampRegistry(),
+        poll_interval_seconds=0.01,
+    )
+
+    try:
+        service.start()
+        _wait_until(lambda: service.state is ObsidianSyncState.RUNNING)
+
+        vault.rmdir()
+        _wait_until(lambda: service.state is ObsidianSyncState.PAUSED)
+        assert "existing real directory" in (service.last_error or "")
+
+        vault.mkdir()
+        _wait_until(lambda: service.state is ObsidianSyncState.RUNNING)
+        assert service.last_error is None
+    finally:
+        service.stop()
+
+    assert service.state is ObsidianSyncState.STOPPED
+
+
 def test_managed_file_move_into_subfolder_resolves_by_frontmatter_identity(
     tmp_path: Path,
 ) -> None:
