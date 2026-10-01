@@ -28,6 +28,7 @@ The schema already contains the required primitives (`revisions.parent_revision_
 `ChatRepository.edit_user_message()` now:
 
 - accepts only a message belonging to the requested standard chat;
+- requires the caller's exact expected current revision and fails with `ChatRevisionConflictError` on a stale edit, preventing lost updates;
 - accepts only a `user` message authored by the editing actor;
 - creates a new revision instead of mutating the existing row;
 - links `parent_revision_id` to the exact previous head;
@@ -44,6 +45,7 @@ The schema already contains the required primitives (`revisions.parent_revision_
 `ChatRepository.fork_chat_from_message()` now:
 
 - validates that the fork point belongs to the requested standard chat;
+- requires the exact source revision visible to the caller and fails with `ChatRevisionConflictError` if that revision is stale, preventing a fork from silently moving to a newer edited head;
 - creates a new independent standard chat;
 - copies only history through the selected message sequence;
 - creates new immutable message entities/revisions for the fork;
@@ -69,10 +71,12 @@ The schema already contains the required primitives (`revisions.parent_revision_
 `tests/unit/test_chat_branching.py` covers:
 
 1. edit creates revision 2, keeps old payload, links the exact parent revision and provenance input;
-2. assistant messages cannot be rewritten through the user-edit path and gain no extra revision;
-3. fork copies exactly the prefix through the selected revision and retains exact per-message/source provenance;
-4. protected chat/message/payload states fail closed for edit and fork without adding a revision or partial chat;
-5. a fork point from a different chat fails before any partial chat is created.
+2. stale edit expectations fail without creating a successor revision;
+3. assistant messages cannot be rewritten through the user-edit path and gain no extra revision;
+4. fork copies exactly the prefix through the selected revision and retains exact per-message/source provenance;
+5. a stale fork source revision fails without creating a partial chat;
+6. protected chat/message/payload states fail closed for edit and fork without adding a revision or partial chat;
+7. a fork point from a different chat fails before any partial chat is created.
 
 ## Validation
 
