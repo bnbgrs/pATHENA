@@ -208,6 +208,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     v3_shell = install_v3_shell(window)
     settings_runtime = install_settings_runtime(window, controller)
     lmstudio_runtime = install_lmstudio_runtime(window, controller)
+    app.aboutToQuit.connect(lmstudio_runtime.dispose)
     pallas_grounded_field = install_pallas_grounded_field(window, controller)
     pallas_full_view = install_pallas_full_view(window, pallas_grounded_field)
     v3_shell.bind_pallas(pallas_full_view.open_workspace)
