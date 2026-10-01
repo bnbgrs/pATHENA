@@ -3,7 +3,15 @@
 from __future__ import annotations
 
 from PySide6.QtCore import QObject, Qt
-from PySide6.QtWidgets import QHBoxLayout, QLabel, QListWidgetItem, QProgressBar, QSplitter, QVBoxLayout, QWidget
+from PySide6.QtWidgets import (
+    QHBoxLayout,
+    QLabel,
+    QListWidgetItem,
+    QProgressBar,
+    QSplitter,
+    QVBoxLayout,
+    QWidget,
+)
 from shiboken6 import isValid
 
 from athena.desktop.jobs_workspace import JobsWorkspace
