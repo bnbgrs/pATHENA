@@ -114,3 +114,27 @@ Product/test commits before this handoff:
 - `586de1fec148ca8d2f4c75b2ef0612a52907bce2` — preserve selected details on refresh failure
 - `c83ab20d1d7c34e41ebcebb1ad7f7ce995352b55` — malformed-response/process-race tests
 - `584c8a0d0749a0e2c73eed7e54c546868ef5b409` — refresh-failure selection regression
+
+## Follow-up during the same run: background selection recovery
+
+Static race review after PR creation found one additional continuity defect in the same ownership path.
+
+When a user selected a different job while an old show/action helper owned the QProcess, foreign output was correctly kept away from the new selection, but completion of the old operation did not automatically load the new current job. The background-owner banner could therefore remain after the process was already done.
+
+Repair:
+- added current-selection detail reload once the previous job-specific operation is terminal and the process is idle;
+- applies on success, verified-action failure, nonzero helper exit, and process error;
+- errorOccurred may fire before QProcess is fully NotRunning, so finished now retries pending recovery when the background-owner marker is still present;
+- focused regression covers successful background show completion selecting/loading the new job.
+
+Additional commits:
+- d9745b426b49a6ad3e1692c442cb3c6c4989e59b — reload details after background selection change
+- 12d41c865da09092b9c900f54e86f41892c9da43 — background selection detail recovery test
+- 26cb2449830db7679e0ded73ee141ebe347eecf9 — retry selection recovery after process error
+
+Parallel dependency observed:
+- PR #351 hardens jobs_cli single-line framing. It is complementary to this branch's strict list parser and should be preserved; this branch does not modify jobs_cli.py.
+- PR #353 changes short-lived helper bootstrap/shutdown and also touches jobs_cli.py. Its output contract is unchanged by the inspected diff; do not duplicate it here.
+
+Requalify the latest PR head, not the earlier 9ed47e63/12d41c86 intermediate heads.
+
