@@ -194,36 +194,40 @@ QA owner should proceed to real Alpha/Beta E2E flows once this exact Quality rep
 - **Runtime:** continue Windows/LM Studio E2E.
 - **All workers:** update this file with exact SHA, evidence, merged PR/commit, remaining gap and next owner after every substantive step.
 
-## UI truthful composer/network slice — 2026-10-02 00:4x Europe/Berlin
+## UI Chat control truth slice — 2026-10-02 00:xx Europe/Berlin
 
 - Branch: `fix/chat-composer-truthful-controls-20261002-sol`
 - PR: #330
-- Product-code head before this handoff commit: `f9d36e04b95c5554251d6990c61fc254090d75a3`
+- Current branch head before this handoff update: `8e63bfd8ad38507500727720df598c10a639fb57`
 - Base at PR creation: `develop/pathena-next@67174198e1494fd4c8678aad60756c39ef5c160b`
 - Ausgangslage / Root Cause:
-  - Chat Send mutated its visible label between `SEND` and `WORKING`, while constructor/build paths also disagreed on button text. The control therefore had unstable/competing presentation instead of one identity.
-  - Composer rendered `ATTACH` as a static label although no attachment action or Core contract exists. This looked like capability without functionality.
-  - Rail hard-coded `NET ONLINE` and `TOR OFF` although the current Desktop/Core snapshot exposes neither network nor TOR truth.
+  - The real V3 composer paints the visible send affordance from `send_button.text()`.
+  - Legacy `AthenaMainWindow.apply_chat_busy()` mutated that shared button text to `WORKING` while busy and `SEND` afterward. Because V3 reuses the same real button, those words were painted inside the 44×44 V3 send control and replaced the intended arrow.
+  - V3 also rendered a permanently teal `v3RuntimeDot` beside the real runtime text. The dot had no Core/provider-state binding, so it visually implied healthy readiness even during connecting/error/disconnected states.
 - Änderungen:
-  - Send is one stable `→` control with accessible name `Send message`; real busy state remains disabled and is exposed through accessible description + tooltip instead of fake label replacement.
-  - Removed the non-functional `ATTACH` affordance.
-  - Network/TOR display now fails closed to `UNKNOWN` and states why it cannot claim a measured value.
-  - Added focused Qt regression assertions for all three behaviors.
-- Dateien:
+  - Send control keeps one stable semantic text through busy/idle. Busy is represented by the existing real disabled state plus accessible description/tooltip; no fake STOP behavior is introduced before Core cancellation is integrated.
+  - V3 keeps its intended `↑` glyph because the base busy handler no longer overwrites it.
+  - Removed the unmeasured V3 runtime dot; the real runtime status text remains.
+  - Added direct-chat and real V3-shell regressions covering stable send text, busy/idle accessible state, and absence of the fake runtime dot.
+- Dateien mit verbleibender Delta:
   - `src/athena/desktop/window.py`
+  - `src/athena/desktop/pathena_v3_shell.py`
   - `tests/unit/test_desktop_direct_chat.py`
-  - `tests/unit/test_desktop_shell.py`
+  - `tests/unit/test_pathena_v3_shell.py`
+  - this canonical handoff
+- Scope correction during the run:
+  - Initial hardening changes around legacy `ATTACH` and `networkState` were deliberately reverted after tracing the real startup path. `PathenaMainWindow` already hides those legacy placeholders before V3 composition, so retaining those changes would have added noise without improving the shipped UI.
 - Parallelität / Konfliktrisiko:
   - No overlap with #329 Core cancellation files, #325 Storage, #326 Research workspace, or #327 Quality harness.
-  - Stale #298 is source material only; #330 is the fresh current-Develop reconstruction and should supersede that old-base send-button slice if qualified.
-  - Future Desktop STOP UI must build on real cancellation after #329 is integrated; do not reintroduce fake `WORKING`/STOP text before Core cancellation is available on the target base.
+  - Stale #298 is source material only. #330 reconstructs the send-state fix on current Develop and adds real V3 regression coverage.
+  - Future Desktop STOP UI must build on real cancellation after #329 is integrated; do not reintroduce `WORKING`/STOP text as a visual-only substitute.
 - Validierung:
-  - Source diff reviewed against current Develop; #330 was 4 commits ahead / 0 behind at PR creation and contained only the three product/test files above.
-  - Focused regression tests are committed. GitHub exact-head workflows were not yet visible immediately after PR creation; do not mark the slice integrated until terminal exact-head evidence exists.
-  - Native interactive UI was not run in this environment because repository checkout/desktop execution is unavailable here; rely on the repository's Windows UI/visual workflows for native evidence.
+  - Earlier #330 head reached UI Focused SUCCESS before the scope correction; those results do not qualify the current head.
+  - Current exact-head Quality/UI/Visual workflows must be rechecked after this handoff commit.
+  - Native desktop execution is unavailable in this environment, so native evidence must come from the repository's Windows UI/visual workflows.
 - Nächster Schritt:
-  1. qualify #330 exact head with UI Focused + Quality + visual/native evidence;
-  2. fix any exact-head failure on #330 rather than weakening gates;
-  3. merge only after those gates are green and re-check current Develop for drift;
-  4. then close/supersede stale #298 rather than merging both.
+  1. require exact-head UI Focused + Quality + 11-surface Visual to be terminal green;
+  2. inspect any visual delta caused by removal of the fake runtime dot rather than updating a baseline blindly;
+  3. merge only after current-Develop drift is rechecked;
+  4. then supersede/close stale #298 rather than merging both.
 
