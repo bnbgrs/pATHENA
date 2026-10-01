@@ -216,3 +216,94 @@ def test_server_stop_retains_live_server_and_thread_for_retry() -> None:
     ]
     assert server._server is None
     assert server._thread is None
+
+
+
+def test_server_start_retains_live_resources_when_rollback_is_incomplete(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    events: list[str] = []
+    state = {"alive": True, "shutdown_attempts": 0}
+
+    class _PublishingRuntime:
+        def publish(self, *, port: int) -> None:
+            assert port == 43123
+            events.append("publish")
+            raise RuntimeError("publish failed")
+
+        def clear(self) -> None:
+            events.append("runtime-clear")
+
+    class _StartupServer:
+        server_address = ("127.0.0.1", 43123)
+
+        def __init__(self, *_args: Any, **_kwargs: Any) -> None:
+            events.append("server-create")
+
+        def serve_forever(self, *, poll_interval: float) -> None:
+            assert poll_interval > 0
+
+        def shutdown(self) -> None:
+            state["shutdown_attempts"] += 1
+            events.append(f"shutdown-{state['shutdown_attempts']}")
+            if state["shutdown_attempts"] == 1:
+                raise RuntimeError("rollback shutdown failed")
+            state["alive"] = False
+
+        def server_close(self) -> None:
+            events.append("close")
+
+    class _StartupThread:
+        def __init__(self, *_args: Any, **_kwargs: Any) -> None:
+            events.append("thread-create")
+
+        def start(self) -> None:
+            events.append("thread-start")
+
+        def join(self, *, timeout: float) -> None:
+            assert timeout > 0
+            events.append("join")
+
+        def is_alive(self) -> bool:
+            return state["alive"]
+
+    monkeypatch.setattr(server_module, "_AthenaHttpServer", _StartupServer)
+    monkeypatch.setattr(server_module.threading, "Thread", _StartupThread)
+
+    server = CoreApiServer.__new__(CoreApiServer)
+    runtime = _PublishingRuntime()
+    server._host = "127.0.0.1"
+    server._configured_port = 0
+    server.runtime = runtime  # type: ignore[assignment]
+    server._shutdown_callback = None
+    server.app = object()  # type: ignore[assignment]
+    server._server = None
+    server._thread = None
+    server._discovery = None
+
+    with pytest.raises(RuntimeError, match="publish failed"):
+        server.start()
+
+    assert server._server is not None
+    assert server._thread is not None
+    assert state["alive"] is True
+
+    server.stop()
+
+    assert server._server is None
+    assert server._thread is None
+    assert state["alive"] is False
+    assert events == [
+        "server-create",
+        "thread-create",
+        "thread-start",
+        "publish",
+        "runtime-clear",
+        "shutdown-1",
+        "close",
+        "join",
+        "runtime-clear",
+        "shutdown-2",
+        "close",
+        "join",
+    ]
