@@ -44,7 +44,6 @@ def test_optional_storage_root_warns_when_write_probe_fails(
     assert "access denied" in check.detail
 
 
-
 def test_optional_storage_root_warns_on_reparse_boundary_before_probe(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
