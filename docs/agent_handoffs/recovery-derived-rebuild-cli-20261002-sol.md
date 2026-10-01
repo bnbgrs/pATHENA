@@ -7,7 +7,7 @@
 - Base already includes merged PR #329 (Core/API chat cancellation).
 - Working branch: `fix/recovery-derived-rebuild-cli-20261002-sol`
 - Implementation commit: `a5688802e6b33d85c79dbf046a0d34c08c97a115`
-- Focused test commit: `83cba4cc539c0e9f7dc611cbc42ffdd962801a76`
+- Focused CLI test commit: `83cba4cc539c0e9f7dc611cbc42ffdd962801a76`\n- Diagnostic truthfulness fix: `3a218b5d1fbb698049b07be187d10d06b6515d64`\n- Diagnostic truthfulness tests: `98cf02fbbd0363f15bd364239aa6042bd12b2f51`
 
 ## Ausgangslage
 
@@ -58,6 +58,29 @@ This was a functional gap rather than a missing algorithm. Reimplementing index 
 - proves unexpected implementation defects propagate;
 - proves unsupported targets are rejected before runtime loading;
 - proves parser exposes the four bounded targets.
+
+## Zweiter behobener Fehler: falsche Gewissheit in Recovery-Diagnosen
+
+### Ausgangslage / Root Cause
+
+`RecoveryDiagnosticsService.inspect()` fing am kanonischen Preflight pauschal `Exception` ab und meldete **jede** Exception als `canonical.database_invalid_or_incompatible`.
+
+Damit wurden auch unerwartete Implementierungs-/Diagnostikfehler semantisch als beschädigte oder inkompatible Benutzerdaten klassifiziert. Das verletzt Beta 22 „No False Certainty“ und kann einen Operator fälschlich in Richtung Restore lenken.
+
+### Änderung
+
+`src/athena/core/recovery_diagnostics.py`
+
+- `DatabaseRecoveryRequiredError` behält die präzise bestehende Klassifikation `invalid-or-incompatible`;
+- unerwartete Fehler werden separat als `canonical.database_inspection_failed` / `canonical_database=inspection-failed` ausgegeben;
+- normaler Core-Start bleibt dabei sicher blockiert;
+- Exception-Text wird nicht in den payload-freien Diagnosebericht gespiegelt.
+
+`tests/unit/test_recovery_diagnostics_truth.py`
+
+- bekannte Recovery-Fehler bleiben präzise klassifiziert;
+- unerwartete Fehler werden nicht mehr als DB-Korruption ausgegeben;
+- unerwartete interne Exception-Texte werden nicht in den Diagnosepayload geleakt.
 
 ## Verhalten danach
 
