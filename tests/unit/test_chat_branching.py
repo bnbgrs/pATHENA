@@ -248,6 +248,13 @@ def test_fork_chat_copies_history_through_exact_revision_with_provenance(tmp_pat
         source_revision_id=fork_point.revision_id,
     )
 
+    origin = service.get_fork_origin(fork_chat_id)
+    assert origin is not None
+    assert origin.chat_id == fork_chat_id
+    assert origin.source_message_id == fork_point.message_id
+    assert origin.source_revision_id == fork_point.revision_id
+    assert service.get_fork_origin(source_chat_id) is None
+
     forked = service.load_chat(fork_chat_id)
     source = service.load_chat(source_chat_id)
     assert [message.content for message in forked.messages] == [
