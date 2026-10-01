@@ -52,8 +52,10 @@ in states that the authenticated wire format explicitly rejects.
   - maximum schema version not below minimum.
 - made `supports_schema()` fail closed for bool/non-int runtime values instead of using incidental
   Python numeric coercion.
+- bounded manifest parsing to 64 KiB and made `UpdateManifest.from_bytes()` reject non-byte runtime input before JSON parsing;
+- replaced the approximate version regex with a SemVer 2.0-compatible contract for core/pre-release/build structure, including rejection of leading-zero numeric pre-release identifiers;
 - hardened `verify_signed_manifest()` runtime boundaries:
-  - manifest payload must be bytes;
+  - manifest payload must be bytes and within the same 64 KiB bound;
   - detached signature must be text;
   - oversized signature text is rejected before base64 decoding;
   - public key must be exactly 32 bytes;
@@ -66,7 +68,9 @@ in states that the authenticated wire format explicitly rejects.
 
 - direct-construction regressions for channel/version/package/hash/schema invariants;
 - schema-compatibility regressions for bool/float/text/None;
-- signed-manifest runtime-boundary regressions for wrong payload/signature/key types and sizes.
+- signed-manifest runtime-boundary regressions for wrong payload/signature/key types and sizes;
+- parser size/type regressions;
+- SemVer regressions for invalid leading zeros and valid pre-release + build metadata.
 
 ## Verhalten danach
 
@@ -81,6 +85,9 @@ added or changed.
 
 - Static branch/base comparison: only the intended update source/test files changed before this
   handoff.
+- Manual diff review caught and corrected an intermediate connector-escaping defect in the SemVer
+  regex before qualification; the current head contains single regex escapes (for example `\.`
+  and `\+`) as intended.
 - Direct local pytest is not available in the current execution environment because the container
   cannot resolve `github.com` for a checkout.
 - Required next validation: focused `tests/unit/test_update_manifest.py`, Ruff, mypy and canonical
