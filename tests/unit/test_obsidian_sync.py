@@ -3,6 +3,8 @@ from __future__ import annotations
 import time
 from pathlib import Path
 
+import pytest
+
 from athena.chat.repository import ChatRepository
 from athena.chat.service import ChatService
 from athena.knowledge.models import KnowledgeKind
@@ -182,6 +184,7 @@ def test_watch_service_pauses_fail_closed_for_missing_vault(tmp_path: Path) -> N
     service.stop()
     assert service.state is ObsidianSyncState.STOPPED
 
+
 def test_managed_file_move_into_subfolder_resolves_by_frontmatter_identity(
     tmp_path: Path,
 ) -> None:
@@ -259,6 +262,34 @@ def test_malformed_managed_identity_is_rejected_not_import_candidate(
         assert len(observed) == 1
         assert observed[0].status is ObsidianWatchStatus.REJECTED
         assert observed[0].status is not ObsidianWatchStatus.IMPORT_CANDIDATE
+    finally:
+        database.stop()
+
+
+def test_disappearing_file_during_stable_read_is_transient(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    database, repository, created, exporter, watcher = _runtime(tmp_path)
+    try:
+        result = exporter.export_snapshot(repository.load_current(created.knowledge_id))
+        assert watcher.scan_once(now=0.0) == ()
+
+        target = result.path
+        original_read_bytes = Path.read_bytes
+
+        def _read_bytes(path: Path) -> bytes:
+            if path == target:
+                target.unlink()
+                raise FileNotFoundError(target)
+            return original_read_bytes(path)
+
+        monkeypatch.setattr(Path, "read_bytes", _read_bytes)
+
+        assert watcher.scan_once(now=1.0) == ()
+        current = repository.load_current(created.knowledge_id).revision
+        assert current.revision_id == created.revision_id
+        assert current.revision_no == 1
     finally:
         database.stop()
 
