@@ -3498,13 +3498,12 @@ class BackupService(DeletionLedgerStorageMixin):
                     )
                 )
 
-                if not (
-                    snapshot_root.is_dir()
-                    and (
-                        snapshot_root
-                        / "complete.marker"
-                    ).is_file()
-                ):
+                try:
+                    _safe_existing_file(
+                        snapshot_root,
+                        Path("complete.marker"),
+                    )
+                except BackupRestoreError:
                     self._set_target_status(
                         record.target_id,
                         "offline",
@@ -3774,50 +3773,43 @@ class BackupService(DeletionLedgerStorageMixin):
         expected_manifest_sha256: bytes,
         expected_snapshot_id: uuid.UUID | None = None,
     ) -> bool:
-        marker = (
-            snapshot_root
-            / "complete.marker"
-        )
-
-        if not marker.is_file():
+        if (
+            is_link_boundary(snapshot_root)
+            or not snapshot_root.is_dir()
+        ):
             return False
 
         try:
+            marker = _safe_existing_file(
+                snapshot_root,
+                Path("complete.marker"),
+            )
+            manifest_path = _safe_existing_file(
+                snapshot_root,
+                Path("manifest.json"),
+            )
+            database_path = _safe_existing_file(
+                snapshot_root,
+                Path("athena.db"),
+            )
             marker_value = (
                 marker.read_text(
                     encoding="ascii"
                 ).strip()
             )
-        except OSError:
+            manifest_bytes = (
+                manifest_path.read_bytes()
+            )
+        except (
+            BackupRestoreError,
+            OSError,
+        ):
             return False
 
         if (
             marker_value
             != expected_manifest_sha256.hex()
         ):
-            return False
-
-        manifest_path = (
-            snapshot_root
-            / "manifest.json"
-        )
-
-        database_path = (
-            snapshot_root
-            / "athena.db"
-        )
-
-        if (
-            not manifest_path.is_file()
-            or not database_path.is_file()
-        ):
-            return False
-
-        try:
-            manifest_bytes = (
-                manifest_path.read_bytes()
-            )
-        except OSError:
             return False
 
         if (
