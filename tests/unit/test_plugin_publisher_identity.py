@@ -175,7 +175,6 @@ def test_malformed_signature_and_trust_root_mismatch_fail_closed() -> None:
         )
 
 
-
 def test_trusted_publisher_rejects_malformed_runtime_types() -> None:
     with pytest.raises(PluginPublisherIdentityError, match="key_id"):
         TrustedPluginPublisher(
