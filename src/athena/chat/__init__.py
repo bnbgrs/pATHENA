@@ -4,6 +4,7 @@ from athena.chat.models import ChatMessage, ChatSummary, ChatThread, MessageType
 from athena.chat.repository import (
     ChatMessageNotFoundError,
     ChatNotFoundError,
+    ChatRevisionConflictError,
     ChatRepository,
     UnsupportedChatForkError,
     UnsupportedMessageEditError,
@@ -15,6 +16,7 @@ __all__ = [
     "ChatMessageNotFoundError",
     "ChatNotFoundError",
     "ChatRepository",
+    "ChatRevisionConflictError",
     "ChatService",
     "ChatSummary",
     "ChatThread",
