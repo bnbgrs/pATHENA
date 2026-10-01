@@ -8,6 +8,8 @@ import pytest
 from athena.desktop.lmstudio_runtime import (
     _accepted_model_load_id,
     _coerce_idle_minutes,
+    _command_timeout_ms,
+    _continue_after_failed_step,
     _CommandStep,
     _endpoint,
     _endpoint_port,
@@ -263,6 +265,20 @@ def test_pending_model_identity_is_derived_only_from_accepted_load_step() -> Non
         status="Loading model",
     )
     assert _accepted_model_load_id(malformed) is None
+
+
+def test_model_load_has_longer_bounded_timeout_than_control_commands() -> None:
+    load = _CommandStep("model_load", ("load", "model-id"), "Loading model")
+    daemon = _CommandStep("daemon_up", ("daemon", "up"), "Starting daemon")
+    assert _command_timeout_ms(load) == 600_000
+    assert _command_timeout_ms(daemon) == 30_000
+
+
+def test_restart_can_recover_when_server_is_already_stopped() -> None:
+    stop = _CommandStep("server_stop", ("server", "stop"), "Stopping server")
+    load = _CommandStep("model_load", ("load", "model-id"), "Loading model")
+    assert _continue_after_failed_step(stop) is True
+    assert _continue_after_failed_step(load) is False
 
 
 def test_find_lms_discovers_standard_per_user_install(
