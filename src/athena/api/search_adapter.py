@@ -30,7 +30,11 @@ def hybrid_search_result_response(result: HybridSearchResult) -> SearchResultRes
         title=result.title,
         preview=result.text,
         entity_type=result.entity_type.value,
-        revision_id=str(result.revision_id),
+        revision_id=(
+            None
+            if result.revision_id is None
+            else str(result.revision_id)
+        ),
         rank=result.rank,
         retrieval_methods=result.retrieval_methods,
         source_anchor=None,
