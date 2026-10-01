@@ -7,7 +7,13 @@ import json
 import sqlite3
 import uuid
 
-from athena.chat.models import ChatMessage, ChatSummary, ChatThread, MessageType
+from athena.chat.models import (
+    ChatForkOrigin,
+    ChatMessage,
+    ChatSummary,
+    ChatThread,
+    MessageType,
+)
 from athena.chat.send_identity import (
     SendOperationState,
     SendOperationStatus,
@@ -979,6 +985,41 @@ class ChatRepository:
                 message_count=int(row["message_count"]),
             )
             for row in rows
+        )
+
+    def get_fork_origin(self, chat_id: uuid.UUID) -> ChatForkOrigin | None:
+        """Return the exact persisted fork point for a branched chat."""
+        self._require_standard_chat(self.database.connection, chat_id)
+        rows = self.database.connection.execute(
+            """
+            SELECT
+                i.input_entity_id,
+                i.input_revision_id
+            FROM provenance_records AS p
+            JOIN provenance_inputs AS i
+              ON i.provenance_id = p.provenance_id
+            WHERE p.subject_entity_id = ?
+              AND p.subject_revision_id IS NULL
+              AND p.operation = 'chat.fork'
+              AND i.input_role = 'fork_point'
+              AND i.ordinal = 0
+            ORDER BY p.created_at_us ASC, p.provenance_id ASC
+            """,
+            (uuid_to_blob(chat_id),),
+        ).fetchall()
+        if not rows:
+            return None
+        if len(rows) != 1:
+            raise RuntimeError("A forked chat must have exactly one canonical fork point.")
+
+        revision_blob = rows[0]["input_revision_id"]
+        if revision_blob is None:
+            raise RuntimeError("A forked chat is missing its source revision identity.")
+
+        return ChatForkOrigin(
+            chat_id=chat_id,
+            source_message_id=uuid_from_blob(bytes(rows[0]["input_entity_id"])),
+            source_revision_id=uuid_from_blob(bytes(revision_blob)),
         )
 
     def load_chat(self, chat_id: uuid.UUID) -> ChatThread:
