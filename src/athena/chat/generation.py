@@ -648,7 +648,15 @@ class ChatGenerationService:
                 )
 
                 if on_delta is not None:
+                    if cancel_requested is not None and cancel_requested():
+                        raise GenerationCancelledError(
+                            "Chat generation was cancelled."
+                        )
                     on_delta(assistant_text)
+                    if cancel_requested is not None and cancel_requested():
+                        raise GenerationCancelledError(
+                            "Chat generation was cancelled."
+                        )
                     on_delta(provenance_manifest)
 
                 assistant_text += provenance_manifest
