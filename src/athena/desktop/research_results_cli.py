@@ -19,6 +19,10 @@ def _parser() -> argparse.ArgumentParser:
     result = commands.add_parser("result")
     result.add_argument("identifier", type=uuid.UUID)
 
+    compare = commands.add_parser("compare")
+    compare.add_argument("identifier", type=uuid.UUID)
+    compare.add_argument("--baseline", type=uuid.UUID)
+
     proposals = commands.add_parser("proposals")
     proposals.add_argument("identifier", type=uuid.UUID)
 
@@ -71,6 +75,33 @@ def _run(app: AthenaApplication, args: argparse.Namespace) -> int:
         print(json.dumps(view, ensure_ascii=False, indent=2, sort_keys=True))
         return 0
 
+    if args.command == "compare":
+        baseline = getattr(args, "baseline", None)
+        if baseline is None:
+            delta = app.research_comparison.compare_previous(args.identifier)
+            if delta is None:
+                print(
+                    json.dumps(
+                        {
+                            "available": False,
+                            "reason": (
+                                "No earlier comparable completed ResearchResult exists."
+                            ),
+                        },
+                        ensure_ascii=False,
+                        indent=2,
+                        sort_keys=True,
+                    )
+                )
+                return 0
+        else:
+            delta = app.research_comparison.compare(
+                args.identifier,
+                baseline_identifier=baseline,
+            )
+        print(json.dumps(delta.as_dict(), ensure_ascii=False, indent=2, sort_keys=True))
+        return 0
+
     if args.command == "proposals":
         _print_proposals(app, _result_id(app, args.identifier))
         return 0
@@ -105,17 +136,22 @@ def _run(app: AthenaApplication, args: argparse.Namespace) -> int:
 def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(list(argv) if argv is not None else None)
     app = AthenaApplication()
+    exit_code = 0
     try:
-        app.start(run_startup_maintenance=False)
-        return _run(app, args)
+        # Desktop helpers need canonical storage, not ownership of global Core services.
+        app.storage_bootstrap.start()
+        exit_code = _run(app, args)
     except Exception as exc:
         print(f"RESEARCH_RESULT_ERROR {type(exc).__name__}: {exc}", file=sys.stderr)
-        return 2
-    finally:
-        try:
-            app.stop()
-        except Exception:
-            pass
+        exit_code = 2
+
+    try:
+        app.storage_bootstrap.stop()
+    except Exception as exc:
+        print(f"RESEARCH_RESULT_ERROR {type(exc).__name__}: {exc}", file=sys.stderr)
+        exit_code = 2
+
+    return exit_code
 
 
 if __name__ == "__main__":
