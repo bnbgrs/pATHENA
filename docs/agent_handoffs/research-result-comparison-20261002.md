@@ -23,7 +23,7 @@ A second root cause was discovered from the concurrent helper-lifecycle work in
 PR #353: \`research_results_cli.py\` started the full \`AthenaApplication\`
 lifecycle for short-lived read/result/promotion commands. Full Core startup owns
 unrelated global services and can perform cross-subsystem writes. PR #353
-deliberately left this file to PR #357 to avoid a file conflict.
+historically left this file to PR #357 to avoid a file conflict; the current reconstruction is PR #432.
 
 ## Änderungen
 
@@ -131,7 +131,7 @@ Performed before exact-head CI:
   incompatible scopes, honest no-baseline state, CLI transport, Qt rendering,
   progressive action visibility, application wiring and helper lifecycle.
 
-Authoritative current-head CI must be read from PR #357. No CI success is
+Authoritative current-head CI must be read from PR #432. No CI success is
 claimed in this handoff until those checks complete.
 
 ## Bekannte Restprobleme
