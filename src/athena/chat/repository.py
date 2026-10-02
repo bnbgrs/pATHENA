@@ -86,6 +86,49 @@ class ChatRepository:
             return None
         return uuid_from_blob(bytes(row["actor_id"]))
 
+    def ensure_actor(
+        self,
+        *,
+        actor_type: str,
+        display_name: str | None = None,
+    ) -> uuid.UUID:
+        """Return one active actor identity, creating it atomically if absent.
+
+        Lookup and insertion share one BEGIN IMMEDIATE transaction so concurrent
+        writers cannot both persist the same logical actor identity.
+        """
+        with self.database.write_transaction() as connection:
+            row = connection.execute(
+                """
+                SELECT actor_id
+                FROM actors
+                WHERE actor_type = ?
+                  AND display_name IS ?
+                  AND active = 1
+                ORDER BY created_at_us ASC, actor_id ASC
+                LIMIT 1
+                """,
+                (actor_type, display_name),
+            ).fetchone()
+            if row is not None:
+                return uuid_from_blob(bytes(row["actor_id"]))
+
+            actor_id = new_uuid7()
+            connection.execute(
+                """
+                INSERT INTO actors (
+                    actor_id, actor_type, display_name, plugin_id, created_at_us, active
+                ) VALUES (?, ?, ?, NULL, ?, 1)
+                """,
+                (
+                    uuid_to_blob(actor_id),
+                    actor_type,
+                    display_name,
+                    utc_now_us(),
+                ),
+            )
+            return actor_id
+
     def create_actor(self, *, actor_type: str, display_name: str | None = None) -> uuid.UUID:
         actor_id = new_uuid7()
         created_at_us = utc_now_us()
