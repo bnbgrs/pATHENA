@@ -13,7 +13,6 @@ from athena.source.blob_store import (
     SourceChangedDuringCaptureError,
 )
 from athena.source.models import SourceType
-from athena.security.service import ProtectionScopeLockedError
 
 
 _TEST_KDF = Argon2idParameters(
@@ -245,6 +244,8 @@ def test_protected_image_byte_read_preserves_bounds_and_lock_state(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    from athena.security.service import ProtectionScopeLockedError
+
     app = _started_app(tmp_path)
     payload = _png_payload()
     password = b"image-byte-protection-password"
