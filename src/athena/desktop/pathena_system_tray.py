@@ -7,21 +7,42 @@ instead of fabricating success.
 
 from __future__ import annotations
 
-from PySide6.QtCore import QObject, Slot
+from PySide6.QtCore import QEvent, QObject, Slot
 from PySide6.QtGui import QAction, QIcon
 from PySide6.QtWidgets import QApplication, QMenu, QStyle, QSystemTrayIcon, QWidget
+
+
+def _system_tray_available() -> bool:
+    """Return whether Qt can expose a tray icon in the current desktop session."""
+    return bool(QSystemTrayIcon.isSystemTrayAvailable())
 
 
 class PathenaSystemTrayController(QObject):
     """Own one persistent system-tray icon and its desktop-shell actions."""
 
-    def __init__(self, window: QWidget, *, app: QApplication | None = None) -> None:
+    def __init__(
+        self,
+        window: QWidget,
+        *,
+        app: QApplication | None = None,
+        close_to_tray: bool = True,
+    ) -> None:
         super().__init__(window)
         self.window = window
         application = app or QApplication.instance()
         if not isinstance(application, QApplication):
             raise RuntimeError("pATHENA system tray requires QApplication ownership")
         self.app: QApplication = application
+        self._tray_available = _system_tray_available()
+        self._close_to_tray_enabled = bool(close_to_tray) and self._tray_available
+        self._shutdown = False
+        self.window.installEventFilter(self)
+        self.window.setProperty("pathenaSystemTrayAvailable", self._tray_available)
+        self.window.setProperty(
+            "pathenaCloseToTrayEnabled",
+            self._close_to_tray_enabled,
+        )
+        self.app.aboutToQuit.connect(self.shutdown)
 
         self.menu = QMenu()
         self.menu.setObjectName("pathenaTrayMenu")
@@ -60,7 +81,40 @@ class PathenaSystemTrayController(QObject):
         self.tray.setProperty("pathenaRuntimeState", "unavailable")
         self.tray.setContextMenu(self.menu)
         self.tray.activated.connect(self._activate)
-        self.tray.show()
+        if self._tray_available:
+            self.tray.show()
+
+    @property
+    def tray_available(self) -> bool:
+        """Return whether the current desktop session exposes a usable tray."""
+        return self._tray_available
+
+    @property
+    def close_to_tray_enabled(self) -> bool:
+        """Return whether the main-window close action is intercepted."""
+        return self._close_to_tray_enabled
+
+    @Slot(bool)
+    def set_close_to_tray_enabled(self, enabled: bool) -> None:
+        """Enable or disable close-to-tray without changing process ownership."""
+        self._close_to_tray_enabled = bool(enabled) and self._tray_available
+        self.window.setProperty(
+            "pathenaCloseToTrayEnabled",
+            self._close_to_tray_enabled,
+        )
+
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:  # noqa: N802
+        """Hide the owned main window instead of terminating the tray session."""
+        if (
+            not self._shutdown
+            and self._close_to_tray_enabled
+            and watched is self.window
+            and event.type() is QEvent.Type.Close
+        ):
+            event.ignore()
+            self.window.hide()
+            return True
+        return super().eventFilter(watched, event)
 
     def _unavailable_action(self, label: str) -> QAction:
         action = QAction(f"{label} · unavailable", self.menu)
@@ -114,8 +168,15 @@ class PathenaSystemTrayController(QObject):
         }:
             self.open_window()
 
+    @Slot()
     def shutdown(self) -> None:
-        """Remove the tray icon before Qt application teardown."""
+        """Detach close interception and remove the tray before Qt teardown."""
+        if self._shutdown:
+            return
+        self._shutdown = True
+        self._close_to_tray_enabled = False
+        self.window.setProperty("pathenaCloseToTrayEnabled", False)
+        self.window.removeEventFilter(self)
         self.tray.hide()
         self.menu.close()
 
@@ -124,8 +185,13 @@ def install_system_tray(
     window: QWidget,
     *,
     app: QApplication | None = None,
+    close_to_tray: bool = True,
 ) -> PathenaSystemTrayController:
     """Install the single desktop tray lifecycle controller."""
-    controller = PathenaSystemTrayController(window, app=app)
+    controller = PathenaSystemTrayController(
+        window,
+        app=app,
+        close_to_tray=close_to_tray,
+    )
     window.setProperty("pathenaSystemTrayInstalled", True)
     return controller
