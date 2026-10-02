@@ -33,6 +33,9 @@ _SETTINGS_ROOT: Final = "desktop/lmstudio-runtime/v1"
 _DEFAULT_BASE_URL: Final = "http://127.0.0.1:1234"
 _MODEL_CONFIRMATION_REFRESH_LIMIT: Final = 6
 _MODEL_CONFIRMATION_DELAY_MS: Final = 500
+_CONTROL_COMMAND_TIMEOUT_MS: Final = 45_000
+_MODEL_UNLOAD_TIMEOUT_MS: Final = 120_000
+_MODEL_LOAD_TIMEOUT_MS: Final = 600_000
 
 
 @dataclass(frozen=True, slots=True)
@@ -51,7 +54,7 @@ def _default_settings() -> QSettings:
     )
 
 
-def _endpoint_port(base_url: str) -> int:
+def _endpoint(base_url: str) -> tuple[str, int]:
     parsed = urlparse(base_url)
     if parsed.scheme != "http" or parsed.hostname not in {"127.0.0.1", "localhost", "::1"}:
         raise ValueError("LM Studio runtime control requires a loopback HTTP endpoint.")
@@ -60,10 +63,68 @@ def _endpoint_port(base_url: str) -> int:
     except ValueError as exc:
         raise ValueError("LM Studio endpoint contains an invalid port.") from exc
     if port is None:
-        return 80
+        port = 80
     if not 1 <= port <= 65535:
         raise ValueError("LM Studio endpoint contains an invalid port.")
-    return port
+    bind_host = "::1" if parsed.hostname == "::1" else "127.0.0.1"
+    return bind_host, port
+
+
+def _endpoint_port(base_url: str) -> int:
+    """Return the validated loopback port for callers that do not need bind identity."""
+    return _endpoint(base_url)[1]
+
+
+def _command_timeout_ms(operation: str) -> int:
+    """Bound CLI operations without treating legitimate model loads as control hangs."""
+    if operation == "model_load":
+        return _MODEL_LOAD_TIMEOUT_MS
+    if operation == "model_unload":
+        return _MODEL_UNLOAD_TIMEOUT_MS
+    return _CONTROL_COMMAND_TIMEOUT_MS
+
+
+def _coerce_idle_minutes(value: object, *, default: int = 30) -> int:
+    """Return one bounded idle value without bool-to-int coercion."""
+    if isinstance(value, bool):
+        parsed = default
+    elif isinstance(value, int):
+        parsed = value
+    elif isinstance(value, str) and value.strip().lstrip("-").isdigit():
+        parsed = int(value.strip())
+    else:
+        parsed = default
+    return max(0, min(1440, parsed))
+
+
+def _accepted_model_load_id(step: _CommandStep) -> str | None:
+    """Derive pending identity only from the exact load command that completed."""
+    if (
+        step.operation != "model_load"
+        or len(step.arguments) < 2
+        or step.arguments[0] != "load"
+    ):
+        return None
+    model_id = step.arguments[1].strip()
+    return model_id or None
+
+
+def _continue_after_failed_step(step: _CommandStep) -> bool:
+    """Allow restart recovery to proceed when the server was already stopped."""
+    return step.operation == "server_stop"
+
+
+def _server_start_steps(base_url: str) -> tuple[_CommandStep, _CommandStep]:
+    """Build the idempotent headless daemon/server startup sequence."""
+    bind_host, port = _endpoint(base_url)
+    return (
+        _CommandStep("daemon_up", ("daemon", "up"), "Starting headless LM Studio daemon"),
+        _CommandStep(
+            "server_start",
+            ("server", "start", "--port", str(port), "--bind", bind_host),
+            "Starting local LM Studio server",
+        ),
+    )
 
 
 def _find_lms() -> str | None:
@@ -201,6 +262,10 @@ class LMStudioRuntimeController(QObject):
         self.process.finished.connect(self._process_finished)
         self.process.errorOccurred.connect(self._process_error)
 
+        self._command_timer = QTimer(self)
+        self._command_timer.setSingleShot(True)
+        self._command_timer.timeout.connect(self._command_timed_out)
+
         self.auto_start = QCheckBox("Start local model server automatically")
         self.auto_load = QCheckBox("Load selected model automatically")
         self.idle_minutes = QSpinBox()
@@ -241,19 +306,30 @@ class LMStudioRuntimeController(QObject):
     def status_text(self) -> str:
         return self.runtime_status.text()
 
+    @Slot()
+    def dispose(self) -> None:
+        """Stop owned CLI work during desktop shutdown without stopping LM Studio."""
+        self._command_timer.stop()
+        self._steps.clear()
+        self._active_step = None
+        self._pending_model_id = None
+        self._model_confirmation_refreshes_remaining = 0
+        if self.process.state() != QProcess.ProcessState.NotRunning:
+            self.process.kill()
+            self.process.waitForFinished(1_000)
+
     def _restore_settings(self) -> None:
         self.settings.beginGroup(_SETTINGS_ROOT)
         try:
             auto_start = self.settings.value("auto_start", True, type=bool)
             auto_load = self.settings.value("auto_load", True, type=bool)
-            idle_minutes = self.settings.value("idle_minutes", 30, type=int)
+            idle_minutes = self.settings.value("idle_minutes", 30)
             preferred_model_id = self.settings.value("preferred_model_id", "", type=str)
         finally:
             self.settings.endGroup()
         self.auto_start.setChecked(bool(auto_start))
         self.auto_load.setChecked(bool(auto_load))
-        idle_value = idle_minutes if isinstance(idle_minutes, int) else 30
-        self.idle_minutes.setValue(max(0, min(1440, idle_value)))
+        self.idle_minutes.setValue(_coerce_idle_minutes(idle_minutes))
         preferred = str(preferred_model_id).strip()
         self._preferred_model_id = preferred or None
 
@@ -345,6 +421,14 @@ class LMStudioRuntimeController(QObject):
             self._restore_preferred_model_selection()
         selected = self.window._selected_model()
 
+        if self.busy:
+            # The active CLI step owns the visible runtime status until it
+            # finishes, errors, or times out. Snapshot refreshes still update
+            # cached truth but must not replace "Loading…"/"Unloading…"/restart
+            # with a stale available/loaded label mid-command.
+            self.unload_button.setEnabled(False)
+            return
+
         if not provider_ready:
             self.unload_button.setEnabled(False)
             if _should_attempt_auto_start(
@@ -410,7 +494,6 @@ class LMStudioRuntimeController(QObject):
             attempted_model_id=self._auto_load_attempted_model_id,
             busy=self.busy,
         ):
-            self._pending_model_id = selected.backend_model_id
             self._auto_load_attempted_model_id = selected.backend_model_id
             self.ensure_selected_model()
 
@@ -442,11 +525,10 @@ class LMStudioRuntimeController(QObject):
     def _model_selected(self, _index: int) -> None:
         model = self.window._selected_model()
         self._auto_load_attempted_model_id = None
+        self._pending_model_id = None
         self._model_confirmation_refreshes_remaining = 0
         if model is None:
-            self._pending_model_id = None
             return
-        self._pending_model_id = model.backend_model_id
         self._preferred_model_id = model.backend_model_id
         self._persist_settings()
         if self.auto_load.isChecked():
@@ -462,19 +544,11 @@ class LMStudioRuntimeController(QObject):
             )
             return
         try:
-            port = _endpoint_port(self.base_url)
+            steps = _server_start_steps(self.base_url)
         except ValueError as exc:
             self._set_status(f"LM Studio runtime · {exc}")
             return
-        self._run_sequence(
-            (
-                _CommandStep(
-                    "server_start",
-                    ("server", "start", "--port", str(port), "--bind", "127.0.0.1"),
-                    "Starting local LM Studio service and server",
-                ),
-            )
-        )
+        self._run_sequence(steps)
 
     @Slot()
     def restart_server(self) -> None:
@@ -486,18 +560,14 @@ class LMStudioRuntimeController(QObject):
             self._set_status("LM Studio runtime · lms CLI not found")
             return
         try:
-            port = _endpoint_port(self.base_url)
+            start_steps = _server_start_steps(self.base_url)
         except ValueError as exc:
             self._set_status(f"LM Studio runtime · {exc}")
             return
         self._run_sequence(
             (
                 _CommandStep("server_stop", ("server", "stop"), "Stopping local LM Studio server"),
-                _CommandStep(
-                    "server_start",
-                    ("server", "start", "--port", str(port), "--bind", "127.0.0.1"),
-                    "Starting local LM Studio service and server",
-                ),
+                *start_steps,
             )
         )
 
@@ -505,8 +575,8 @@ class LMStudioRuntimeController(QObject):
     def ensure_selected_model(self) -> None:
         model = self.window._selected_model()
         if model is None:
+            self._pending_model_id = None
             return
-        self._pending_model_id = model.backend_model_id
         self._model_confirmation_refreshes_remaining = 0
         if model.loaded:
             self._pending_model_id = None
@@ -515,6 +585,7 @@ class LMStudioRuntimeController(QObject):
         if self.busy:
             return
         if self._lms_path is None:
+            self._pending_model_id = None
             self._set_status("LM Studio runtime · lms CLI not found")
             return
 
@@ -590,34 +661,79 @@ class LMStudioRuntimeController(QObject):
         except ValueError as exc:
             self._steps.clear()
             self._active_step = None
+            if step.operation == "model_load":
+                self._pending_model_id = None
+                self._model_confirmation_refreshes_remaining = 0
             self.busy_changed.emit(False)
             self._set_status(f"LM Studio runtime · command rejected · {exc}")
             return
         self.process.start(program, arguments)
+        self._command_timer.start(_command_timeout_ms(step.operation))
+
+    @Slot()
+    def _command_timed_out(self) -> None:
+        step = self._active_step
+        if step is None:
+            return
+        self._steps.clear()
+        self._active_step = None
+        if step.operation == "model_load":
+            self._pending_model_id = None
+        self._model_confirmation_refreshes_remaining = 0
+        self.busy_changed.emit(False)
+        self._set_status(f"LM Studio runtime · {step.operation} timed out")
+        if self.process.state() != QProcess.ProcessState.NotRunning:
+            self.process.kill()
+        QTimer.singleShot(250, self.controller.refresh)
 
     @Slot(int, QProcess.ExitStatus)
     def _process_finished(self, exit_code: int, _exit_status: QProcess.ExitStatus) -> None:
         step = self._active_step
         if step is None:
             return
+        self._command_timer.stop()
         output = bytes(self.process.readAllStandardOutput().data()).decode(
             "utf-8", errors="replace"
         ).strip()
 
         # A stop/start command can race with an already-correct server state. Refresh
-        # after any failure so the Core, rather than CLI wording, decides actual truth.
+        # after terminal failures so the Core, rather than CLI wording, decides truth.
         if exit_code != 0:
+            detail = output.splitlines()[-1] if output else f"exit {exit_code}"
+            if _continue_after_failed_step(step) and self._steps:
+                self._active_step = None
+                self._set_status(
+                    "LM Studio runtime · server stop unavailable; continuing restart "
+                    f"· {detail}"
+                )
+                self._start_next_step()
+                return
+
             self._steps.clear()
             self._active_step = None
+            if step.operation == "model_load":
+                self._pending_model_id = None
+                self._model_confirmation_refreshes_remaining = 0
             self.busy_changed.emit(False)
-            detail = output.splitlines()[-1] if output else f"exit {exit_code}"
             self._set_status(f"LM Studio runtime · {step.operation} failed · {detail}")
             QTimer.singleShot(250, self.controller.refresh)
             return
 
         if step.operation == "model_load":
-            # CLI exit 0 only means LM Studio accepted the load command. Keep the
-            # request pending until Core discovery reports this exact model loaded.
+            # CLI exit 0 establishes the exact load identity and only now opens
+            # the bounded Core-confirmation window. Core snapshots while the CLI
+            # is still running cannot consume a zero confirmation budget.
+            accepted_model_id = _accepted_model_load_id(step)
+            if accepted_model_id is None:
+                self._steps.clear()
+                self._active_step = None
+                self._pending_model_id = None
+                self._model_confirmation_refreshes_remaining = 0
+                self.busy_changed.emit(False)
+                self._set_status("LM Studio runtime · invalid model-load command state")
+                QTimer.singleShot(250, self.controller.refresh)
+                return
+            self._pending_model_id = accepted_model_id
             self._model_confirmation_refreshes_remaining = (
                 _MODEL_CONFIRMATION_REFRESH_LIMIT
             )
@@ -627,12 +743,16 @@ class LMStudioRuntimeController(QObject):
     @Slot(QProcess.ProcessError)
     def _process_error(self, error: QProcess.ProcessError) -> None:
         step = self._active_step
+        if step is None:
+            return
+        self._command_timer.stop()
         self._steps.clear()
         self._active_step = None
+        if step.operation == "model_load":
+            self._pending_model_id = None
         self._model_confirmation_refreshes_remaining = 0
         self.busy_changed.emit(False)
-        label = step.operation if step is not None else "command"
-        self._set_status(f"LM Studio runtime · {label} error · {error.name}")
+        self._set_status(f"LM Studio runtime · {step.operation} error · {error.name}")
         QTimer.singleShot(250, self.controller.refresh)
 
 
