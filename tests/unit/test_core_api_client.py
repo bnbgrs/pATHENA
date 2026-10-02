@@ -292,6 +292,56 @@ def test_client_rejects_non_loopback_discovery(tmp_path: Path) -> None:
     assert exc_info.value.code == "invalid_discovery"
 
 
+def test_client_rejects_symlink_runtime_ancestor(tmp_path: Path) -> None:
+    real_parent = tmp_path / "real-parent"
+    real_parent.mkdir()
+    link_parent = tmp_path / "linked-parent"
+    try:
+        link_parent.symlink_to(real_parent, target_is_directory=True)
+    except OSError:
+        pytest.skip("symlink creation unavailable")
+
+    runtime_root = link_parent / "api"
+    _bootstrap(runtime_root)
+
+    with pytest.raises(
+        CoreApiClientError,
+        match="runtime directory is not trusted",
+    ) as exc_info:
+        CoreApiClient(runtime_root).discovery_process_id()
+
+    assert exc_info.value.code == "invalid_discovery"
+
+
+def test_client_rejects_runtime_ancestor_reported_as_link_boundary(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runtime_root = tmp_path / "safe" / "api"
+    _bootstrap(runtime_root)
+    original_is_link_boundary = client_module.is_link_boundary
+    unsafe_ancestor = runtime_root.parent
+
+    def fake_is_link_boundary(path: Path) -> bool:
+        if path == unsafe_ancestor:
+            return True
+        return original_is_link_boundary(path)
+
+    monkeypatch.setattr(
+        client_module,
+        "is_link_boundary",
+        fake_is_link_boundary,
+    )
+
+    with pytest.raises(
+        CoreApiClientError,
+        match="runtime directory is not trusted",
+    ) as exc_info:
+        CoreApiClient(runtime_root).discovery_process_id()
+
+    assert exc_info.value.code == "invalid_discovery"
+
+
 def test_client_rejects_token_path_outside_runtime_root(tmp_path: Path) -> None:
     runtime_root = tmp_path / "api"
     _bootstrap(runtime_root)
@@ -472,6 +522,99 @@ def test_client_shutdown_command_is_not_retried(
 
     assert calls == 1
 
+
+
+@pytest.mark.parametrize(
+    "timeout",
+    [
+        True,
+        False,
+        0,
+        -1,
+        float("nan"),
+        float("inf"),
+        float("-inf"),
+        10**400,
+        "5",
+    ],
+)
+def test_client_rejects_invalid_transport_timeout_values(
+    tmp_path: Path,
+    timeout: object,
+) -> None:
+    with pytest.raises((TypeError, ValueError), match="timeout"):
+        CoreApiClient(
+            tmp_path / "api",
+            timeout_seconds=timeout,  # type: ignore[arg-type]
+        )
+
+
+@pytest.mark.parametrize(
+    "timeout",
+    [
+        True,
+        False,
+        0,
+        -1,
+        float("nan"),
+        float("inf"),
+        float("-inf"),
+        10**400,
+        "30",
+    ],
+)
+def test_client_rejects_invalid_generation_timeout_values(
+    tmp_path: Path,
+    timeout: object,
+) -> None:
+    with pytest.raises((TypeError, ValueError), match="generation timeout"):
+        CoreApiClient(
+            tmp_path / "api",
+            generation_timeout_seconds=timeout,  # type: ignore[arg-type]
+        )
+
+
+@pytest.mark.parametrize(
+    ("limit", "offset", "message"),
+    [
+        (True, 0, "limit must be an integer"),
+        (1.5, 0, "limit must be an integer"),
+        ("20", 0, "limit must be an integer"),
+        (20, True, "offset must be an integer"),
+        (20, 1.5, "offset must be an integer"),
+        (20, "1", "offset must be an integer"),
+    ],
+)
+def test_client_rejects_non_integer_chat_pagination_before_discovery(
+    tmp_path: Path,
+    limit: object,
+    offset: object,
+    message: str,
+) -> None:
+    with pytest.raises(ValueError, match=message):
+        CoreApiClient(tmp_path / "missing-runtime").list_chats(
+            limit=limit,  # type: ignore[arg-type]
+            offset=offset,  # type: ignore[arg-type]
+        )
+
+
+@pytest.mark.parametrize(
+    "value",
+    [float("nan"), float("inf"), float("-inf"), 10**400],
+)
+def test_client_rejects_nonfinite_numeric_response_fields(
+    value: int | float,
+) -> None:
+    with pytest.raises(
+        CoreApiClientError,
+        match="not finite",
+    ) as exc_info:
+        client_module._required_float(
+            {"confidence": value},
+            "confidence",
+        )
+
+    assert exc_info.value.code == "invalid_response"
 
 
 def test_client_rejects_negative_chat_offset(
