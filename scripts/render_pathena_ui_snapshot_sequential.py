@@ -430,17 +430,17 @@ def main(argv: Sequence[str] | None = None) -> int:
         last_reason = "Settings runtime was not sampled"
         while time.monotonic() < deadline:
             app.processEvents()
-            provider_text = str(getattr(runtime, "provider_value").text())
-            network_text = str(getattr(runtime, "network_value").text())
-            news_text = str(getattr(runtime, "news_status").text())
-            persistence_text = str(getattr(runtime, "persistence_value").text())
-            detail_text = str(getattr(runtime, "detail").text())
+            provider_text = str(runtime.provider_value.text())
+            network_text = str(runtime.network_value.text())
+            news_text = str(runtime.news_status.text())
+            persistence_text = str(runtime.persistence_value.text())
+            detail_text = str(runtime.detail.text())
             shell_status = str(window.status_text.text())
             lmstudio_status = lmstudio.status_text
             lmstudio_busy = lmstudio.busy
-            snapshot_received = getattr(runtime, "_last_snapshot", None) is not None
-            news_requested = bool(getattr(runtime, "_news_requested", False))
-            news_busy = getattr(runtime, "_news_task", None) is not None
+            snapshot_received = runtime._last_snapshot is not None
+            news_requested = bool(runtime._news_requested)
+            news_busy = runtime._news_task is not None
 
             ready, reason = _settings_capture_ready(
                 shell_status=shell_status,
