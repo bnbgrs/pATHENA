@@ -44,6 +44,7 @@ def test_canonical_windows_path_safety_keeps_exact_sha_and_storage_regressions()
 
 def test_canonical_quality_keeps_full_pytest_and_enforces_all_core_checks() -> None:
     workflow = _quality_workflow_text()
+    normalized = " ".join(workflow.replace("\\\n", " ").split())
 
     controller_command = (
         "uv run --locked --extra dev --extra desktop python -m pytest "
