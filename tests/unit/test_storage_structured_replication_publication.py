@@ -312,7 +312,7 @@ def test_existing_conflicting_orphan_is_never_overwritten_and_marks_conflict(
             previous_hash=None,
         )
 
-        commits_dir, _manifest_dir = _initialize_repository_root(
+        commits_dir, manifest_dir = _initialize_repository_root(
             target_root,
             target.target_id,
         )
@@ -514,7 +514,6 @@ def test_bundle_commit_identity_must_match_canonical_local_history(
     finally:
         database.stop()
 
-
 def test_concurrent_confirmation_of_same_bundle_is_idempotent(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -679,12 +678,18 @@ def test_repository_identity_mismatch_conflicts_before_commit_publication(
     finally:
         database.stop()
 
-def test_repository_layout_file_boundary_enters_conflict(
+
+
+def test_repository_initialization_rejects_non_file_partial_residue(
     tmp_path: Path,
 ) -> None:
     database, repository, actor_id = _runtime(tmp_path)
     try:
         target_root = tmp_path / "long-term"
+        target_root.mkdir()
+        hidden_directory = target_root / ".repository.json.attacker.partial"
+        hidden_directory.mkdir()
+
         target = repository.register_target(str(target_root))
         commit_seq, commit_id = _commit(database, actor_id, 1)
         bundle = _bundle(
@@ -701,28 +706,202 @@ def test_repository_layout_file_boundary_enters_conflict(
             previous_hash=None,
         )
 
-        durable_mkdir(target_root, parents=True, exist_ok=True)
-        durable_publish_new_bytes(
-            target_root / "repository.json",
-            publication._canonical_repository_bytes(target.target_id),
-        )
-        poisoned = target_root / "commits"
-        poisoned.write_bytes(b"not-a-directory")
-
         with pytest.raises(
             StructuredReplicationConflictError,
-            match="directory is unsafe",
+            match="partial entry is not a regular file",
         ):
             StructuredReplicationPublisher(repository).publish_staged_bundle(
                 target.target_id,
                 bundle,
             )
 
-        assert poisoned.read_bytes() == b"not-a-directory"
-        assert (
-            repository.get_target(target.target_id).state
-            is ReplicationTargetState.CONFLICT
-        )
+        assert hidden_directory.is_dir()
+        assert not (target_root / "repository.json").exists()
+        conflicted = repository.get_target(target.target_id)
+        assert conflicted.state is ReplicationTargetState.CONFLICT
+        assert conflicted.confirmed_commit_seq == 0
     finally:
         database.stop()
 
+
+def test_managed_partial_directory_cannot_hide_inside_replication_history(
+    tmp_path: Path,
+) -> None:
+    database, repository, actor_id = _runtime(tmp_path)
+    try:
+        target_root = tmp_path / "long-term"
+        target = repository.register_target(str(target_root))
+
+        first_seq, first_id = _commit(database, actor_id, 1)
+        first = _bundle(
+            commit_id=first_id,
+            commit_seq=first_seq,
+            previous_hash=None,
+            marker=1,
+        )
+        _stage(
+            repository,
+            target.target_id,
+            first,
+            commit_seq=first_seq,
+            previous_hash=None,
+        )
+        publisher = StructuredReplicationPublisher(repository)
+        publisher.publish_staged_bundle(target.target_id, first)
+
+        second_seq, second_id = _commit(database, actor_id, 2)
+        second = _bundle(
+            commit_id=second_id,
+            commit_seq=second_seq,
+            previous_hash=first.bundle_hash,
+            marker=2,
+        )
+        _stage(
+            repository,
+            target.target_id,
+            second,
+            commit_seq=second_seq,
+            previous_hash=first.bundle_hash,
+        )
+
+        _commits_dir, manifest_dir = _layout(target_root)
+        hidden_directory = manifest_dir / ".attacker.partial"
+        hidden_directory.mkdir()
+
+        with pytest.raises(
+            StructuredReplicationConflictError,
+            match="partial entry is not a regular file",
+        ):
+            publisher.publish_staged_bundle(target.target_id, second)
+
+        assert hidden_directory.is_dir()
+        conflicted = repository.get_target(target.target_id)
+        assert conflicted.state is ReplicationTargetState.CONFLICT
+        assert conflicted.confirmed_commit_seq == first_seq
+        assert conflicted.confirmed_head_hash == first.bundle_hash
+    finally:
+        database.stop()
+
+
+def test_retry_of_older_verified_bundle_after_head_advanced_is_read_only(
+    tmp_path: Path,
+) -> None:
+    database, repository, actor_id = _runtime(tmp_path)
+    try:
+        target_root = tmp_path / "long-term"
+        target = repository.register_target(str(target_root))
+        publisher = StructuredReplicationPublisher(repository)
+
+        first_seq, first_id = _commit(database, actor_id, 1)
+        first = _bundle(
+            commit_id=first_id,
+            commit_seq=first_seq,
+            previous_hash=None,
+            marker=1,
+        )
+        _stage(
+            repository,
+            target.target_id,
+            first,
+            commit_seq=first_seq,
+            previous_hash=None,
+        )
+        publisher.publish_staged_bundle(target.target_id, first)
+
+        second_seq, second_id = _commit(database, actor_id, 2)
+        second = _bundle(
+            commit_id=second_id,
+            commit_seq=second_seq,
+            previous_hash=first.bundle_hash,
+            marker=2,
+        )
+        _stage(
+            repository,
+            target.target_id,
+            second,
+            commit_seq=second_seq,
+            previous_hash=first.bundle_hash,
+        )
+        advanced = publisher.publish_staged_bundle(target.target_id, second)
+
+        commits_dir, manifest_dir = _layout(target_root)
+        before_commits = {
+            path.name: path.read_bytes()
+            for path in commits_dir.iterdir()
+            if path.is_file()
+        }
+        before_manifests = {
+            path.name: path.read_bytes()
+            for path in manifest_dir.iterdir()
+            if path.is_file()
+        }
+
+        retried = publisher.publish_staged_bundle(target.target_id, first)
+
+        assert retried == advanced
+        assert retried.confirmed_commit_seq == second_seq
+        assert retried.confirmed_head_hash == second.bundle_hash
+        assert {
+            path.name: path.read_bytes()
+            for path in commits_dir.iterdir()
+            if path.is_file()
+        } == before_commits
+        assert {
+            path.name: path.read_bytes()
+            for path in manifest_dir.iterdir()
+            if path.is_file()
+        } == before_manifests
+    finally:
+        database.stop()
+
+
+def test_existing_managed_file_marks_target_conflict_without_overwrite(
+    tmp_path: Path,
+) -> None:
+    database, repository, actor_id = _runtime(tmp_path)
+    try:
+        target_root = tmp_path / "long-term"
+        target = repository.register_target(str(target_root))
+
+        durable_mkdir(target_root, parents=True, exist_ok=True)
+        durable_publish_new_bytes(
+            target_root / "repository.json",
+            publication._canonical_repository_bytes(target.target_id),
+        )
+        commits_path = target_root / "commits"
+        commits_path.write_bytes(b"not-a-directory")
+
+        commit_seq, commit_id = _commit(database, actor_id, 1)
+        bundle = _bundle(
+            commit_id=commit_id,
+            commit_seq=commit_seq,
+            previous_hash=None,
+            marker=1,
+        )
+        _stage(
+            repository,
+            target.target_id,
+            bundle,
+            commit_seq=commit_seq,
+            previous_hash=None,
+        )
+
+        with pytest.raises(
+            StructuredReplicationConflictError,
+            match="managed path is not a directory",
+        ):
+            StructuredReplicationPublisher(repository).publish_staged_bundle(
+                target.target_id,
+                bundle,
+            )
+
+        assert commits_path.read_bytes() == b"not-a-directory"
+        conflicted = repository.get_target(target.target_id)
+        assert conflicted.state is ReplicationTargetState.CONFLICT
+        assert conflicted.confirmed_commit_seq == 0
+        assert (
+            repository.get_commit(target.target_id, commit_seq).state
+            is ReplicationCommitState.PENDING
+        )
+    finally:
+        database.stop()
