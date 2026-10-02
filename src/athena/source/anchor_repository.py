@@ -347,6 +347,8 @@ class SourceAnchorRepository:
         return _anchor_from_row(row)
 
     def list_for_source(self, source_id: uuid.UUID, *, limit: int = 500) -> tuple[SourceAnchorRecord, ...]:
+        if isinstance(limit, bool) or not isinstance(limit, int):
+            raise TypeError("Anchor list limit must be an integer.")
         if not 1 <= limit <= 5000:
             raise ValueError("Anchor list limit must be between 1 and 5000.")
         rows = self.database.connection.execute(

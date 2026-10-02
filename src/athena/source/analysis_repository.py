@@ -160,6 +160,8 @@ class SourceAnalysisRepository:
     def list_analyses_for_source(
         self, source_id: uuid.UUID, *, limit: int = 100
     ) -> tuple[SourceAnalysisRecord, ...]:
+        if isinstance(limit, bool) or not isinstance(limit, int):
+            raise TypeError("Analysis list limit must be an integer.")
         if not 1 <= limit <= 1000:
             raise ValueError("Analysis list limit must be between 1 and 1000.")
         rows = self.database.connection.execute(
