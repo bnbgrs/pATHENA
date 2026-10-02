@@ -50,16 +50,27 @@ def test_canonical_quality_keeps_full_pytest_and_enforces_all_core_checks() -> N
         "tests/unit/test_desktop_api_controller.py 2>&1 | tee "
         ".quality-evidence/pytest-desktop-api-controller.txt"
     )
-    remaining_suite_command = (
+    chat_selection_command = (
         "uv run --locked --extra dev --extra desktop python -m pytest "
-        "--ignore=tests/unit/test_desktop_api_controller.py 2>&1 | tee "
-        ".quality-evidence/pytest.txt"
+        "tests/unit/test_desktop_chat_selection_state.py 2>&1 | tee "
+        ".quality-evidence/pytest-desktop-chat-selection-state.txt"
+    )
+    remaining_suite_command = (
+        "uv run --locked --extra dev --extra desktop python -m pytest \\\n"
+        "            --ignore=tests/unit/test_desktop_api_controller.py \\\n"
+        "            --ignore=tests/unit/test_desktop_chat_selection_state.py \\\n"
+        "            2>&1 | tee .quality-evidence/pytest.txt"
     )
     assert controller_command in workflow
+    assert chat_selection_command in workflow
     assert remaining_suite_command in workflow
     assert 'controller_status=${PIPESTATUS[0]}' in workflow
+    assert 'chat_selection_status=${PIPESTATUS[0]}' in workflow
     assert 'suite_status=${PIPESTATUS[0]}' in workflow
-    assert 'if [ "$controller_status" -ne 0 ] || [ "$suite_status" -ne 0 ]; then' in workflow
+    assert (
+        'if [ "$controller_status" -ne 0 ] || [ "$chat_selection_status" -ne 0 ] || '
+        '[ "$suite_status" -ne 0 ]; then' in workflow
+    )
     assert 'SPEC_OUTCOME: ${{ steps.quality_spec.outcome }}' in workflow
     assert 'RUFF_OUTCOME: ${{ steps.quality_ruff.outcome }}' in workflow
     assert 'MYPY_OUTCOME: ${{ steps.quality_mypy.outcome }}' in workflow
