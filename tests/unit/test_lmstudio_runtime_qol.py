@@ -5,14 +5,74 @@ from pathlib import Path
 
 import pytest
 
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+
+pytest.importorskip("PySide6")
+
+from PySide6.QtCore import QObject, QSettings, Signal
+from PySide6.QtWidgets import QApplication
+
+from athena.api.contracts import HealthResponse, ModelResponse, ProviderHealthResponse
+from athena.desktop.api_controller import DesktopApiSnapshot
+from athena.desktop.app import create_application
 from athena.desktop.lmstudio_runtime import (
+    LMStudioRuntimeController,
+    _accepted_model_load_id,
+    _coerce_idle_minutes,
+    _CommandStep,
+    _command_timeout_ms,
+    _continue_after_failed_step,
+    _endpoint,
     _endpoint_port,
     _find_lms,
     _model_confirmation_action,
     _process_command,
+    _server_start_steps,
     _should_attempt_auto_load,
     _should_attempt_auto_start,
 )
+from athena.desktop.pathena_window import PathenaMainWindow
+
+
+class _RuntimeControllerStub(QObject):
+    snapshot_ready = Signal(object)
+    connection_failed = Signal(str)
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.refresh_calls = 0
+
+    def refresh(self) -> None:
+        self.refresh_calls += 1
+
+
+def _app() -> QApplication:
+    return create_application(["lmstudio-runtime-qol-test"])
+
+
+def _ready_snapshot(*, loaded: bool = False) -> DesktopApiSnapshot:
+    model = ModelResponse(
+        provider="LM Studio",
+        backend_model_id="model-id",
+        display_name="Local Model",
+        model_type="llm",
+        context_capacity=65_536,
+        quantization="Q4",
+        loaded=loaded,
+        vision=False,
+        trained_for_tool_use=True,
+        loaded_context_length=65_536 if loaded else None,
+    )
+    return DesktopApiSnapshot(
+        health=HealthResponse(api_version="v1", core_status="ok", detail=None),
+        provider=ProviderHealthResponse(
+            provider="LM Studio",
+            status="ready",
+            detail=None,
+        ),
+        models=(model,),
+        chats=(),
+    )
 
 
 @pytest.mark.parametrize(
@@ -40,6 +100,146 @@ def test_endpoint_port_accepts_only_loopback_http(url: str, expected: int) -> No
 def test_endpoint_port_rejects_unsafe_or_invalid_targets(url: str) -> None:
     with pytest.raises(ValueError):
         _endpoint_port(url)
+
+
+@pytest.mark.parametrize(
+    ("url", "expected"),
+    [
+        ("http://127.0.0.1:1234", ("127.0.0.1", 1234)),
+        ("http://localhost:4321", ("127.0.0.1", 4321)),
+        ("http://[::1]:7777", ("::1", 7777)),
+    ],
+)
+def test_endpoint_preserves_loopback_bind_identity(
+    url: str, expected: tuple[str, int]
+) -> None:
+    assert _endpoint(url) == expected
+
+
+def test_headless_server_start_is_daemon_first_and_endpoint_bound() -> None:
+    daemon, server = _server_start_steps("http://[::1]:7777")
+    assert daemon.operation == "daemon_up"
+    assert daemon.arguments == ("daemon", "up")
+    assert server.operation == "server_start"
+    assert server.arguments == (
+        "server",
+        "start",
+        "--port",
+        "7777",
+        "--bind",
+        "::1",
+    )
+
+
+@pytest.mark.parametrize(
+    ("operation", "expected"),
+    [
+        ("daemon_up", 45_000),
+        ("server_start", 45_000),
+        ("server_stop", 45_000),
+        ("model_unload", 120_000),
+        ("model_load", 600_000),
+    ],
+)
+def test_lms_cli_operations_have_bounded_timeouts(
+    operation: str, expected: int
+) -> None:
+    assert _command_timeout_ms(operation) == expected
+
+
+def test_pending_model_identity_requires_a_well_formed_completed_load() -> None:
+    assert (
+        _accepted_model_load_id(
+            _CommandStep(
+                operation="model_load",
+                arguments=("load", "model-id", "--context-length", "8192"),
+                status="Loading model",
+            )
+        )
+        == "model-id"
+    )
+    assert (
+        _accepted_model_load_id(
+            _CommandStep(
+                operation="server_start",
+                arguments=("server", "start"),
+                status="Starting server",
+            )
+        )
+        is None
+    )
+    assert (
+        _accepted_model_load_id(
+            _CommandStep(
+                operation="model_load",
+                arguments=("load", "   "),
+                status="Loading model",
+            )
+        )
+        is None
+    )
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        (30, 30),
+        (0, 0),
+        (-1, 0),
+        (2_000, 1_440),
+        ("30", 30),
+        ("45", 45),
+        ("-1", 0),
+        (None, 30),
+        (True, 30),
+    ],
+)
+def test_idle_minutes_requires_a_genuine_bounded_integer(
+    value: object, expected: int
+) -> None:
+    assert _coerce_idle_minutes(value) == expected
+
+
+def test_restart_continues_only_after_a_failed_stop_step() -> None:
+    stop = _CommandStep("server_stop", ("server", "stop"), "Stopping server")
+    load = _CommandStep("model_load", ("load", "model-id"), "Loading model")
+    assert _continue_after_failed_step(stop) is True
+    assert _continue_after_failed_step(load) is False
+
+
+def test_core_snapshot_does_not_overwrite_active_cli_status(tmp_path: Path) -> None:
+    app = _app()
+    window = PathenaMainWindow(api_controller=None)
+    controller = _RuntimeControllerStub()
+    settings = QSettings(
+        str(tmp_path / "lmstudio-runtime.ini"),
+        QSettings.Format.IniFormat,
+    )
+    runtime = LMStudioRuntimeController(
+        window,
+        controller,  # type: ignore[arg-type]
+        settings=settings,
+    )
+    snapshot = _ready_snapshot(loaded=False)
+    try:
+        window.apply_api_snapshot(snapshot)
+        runtime._steps.append(  # noqa: SLF001
+            _CommandStep(
+                operation="model_load",
+                arguments=("load", "model-id"),
+                status="Loading Local Model",
+            )
+        )
+        runtime._set_status("LM Studio runtime · Loading Local Model …")  # noqa: SLF001
+
+        runtime.apply_snapshot(snapshot)
+
+        assert runtime.status_text == "LM Studio runtime · Loading Local Model …"
+        assert runtime.unload_button.isEnabled() is False
+    finally:
+        runtime.dispose()
+        window.close()
+        app.processEvents()
 
 
 def test_process_command_preserves_arguments_for_native_executable() -> None:
