@@ -8,6 +8,8 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import BinaryIO, Iterator, cast
 
+from athena.storage.durable_fs import is_link_boundary
+
 
 class BackupTargetBusyError(RuntimeError):
     """Raised when another process owns the backup-target lock."""
@@ -92,15 +94,16 @@ def _unlock(handle: BinaryIO) -> None:
     )
 
 
-def _assert_no_symlink_ancestor(path: Path) -> None:
+def _assert_no_redirect_ancestor(path: Path) -> None:
     for candidate in (path, *path.parents):
-        if candidate.is_symlink():
+        if is_link_boundary(candidate):
             raise BackupTargetBusyError(
-                "Backup target path contains a symbolic-link ancestor."
+                "Backup target path contains a symlink, junction, or reparse-point ancestor."
             )
 
 
 def _assert_handle_matches_path(lock_path: Path, handle: BinaryIO) -> None:
+    _assert_no_redirect_ancestor(lock_path)
     try:
         path_stat = lock_path.stat(follow_symlinks=False)
         handle_stat = os.fstat(handle.fileno())
@@ -108,16 +111,16 @@ def _assert_handle_matches_path(lock_path: Path, handle: BinaryIO) -> None:
         raise BackupTargetBusyError(
             "Backup target lock identity cannot be verified."
         ) from exc
-    if lock_path.is_symlink() or not os.path.samestat(path_stat, handle_stat):
+    if is_link_boundary(lock_path) or not os.path.samestat(path_stat, handle_stat):
         raise BackupTargetBusyError(
             "Backup target lock pathname changed during acquisition."
         )
 
 
 def _open_lock_file(lock_path: Path) -> BinaryIO:
-    if lock_path.is_symlink():
+    if is_link_boundary(lock_path):
         raise BackupTargetBusyError(
-            "Backup target lock must not be a symbolic link."
+            "Backup target lock must not be a symlink, junction, or reparse point."
         )
     flags = os.O_RDWR | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0)
     try:
@@ -154,7 +157,7 @@ def _open_lock_file(lock_path: Path) -> BinaryIO:
 def backup_target_lock(target_root: Path) -> Iterator[None]:
     if not isinstance(target_root, Path):
         raise TypeError("Backup target root must be a pathlib.Path.")
-    _assert_no_symlink_ancestor(target_root)
+    _assert_no_redirect_ancestor(target_root)
     if not target_root.is_dir():
         raise RuntimeError(
             f"Backup target is unavailable: {target_root}"
