@@ -687,11 +687,11 @@ class AthenaApplication:
 
         self.state = ApplicationState.STARTING
         self.health.mark_starting()
-        configure_logging(self.settings.numeric_log_level)
-
-        logger.info("ATHENA Core starting", extra={"event": "core.starting"})
 
         try:
+            configure_logging(self.settings.numeric_log_level)
+            logger.info("ATHENA Core starting", extra={"event": "core.starting"})
+
             # Canonical integrity is established before storage bootstrap can
             # perform even temporary filesystem write probes or migration work.
             inspect_database_read_only(self.paths.database_path)
@@ -758,6 +758,14 @@ class AthenaApplication:
                         },
                     )
         except Exception as exc:
+            try:
+                self.services.stop_all()
+            except BaseException:
+                logger.exception(
+                    "ATHENA Core startup rollback failed",
+                    extra={"event": "core.start_rollback_failed"},
+                )
+
             recovery_error = _database_recovery_error(exc)
 
             if recovery_error is not None:
