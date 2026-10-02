@@ -34,6 +34,26 @@ class PluginCapabilityRequest:
     capability: PluginCapability
     scope: str | None
 
+    def __post_init__(self) -> None:
+        if (
+            not isinstance(self.request_id, str)
+            or not self.request_id
+            or self.request_id != self.request_id.strip()
+            or len(self.request_id) > PLUGIN_IPC_MAX_REQUEST_ID_LENGTH
+            or _contains_unsafe_text(self.request_id)
+        ):
+            raise PluginProtocolError("Plugin IPC request_id is invalid.")
+        if not isinstance(self.capability, PluginCapability):
+            raise PluginProtocolError("Plugin IPC capability is invalid.")
+        if self.scope is not None and (
+            not isinstance(self.scope, str)
+            or not self.scope.strip()
+            or self.scope != self.scope.strip()
+            or len(self.scope) > PLUGIN_IPC_MAX_SCOPE_LENGTH
+            or _contains_unsafe_text(self.scope)
+        ):
+            raise PluginProtocolError("Plugin IPC scope is invalid.")
+
 
 def _unique_json_object(pairs: Sequence[tuple[str, Any]]) -> dict[str, Any]:
     result: dict[str, Any] = {}

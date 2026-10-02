@@ -136,6 +136,102 @@ class PluginManifest:
     capabilities: frozenset[PluginCapability]
     publisher: tuple[tuple[str, str], ...] = ()
 
+    def __post_init__(self) -> None:
+        """Enforce manifest invariants even for direct runtime construction."""
+        fields = (
+            ("plugin_id", self.plugin_id, 128),
+            ("name", self.name, 120),
+            ("version", self.version, 64),
+            ("api_version", self.api_version, 32),
+            ("entrypoint", self.entrypoint, 240),
+        )
+        for field, value, max_length in fields:
+            if not isinstance(value, str):
+                raise PluginManifestError(
+                    f"Plugin manifest field {field!r} must be a string."
+                )
+            if value != value.strip() or not value or len(value) > max_length:
+                raise PluginManifestError(
+                    f"Plugin manifest field {field!r} must be canonical and "
+                    f"1..{max_length} characters."
+                )
+            _reject_unsafe_display_text(value, field=field)
+
+        if not _PLUGIN_ID_RE.fullmatch(self.plugin_id):
+            raise PluginManifestError(
+                "Plugin plugin_id must use lowercase alphanumerics separated by . _ or -."
+            )
+        if not _VERSION_RE.fullmatch(self.version):
+            raise PluginManifestError("Plugin version contains unsupported characters.")
+        if not _API_VERSION_RE.fullmatch(self.api_version):
+            raise PluginManifestError(
+                "Plugin api_version must be a numeric dotted version."
+            )
+        if not _ENTRYPOINT_RE.fullmatch(self.entrypoint):
+            raise PluginManifestError(
+                "Plugin entrypoint must be a Python module path plus callable name."
+            )
+
+        if not isinstance(self.permissions, frozenset) or any(
+            not isinstance(permission, PluginPermission)
+            for permission in self.permissions
+        ):
+            raise PluginManifestError(
+                "Plugin manifest permissions must be a frozenset of PluginPermission values."
+            )
+        if not isinstance(self.capabilities, frozenset) or any(
+            not isinstance(capability, PluginCapability)
+            for capability in self.capabilities
+        ):
+            raise PluginManifestError(
+                "Plugin manifest capabilities must be a frozenset of PluginCapability values."
+            )
+        for capability in self.capabilities:
+            permission = required_permission(capability)
+            if permission not in self.permissions:
+                raise PluginManifestError(
+                    "Plugin capability requires its matching coarse permission: "
+                    f"{capability.value!r} -> {permission.value!r}."
+                )
+
+        if not isinstance(self.publisher, tuple) or len(self.publisher) > 16:
+            raise PluginManifestError(
+                "Plugin manifest publisher metadata must be a bounded canonical tuple."
+            )
+        publisher_keys: set[str] = set()
+        for pair in self.publisher:
+            if not isinstance(pair, tuple) or len(pair) != 2:
+                raise PluginManifestError(
+                    "Plugin publisher metadata entries must be key/value tuples."
+                )
+            key, value = pair
+            if not isinstance(key, str) or not isinstance(value, str):
+                raise PluginManifestError(
+                    "Plugin publisher metadata keys and values must be strings."
+                )
+            if (
+                key != key.strip()
+                or value != value.strip()
+                or not key
+                or not value
+                or len(key) > 64
+                or len(value) > 512
+            ):
+                raise PluginManifestError(
+                    "Plugin publisher metadata fields must be canonical and bounded."
+                )
+            _reject_unsafe_display_text(key, field="publisher key")
+            _reject_unsafe_display_text(value, field=f"publisher.{key}")
+            if key in publisher_keys:
+                raise PluginManifestError(
+                    "Plugin publisher metadata contains duplicate keys."
+                )
+            publisher_keys.add(key)
+        if self.publisher != tuple(sorted(self.publisher)):
+            raise PluginManifestError(
+                "Plugin publisher metadata must use canonical key ordering."
+            )
+
     @classmethod
     def from_mapping(cls, raw: Mapping[str, object]) -> PluginManifest:
         if not isinstance(raw, Mapping):

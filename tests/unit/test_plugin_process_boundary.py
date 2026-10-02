@@ -13,6 +13,7 @@ from athena.plugins.capabilities import (
 from athena.plugins.manifest import PluginManifest
 from athena.plugins.protocol import (
     PLUGIN_IPC_MAX_MESSAGE_BYTES,
+    PluginCapabilityRequest,
     PluginProtocolError,
     decode_plugin_capability_request,
 )
@@ -84,6 +85,26 @@ def test_oversized_message_is_rejected_before_json_parse() -> None:
 
     with pytest.raises(PluginProtocolError, match="maximum size"):
         decode_plugin_capability_request(payload)
+
+
+@pytest.mark.parametrize(
+    "request_id,scope,match",
+    [
+        (" req-1", "source:123", "request_id"),
+        ("req-1 ", "source:123", "request_id"),
+        ("req-1", " source:123", "scope"),
+        ("req-1", "source:123 ", "scope"),
+    ],
+)
+def test_protocol_rejects_noncanonical_request_identity_and_scope(
+    request_id: str,
+    scope: str,
+    match: str,
+) -> None:
+    with pytest.raises(PluginProtocolError, match=match):
+        decode_plugin_capability_request(
+            _request(request_id=request_id, scope=scope)
+        )
 
 
 @pytest.mark.parametrize(
@@ -183,3 +204,67 @@ def test_broker_cannot_authorize_undeclared_capability_even_with_grant() -> None
 
     assert decision.allowed is False
     assert decision.reason_code == "capability_not_declared"
+
+@pytest.mark.parametrize(
+    "request_id,capability,scope,match",
+    [
+        (
+            "req\u202eforged",
+            PluginCapability.READ_SELECTED_SOURCES,
+            "source:123",
+            "request_id",
+        ),
+        ("req-1", "read_selected_sources", "source:123", "capability"),
+        (
+            "req-1",
+            PluginCapability.READ_SELECTED_SOURCES,
+            "source:123\nforged",
+            "scope",
+        ),
+        (
+            "req-1",
+            PluginCapability.READ_SELECTED_SOURCES,
+            "x" * 513,
+            "scope",
+        ),
+    ],
+)
+def test_direct_capability_request_cannot_bypass_protocol_validation(
+    request_id: object,
+    capability: object,
+    scope: object,
+    match: str,
+) -> None:
+    with pytest.raises(PluginProtocolError, match=match):
+        PluginCapabilityRequest(
+            request_id=request_id,  # type: ignore[arg-type]
+            capability=capability,  # type: ignore[arg-type]
+            scope=scope,  # type: ignore[arg-type]
+        )
+
+
+def test_broker_accepts_only_self_validated_request_instances() -> None:
+    manifest = _manifest()
+    boundary = PluginCapabilityBoundary(
+        manifest=manifest,
+        grants=(
+            PluginCapabilityGrant(
+                plugin_id=manifest.plugin_id,
+                capability=PluginCapability.READ_SELECTED_SOURCES,
+                scopes=frozenset({"source:123"}),
+            ),
+        ),
+    )
+    broker = PluginCapabilityBroker(boundary=boundary)
+
+    request = PluginCapabilityRequest(
+        request_id="req-validated",
+        capability=PluginCapability.READ_SELECTED_SOURCES,
+        scope="source:123",
+    )
+
+    decision = broker.authorize(request)
+
+    assert decision.allowed is True
+    assert decision.request_id == "req-validated"
+
