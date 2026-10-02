@@ -78,6 +78,11 @@ class CoreApiGateway(Protocol):
         thinking_enabled: bool | None = None,
     ) -> ChatThreadResponse: ...
 
+    def cancel_chat_operation(self, operation_id: str) -> bool:
+        """Request cancellation for one active direct-chat send."""
+
+        ...
+
     def send_unified_local_chat_message(
         self,
         chat_id: str,
@@ -193,6 +198,8 @@ class _ChatOperationOutcome:
     knowledge_review: KnowledgeReviewResponse | None = None
     merge_review: KnowledgeMergeReviewResponse | None = None
     error: str | None = None
+    operation_id: str | None = None
+    cancelled: bool = False
 
     def __post_init__(self) -> None:
         result_count = sum(
@@ -210,8 +217,32 @@ class _ChatOperationOutcome:
         )
         if result_count > 1:
             raise ValueError("Chat outcome cannot contain multiple result kinds.")
+        if self.cancelled:
+            if (
+                self.operation != "send"
+                or self.operation_id is None
+                or self.error is not None
+                or result_count > 1
+            ):
+                raise ValueError(
+                    "Cancelled chat outcome requires one direct-send operation identity."
+                )
+            return
         if self.error is None and result_count != 1:
             raise ValueError("Successful chat outcome requires exactly one result.")
+
+
+@dataclass(frozen=True, slots=True)
+class _ChatCancelOutcome:
+    operation_id: str
+    accepted: bool | None = None
+    error: str | None = None
+
+    def __post_init__(self) -> None:
+        if (self.accepted is None) == (self.error is None):
+            raise ValueError(
+                "Chat cancellation outcome requires exactly one result kind."
+            )
 
 
 _DirectSendReconciliationState = Literal[
@@ -709,10 +740,17 @@ class _ChatTask(QRunnable):
                     reconciled = None
 
                 if reconciled is None:
-                    outcome = _ChatOperationOutcome(
-                        operation=self.operation,
-                        error=str(exc),
-                    )
+                    if exc.code == "generation_cancelled":
+                        outcome = _ChatOperationOutcome(
+                            operation=self.operation,
+                            operation_id=self.operation_id,
+                            cancelled=True,
+                        )
+                    else:
+                        outcome = _ChatOperationOutcome(
+                            operation=self.operation,
+                            error=str(exc),
+                        )
                 else:
                     state = _classify_direct_send(
                         reconciled,
@@ -725,6 +763,20 @@ class _ChatTask(QRunnable):
                         outcome = _ChatOperationOutcome(
                             operation=self.operation,
                             thread=reconciled,
+                        )
+                    elif (
+                        exc.code == "generation_cancelled"
+                        and state in {"absent", "incomplete"}
+                    ):
+                        outcome = _ChatOperationOutcome(
+                            operation=self.operation,
+                            thread=(
+                                reconciled
+                                if state == "incomplete"
+                                else None
+                            ),
+                            operation_id=self.operation_id,
+                            cancelled=True,
                         )
                     elif state == "incomplete":
                         outcome = _ChatOperationOutcome(
@@ -863,6 +915,56 @@ class _ChatTask(QRunnable):
         )
         if not queued:
             raise RuntimeError("ATHENA desktop could not queue the chat result.")
+
+
+class _ChatCancelTask(QRunnable):
+    """Signal one active direct-chat operation away from the UI and send pool."""
+
+    def __init__(
+        self,
+        *,
+        gateway: CoreApiGateway,
+        operation_id: str,
+        outcomes: SimpleQueue[_ChatCancelOutcome],
+        receiver: QObject,
+    ) -> None:
+        super().__init__()
+        self.gateway = gateway
+        self.operation_id = operation_id
+        self.outcomes = outcomes
+        self.receiver = receiver
+        self.setAutoDelete(False)
+
+    @Slot()
+    def run(self) -> None:
+        try:
+            accepted = self.gateway.cancel_chat_operation(self.operation_id)
+        except CoreApiClientError as exc:
+            outcome = _ChatCancelOutcome(
+                operation_id=self.operation_id,
+                error=str(exc),
+            )
+        except Exception:
+            outcome = _ChatCancelOutcome(
+                operation_id=self.operation_id,
+                error="ATHENA generation cancellation request failed.",
+            )
+        else:
+            outcome = _ChatCancelOutcome(
+                operation_id=self.operation_id,
+                accepted=accepted,
+            )
+
+        self.outcomes.put(outcome)
+        queued = QMetaObject.invokeMethod(
+            self.receiver,
+            "_drain_chat_cancel_outcome",
+            Qt.ConnectionType.QueuedConnection,
+        )
+        if not queued:
+            raise RuntimeError(
+                "ATHENA desktop could not queue the cancellation result."
+            )
 
 
 def _chat_snapshot(
@@ -1022,12 +1124,15 @@ class DesktopApiController(QObject):
     knowledge_merge_review_ready = Signal(object)
     chat_operation_failed = Signal(str, str)
     chat_busy_changed = Signal(bool)
+    chat_cancel_state_changed = Signal(str, str)
+    chat_cancelled = Signal(str)
 
     def __init__(
         self,
         gateway: CoreApiGateway,
         *,
         thread_pool: QThreadPool | None = None,
+        control_thread_pool: QThreadPool | None = None,
         chat_limit: int = 50,
         parent: QObject | None = None,
     ) -> None:
@@ -1036,6 +1141,10 @@ class DesktopApiController(QObject):
             raise ValueError("Desktop chat limit must be between 1 and 200.")
         self.gateway = gateway
         self.thread_pool = thread_pool or QThreadPool.globalInstance()
+        if control_thread_pool is None:
+            control_thread_pool = QThreadPool(self)
+            control_thread_pool.setMaxThreadCount(1)
+        self.control_thread_pool = control_thread_pool
         self.chat_limit = chat_limit
         self._refreshing = False
         self._refresh_requested = False
@@ -1047,6 +1156,12 @@ class DesktopApiController(QObject):
         self._chat_busy = False
         self._chat_outcomes: SimpleQueue[_ChatOperationOutcome] = SimpleQueue()
         self._active_chat_task: _ChatTask | None = None
+        self._active_chat_operation_id: str | None = None
+        self._active_chat_operation_kind: str | None = None
+        self._chat_cancel_outcomes: SimpleQueue[_ChatCancelOutcome] = SimpleQueue()
+        self._active_chat_cancel_task: _ChatCancelTask | None = None
+        self._chat_cancel_state = "idle"
+        self._chat_cancel_detail = ""
 
     @property
     def refreshing(self) -> bool:
@@ -1055,6 +1170,55 @@ class DesktopApiController(QObject):
     @property
     def chat_busy(self) -> bool:
         return self._chat_busy
+
+    @property
+    def can_cancel_active_chat(self) -> bool:
+        return (
+            self._chat_busy
+            and self._active_chat_operation_kind == "send"
+            and self._active_chat_operation_id is not None
+        )
+
+    @property
+    def chat_cancel_pending(self) -> bool:
+        return self._chat_cancel_state in {"requesting", "accepted"}
+
+    @property
+    def chat_cancel_state(self) -> str:
+        return self._chat_cancel_state
+
+    @property
+    def chat_cancel_detail(self) -> str:
+        return self._chat_cancel_detail
+
+    def _set_chat_cancel_state(self, state: str, detail: str) -> None:
+        self._chat_cancel_state = state
+        self._chat_cancel_detail = detail
+        self.chat_cancel_state_changed.emit(state, detail)
+
+    def cancel_active_chat_operation(self) -> bool:
+        operation_id = self._active_chat_operation_id
+        if (
+            not self.can_cancel_active_chat
+            or operation_id is None
+            or self.chat_cancel_pending
+            or self._active_chat_cancel_task is not None
+        ):
+            return False
+
+        task = _ChatCancelTask(
+            gateway=self.gateway,
+            operation_id=operation_id,
+            outcomes=self._chat_cancel_outcomes,
+            receiver=self,
+        )
+        self._active_chat_cancel_task = task
+        self._set_chat_cancel_state(
+            "requesting",
+            "Requesting generation cancellation…",
+        )
+        self.control_thread_pool.start(task)
+        return True
 
     def load_chat(self, chat_id: str) -> None:
         if not chat_id or self._chat_busy:
@@ -1243,6 +1407,12 @@ class DesktopApiController(QObject):
             receiver=self,
         )
         self._active_chat_task = task
+        self._active_chat_operation_kind = operation
+        self._active_chat_operation_id = (
+            operation_id if operation == "send" else None
+        )
+        self._chat_cancel_state = "idle"
+        self._chat_cancel_detail = ""
         self._chat_busy = True
         self.chat_busy_changed.emit(True)
         self.thread_pool.start(task)
@@ -1351,6 +1521,44 @@ class DesktopApiController(QObject):
         self.refresh_state_changed.emit(False)
 
     @Slot()
+    def _drain_chat_cancel_outcome(self) -> None:
+        try:
+            outcome = self._chat_cancel_outcomes.get_nowait()
+        except Empty:
+            self._set_chat_cancel_state(
+                "failed",
+                "ATHENA cancellation result was lost; generation may still be running.",
+            )
+            return
+
+        if (
+            self._active_chat_cancel_task is not None
+            and self._active_chat_cancel_task.operation_id == outcome.operation_id
+        ):
+            self._active_chat_cancel_task = None
+        if outcome.operation_id != self._active_chat_operation_id:
+            return
+
+        if outcome.error is not None:
+            self._set_chat_cancel_state(
+                "failed",
+                outcome.error,
+            )
+            return
+
+        if outcome.accepted is True:
+            self._set_chat_cancel_state(
+                "accepted",
+                "Cancellation accepted; waiting for generation to stop.",
+            )
+            return
+
+        self._set_chat_cancel_state(
+            "expired",
+            "The generation completed or expired before cancellation was accepted.",
+        )
+
+    @Slot()
     def _drain_chat_outcome(self) -> None:
         try:
             try:
@@ -1360,6 +1568,13 @@ class DesktopApiController(QObject):
                     "unknown",
                     "ATHENA chat result was lost.",
                 )
+                return
+
+            if outcome.cancelled:
+                if outcome.thread is not None:
+                    self.chat_loaded.emit(outcome.thread)
+                assert outcome.operation_id is not None
+                self.chat_cancelled.emit(outcome.operation_id)
                 return
 
             if outcome.error is not None:
@@ -1389,10 +1604,19 @@ class DesktopApiController(QObject):
                 self.knowledge_merge_review_ready.emit(outcome.merge_review)
             elif outcome.thread is not None:
                 if outcome.operation == "send":
+                    if self.chat_cancel_pending:
+                        self._set_chat_cancel_state(
+                            "expired",
+                            "Generation completed before cancellation could take effect.",
+                        )
                     self.chat_sent.emit(outcome.thread)
                 else:
                     self.chat_loaded.emit(outcome.thread)
         finally:
             self._active_chat_task = None
+            self._active_chat_operation_id = None
+            self._active_chat_operation_kind = None
+            self._chat_cancel_state = "idle"
+            self._chat_cancel_detail = ""
             self._chat_busy = False
             self.chat_busy_changed.emit(False)
