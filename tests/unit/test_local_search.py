@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from athena.chat.repository import ChatRepository
 from athena.chat.service import ChatService
 from athena.knowledge.claim_repository import ClaimRepository
@@ -98,6 +100,43 @@ def test_search_refreshes_changed_knowledge_without_full_rebuild(
         venus = search.search("Venus", entity_type=SearchEntityType.KNOWLEDGE)
         assert len(venus) == 1
         assert venus[0].entity_id == revision.knowledge_id
+    finally:
+        database.stop()
+
+
+@pytest.mark.parametrize(
+    ("query", "limit", "entity_type", "message"),
+    [
+        (None, 20, None, "Search query must be text"),
+        (b"alpha", 20, None, "Search query must be text"),
+        ("alpha", True, None, "Search limit must be an integer"),
+        ("alpha", 1.5, None, "Search limit must be an integer"),
+        ("alpha", "20", None, "Search limit must be an integer"),
+        ("alpha", 20, "knowledge", "Search entity_type must be"),
+        ("alpha", 20, True, "Search entity_type must be"),
+    ],
+)
+def test_search_rejects_invalid_runtime_request_before_index_access(
+    tmp_path,
+    monkeypatch,
+    query: object,
+    limit: object,
+    entity_type: object,
+    message: str,
+) -> None:
+    database, _chat, _knowledge, _claims, search = _services(tmp_path)
+    try:
+        def reject_index_access() -> None:
+            raise AssertionError("invalid request reached the search index")
+
+        monkeypatch.setattr(search, "_ensure_current", reject_index_access)
+
+        with pytest.raises(SearchError, match=message):
+            search.search(
+                query,  # type: ignore[arg-type]
+                limit=limit,  # type: ignore[arg-type]
+                entity_type=entity_type,  # type: ignore[arg-type]
+            )
     finally:
         database.stop()
 
