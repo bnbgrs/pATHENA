@@ -7,10 +7,14 @@ from enum import Enum
 
 from athena.core.derived_recovery import (
     DerivedLayerStatus,
+    DerivedRecoveryRequiredError,
     DerivedRecoveryService,
 )
 from athena.storage.paths import RuntimePaths
-from athena.storage.recovery import inspect_database_read_only
+from athena.storage.recovery import (
+    DatabaseRecoveryRequiredError,
+    inspect_database_read_only,
+)
 
 
 class RecoveryDiagnosticStatus(str, Enum):
@@ -116,7 +120,7 @@ class RecoveryDiagnosticsService:
             preflight = inspect_database_read_only(
                 self.paths.database_path
             )
-        except Exception:
+        except DatabaseRecoveryRequiredError:
             return RecoveryDiagnosticReport(
                 status=(
                     RecoveryDiagnosticStatus.RECOVERY_REQUIRED
@@ -137,6 +141,29 @@ class RecoveryDiagnosticsService:
                             RecoveryIssueSeverity.RECOVERY_REQUIRED
                         ),
                         action="restore-or-investigate-canonical-db",
+                    ),
+                ),
+                canonical_embedding_profiles=0,
+                archive_embedding_profiles=0,
+            )
+        except Exception:
+            return RecoveryDiagnosticReport(
+                status=(
+                    RecoveryDiagnosticStatus.RECOVERY_REQUIRED
+                ),
+                canonical_database="inspection-failed",
+                canonical_integrity_confirmed=False,
+                normal_core_start_allowed=False,
+                protected_scopes_locked=True,
+                optional_components_required=False,
+                issues=(
+                    RecoveryIssue(
+                        code="canonical.database_inspection_failed",
+                        layer="canonical",
+                        severity=(
+                            RecoveryIssueSeverity.RECOVERY_REQUIRED
+                        ),
+                        action="investigate-recovery-diagnostics",
                     ),
                 ),
                 canonical_embedding_profiles=0,
@@ -172,7 +199,7 @@ class RecoveryDiagnosticsService:
                 database_path=self.paths.database_path,
                 derived_root=self.paths.derived_root,
             ).inspect()
-        except Exception:
+        except DerivedRecoveryRequiredError:
             return RecoveryDiagnosticReport(
                 status=(
                     RecoveryDiagnosticStatus.RECOVERY_REQUIRED
@@ -190,6 +217,29 @@ class RecoveryDiagnosticsService:
                             RecoveryIssueSeverity.RECOVERY_REQUIRED
                         ),
                         action="investigate-derived-state",
+                    ),
+                ),
+                canonical_embedding_profiles=0,
+                archive_embedding_profiles=0,
+            )
+        except Exception:
+            return RecoveryDiagnosticReport(
+                status=(
+                    RecoveryDiagnosticStatus.RECOVERY_REQUIRED
+                ),
+                canonical_database="healthy",
+                canonical_integrity_confirmed=True,
+                normal_core_start_allowed=False,
+                protected_scopes_locked=True,
+                optional_components_required=False,
+                issues=(
+                    RecoveryIssue(
+                        code="recovery.diagnostics_internal_error",
+                        layer="recovery",
+                        severity=(
+                            RecoveryIssueSeverity.RECOVERY_REQUIRED
+                        ),
+                        action="investigate-recovery-diagnostics",
                     ),
                 ),
                 canonical_embedding_profiles=0,
