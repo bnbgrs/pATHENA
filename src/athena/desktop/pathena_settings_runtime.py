@@ -239,6 +239,7 @@ class SettingsRuntimeController(QObject):
         window.temperature_spin.valueChanged.connect(self._persist_from_control)
         window.thinking_checkbox.toggled.connect(self._persist_from_control)
         window.model_selector.activated.connect(self._hydrate_after_selection)
+        window.settings_model_selector.activated.connect(self._hydrate_after_selection)
         self.news_save.clicked.connect(self.save_news_schedule)
 
         if controller is not None:
@@ -432,6 +433,8 @@ class SettingsRuntimeController(QObject):
             return
         self._news_requested = True
         self.news_status.setText("News schedule · loading…")
+        self.news_status.setProperty("pathenaUiState", "idle")
+        self.news_status.setAccessibleDescription(self.news_status.text())
         task = _NewsScheduleTask(gateway)
         task.signals.loaded.connect(self.apply_news_profile)
         task.signals.failed.connect(self._apply_news_failure)
@@ -450,6 +453,8 @@ class SettingsRuntimeController(QObject):
         value = self.news_time.time()
         self.news_save.setEnabled(False)
         self.news_status.setText("News schedule · saving…")
+        self.news_status.setProperty("pathenaUiState", "idle")
+        self.news_status.setAccessibleDescription(self.news_status.text())
         task = _NewsScheduleTask(
             gateway,
             timezone_name=profile.timezone_name,
@@ -482,6 +487,11 @@ class SettingsRuntimeController(QObject):
     @Slot(str)
     def _apply_news_failure(self, message: str) -> None:
         self._news_task = None
+        if self._news_profile is None:
+            # Initial profile loading is snapshot-driven. Allow a later fresh
+            # Core snapshot to retry instead of permanently latching the first
+            # transient failure in this controller instance.
+            self._news_requested = False
         self.news_status.setText(f"News schedule unavailable · {message}")
         self.news_status.setProperty("pathenaUiState", "error")
         self.news_status.setAccessibleDescription(self.news_status.text())
@@ -643,14 +653,19 @@ class SettingsRuntimeController(QObject):
         display_name: str,
     ) -> StoredModelSettings | None:
         group = model_storage_group(model_id)
+        stored_model_id = ""
+        context: int | None = None
+        output: int | None = None
+        temperature: float | None = None
+        thinking: bool | None = None
         self.settings.beginGroup(group)
         try:
-            if str(self.settings.value("model_id", "")) != model_id:
-                return None
-            context = _positive_int(self.settings.value("context_tokens"))
-            output = _positive_int(self.settings.value("max_output_tokens"))
-            temperature = _finite_float(self.settings.value("temperature"))
-            thinking = _boolean(self.settings.value("thinking"))
+            stored_model_id = str(self.settings.value("model_id", ""))
+            if stored_model_id == model_id:
+                context = _positive_int(self.settings.value("context_tokens"))
+                output = _positive_int(self.settings.value("max_output_tokens"))
+                temperature = _finite_float(self.settings.value("temperature"))
+                thinking = _boolean(self.settings.value("thinking"))
         finally:
             self.settings.endGroup()
         if self.settings.status() != QSettings.Status.NoError:
@@ -660,6 +675,8 @@ class SettingsRuntimeController(QObject):
                 "error",
                 freshness="unavailable",
             )
+            return None
+        if stored_model_id != model_id:
             return None
         return StoredModelSettings(
             context_tokens=context,
