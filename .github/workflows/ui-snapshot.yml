@@ -112,6 +112,7 @@ jobs:
             scripts/render_pathena_ui_snapshot_sequential.py `
             scripts/compare_pathena_ui_snapshots.py `
             tests/qa/test_visual_snapshot_compare.py `
+            tests/qa/test_visual_settings_readiness.py `
             tests/unit/test_pathena_visual_knowledge_fixture.py
           if ($LASTEXITCODE -ne 0) { throw "Visual harness Ruff failed." }
 
@@ -125,8 +126,10 @@ jobs:
         shell: pwsh
         run: |
           $env:PYTHONPATH = (Get-Location).Path
-          uv run --locked --extra dev --extra desktop --no-sync pytest -q tests/qa/test_visual_snapshot_compare.py
-          if ($LASTEXITCODE -ne 0) { throw "Visual comparator contract tests failed." }
+          uv run --locked --extra dev --extra desktop --no-sync pytest -q `
+            tests/qa/test_visual_snapshot_compare.py `
+            tests/qa/test_visual_settings_readiness.py
+          if ($LASTEXITCODE -ne 0) { throw "Visual harness contract tests failed." }
 
       - name: Run shared visual hierarchy token contract
         shell: pwsh
