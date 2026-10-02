@@ -1,15 +1,11 @@
 from __future__ import annotations
 
-from typing import cast
 import uuid
+from typing import cast
 
 import pytest
 
-from athena.source.models import (
-    BlobRecord,
-    BlobStorageArea,
-    SourceRepresentationType,
-)
+from athena.source.models import BlobRecord, BlobStorageArea, SourceRepresentationType
 from athena.source.representation_repository import SourceRepresentationRepository
 from athena.storage.database import SQLiteDatabase
 
