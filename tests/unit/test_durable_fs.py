@@ -308,6 +308,201 @@ def test_windows_replace_binds_source_and_destination_parent_handles(
     assert closed == [202, 101]
 
 
+def test_windows_bound_delete_uses_exclusive_bound_handles(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    target = tmp_path / "emergency.reserve"
+    target.write_bytes(b"x" * 4096)
+    opened: list[tuple[Path, int, bool, bool, int]] = []
+    marked: list[int] = []
+    closed: list[int] = []
+
+    def open_bound(
+        path: Path,
+        *,
+        access: int,
+        require_directory: bool,
+        write_through: bool = False,
+        share_mode: int = (
+            durable_fs._FILE_SHARE_READ
+            | durable_fs._FILE_SHARE_WRITE
+            | durable_fs._FILE_SHARE_DELETE
+        ),
+    ) -> int:
+        opened.append(
+            (Path(path), access, require_directory, write_through, share_mode)
+        )
+        return 202 if Path(path) == tmp_path else 101
+
+    def mark_delete(handle: int) -> None:
+        marked.append(handle)
+        target.unlink()
+
+    monkeypatch.setattr(durable_fs, "_is_windows", lambda: True)
+    monkeypatch.setattr(durable_fs, "_windows_open_bound_handle", open_bound)
+    monkeypatch.setattr(
+        durable_fs,
+        "_windows_bound_file_size_and_links",
+        lambda handle: (4096, 1) if handle == 101 else (_ for _ in ()).throw(
+            AssertionError("unexpected handle")
+        ),
+    )
+    monkeypatch.setattr(durable_fs, "_windows_mark_file_delete", mark_delete)
+    monkeypatch.setattr(durable_fs, "_windows_close_handle", closed.append)
+
+    released = durable_fs.windows_delete_bound_file(target)
+
+    assert released == 4096
+    assert opened == [
+        (
+            tmp_path,
+            durable_fs._FILE_READ_ATTRIBUTES,
+            True,
+            False,
+            durable_fs._FILE_SHARE_READ | durable_fs._FILE_SHARE_WRITE,
+        ),
+        (
+            target,
+            durable_fs._DELETE | durable_fs._FILE_READ_ATTRIBUTES,
+            False,
+            True,
+            0,
+        ),
+    ]
+    assert marked == [101]
+    assert closed == [101, 202]
+    assert not target.exists()
+
+
+def test_windows_bound_delete_fails_closed_on_leaf_substitution_seam(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    target = tmp_path / "emergency.reserve"
+    target.write_bytes(b"trusted")
+    displaced = tmp_path / "expected.reserve"
+    closed: list[int] = []
+
+    def open_bound(
+        path: Path,
+        *,
+        access: int,
+        require_directory: bool,
+        write_through: bool = False,
+        share_mode: int = (
+            durable_fs._FILE_SHARE_READ
+            | durable_fs._FILE_SHARE_WRITE
+            | durable_fs._FILE_SHARE_DELETE
+        ),
+    ) -> int:
+        return 202 if Path(path) == tmp_path else 101
+
+    def race_then_delete_bound(_handle: int) -> None:
+        target.rename(displaced)
+        target.write_bytes(b"attacker")
+        displaced.unlink()
+
+    monkeypatch.setattr(durable_fs, "_is_windows", lambda: True)
+    monkeypatch.setattr(durable_fs, "_windows_open_bound_handle", open_bound)
+    monkeypatch.setattr(
+        durable_fs,
+        "_windows_bound_file_size_and_links",
+        lambda _handle: (len(b"trusted"), 1),
+    )
+    monkeypatch.setattr(
+        durable_fs,
+        "_windows_mark_file_delete",
+        race_then_delete_bound,
+    )
+    monkeypatch.setattr(durable_fs, "_windows_close_handle", closed.append)
+
+    with pytest.raises(OSError, match="pathname still exists"):
+        durable_fs.windows_delete_bound_file(target)
+
+    assert target.read_bytes() == b"attacker"
+    assert not displaced.exists()
+    assert closed == [101, 202]
+
+
+def test_windows_bound_delete_rejects_additional_hard_links(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    target = tmp_path / "emergency.reserve"
+    target.write_bytes(b"trusted")
+    marked = False
+    closed: list[int] = []
+
+    def open_bound(
+        path: Path,
+        *,
+        access: int,
+        require_directory: bool,
+        write_through: bool = False,
+        share_mode: int = (
+            durable_fs._FILE_SHARE_READ
+            | durable_fs._FILE_SHARE_WRITE
+            | durable_fs._FILE_SHARE_DELETE
+        ),
+    ) -> int:
+        return 202 if Path(path) == tmp_path else 101
+
+    def mark_delete(_handle: int) -> None:
+        nonlocal marked
+        marked = True
+
+    monkeypatch.setattr(durable_fs, "_is_windows", lambda: True)
+    monkeypatch.setattr(durable_fs, "_windows_open_bound_handle", open_bound)
+    monkeypatch.setattr(
+        durable_fs,
+        "_windows_bound_file_size_and_links",
+        lambda _handle: (len(b"trusted"), 2),
+    )
+    monkeypatch.setattr(durable_fs, "_windows_mark_file_delete", mark_delete)
+    monkeypatch.setattr(durable_fs, "_windows_close_handle", closed.append)
+
+    with pytest.raises(OSError, match="additional hard links"):
+        durable_fs.windows_delete_bound_file(target)
+
+    assert marked is False
+    assert target.read_bytes() == b"trusted"
+    assert closed == [101, 202]
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows HANDLE-bound delete behavior")
+def test_windows_bound_delete_blocks_leaf_replacement(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    target = tmp_path / "emergency.reserve"
+    target.write_bytes(b"trusted reserve")
+    displaced = tmp_path / "expected.reserve"
+    real_mark_delete = durable_fs._windows_mark_file_delete
+    replacement_blocked = False
+
+    def race_then_delete(handle: int) -> None:
+        nonlocal replacement_blocked
+        try:
+            target.rename(displaced)
+        except OSError:
+            replacement_blocked = True
+        else:
+            raise AssertionError(
+                "exclusive bound reserve HANDLE allowed pathname replacement"
+            )
+        real_mark_delete(handle)
+
+    monkeypatch.setattr(durable_fs, "_windows_mark_file_delete", race_then_delete)
+
+    released = durable_fs.windows_delete_bound_file(target)
+
+    assert replacement_blocked is True
+    assert released == len(b"trusted reserve")
+    assert not target.exists()
+    assert not displaced.exists()
+
+
 @pytest.mark.skipif(os.name != "nt", reason="Windows HANDLE-bound rename behavior")
 def test_windows_handle_bound_replace_cannot_redirect_to_replaced_parent(
     tmp_path: Path,
