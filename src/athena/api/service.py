@@ -43,7 +43,10 @@ from athena.api.knowledge_explanation import KnowledgeProvenanceExplanationRespo
 from athena.api.knowledge_history import KnowledgeHistoryResponse
 from athena.api.knowledge_inspection import KnowledgeInspectionApiService
 from athena.api.knowledge_read import KnowledgeReadApiService
-from athena.api.search_adapter import hybrid_search_result_response
+from athena.api.search_adapter import (
+    hybrid_search_result_response,
+    universal_search_result_response,
+)
 from athena.api.search_contracts import SearchResultResponse
 from athena.chat.cancellation import (
     ChatCancellationRegistry,
@@ -87,6 +90,10 @@ from athena.model.ports import ModelDiscoveryProvider
 from athena.observability.health import HealthService
 from athena.retrieval.hybrid import HybridSearchResult
 from athena.retrieval.search import SearchEntityType
+from athena.retrieval.universal import (
+    UniversalSearchEntityType,
+    UniversalSearchResult,
+)
 
 
 class DirectChatSender(Protocol):
@@ -223,6 +230,18 @@ class NormalSearch(Protocol):
     ) -> tuple[HybridSearchResult, ...]: ...
 
 
+class UniversalSearch(Protocol):
+    """Local cross-domain lexical search boundary exposed by the Core API."""
+
+    def search(
+        self,
+        query: str,
+        *,
+        limit: int = 20,
+        entity_types: tuple[UniversalSearchEntityType, ...] | None = None,
+    ) -> tuple[UniversalSearchResult, ...]: ...
+
+
 class CoreApiFacade:
     """Stable client boundary used by desktop and future transports.
 
@@ -262,6 +281,7 @@ class CoreApiFacade:
         self._knowledge_inspection: KnowledgeInspectionApiService | None = None
         self._knowledge_read: KnowledgeReadApiService | None = None
         self._normal_search: NormalSearch | None = None
+        self._universal_search: UniversalSearch | None = None
         self._news: NewsProfileService | None = None
         self._chat_cancellations = ChatCancellationRegistry()
 
@@ -319,6 +339,13 @@ class CoreApiFacade:
         if self._normal_search is not None:
             raise RuntimeError("Normal Hybrid Search is already attached to the Core API.")
         self._normal_search = search
+
+    def attach_universal_search(self, search: UniversalSearch) -> None:
+        """Attach local Universal Search exactly once after app construction."""
+
+        if self._universal_search is not None:
+            raise RuntimeError("Universal Search is already attached to the Core API.")
+        self._universal_search = search
 
     def attach_knowledge_inspection(
         self,
@@ -435,6 +462,8 @@ class CoreApiFacade:
             )
         if self._normal_search is not None:
             features = (*features, "search.normal.hybrid")
+        if self._universal_search is not None:
+            features = (*features, "search.universal.local")
         if self._news is not None:
             features = (*features, "news.profile.read", "news.schedule.write")
         return CapabilitiesResponse(
@@ -1083,6 +1112,24 @@ class CoreApiFacade:
                 model_id=model_id,
                 limit=limit,
                 entity_type=entity_type,
+            )
+        )
+
+    def universal_search(
+        self,
+        query: str,
+        *,
+        limit: int = 20,
+        entity_types: tuple[UniversalSearchEntityType, ...] | None = None,
+    ) -> tuple[SearchResultResponse, ...]:
+        if self._universal_search is None:
+            raise RuntimeError("Universal Search is unavailable in this Core process.")
+        return tuple(
+            universal_search_result_response(result)
+            for result in self._universal_search.search(
+                query,
+                limit=limit,
+                entity_types=entity_types,
             )
         )
 

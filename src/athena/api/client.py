@@ -40,7 +40,13 @@ from athena.api.contracts import (
     RelationProposalResponse,
     RememberedChatMessageResponse,
 )
+from athena.api.search_contracts import (
+    SearchProtectionResponse,
+    SearchResultResponse,
+    SearchSourceAnchorResponse,
+)
 from athena.config.settings import AthenaSettings
+from athena.retrieval.universal import UniversalSearchEntityType
 from athena.storage.paths import RuntimePaths
 
 _DISCOVERY_FILE = "core-api.json"
@@ -673,6 +679,35 @@ class CoreApiClient:
         payload = self._get("/api/v1/models")
         return tuple(_model(item) for item in _items(payload))
 
+    def universal_search(
+        self,
+        query: str,
+        *,
+        limit: int = 20,
+        entity_types: tuple[UniversalSearchEntityType, ...] | None = None,
+    ) -> tuple[SearchResultResponse, ...]:
+        normalized_query = " ".join(query.split())
+        if not normalized_query:
+            raise ValueError("Universal search query must not be empty.")
+        if not 1 <= limit <= 100:
+            raise ValueError("Universal search limit must be between 1 and 100.")
+
+        params = {
+            "q": normalized_query,
+            "limit": str(limit),
+        }
+        if entity_types is not None:
+            if not entity_types:
+                raise ValueError("Universal search entity_types must not be empty.")
+            if len(set(entity_types)) != len(entity_types):
+                raise ValueError(
+                    "Universal search entity_types must not contain duplicates."
+                )
+            params["types"] = ",".join(item.value for item in entity_types)
+
+        payload = self._get("/api/v1/search", query=params)
+        return tuple(_search_result(item) for item in _items(payload))
+
     def discovery_process_id(self) -> int:
         """Return the PID that published the currently trusted discovery state."""
         return self._load_bootstrap().process_id
@@ -1002,6 +1037,60 @@ def _optional_bool(payload: dict[str, JsonValue], key: str) -> bool | None:
     if not isinstance(value, bool):
         raise CoreApiClientError(f"ATHENA Core response field {key!r} is invalid.", code="invalid_response")
     return value
+
+
+def _search_result(payload: dict[str, JsonValue]) -> SearchResultResponse:
+    raw_methods = payload.get("retrieval_methods")
+    if not isinstance(raw_methods, list) or not all(
+        isinstance(item, str) for item in raw_methods
+    ):
+        raise CoreApiClientError(
+            "ATHENA Core Search retrieval_methods are invalid.",
+            code="invalid_response",
+        )
+
+    raw_protection = payload.get("protection")
+    if not isinstance(raw_protection, dict):
+        raise CoreApiClientError(
+            "ATHENA Core Search protection is invalid.",
+            code="invalid_response",
+        )
+    protection = SearchProtectionResponse(
+        state=_required_str(raw_protection, "state"),
+        protection_scope_id=_optional_str(
+            raw_protection,
+            "protection_scope_id",
+        ),
+    )
+
+    raw_anchor = payload.get("source_anchor")
+    source_anchor: SearchSourceAnchorResponse | None
+    if raw_anchor is None:
+        source_anchor = None
+    elif isinstance(raw_anchor, dict):
+        source_anchor = SearchSourceAnchorResponse(
+            representation_id=_required_str(raw_anchor, "representation_id"),
+            start_offset=_required_int(raw_anchor, "start_offset"),
+            end_offset=_required_int(raw_anchor, "end_offset"),
+            quoted_sha256=_required_str(raw_anchor, "quoted_sha256"),
+        )
+    else:
+        raise CoreApiClientError(
+            "ATHENA Core Search source_anchor is invalid.",
+            code="invalid_response",
+        )
+
+    return SearchResultResponse(
+        result_ref=_required_str(payload, "result_ref"),
+        title=_optional_str(payload, "title"),
+        preview=_required_str(payload, "preview"),
+        entity_type=_required_str(payload, "entity_type"),
+        revision_id=_optional_str(payload, "revision_id"),
+        rank=_required_int(payload, "rank"),
+        retrieval_methods=tuple(cast(list[str], raw_methods)),
+        source_anchor=source_anchor,
+        protection=protection,
+    )
 
 
 def _health(payload: dict[str, JsonValue]) -> HealthResponse:

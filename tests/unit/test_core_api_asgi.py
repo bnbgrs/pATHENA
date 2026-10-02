@@ -11,6 +11,10 @@ from athena.api.service import CoreApiFacade
 from athena.chat.models import ChatMessage, ChatSummary, ChatThread, MessageType
 from athena.model.domain import ModelInfo, ProviderHealth, ProviderHealthStatus
 from athena.observability.health import HealthService
+from athena.retrieval.universal import (
+    UniversalSearchEntityType,
+    UniversalSearchResult,
+)
 
 
 class _Chat:
@@ -92,6 +96,37 @@ class _News:
         if local_minute is not None:
             self.value["local_minute"] = local_minute
         return dict(self.value)
+
+
+class _UniversalSearch:
+    def __init__(self) -> None:
+        self.calls: list[
+            tuple[
+                str,
+                int,
+                tuple[UniversalSearchEntityType, ...] | None,
+            ]
+        ] = []
+
+    def search(
+        self,
+        query: str,
+        *,
+        limit: int = 20,
+        entity_types: tuple[UniversalSearchEntityType, ...] | None = None,
+    ) -> tuple[UniversalSearchResult, ...]:
+        self.calls.append((query, limit, entity_types))
+        return (
+            UniversalSearchResult(
+                result_ref="source:55555555-5555-5555-5555-555555555555",
+                entity_id=uuid.UUID("55555555-5555-5555-5555-555555555555"),
+                revision_id=None,
+                entity_type=UniversalSearchEntityType.SOURCE,
+                title="Alpha.pdf",
+                preview="application/pdf",
+                rank=1,
+            ),
+        )
 
 
 class _Provider:
@@ -242,6 +277,58 @@ def test_asgi_chat_cancel_reports_known_and_unknown_operation_truthfully(
         "accepted": False,
         "operation_id": operation_id,
     }
+
+
+def test_asgi_universal_search_parses_filters_and_returns_core_results(
+    tmp_path,
+) -> None:
+    runtime = LocalApiRuntime(tmp_path / "search-api")
+    runtime.publish(port=32126)
+    token = runtime.token_path.read_text(encoding="utf-8").strip()
+    facade = _facade()
+    search = _UniversalSearch()
+    facade.attach_universal_search(search)
+    app = CoreApiAsgiApp(facade=facade, runtime=runtime)
+
+    status, _, payload = asyncio.run(
+        _request(
+            app,
+            runtime,
+            method="GET",
+            path="/api/v1/search",
+            query=b"q=alpha&limit=7&types=source%2Cjob",
+            token=token,
+        )
+    )
+
+    assert status == 200
+    assert search.calls == [
+        (
+            "alpha",
+            7,
+            (
+                UniversalSearchEntityType.SOURCE,
+                UniversalSearchEntityType.JOB,
+            ),
+        )
+    ]
+    assert payload["items"][0]["result_ref"] == (
+        "source:55555555-5555-5555-5555-555555555555"
+    )
+    assert payload["items"][0]["revision_id"] is None
+
+    invalid_status, _, invalid = asyncio.run(
+        _request(
+            app,
+            runtime,
+            method="GET",
+            path="/api/v1/search",
+            query=b"q=alpha&types=not-real",
+            token=token,
+        )
+    )
+    assert invalid_status == 400
+    assert invalid["code"] == "invalid_request"
 
 
 def test_asgi_requires_session_token(tmp_path) -> None:

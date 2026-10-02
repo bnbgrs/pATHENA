@@ -10,6 +10,7 @@ import pytest
 
 from athena.api import client as client_module
 from athena.api.client import CoreApiClient, CoreApiClientError
+from athena.retrieval.universal import UniversalSearchEntityType
 
 
 class _Response:
@@ -79,6 +80,65 @@ def test_client_health_reads_discovery_and_authenticates(
             "GET",
             "http://127.0.0.1:32123/api/v1/health",
             "Bearer token-one",
+        )
+    ]
+
+
+def test_client_universal_search_encodes_filters_and_parses_missing_revision(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runtime_root = tmp_path / "api"
+    _bootstrap(runtime_root)
+    seen: list[tuple[str, str]] = []
+
+    def fake_urlopen(request: Any, timeout: float) -> _Response:
+        del timeout
+        seen.append((request.get_method(), request.full_url))
+        return _Response(
+            {
+                "items": [
+                    {
+                        "result_ref": (
+                            "source:55555555-5555-5555-5555-555555555555"
+                        ),
+                        "title": "Alpha.pdf",
+                        "preview": "application/pdf",
+                        "entity_type": "source",
+                        "revision_id": None,
+                        "rank": 1,
+                        "retrieval_methods": ["lexical"],
+                        "source_anchor": None,
+                        "protection": {
+                            "state": "unprotected",
+                            "protection_scope_id": None,
+                        },
+                    }
+                ]
+            }
+        )
+
+    monkeypatch.setattr(client_module, "urlopen", fake_urlopen)
+
+    result = CoreApiClient(runtime_root).universal_search(
+        "alpha design",
+        limit=7,
+        entity_types=(
+            UniversalSearchEntityType.SOURCE,
+            UniversalSearchEntityType.JOB,
+        ),
+    )
+
+    assert len(result) == 1
+    assert result[0].revision_id is None
+    assert result[0].entity_type == "source"
+    assert seen == [
+        (
+            "GET",
+            (
+                "http://127.0.0.1:32123/api/v1/search"
+                "?q=alpha+design&limit=7&types=source%2Cjob"
+            ),
         )
     ]
 

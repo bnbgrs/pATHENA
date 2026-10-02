@@ -99,6 +99,7 @@ from athena.retrieval.ranking import RetrievalRankingService
 from athena.retrieval.search import LocalSearchService
 from athena.retrieval.semantic import LocalSemanticSearchService
 from athena.retrieval.source_context import SourceContextBuilderService
+from athena.retrieval.universal import UniversalSearchService
 from athena.security.crypto import CryptoProvider
 from athena.security.repository import ProtectionRepository
 from athena.security.service import ProtectedContentService
@@ -596,6 +597,11 @@ class AthenaApplication:
             self.semantic_search,
         )
         self.api.attach_normal_search(self.hybrid_retrieval)
+        self.universal_search = UniversalSearchService(
+            self.database,
+            self.hybrid_retrieval,
+        )
+        self.api.attach_universal_search(self.universal_search)
         self.context_builder = ContextBuilderService()
         self.memory_evidence_policy = MemoryEvidencePolicy(self.database)
         self.memory_chat = MemoryAugmentedChatService(
