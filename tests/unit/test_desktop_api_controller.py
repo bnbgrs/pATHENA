@@ -4,7 +4,6 @@ import threading
 import uuid
 
 import pytest
-
 from PySide6.QtCore import QThreadPool
 from PySide6.QtTest import QSignalSpy
 from PySide6.QtWidgets import QApplication
