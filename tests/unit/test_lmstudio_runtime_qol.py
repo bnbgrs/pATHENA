@@ -5,14 +5,59 @@ from pathlib import Path
 
 import pytest
 
-from athena.desktop.lmstudio_runtime import (
-    _endpoint_port,
-    _find_lms,
-    _model_confirmation_action,
-    _process_command,
-    _should_attempt_auto_load,
-    _should_attempt_auto_start,
-)
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+
+pytest.importorskip("PySide6")
+
+from PySide6.QtCore import QObject, QSettings, Signal
+from PySide6.QtWidgets import QApplication
+
+from athena.api.contracts import HealthResponse, ModelResponse, ProviderHealthResponse
+from athena.desktop import lmstudio_runtime as runtime_module
+from athena.desktop.api_controller import DesktopApiSnapshot
+from athena.desktop.app import create_application
+from athena.desktop.pathena_window import PathenaMainWindow
+
+
+class _RuntimeControllerStub(QObject):
+    snapshot_ready = Signal(object)
+    connection_failed = Signal(str)
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.refresh_calls = 0
+
+    def refresh(self) -> None:
+        self.refresh_calls += 1
+
+
+def _app() -> QApplication:
+    return create_application(["lmstudio-runtime-qol-test"])
+
+
+def _ready_snapshot(*, loaded: bool = False) -> DesktopApiSnapshot:
+    model = ModelResponse(
+        provider="LM Studio",
+        backend_model_id="model-id",
+        display_name="Local Model",
+        model_type="llm",
+        context_capacity=65_536,
+        quantization="Q4",
+        loaded=loaded,
+        vision=False,
+        trained_for_tool_use=True,
+        loaded_context_length=65_536 if loaded else None,
+    )
+    return DesktopApiSnapshot(
+        health=HealthResponse(api_version="v1", core_status="ok", detail=None),
+        provider=ProviderHealthResponse(
+            provider="LM Studio",
+            status="ready",
+            detail=None,
+        ),
+        models=(model,),
+        chats=(),
+    )
 
 
 @pytest.mark.parametrize(
@@ -25,7 +70,7 @@ from athena.desktop.lmstudio_runtime import (
     ],
 )
 def test_endpoint_port_accepts_only_loopback_http(url: str, expected: int) -> None:
-    assert _endpoint_port(url) == expected
+    assert runtime_module._endpoint_port(url) == expected
 
 
 @pytest.mark.parametrize(
@@ -39,11 +84,151 @@ def test_endpoint_port_accepts_only_loopback_http(url: str, expected: int) -> No
 )
 def test_endpoint_port_rejects_unsafe_or_invalid_targets(url: str) -> None:
     with pytest.raises(ValueError):
-        _endpoint_port(url)
+        runtime_module._endpoint_port(url)
+
+
+@pytest.mark.parametrize(
+    ("url", "expected"),
+    [
+        ("http://127.0.0.1:1234", ("127.0.0.1", 1234)),
+        ("http://localhost:4321", ("127.0.0.1", 4321)),
+        ("http://[::1]:7777", ("::1", 7777)),
+    ],
+)
+def test_endpoint_preserves_loopback_bind_identity(
+    url: str, expected: tuple[str, int]
+) -> None:
+    assert runtime_module._endpoint(url) == expected
+
+
+def test_headless_server_start_is_daemon_first_and_endpoint_bound() -> None:
+    daemon, server = runtime_module._server_start_steps("http://[::1]:7777")
+    assert daemon.operation == "daemon_up"
+    assert daemon.arguments == ("daemon", "up")
+    assert server.operation == "server_start"
+    assert server.arguments == (
+        "server",
+        "start",
+        "--port",
+        "7777",
+        "--bind",
+        "::1",
+    )
+
+
+@pytest.mark.parametrize(
+    ("operation", "expected"),
+    [
+        ("daemon_up", 45_000),
+        ("server_start", 45_000),
+        ("server_stop", 45_000),
+        ("model_unload", 120_000),
+        ("model_load", 600_000),
+    ],
+)
+def test_lms_cli_operations_have_bounded_timeouts(
+    operation: str, expected: int
+) -> None:
+    assert runtime_module._command_timeout_ms(operation) == expected
+
+
+def test_pending_model_identity_requires_a_well_formed_completed_load() -> None:
+    assert (
+        runtime_module._accepted_model_load_id(
+            runtime_module._CommandStep(
+                operation="model_load",
+                arguments=("load", "model-id", "--context-length", "8192"),
+                status="Loading model",
+            )
+        )
+        == "model-id"
+    )
+    assert (
+        runtime_module._accepted_model_load_id(
+            runtime_module._CommandStep(
+                operation="server_start",
+                arguments=("server", "start"),
+                status="Starting server",
+            )
+        )
+        is None
+    )
+    assert (
+        runtime_module._accepted_model_load_id(
+            runtime_module._CommandStep(
+                operation="model_load",
+                arguments=("load", "   "),
+                status="Loading model",
+            )
+        )
+        is None
+    )
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        (30, 30),
+        (0, 0),
+        (-1, 0),
+        (2_000, 1_440),
+        ("30", 30),
+        ("45", 45),
+        ("-1", 0),
+        (None, 30),
+        (True, 30),
+    ],
+)
+def test_idle_minutes_requires_a_genuine_bounded_integer(
+    value: object, expected: int
+) -> None:
+    assert runtime_module._coerce_idle_minutes(value) == expected
+
+
+def test_restart_continues_only_after_a_failed_stop_step() -> None:
+    stop = runtime_module._CommandStep("server_stop", ("server", "stop"), "Stopping server")
+    load = runtime_module._CommandStep("model_load", ("load", "model-id"), "Loading model")
+    assert runtime_module._continue_after_failed_step(stop) is True
+    assert runtime_module._continue_after_failed_step(load) is False
+
+
+def test_core_snapshot_does_not_overwrite_active_cli_status(tmp_path: Path) -> None:
+    app = _app()
+    window = PathenaMainWindow(api_controller=None)
+    controller = _RuntimeControllerStub()
+    settings = QSettings(
+        str(tmp_path / "lmstudio-runtime.ini"),
+        QSettings.Format.IniFormat,
+    )
+    runtime = runtime_module.LMStudioRuntimeController(
+        window,
+        controller,  # type: ignore[arg-type]
+        settings=settings,
+    )
+    snapshot = _ready_snapshot(loaded=False)
+    try:
+        window.apply_api_snapshot(snapshot)
+        runtime._steps.append(  # noqa: SLF001
+            runtime_module._CommandStep(
+                operation="model_load",
+                arguments=("load", "model-id"),
+                status="Loading Local Model",
+            )
+        )
+        runtime._set_status("LM Studio runtime · Loading Local Model …")  # noqa: SLF001
+
+        runtime.apply_snapshot(snapshot)
+
+        assert runtime.status_text == "LM Studio runtime · Loading Local Model …"
+        assert runtime.unload_button.isEnabled() is False
+    finally:
+        runtime.dispose()
+        window.close()
+        app.processEvents()
 
 
 def test_process_command_preserves_arguments_for_native_executable() -> None:
-    program, arguments = _process_command(
+    program, arguments = runtime_module._process_command(
         "/opt/lmstudio/lms",
         ("load", "model-id", "--context-length", "8192"),
     )
@@ -54,7 +239,7 @@ def test_process_command_preserves_arguments_for_native_executable() -> None:
 @pytest.mark.skipif(os.name != "nt", reason="Windows command wrappers are Windows-only")
 def test_process_command_routes_cmd_wrappers_through_comspec(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("COMSPEC", "C:\\Windows\\System32\\cmd.exe")
-    program, arguments = _process_command(
+    program, arguments = runtime_module._process_command(
         "C:\\Tools\\lms.cmd",
         ("server", "start", "--port", "1234"),
     )
@@ -68,13 +253,13 @@ def test_find_lms_honors_explicit_executable_override(
     executable = tmp_path / ("lms.exe" if os.name == "nt" else "lms")
     executable.write_text("stub", encoding="utf-8")
     monkeypatch.setenv("ATHENA_LMS_EXECUTABLE", str(executable))
-    assert _find_lms() == str(executable.resolve())
+    assert runtime_module._find_lms() == str(executable.resolve())
 
 
 @pytest.mark.skipif(os.name != "nt", reason="cmd.exe wrappers are Windows-only")
 def test_cmd_wrapper_rejects_shell_metacharacters() -> None:
     with pytest.raises(ValueError, match="unsafe"):
-        _process_command(
+        runtime_module._process_command(
             "C:\\Tools\\lms.cmd",
             ("load", "unsafe&model"),
         )
@@ -99,7 +284,7 @@ def test_auto_load_attempts_once_per_selected_model(
     expected: bool,
 ) -> None:
     assert (
-        _should_attempt_auto_load(
+        runtime_module._should_attempt_auto_load(
             model_id="model-id",
             loaded=loaded,
             enabled=enabled,
@@ -128,7 +313,7 @@ def test_auto_start_attempts_once_per_provider_outage(
     expected: bool,
 ) -> None:
     assert (
-        _should_attempt_auto_start(
+        runtime_module._should_attempt_auto_start(
             provider_ready=provider_ready,
             enabled=enabled,
             attempted=attempted,
@@ -140,7 +325,7 @@ def test_auto_start_attempts_once_per_provider_outage(
 
 
 def test_model_load_waits_for_core_confirmation_before_becoming_ready() -> None:
-    action, remaining = _model_confirmation_action(
+    action, remaining = runtime_module._model_confirmation_action(
         pending_model_id="model-id",
         selected_model_id="model-id",
         loaded=False,
@@ -148,7 +333,7 @@ def test_model_load_waits_for_core_confirmation_before_becoming_ready() -> None:
     )
     assert (action, remaining) == ("refresh", 1)
 
-    action, remaining = _model_confirmation_action(
+    action, remaining = runtime_module._model_confirmation_action(
         pending_model_id="model-id",
         selected_model_id="model-id",
         loaded=True,
@@ -161,7 +346,7 @@ def test_model_load_confirmation_failure_is_bounded() -> None:
     remaining = 2
     actions: list[str] = []
     for _ in range(3):
-        action, remaining = _model_confirmation_action(
+        action, remaining = runtime_module._model_confirmation_action(
             pending_model_id="model-id",
             selected_model_id="model-id",
             loaded=False,
@@ -173,7 +358,7 @@ def test_model_load_confirmation_failure_is_bounded() -> None:
 
 
 def test_model_confirmation_ignores_a_different_selected_model() -> None:
-    assert _model_confirmation_action(
+    assert runtime_module._model_confirmation_action(
         pending_model_id="old-model",
         selected_model_id="new-model",
         loaded=False,
@@ -195,4 +380,4 @@ def test_find_lms_discovers_standard_per_user_install(
     )
     executable.parent.mkdir(parents=True)
     executable.write_text("stub", encoding="utf-8")
-    assert _find_lms() == str(executable.resolve())
+    assert runtime_module._find_lms() == str(executable.resolve())
