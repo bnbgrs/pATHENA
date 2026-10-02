@@ -76,6 +76,53 @@ def test_entity_search_result_retains_revision_id() -> None:
     assert response.revision_id == revision_id
 
 
+def test_search_contract_rejects_noncanonical_identity_text() -> None:
+    revision_id = str(uuid.uuid4())
+    protection = SearchProtectionResponse(
+        state="unprotected",
+        protection_scope_id=None,
+    )
+
+    with pytest.raises(ValueError, match="leading or trailing whitespace"):
+        SearchResultResponse(
+            result_ref=" knowledge:1",
+            title=None,
+            preview="preview",
+            entity_type="knowledge",
+            revision_id=revision_id,
+            rank=1,
+            retrieval_methods=("lexical",),
+            source_anchor=None,
+            protection=protection,
+        )
+
+    with pytest.raises(ValueError, match="leading or trailing whitespace"):
+        SearchResultResponse(
+            result_ref="knowledge:1",
+            title=None,
+            preview="preview",
+            entity_type="knowledge",
+            revision_id=revision_id,
+            rank=1,
+            retrieval_methods=(" lexical",),
+            source_anchor=None,
+            protection=protection,
+        )
+
+    with pytest.raises(ValueError, match="canonical UUID text"):
+        SearchResultResponse(
+            result_ref="knowledge:1",
+            title=None,
+            preview="preview",
+            entity_type="knowledge",
+            revision_id=revision_id.upper(),
+            rank=1,
+            retrieval_methods=("lexical",),
+            source_anchor=None,
+            protection=protection,
+        )
+
+
 def test_unprotected_response_cannot_leak_scope_metadata() -> None:
     with pytest.raises(ValueError, match="must not expose"):
         SearchProtectionResponse(
