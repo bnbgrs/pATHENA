@@ -20,7 +20,7 @@ def test_ensure_directory_rejects_existing_symlink(tmp_path: Path) -> None:
     link = tmp_path / "state"
     _symlink_directory(link, target)
 
-    with pytest.raises(RuntimePathError, match="must not be a symlink"):
+    with pytest.raises(RuntimePathError, match="must not be a symbolic link or reparse point"):
         RuntimeLayoutService._ensure_directory(link)
 
 

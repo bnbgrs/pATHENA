@@ -21,7 +21,7 @@ def test_ensure_directory_rejects_symlink_ancestor(tmp_path: Path) -> None:
     _symlink_directory(link, real)
     target = link / "state" / "spool"
 
-    with pytest.raises(RuntimePathError, match="symlink ancestor"):
+    with pytest.raises(RuntimePathError, match="symbolic-link or reparse-point ancestor"):
         RuntimeLayoutService._ensure_directory(target)
 
     assert not (real / "state").exists()
@@ -35,7 +35,7 @@ def test_verify_writable_rejects_symlink_ancestor(tmp_path: Path) -> None:
     link = tmp_path / "link"
     _symlink_directory(link, real)
 
-    with pytest.raises(RuntimePathError, match="symlink ancestor"):
+    with pytest.raises(RuntimePathError, match="symbolic-link or reparse-point ancestor"):
         RuntimeLayoutService._verify_writable(link / "child")
 
 
