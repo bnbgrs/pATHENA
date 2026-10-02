@@ -4,7 +4,13 @@ from __future__ import annotations
 
 import uuid
 
-from athena.chat.models import ChatMessage, ChatSummary, ChatThread, MessageType
+from athena.chat.models import (
+    ChatForkOrigin,
+    ChatMessage,
+    ChatSummary,
+    ChatThread,
+    MessageType,
+)
 from athena.chat.repository import ChatRepository
 from athena.chat.send_identity import (
     SendOperationStatus,
@@ -48,6 +54,45 @@ class ChatService:
         return self.repository.create_chat(
             actor_id=user_id,
             chat_id=chat_id,
+        )
+
+    def fork_chat_from_message(
+        self,
+        *,
+        chat_id: uuid.UUID,
+        source_message_id: uuid.UUID,
+        source_revision_id: uuid.UUID,
+    ) -> uuid.UUID:
+        """Create a durable branch through one exact persisted message revision."""
+        user_id = self.ensure_local_user()
+        return self.repository.fork_chat_from_message(
+            chat_id=chat_id,
+            source_message_id=source_message_id,
+            source_revision_id=source_revision_id,
+            actor_id=user_id,
+        )
+
+    def edit_user_message(
+        self,
+        *,
+        chat_id: uuid.UUID,
+        message_id: uuid.UUID,
+        expected_revision_id: uuid.UUID,
+        content: str,
+    ) -> ChatMessage:
+        """Persist an immutable successor revision for one local-user message."""
+        if not content.strip():
+            raise EmptyMessageError(
+                "A chat message must contain non-whitespace text."
+            )
+
+        user_id = self.ensure_local_user()
+        return self.repository.edit_user_message(
+            chat_id=chat_id,
+            message_id=message_id,
+            expected_revision_id=expected_revision_id,
+            actor_id=user_id,
+            content=content,
         )
 
     def add_user_message(
@@ -145,6 +190,9 @@ class ChatService:
             operation_id=operation_id,
             expected_content=content,
         )
+
+    def get_fork_origin(self, chat_id: uuid.UUID) -> ChatForkOrigin | None:
+        return self.repository.get_fork_origin(chat_id)
 
     def load_chat(self, chat_id: uuid.UUID) -> ChatThread:
         return self.repository.load_chat(chat_id)
