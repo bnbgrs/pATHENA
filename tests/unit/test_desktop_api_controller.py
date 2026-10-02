@@ -22,9 +22,9 @@ from athena.api.contracts import (
 )
 from athena.api.search_contracts import SearchProtectionResponse, SearchResultResponse
 from athena.chat.send_identity import assistant_message_id_for_operation, chat_id_for_operation
-from athena.retrieval.universal import UniversalSearchEntityType
 from athena.desktop.api_controller import DesktopApiController, DesktopApiSnapshot
 from athena.desktop.app import create_application
+from athena.retrieval.universal import UniversalSearchEntityType
 
 
 class _Gateway:
