@@ -7,13 +7,13 @@ import pytest
 from athena.config.settings import AthenaSettings
 from athena.core.application import AthenaApplication
 from athena.security.models import Argon2idParameters
-from athena.security.service import ProtectionScopeLockedError
 from athena.source.blob_store import (
     BlobIntegrityError,
     BlobReadTooLargeError,
     SourceChangedDuringCaptureError,
 )
 from athena.source.models import SourceType
+from athena.security.service import ProtectionScopeLockedError
 
 
 _TEST_KDF = Argon2idParameters(
