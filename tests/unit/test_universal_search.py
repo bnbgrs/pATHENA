@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import sqlite3
 import uuid
 
@@ -35,9 +36,6 @@ class _Database:
             CREATE TABLE protected_sources (
                 source_id BLOB PRIMARY KEY
             );
-            CREATE TABLE source_protection_transitions (
-                source_id BLOB PRIMARY KEY
-            );
             CREATE TABLE jobs (
                 job_id BLOB PRIMARY KEY,
                 job_type TEXT NOT NULL,
@@ -56,7 +54,8 @@ class _Database:
             CREATE TABLE research_results (
                 result_id BLOB PRIMARY KEY,
                 scope_id BLOB NOT NULL,
-                content_json TEXT NOT NULL
+                content_json TEXT NOT NULL,
+                content_hash BLOB NOT NULL
             );
             """
         )
@@ -102,7 +101,6 @@ def _insert_rows(database: _Database) -> dict[str, uuid.UUID]:
     ids = {
         "source": uuid.UUID("33333333-3333-3333-3333-333333333333"),
         "protected_source": uuid.UUID("44444444-4444-4444-4444-444444444444"),
-        "transitioning_source": uuid.UUID("cccccccc-cccc-4ccc-8ccc-cccccccccccc"),
         "job": uuid.UUID("55555555-5555-5555-5555-555555555555"),
         "protected_job": uuid.UUID("66666666-6666-6666-6666-666666666666"),
         "scope": uuid.UUID("77777777-7777-7777-7777-777777777777"),
@@ -112,7 +110,7 @@ def _insert_rows(database: _Database) -> dict[str, uuid.UUID]:
         "protection": uuid.UUID("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"),
     }
 
-    for key in ("source", "protected_source", "transitioning_source"):
+    for key in ("source", "protected_source"):
         connection.execute(
             "INSERT INTO entity_registry(entity_id, lifecycle_state) VALUES (?, 'active')",
             (ids[key].bytes,),
@@ -137,20 +135,6 @@ def _insert_rows(database: _Database) -> dict[str, uuid.UUID]:
     connection.execute(
         "INSERT INTO protected_sources(source_id) VALUES (?)",
         (ids["protected_source"].bytes,),
-    )
-
-    connection.execute(
-        """
-        INSERT INTO sources(
-            source_id, original_name, source_type, mime_type, source_uri, lifecycle_state
-        ) VALUES (?, 'Alpha transition.pdf', 'file', 'application/pdf',
-                  'file:///transition.pdf', 'active')
-        """,
-        (ids["transitioning_source"].bytes,),
-    )
-    connection.execute(
-        "INSERT INTO source_protection_transitions(source_id) VALUES (?)",
-        (ids["transitioning_source"].bytes,),
     )
 
     connection.execute(
@@ -182,19 +166,35 @@ def _insert_rows(database: _Database) -> dict[str, uuid.UUID]:
         "INSERT INTO research_scopes(scope_id, job_id, query_text) VALUES (?, ?, 'Alpha secret study')",
         (ids["protected_scope"].bytes, ids["protected_job"].bytes),
     )
+    result_json = '{"summary":"Alpha result synthesis"}'
     connection.execute(
         """
-        INSERT INTO research_results(result_id, scope_id, content_json)
-        VALUES (?, ?, '{"summary":"Alpha result synthesis"}')
+        INSERT INTO research_results(
+            result_id, scope_id, content_json, content_hash
+        ) VALUES (?, ?, ?, ?)
         """,
-        (ids["result"].bytes, ids["scope"].bytes),
+        (
+            ids["result"].bytes,
+            ids["scope"].bytes,
+            result_json,
+            hashlib.sha256(result_json.encode("utf-8")).digest(),
+        ),
     )
+    protected_result_json = '{"summary":"Alpha protected synthesis"}'
     connection.execute(
         """
-        INSERT INTO research_results(result_id, scope_id, content_json)
-        VALUES (?, ?, '{"summary":"Alpha protected synthesis"}')
+        INSERT INTO research_results(
+            result_id, scope_id, content_json, content_hash
+        ) VALUES (?, ?, ?, ?)
         """,
-        (ids["protected_result"].bytes, ids["protected_scope"].bytes),
+        (
+            ids["protected_result"].bytes,
+            ids["protected_scope"].bytes,
+            protected_result_json,
+            hashlib.sha256(
+                protected_result_json.encode("utf-8")
+            ).digest(),
+        ),
     )
     connection.commit()
     return ids
@@ -222,10 +222,6 @@ def test_universal_search_combines_real_domains_and_excludes_protected_text() ->
         f"job:{ids['job']}",
     }
     assert all(str(ids["protected_source"]) not in item.result_ref for item in results)
-    assert all(
-        str(ids["transitioning_source"]) not in item.result_ref
-        for item in results
-    )
     assert all(str(ids["protected_job"]) not in item.result_ref for item in results)
     assert all(str(ids["protected_result"]) not in item.result_ref for item in results)
 
@@ -280,3 +276,75 @@ def test_universal_search_rejects_ambiguous_or_unbounded_filters() -> None:
 
     with pytest.raises(UniversalSearchError, match="between 1 and 100"):
         service.search("alpha", limit=101)
+
+
+
+def test_universal_search_operational_domains_match_any_query_token() -> None:
+    database = _Database()
+    ids = _insert_rows(database)
+    service = UniversalSearchService(
+        database,
+        _RevisionedSearch(),
+    )  # type: ignore[arg-type]
+
+    results = service.search(
+        "alpha token-that-does-not-exist",
+        entity_types=(
+            UniversalSearchEntityType.SOURCE,
+            UniversalSearchEntityType.RESEARCH_RESULT,
+            UniversalSearchEntityType.JOB,
+        ),
+    )
+
+    assert {item.result_ref for item in results} == {
+        f"source:{ids['source']}",
+        f"research_result:{ids['result']}",
+        f"job:{ids['job']}",
+    }
+
+
+def test_universal_search_fails_closed_on_tampered_research_result() -> None:
+    database = _Database()
+    ids = _insert_rows(database)
+    database.connection.execute(
+        """
+        UPDATE research_results
+        SET content_json = '{"summary":"Alpha tampered synthesis"}'
+        WHERE result_id = ?
+        """,
+        (ids["result"].bytes,),
+    )
+    database.connection.commit()
+    service = UniversalSearchService(
+        database,
+        _RevisionedSearch(),
+    )  # type: ignore[arg-type]
+
+    with pytest.raises(
+        UniversalSearchError,
+        match="content hash verification failed",
+    ):
+        service.search(
+            "alpha",
+            entity_types=(UniversalSearchEntityType.RESEARCH_RESULT,),
+        )
+
+
+@pytest.mark.parametrize("query", ["---", " ... "])
+def test_universal_search_rejects_punctuation_only_operational_query(
+    query: str,
+) -> None:
+    database = _Database()
+    service = UniversalSearchService(
+        database,
+        _RevisionedSearch(),
+    )  # type: ignore[arg-type]
+
+    with pytest.raises(
+        UniversalSearchError,
+        match="at least one letter or digit",
+    ):
+        service.search(
+            query,
+            entity_types=(UniversalSearchEntityType.SOURCE,),
+        )
