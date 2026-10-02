@@ -32,15 +32,8 @@ class ChatService:
         self.repository = repository
 
     def ensure_local_user(self) -> uuid.UUID:
-        """Return the stable local user actor, creating it on first use."""
-        actor_id = self.repository.find_active_actor(
-            actor_type="user",
-            display_name=self._LOCAL_USER_NAME,
-        )
-        if actor_id is not None:
-            return actor_id
-
-        return self.repository.create_actor(
+        """Return the stable local user actor, creating it atomically on first use."""
+        return self.repository.ensure_actor(
             actor_type="user",
             display_name=self._LOCAL_USER_NAME,
         )
@@ -129,14 +122,7 @@ class ChatService:
     def ensure_primary_model(self, *, provider_id: str, model_id: str) -> uuid.UUID:
         """Return a stable primary-model actor for one backend model."""
         display_name = f"{provider_id}:{model_id}"
-        actor_id = self.repository.find_active_actor(
-            actor_type="primary_model",
-            display_name=display_name,
-        )
-        if actor_id is not None:
-            return actor_id
-
-        return self.repository.create_actor(
+        return self.repository.ensure_actor(
             actor_type="primary_model",
             display_name=display_name,
         )
