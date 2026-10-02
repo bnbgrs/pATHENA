@@ -370,3 +370,118 @@ def test_windows_durable_mkdir_creates_nested_tree(tmp_path: Path) -> None:
     durable_fs.durable_mkdir(target, parents=True, exist_ok=True)
     assert target.is_dir()
     durable_fs.durable_mkdir(target, parents=True, exist_ok=True)
+
+def test_durable_publish_new_bytes_never_replaces_existing_history(
+    tmp_path: Path,
+) -> None:
+    destination = tmp_path / "commit.json"
+
+    durable_fs.durable_publish_new_bytes(destination, b"first")
+
+    assert destination.read_bytes() == b"first"
+    with pytest.raises(FileExistsError):
+        durable_fs.durable_publish_new_bytes(destination, b"second")
+    assert destination.read_bytes() == b"first"
+
+
+def test_durable_publish_new_bytes_rejects_symlink_destination(
+    tmp_path: Path,
+) -> None:
+    target = tmp_path / "real.json"
+    target.write_bytes(b"trusted")
+    destination = tmp_path / "commit.json"
+    try:
+        destination.symlink_to(target)
+    except (NotImplementedError, OSError) as exc:
+        pytest.skip(f"file symlink unavailable: {exc}")
+
+    with pytest.raises(FileExistsError, match="symlink or reparse point"):
+        durable_fs.durable_publish_new_bytes(destination, b"attacker")
+
+    assert target.read_bytes() == b"trusted"
+
+
+def test_windows_new_file_route_uses_no_replace_write_through(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    destination = tmp_path / "commit.json"
+    called: list[tuple[Path, Path]] = []
+
+    def publish(source: Path, target: Path) -> None:
+        called.append((Path(source), Path(target)))
+
+    monkeypatch.setattr(durable_fs, "_is_windows", lambda: True)
+    monkeypatch.setattr(
+        durable_fs,
+        "_windows_publish_new_write_through",
+        publish,
+    )
+
+    durable_fs.durable_publish_new_bytes(destination, b"payload")
+
+    assert len(called) == 1
+    source, target = called[0]
+    assert source.parent == tmp_path
+    assert source.name.startswith(".commit.json.")
+    assert source.name.endswith(".partial")
+    assert target == destination
+    assert not source.exists()
+    assert not destination.exists()
+
+
+def test_windows_publish_new_binds_handles_without_replace(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = tmp_path / "commit.partial"
+    destination = tmp_path / "commit.json"
+    source.write_bytes(b"payload")
+    opened: list[tuple[Path, int, bool, bool]] = []
+    renamed: list[tuple[int, int, str, bool]] = []
+    closed: list[int] = []
+
+    def open_bound(
+        path: Path,
+        *,
+        access: int,
+        require_directory: bool,
+        write_through: bool = False,
+    ) -> int:
+        opened.append((Path(path), access, require_directory, write_through))
+        return 101 if Path(path) == source else 202
+
+    def rename_relative(
+        source_handle: int,
+        destination_parent_handle: int,
+        destination_name: str,
+        *,
+        replace_existing: bool,
+    ) -> None:
+        renamed.append(
+            (
+                source_handle,
+                destination_parent_handle,
+                destination_name,
+                replace_existing,
+            )
+        )
+
+    monkeypatch.setattr(durable_fs, "_windows_open_bound_handle", open_bound)
+    monkeypatch.setattr(durable_fs, "_windows_rename_relative", rename_relative)
+    monkeypatch.setattr(durable_fs, "_windows_close_handle", closed.append)
+
+    durable_fs._windows_publish_new_write_through(source, destination)
+
+    assert opened == [
+        (
+            source,
+            durable_fs._DELETE | durable_fs._FILE_READ_ATTRIBUTES,
+            False,
+            True,
+        ),
+        (tmp_path, durable_fs._FILE_READ_ATTRIBUTES, True, False),
+    ]
+    assert renamed == [(101, 202, "commit.json", False)]
+    assert closed == [202, 101]
+
