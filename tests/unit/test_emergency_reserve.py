@@ -100,7 +100,7 @@ def test_store_releases_only_reserve_file(tmp_path: Path) -> None:
 
     released = store.release()
 
-    assert released == (0 if os.name == "posix" else 4096)
+    assert released == 0
     assert not store.path.exists()
     assert sibling.read_text(encoding="utf-8") == "keep"
     assert store.release() == 0
@@ -367,6 +367,56 @@ def test_posix_release_fails_closed_on_same_parent_leaf_substitution(
     monkeypatch.setattr(reserve_module.os, "stat", racing_stat)
 
     with pytest.raises(EmergencyReserveError, match="file changed during release"):
+        store.release()
+
+    assert store.path.read_bytes() == b"attacker"
+    assert displaced.stat().st_size == 4096
+
+
+def test_windows_release_fails_closed_on_same_parent_leaf_substitution(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    if os.name != "nt":
+        pytest.skip("Windows HANDLE identity regression")
+
+    import athena.storage.durable_fs as durable_fs_module
+
+    state_root = (tmp_path / "state").absolute()
+    state_root.mkdir()
+    store = EmergencyReserveStore(state_root)
+    store.ensure(required_bytes=4096, write_chunk_bytes=1024)
+    displaced = store.reserve_root / "expected.reserve"
+
+    real_open = durable_fs_module._windows_open_bound_handle
+    open_count = 0
+
+    def racing_open(
+        path: Path,
+        *,
+        access: int,
+        require_directory: bool,
+        write_through: bool = False,
+    ) -> int:
+        nonlocal open_count
+        open_count += 1
+        if open_count == 2:
+            store.path.replace(displaced)
+            store.path.write_bytes(b"attacker")
+        return real_open(
+            path,
+            access=access,
+            require_directory=require_directory,
+            write_through=write_through,
+        )
+
+    monkeypatch.setattr(
+        durable_fs_module,
+        "_windows_open_bound_handle",
+        racing_open,
+    )
+
+    with pytest.raises(EmergencyReserveError, match="verified Windows file handle"):
         store.release()
 
     assert store.path.read_bytes() == b"attacker"
