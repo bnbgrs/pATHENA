@@ -5,9 +5,8 @@ import uuid
 
 import pytest
 
-import athena.source.models
-import athena.source.representation_repository
-import athena.storage.database
+from athena.source import models, representation_repository
+from athena.storage import database
 
 
 _SCHEMA_REPRESENTATION_TYPES = {
@@ -25,12 +24,12 @@ class _DatabaseMustNotBeTouched:
         raise AssertionError("invalid representation type must fail before DB access")
 
 
-def _existing_blob() -> athena.source.models.BlobRecord:
-    return athena.source.models.BlobRecord(
+def _existing_blob() -> models.BlobRecord:
+    return models.BlobRecord(
         blob_id=uuid.uuid4(),
         byte_length=4,
         media_type="text/plain; charset=utf-8",
-        storage_area=athena.source.models.BlobStorageArea.SPOOL,
+        storage_area=models.BlobStorageArea.SPOOL,
         storage_locator="representations/test.blob",
         integrity_sha256=b"x" * 32,
         encryption_state="none",
@@ -40,7 +39,7 @@ def _existing_blob() -> athena.source.models.BlobRecord:
 
 
 def test_source_representation_type_matches_persisted_schema_contract() -> None:
-    assert {value.value for value in athena.source.models.SourceRepresentationType} == (
+    assert {value.value for value in models.SourceRepresentationType} == (
         _SCHEMA_REPRESENTATION_TYPES
     )
 
@@ -48,15 +47,15 @@ def test_source_representation_type_matches_persisted_schema_contract() -> None:
 @pytest.mark.parametrize(
     "representation_type",
     [
-        athena.source.models.SourceRepresentationType.THUMBNAIL,
-        athena.source.models.SourceRepresentationType.PAGE_IMAGES,
+        models.SourceRepresentationType.THUMBNAIL,
+        models.SourceRepresentationType.PAGE_IMAGES,
     ],
 )
 def test_retained_text_writer_rejects_binary_representation_types_before_db_access(
-    representation_type: athena.source.models.SourceRepresentationType,
+    representation_type: models.SourceRepresentationType,
 ) -> None:
-    repository = athena.source.representation_repository.SourceRepresentationRepository(
-        typing.cast(athena.storage.database.SQLiteDatabase, _DatabaseMustNotBeTouched())
+    repository = representation_repository.SourceRepresentationRepository(
+        typing.cast(database.SQLiteDatabase, _DatabaseMustNotBeTouched())
     )
 
     with pytest.raises(ValueError, match="textual representation type"):
