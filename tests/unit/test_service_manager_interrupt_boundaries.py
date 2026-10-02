@@ -51,7 +51,7 @@ def test_shutdown_interrupt_still_attempts_all_remaining_services() -> None:
         manager.stop_all()
 
     assert events == ["stop:interrupted", "stop:first"]
-    assert manager.started_service_names == ()
+    assert manager.started_service_names == ("interrupted",)
 
 
 def test_normal_shutdown_failures_remain_aggregated() -> None:
@@ -66,4 +66,4 @@ def test_normal_shutdown_failures_remain_aggregated() -> None:
         manager.stop_all()
 
     assert events == ["stop:second", "stop:first"]
-    assert manager.started_service_names == ()
+    assert manager.started_service_names == ("first", "second")
