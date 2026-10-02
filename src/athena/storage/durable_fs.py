@@ -568,6 +568,7 @@ def _windows_open_bound_handle(
     access: int,
     require_directory: bool,
     write_through: bool = False,
+    share_mode: int = _FILE_SHARE_READ | _FILE_SHARE_WRITE | _FILE_SHARE_DELETE,
 ) -> int:
     """Open *path* without following reparse points and bind it to its HANDLE identity."""
     import ctypes
@@ -596,7 +597,7 @@ def _windows_open_bound_handle(
     handle = create_file(
         _windows_api_path(path),
         access,
-        _FILE_SHARE_READ | _FILE_SHARE_WRITE | _FILE_SHARE_DELETE,
+        share_mode,
         None,
         _OPEN_EXISTING,
         flags,
@@ -681,6 +682,135 @@ def _windows_close_handle(handle: int) -> None:
     close_handle.argtypes = (wintypes.HANDLE,)
     close_handle.restype = wintypes.BOOL
     close_handle(handle)
+
+
+def _windows_bound_file_size_and_links(handle: int) -> tuple[int, int]:
+    """Read immutable size/link metadata from an already-bound Windows file HANDLE."""
+    import ctypes
+    from ctypes import wintypes
+
+    class _ByHandleFileInformation(ctypes.Structure):
+        _fields_ = [
+            ("dwFileAttributes", wintypes.DWORD),
+            ("ftCreationTime", wintypes.FILETIME),
+            ("ftLastAccessTime", wintypes.FILETIME),
+            ("ftLastWriteTime", wintypes.FILETIME),
+            ("dwVolumeSerialNumber", wintypes.DWORD),
+            ("nFileSizeHigh", wintypes.DWORD),
+            ("nFileSizeLow", wintypes.DWORD),
+            ("nNumberOfLinks", wintypes.DWORD),
+            ("nFileIndexHigh", wintypes.DWORD),
+            ("nFileIndexLow", wintypes.DWORD),
+        ]
+
+    kernel32 = vars(ctypes)["WinDLL"]("kernel32", use_last_error=True)
+    get_last_error = vars(ctypes)["get_last_error"]
+    get_information = kernel32.GetFileInformationByHandle
+    get_information.argtypes = (
+        wintypes.HANDLE,
+        ctypes.POINTER(_ByHandleFileInformation),
+    )
+    get_information.restype = wintypes.BOOL
+
+    information = _ByHandleFileInformation()
+    if not get_information(handle, ctypes.byref(information)):
+        error = get_last_error()
+        raise OSError(
+            error,
+            f"GetFileInformationByHandle failed with Windows error {error}.",
+        )
+    size = (int(information.nFileSizeHigh) << 32) | int(information.nFileSizeLow)
+    links = int(information.nNumberOfLinks)
+    if links < 1:
+        raise OSError("Windows bound file has no live filesystem link.")
+    return size, links
+
+
+def _windows_mark_file_delete(handle: int) -> None:
+    """Mark the exact bound Windows file HANDLE for deletion."""
+    import ctypes
+    from ctypes import wintypes
+
+    class _FileDispositionInformation(ctypes.Structure):
+        _fields_ = [("DeleteFile", wintypes.BOOL)]
+
+    kernel32 = vars(ctypes)["WinDLL"]("kernel32", use_last_error=True)
+    get_last_error = vars(ctypes)["get_last_error"]
+    set_information = kernel32.SetFileInformationByHandle
+    set_information.argtypes = (
+        wintypes.HANDLE,
+        ctypes.c_int,
+        wintypes.LPVOID,
+        wintypes.DWORD,
+    )
+    set_information.restype = wintypes.BOOL
+
+    disposition = _FileDispositionInformation(DeleteFile=True)
+    if not set_information(
+        handle,
+        4,  # FileDispositionInfo
+        ctypes.byref(disposition),
+        ctypes.sizeof(disposition),
+    ):
+        error = get_last_error()
+        raise OSError(
+            error,
+            f"SetFileInformationByHandle failed with Windows error {error}.",
+        )
+
+
+def windows_delete_bound_file(path: Path) -> int:
+    """Delete one Windows file by bound HANDLE and return provably reclaimed bytes.
+
+    The parent directory is held without delete sharing and the file itself is
+    opened with no sharing. A successful bind therefore fences parent replacement,
+    concurrent leaf replacement, and additional open file handles for the duration
+    of validation and deletion. The file must have exactly one filesystem link.
+    """
+    if not _is_windows():
+        raise OSError("Windows HANDLE-bound deletion is unavailable on this platform.")
+
+    target = Path(path)
+    parent = target.parent
+    _assert_real_directory(parent, label="Windows bound-delete parent")
+    if is_link_boundary(target):
+        raise OSError(f"Windows bound-delete target is a symlink or reparse point: {target}")
+
+    parent_handle = _windows_open_bound_handle(
+        parent,
+        access=_FILE_READ_ATTRIBUTES,
+        require_directory=True,
+        share_mode=_FILE_SHARE_READ | _FILE_SHARE_WRITE,
+    )
+    file_handle = -1
+    size = 0
+    try:
+        file_handle = _windows_open_bound_handle(
+            target,
+            access=_DELETE | _FILE_READ_ATTRIBUTES,
+            require_directory=False,
+            write_through=True,
+            share_mode=0,
+        )
+        size, links = _windows_bound_file_size_and_links(file_handle)
+        if links != 1:
+            raise OSError(
+                "Windows bound-delete target has additional hard links; "
+                "physical reclamation cannot be proven."
+            )
+        _windows_mark_file_delete(file_handle)
+        _windows_close_handle(file_handle)
+        file_handle = -1
+
+        if os.path.lexists(target):
+            raise OSError(
+                "Windows bound-delete target pathname still exists after bound deletion."
+            )
+        return size
+    finally:
+        if file_handle >= 0:
+            _windows_close_handle(file_handle)
+        _windows_close_handle(parent_handle)
 
 
 def _windows_rename_relative(
