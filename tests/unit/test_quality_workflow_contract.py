@@ -57,14 +57,14 @@ def test_canonical_quality_keeps_full_pytest_and_enforces_all_core_checks() -> N
         ".quality-evidence/pytest-desktop-chat-selection-state.txt"
     )
     remaining_suite_command = (
-        "uv run --locked --extra dev --extra desktop python -m pytest \\\n"
-        "            --ignore=tests/unit/test_desktop_api_controller.py \\\n"
-        "            --ignore=tests/unit/test_desktop_chat_selection_state.py \\\n"
-        "            2>&1 | tee .quality-evidence/pytest.txt"
+        "uv run --locked --extra dev --extra desktop python -m pytest "
+        "--ignore=tests/unit/test_desktop_api_controller.py "
+        "--ignore=tests/unit/test_desktop_chat_selection_state.py "
+        "2>&1 | tee .quality-evidence/pytest.txt"
     )
-    assert controller_command in workflow
-    assert chat_selection_command in workflow
-    assert remaining_suite_command in workflow
+    assert controller_command in normalized
+    assert chat_selection_command in normalized
+    assert remaining_suite_command in normalized
     assert 'controller_status=${PIPESTATUS[0]}' in workflow
     assert 'chat_selection_status=${PIPESTATUS[0]}' in workflow
     assert 'suite_status=${PIPESTATUS[0]}' in workflow
