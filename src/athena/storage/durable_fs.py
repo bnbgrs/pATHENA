@@ -24,6 +24,13 @@ _OPEN_EXISTING = 3
 _FILE_RENAME_INFO_CLASS = 3
 _ERROR_ALREADY_EXISTS = 183
 _ERROR_FILE_EXISTS = 80
+_ERROR_INVALID_PARAMETER = 87
+_ERROR_NOT_SUPPORTED = 50
+_ERROR_CALL_NOT_IMPLEMENTED = 120
+_FILE_DISPOSITION_INFO_CLASS = 4
+_FILE_DISPOSITION_INFO_EX_CLASS = 21
+_FILE_DISPOSITION_FLAG_DELETE = 0x00000001
+_FILE_DISPOSITION_FLAG_POSIX_SEMANTICS = 0x00000002
 
 
 def is_link_boundary(path: Path) -> bool:
@@ -681,6 +688,178 @@ def _windows_close_handle(handle: int) -> None:
     close_handle.argtypes = (wintypes.HANDLE,)
     close_handle.restype = wintypes.BOOL
     close_handle(handle)
+
+
+def _windows_bound_file_metadata(
+    handle: int,
+) -> tuple[tuple[int, int, int], int, int]:
+    """Return stable Windows file identity, logical size, and hard-link count."""
+    import ctypes
+    from ctypes import wintypes
+
+    class _ByHandleFileInformation(ctypes.Structure):
+        _fields_ = [
+            ("dwFileAttributes", wintypes.DWORD),
+            ("ftCreationTime", wintypes.FILETIME),
+            ("ftLastAccessTime", wintypes.FILETIME),
+            ("ftLastWriteTime", wintypes.FILETIME),
+            ("dwVolumeSerialNumber", wintypes.DWORD),
+            ("nFileSizeHigh", wintypes.DWORD),
+            ("nFileSizeLow", wintypes.DWORD),
+            ("nNumberOfLinks", wintypes.DWORD),
+            ("nFileIndexHigh", wintypes.DWORD),
+            ("nFileIndexLow", wintypes.DWORD),
+        ]
+
+    kernel32 = vars(ctypes)["WinDLL"]("kernel32", use_last_error=True)
+    get_information = kernel32.GetFileInformationByHandle
+    get_information.argtypes = (
+        wintypes.HANDLE,
+        ctypes.POINTER(_ByHandleFileInformation),
+    )
+    get_information.restype = wintypes.BOOL
+    information = _ByHandleFileInformation()
+    if not get_information(handle, ctypes.byref(information)):
+        error = vars(ctypes)["get_last_error"]()
+        raise OSError(
+            error,
+            f"GetFileInformationByHandle failed with Windows error {error}.",
+        )
+
+    identity = (
+        int(information.dwVolumeSerialNumber),
+        int(information.nFileIndexHigh),
+        int(information.nFileIndexLow),
+    )
+    size = (int(information.nFileSizeHigh) << 32) | int(information.nFileSizeLow)
+    return identity, size, int(information.nNumberOfLinks)
+
+
+def _windows_set_delete_disposition(handle: int) -> None:
+    """Mark exactly one already-open HANDLE for deletion, preferring POSIX semantics."""
+    import ctypes
+    from ctypes import wintypes
+
+    class _FileDispositionInfoEx(ctypes.Structure):
+        _fields_ = [("Flags", wintypes.DWORD)]
+
+    class _FileDispositionInfo(ctypes.Structure):
+        _fields_ = [("DeleteFile", wintypes.BOOL)]
+
+    kernel32 = vars(ctypes)["WinDLL"]("kernel32", use_last_error=True)
+    set_information = kernel32.SetFileInformationByHandle
+    set_information.argtypes = (
+        wintypes.HANDLE,
+        ctypes.c_int,
+        wintypes.LPVOID,
+        wintypes.DWORD,
+    )
+    set_information.restype = wintypes.BOOL
+    get_last_error = vars(ctypes)["get_last_error"]
+
+    extended = _FileDispositionInfoEx(
+        _FILE_DISPOSITION_FLAG_DELETE | _FILE_DISPOSITION_FLAG_POSIX_SEMANTICS
+    )
+    if set_information(
+        handle,
+        _FILE_DISPOSITION_INFO_EX_CLASS,
+        ctypes.byref(extended),
+        ctypes.sizeof(extended),
+    ):
+        return
+
+    error = int(get_last_error())
+    if error not in {
+        _ERROR_INVALID_PARAMETER,
+        _ERROR_NOT_SUPPORTED,
+        _ERROR_CALL_NOT_IMPLEMENTED,
+    }:
+        raise OSError(
+            error,
+            f"SetFileInformationByHandle failed with Windows error {error}.",
+        )
+
+    legacy = _FileDispositionInfo(True)
+    if set_information(
+        handle,
+        _FILE_DISPOSITION_INFO_CLASS,
+        ctypes.byref(legacy),
+        ctypes.sizeof(legacy),
+    ):
+        return
+    error = int(get_last_error())
+    raise OSError(
+        error,
+        f"SetFileInformationByHandle failed with Windows error {error}.",
+    )
+
+
+def _windows_delete_bound_regular_file(path: Path) -> None:
+    """Delete the exact regular file opened at *path* without pathname unlink fallback."""
+    handle = _windows_open_bound_handle(
+        path,
+        access=_DELETE | _FILE_READ_ATTRIBUTES,
+        require_directory=False,
+        write_through=True,
+    )
+    verification_handle = -1
+    original_identity: tuple[int, int, int] | None = None
+    try:
+        original_identity, _size, link_count = _windows_bound_file_metadata(handle)
+        if link_count != 1:
+            raise OSError(
+                "Windows identity-bound delete target has additional hard links."
+            )
+
+        verification_handle = _windows_open_bound_handle(
+            path,
+            access=_FILE_READ_ATTRIBUTES,
+            require_directory=False,
+        )
+        verification_identity, _verified_size, _verified_links = (
+            _windows_bound_file_metadata(verification_handle)
+        )
+        if verification_identity != original_identity:
+            raise OSError(
+                "Windows identity-bound delete target changed before deletion."
+            )
+
+        _windows_set_delete_disposition(handle)
+    finally:
+        if verification_handle >= 0:
+            _windows_close_handle(verification_handle)
+        _windows_close_handle(handle)
+
+    try:
+        current_handle = _windows_open_bound_handle(
+            path,
+            access=_FILE_READ_ATTRIBUTES,
+            require_directory=False,
+        )
+    except FileNotFoundError:
+        return
+    except OSError as exc:
+        if getattr(exc, "winerror", None) in {2, 3} or getattr(exc, "errno", None) in {
+            2,
+            3,
+        }:
+            return
+        raise
+
+    try:
+        current_identity, _current_size, _current_links = _windows_bound_file_metadata(
+            current_handle
+        )
+    finally:
+        _windows_close_handle(current_handle)
+
+    if current_identity == original_identity:
+        raise OSError(
+            "Windows identity-bound delete did not remove the bound reserve object."
+        )
+    raise OSError(
+        "Windows identity-bound delete target was replaced during deletion."
+    )
 
 
 def _windows_rename_relative(
