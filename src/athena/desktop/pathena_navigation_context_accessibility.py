@@ -48,11 +48,19 @@ _CONTEXTUAL_INSPECTOR_COPY = {
         "DETAILS\nSelect a source in the Sources workspace to inspect its reported metadata and processing state.\n\n"
         "PROVENANCE\nSource provenance appears only for a selected reported source.",
     ),
+    5: (
+        "SYSTEM / LOCAL",
+        "System status",
+        "SERVICES\nRuntime, model, storage, and local service availability are reported by "
+        "the local pATHENA core.\n\nDIAGNOSTICS\nDiagnostics reflect only reported local "
+        "state. No synthetic health state is shown here.",
+    ),
     6: (
         "SETTINGS / LOCAL",
-        "System status",
-        "Runtime and model availability are reported by the local pATHENA core. "
-        "No synthetic health state is shown here.",
+        "Settings status",
+        "LOCAL SETTINGS\nSettings use the current local pATHENA runtime state and persisted "
+        "configuration.\n\nAVAILABILITY\nRuntime and model availability remain sourced "
+        "from the local core. No synthetic health state is shown here.",
     ),
 }
 
@@ -187,7 +195,7 @@ class NavigationContextAccessibility(QObject):
             return
 
         object_id, heading_text, body_text = copy
-        if index == 6:
+        if index in (5, 6):
             status_text = getattr(self.window, "status_text", None)
             status = status_text.text().strip() if isinstance(status_text, QLabel) else ""
             if status:

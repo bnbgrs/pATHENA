@@ -127,6 +127,49 @@ def _advance_pallas_living_capture(
         tick()
 
 
+def _settings_capture_ready(
+    *,
+    shell_status: str,
+    provider_text: str,
+    network_text: str,
+    news_text: str,
+    lmstudio_status: str,
+    lmstudio_busy: bool,
+    snapshot_received: bool,
+    news_requested: bool,
+    news_busy: bool,
+) -> tuple[bool, str]:
+    """Reject transient Settings startup state from canonical visual evidence."""
+    if not snapshot_received:
+        return False, "waiting for first Core snapshot"
+    if shell_status.strip() in {"", "Connecting…", "LOCAL / CORE DISCONNECTED"}:
+        return False, "shell status is still transient"
+    if provider_text.strip() == "Model service · waiting":
+        return False, "model provider is still waiting"
+    if network_text.strip() == "Local service · waiting":
+        return False, "local service is still waiting"
+    normalized_lmstudio = lmstudio_status.strip().casefold()
+    if lmstudio_busy:
+        return False, "LM Studio runtime command is still active"
+    if normalized_lmstudio in {
+        "lm studio runtime · awaiting core",
+        "lm studio runtime · waiting for local core",
+    }:
+        return False, "LM Studio runtime is still waiting for Core"
+    if normalized_lmstudio.endswith(" …"):
+        return False, "LM Studio runtime status is still changing"
+    if not news_requested:
+        return False, "News profile has not been requested"
+    if news_busy:
+        return False, "News profile request is still running"
+    normalized_news = news_text.casefold()
+    if "waiting for local service" in normalized_news:
+        return False, "News profile is still waiting"
+    if "loading…" in normalized_news or "saving…" in normalized_news:
+        return False, "News profile is still changing"
+    return True, "stable runtime-backed Settings state"
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
     parser.add_argument("--runtime-root", type=Path, required=True)
@@ -220,6 +263,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     from athena.desktop.app import create_application
     from athena.desktop.app import main as desktop_main
     from athena.desktop.command_palette import CommandPaletteController
+    from athena.desktop.lmstudio_runtime import LMStudioRuntimeController
     from athena.desktop.pathena_pallas_field import PallasGroundedFieldController
     from athena.desktop.pathena_pallas_semantic import (
         PallasGraphSnapshot,
@@ -365,6 +409,95 @@ def main(argv: Sequence[str] | None = None) -> int:
             f"detail_state={detail_state!r}, detail_id={detail_id!r}."
         )
 
+    def wait_for_settings_runtime(window: QMainWindow) -> dict[str, object]:
+        runtime = window.property("pathenaSettingsRuntimeController")
+        if runtime is None:
+            raise RuntimeError("Settings runtime controller is unavailable.")
+        lmstudio = next(
+            (
+                child
+                for child in window.children()
+                if isinstance(child, LMStudioRuntimeController)
+            ),
+            None,
+        )
+        if lmstudio is None:
+            raise RuntimeError("LM Studio runtime controller is unavailable.")
+
+        deadline = time.monotonic() + 15.0
+        stable_signature: tuple[object, ...] | None = None
+        stable_samples = 0
+        last_reason = "Settings runtime was not sampled"
+        while time.monotonic() < deadline:
+            app.processEvents()
+            provider_text = str(runtime.provider_value.text())
+            network_text = str(runtime.network_value.text())
+            news_text = str(runtime.news_status.text())
+            persistence_text = str(runtime.persistence_value.text())
+            detail_text = str(runtime.detail.text())
+            shell_status = str(window.status_text.text())
+            lmstudio_status = lmstudio.status_text
+            lmstudio_busy = lmstudio.busy
+            snapshot_received = runtime._last_snapshot is not None
+            news_requested = bool(runtime._news_requested)
+            news_busy = runtime._news_task is not None
+
+            ready, reason = _settings_capture_ready(
+                shell_status=shell_status,
+                provider_text=provider_text,
+                network_text=network_text,
+                news_text=news_text,
+                lmstudio_status=lmstudio_status,
+                lmstudio_busy=lmstudio_busy,
+                snapshot_received=snapshot_received,
+                news_requested=news_requested,
+                news_busy=news_busy,
+            )
+            last_reason = reason
+            signature = (
+                shell_status,
+                provider_text,
+                network_text,
+                news_text,
+                persistence_text,
+                detail_text,
+                lmstudio_status,
+                lmstudio.auto_start.isChecked(),
+                lmstudio.auto_load.isChecked(),
+                lmstudio.idle_minutes.value(),
+                window.settings_model_selector.currentText(),
+                window.context_spin.value(),
+                window.max_output_spin.value(),
+            )
+            if ready and signature == stable_signature:
+                stable_samples += 1
+            elif ready:
+                stable_signature = signature
+                stable_samples = 1
+            else:
+                stable_signature = None
+                stable_samples = 0
+
+            if stable_samples >= 4:
+                return {
+                    "settings_runtime_ready": True,
+                    "settings_runtime_stable_samples": stable_samples,
+                    "settings_shell_status": shell_status,
+                    "settings_provider_state": provider_text,
+                    "settings_network_state": network_text,
+                    "settings_news_state": news_text,
+                    "settings_persistence_state": persistence_text,
+                    "settings_detail_state": detail_text,
+                    "settings_lmstudio_state": lmstudio_status,
+                    "settings_lmstudio_busy": lmstudio_busy,
+                }
+            time.sleep(0.1)
+
+        raise RuntimeError(
+            "Settings runtime did not leave transient startup state before capture: "
+            f"{last_reason}."
+        )
+
     def capture_workspaces() -> None:
         window = find_window()
         navigation = getattr(window, "navigation", None)
@@ -399,6 +532,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                 )
             knowledge_evidence = (
                 wait_for_reference_knowledge(window) if row == 1 else {}
+            )
+            settings_evidence = (
+                wait_for_settings_runtime(window) if row == 6 else {}
             )
             save_widget(window, ordinal=row + 1, label=label, kind="workspace")
             captures[-1]["navigation_label"] = navigation.item(row).text()
@@ -470,6 +606,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     }
                 captures[-1]["source_controls"] = controls
             captures[-1].update(knowledge_evidence)
+            captures[-1].update(settings_evidence)
 
     def diagnostic_pallas_snapshot() -> PallasGraphSnapshot:
         focus = PallasSemanticNode(

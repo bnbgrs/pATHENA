@@ -13,6 +13,7 @@ from scripts.compare_pathena_ui_snapshots import (
     write_baseline_bundle,
 )
 from scripts.render_pathena_ui_snapshot import WORKSPACE_SURFACE_LABELS, _safe_name
+from scripts.render_pathena_ui_snapshot_sequential import _settings_capture_ready
 
 
 def _write_png(path: Path, *, value: int, changed_pixel: tuple[int, int] | None = None) -> None:
@@ -149,3 +150,42 @@ def test_deterministic_pallas_hash_mismatch_fails_closed(tmp_path: Path) -> None
         for failure in report["failures"]
     )
 
+
+
+def test_settings_capture_waits_for_terminal_lmstudio_runtime() -> None:
+    common = {
+        "shell_status": "Core ready",
+        "provider_text": "Model provider · unavailable",
+        "network_text": "Local Core · connected",
+        "news_text": "News disabled · daily 07:00 · Europe/Berlin",
+        "snapshot_received": True,
+        "news_requested": True,
+        "news_busy": False,
+    }
+
+    ready, reason = _settings_capture_ready(
+        **common,
+        lmstudio_status="LM Studio runtime · awaiting Core",
+        lmstudio_busy=False,
+    )
+    assert ready is False
+    assert reason == "LM Studio runtime is still waiting for Core"
+
+    ready, reason = _settings_capture_ready(
+        **common,
+        lmstudio_status="LM Studio runtime · Starting local LM Studio server …",
+        lmstudio_busy=True,
+    )
+    assert ready is False
+    assert reason == "LM Studio runtime command is still active"
+
+    ready, reason = _settings_capture_ready(
+        **common,
+        lmstudio_status=(
+            "LM Studio runtime · lms CLI not found; "
+            "install/enable LM Studio CLI integration"
+        ),
+        lmstudio_busy=False,
+    )
+    assert ready is True
+    assert reason == "stable runtime-backed Settings state"

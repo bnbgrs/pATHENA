@@ -156,11 +156,23 @@ def test_workspace_routes_use_truthful_contextual_inspector_overlays() -> None:
         assert "PROVENANCE" in body.text()
         assert "Select a source" in body.text()
 
+        window.navigation.setCurrentRow(5)
+        app.processEvents()
+        assert panel.isVisible()
+        assert context_id.text() == "SYSTEM / LOCAL"
+        assert heading.text() == "System status"
+        assert "SERVICES" in body.text()
+        assert "DIAGNOSTICS" in body.text()
+        assert "No synthetic health state" in body.text()
+        assert window.status_text.text() in body.text()
+
         window.navigation.setCurrentRow(6)
         app.processEvents()
         assert panel.isVisible()
         assert context_id.text() == "SETTINGS / LOCAL"
-        assert heading.text() == "System status"
+        assert heading.text() == "Settings status"
+        assert "LOCAL SETTINGS" in body.text()
+        assert "AVAILABILITY" in body.text()
         assert "No synthetic health state" in body.text()
         assert window.status_text.text() in body.text()
 
