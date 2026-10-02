@@ -8,8 +8,8 @@ import pytest
 import athena.core.recovery_diagnostics as diagnostics_module
 from athena.core.derived_recovery import DerivedRecoveryRequiredError
 from athena.core.recovery_diagnostics import (
-    RecoveryDiagnosticStatus,
     RecoveryDiagnosticsService,
+    RecoveryDiagnosticStatus,
 )
 from athena.storage.recovery import DatabaseRecoveryRequiredError
 
