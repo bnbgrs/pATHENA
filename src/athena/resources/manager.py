@@ -22,6 +22,11 @@ from athena.jobs.capabilities import requires_provider_isolation
 from athena.jobs.models import JobPriority, JobRecord
 from athena.model.ports import ChatModelProvider
 from athena.storage.database import SQLiteDatabase
+from athena.storage.durable_fs import (
+    durable_mkdir,
+    durable_write_bytes,
+    is_link_boundary,
+)
 from athena.storage.paths import RuntimePaths
 
 
@@ -185,12 +190,11 @@ class ResourceManager:
         expires_at_us = now + duration * 1_000_000
         lease_id = new_uuid7()
 
-        root = self._interactive_lease_root
-        root.mkdir(parents=True, exist_ok=True)
+        root = self._validated_interactive_lease_root(create=True)
+        assert root is not None
         self._cleanup_expired_interactive_leases(now_us=now)
 
         final_path = root / f"{lease_id}.json"
-        staging_path = root / f".{lease_id}.partial"
         payload = json.dumps(
             {
                 "lease_id": str(lease_id),
@@ -203,16 +207,7 @@ class ResourceManager:
             sort_keys=True,
             separators=(",", ":"),
         ).encode("utf-8")
-
-        try:
-            with staging_path.open("xb") as handle:
-                handle.write(payload)
-                handle.flush()
-                os.fsync(handle.fileno())
-            os.replace(staging_path, final_path)
-            self._fsync_directory(root)
-        finally:
-            staging_path.unlink(missing_ok=True)
+        durable_write_bytes(final_path, payload, mode=0o600)
 
         return InteractiveDemandLease(
             lease_id=lease_id,
@@ -258,21 +253,12 @@ class ResourceManager:
             expires_at_us=now + duration_us,
         )
 
-        root = self._interactive_lease_root
-        root.mkdir(
-            parents=True,
-            exist_ok=True,
-        )
+        root = self._validated_interactive_lease_root(create=False)
+        if root is None:
+            raise ValueError("Interactive demand lease is no longer active.")
 
-        final_path = (
-            root
-            / f"{validated_lease.lease_id}.json"
-        )
-
-        staging_path = (
-            root
-            / f".{validated_lease.lease_id}.partial"
-        )
+        final_path = root / f"{validated_lease.lease_id}.json"
+        self._require_current_interactive_lease(final_path, validated_lease)
 
         payload = json.dumps(
             {
@@ -298,33 +284,7 @@ class ResourceManager:
             separators=(",", ":"),
         ).encode("utf-8")
 
-        staging_path.unlink(
-            missing_ok=True
-        )
-
-        try:
-            with staging_path.open(
-                "xb"
-            ) as handle:
-                handle.write(payload)
-                handle.flush()
-                os.fsync(
-                    handle.fileno()
-                )
-
-            os.replace(
-                staging_path,
-                final_path,
-            )
-
-            self._fsync_directory(
-                root
-            )
-
-        finally:
-            staging_path.unlink(
-                missing_ok=True
-            )
+        durable_write_bytes(final_path, payload, mode=0o600)
 
         return renewed
 
@@ -336,7 +296,9 @@ class ResourceManager:
             lease_id,
             "Interactive demand lease_id",
         )
-        root = self._interactive_lease_root
+        root = self._validated_interactive_lease_root(create=False)
+        if root is None:
+            return
         path = root / f"{validated_lease_id}.json"
         partial = root / f".{validated_lease_id}.partial"
         path.unlink(missing_ok=True)
@@ -365,10 +327,13 @@ class ResourceManager:
             else _nonnegative_int(now_us, "Interactive demand timestamp")
         )
         self._cleanup_expired_interactive_leases(now_us=now)
-        root = self._interactive_lease_root
-        if not root.is_dir():
+        root = self._validated_interactive_lease_root(create=False)
+        if root is None:
             return False
-        return any(root.glob("*.json"))
+        return any(
+            path.is_file() and not is_link_boundary(path)
+            for path in root.glob("*.json")
+        )
 
     def should_yield_to_interactive(
         self,
@@ -395,13 +360,15 @@ class ResourceManager:
             now_us,
             "Interactive demand timestamp",
         )
-        root = self._interactive_lease_root
-        if not root.is_dir():
+        root = self._validated_interactive_lease_root(create=False)
+        if root is None:
             return
 
         fallback_ttl_us = self.interactive_lease_seconds * 1_000_000
 
         for path in root.glob("*.json"):
+            if is_link_boundary(path):
+                continue
             expired = False
             try:
                 payload = json.loads(path.read_text(encoding="utf-8"))
@@ -421,19 +388,69 @@ class ResourceManager:
             if expired:
                 path.unlink(missing_ok=True)
 
+    def _validated_interactive_lease_root(
+        self,
+        *,
+        create: bool,
+    ) -> Path | None:
+        root = self._interactive_lease_root
+        if is_link_boundary(root):
+            raise OSError(
+                f"Interactive demand lease root is a symlink or reparse point: {root}"
+            )
+        if not root.exists():
+            if not create:
+                return None
+            durable_mkdir(root, parents=True, exist_ok=True)
+            return root
+        durable_mkdir(root, parents=True, exist_ok=True)
+        return root
+
     @staticmethod
-    def _fsync_directory(path: Path) -> None:
+    def _require_current_interactive_lease(
+        path: Path,
+        expected: InteractiveDemandLease,
+    ) -> None:
+        if is_link_boundary(path) or not path.is_file():
+            raise ValueError("Interactive demand lease is no longer active.")
         try:
-            descriptor = os.open(path, os.O_RDONLY)
-        except OSError:
-            return
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+            raise ValueError("Interactive demand persisted lease is unreadable.") from exc
+        if not isinstance(payload, dict):
+            raise ValueError("Interactive demand persisted lease is invalid.")
+
+        raw_id = payload.get("lease_id")
         try:
-            try:
-                os.fsync(descriptor)
-            except OSError:
-                pass
-        finally:
-            os.close(descriptor)
+            persisted_id = uuid.UUID(raw_id) if isinstance(raw_id, str) else None
+        except ValueError as exc:
+            raise ValueError("Interactive demand persisted lease id is invalid.") from exc
+        if persisted_id != expected.lease_id or raw_id != str(expected.lease_id):
+            raise ValueError("Interactive demand persisted lease identity changed.")
+
+        persisted_purpose = _canonical_text(
+            payload.get("purpose"),
+            "Interactive demand persisted purpose",
+        )
+        persisted_acquired = _nonnegative_int(
+            payload.get("acquired_at_us"),
+            "Interactive demand persisted acquired_at_us",
+        )
+        persisted_expires = _nonnegative_int(
+            payload.get("expires_at_us"),
+            "Interactive demand persisted expires_at_us",
+        )
+        persisted_duration = _positive_int(
+            payload.get("lease_seconds"),
+            "Interactive demand persisted lease duration",
+        )
+        if (
+            persisted_purpose != expected.purpose
+            or persisted_acquired != expected.acquired_at_us
+            or persisted_expires != expected.expires_at_us
+            or persisted_duration != expected.lease_seconds
+        ):
+            raise ValueError("Interactive demand lease is stale or was replaced.")
 
     def policy(self) -> ResourcePolicy:
         row = self.database.connection.execute(
@@ -441,17 +458,45 @@ class ResourceManager:
         ).fetchone()
         if row is None:
             raise RuntimeError("ATHENA resource policy row is missing.")
+
+        raw_mode = row["mode"]
+        if not isinstance(raw_mode, str):
+            raise RuntimeError(
+                "Persisted resource policy mode has an invalid storage type."
+            )
+        try:
+            mode = ResourceMode(raw_mode)
+        except ValueError as exc:
+            raise RuntimeError("Persisted resource policy mode is invalid.") from exc
+
+        updated_actor_raw = row["updated_by_actor_id"]
+        updated_actor = (
+            None
+            if updated_actor_raw is None
+            else _persisted_policy_uuid(
+                updated_actor_raw,
+                "updated_by_actor_id",
+            )
+        )
         return ResourcePolicy(
-            mode=ResourceMode(str(row["mode"])),
-            ram_headroom_bytes=int(row["ram_headroom_bytes"]),
-            disk_headroom_bytes=int(row["disk_headroom_bytes"]),
-            gpu_background_threshold=float(row["gpu_background_threshold"]),
-            updated_at_us=int(row["updated_at_us"]),
-            updated_by_actor_id=(
-                uuid_from_blob(bytes(row["updated_by_actor_id"]))
-                if row["updated_by_actor_id"] is not None
-                else None
+            mode=mode,
+            ram_headroom_bytes=_persisted_policy_nonnegative_int(
+                row["ram_headroom_bytes"],
+                "ram_headroom_bytes",
             ),
+            disk_headroom_bytes=_persisted_policy_nonnegative_int(
+                row["disk_headroom_bytes"],
+                "disk_headroom_bytes",
+            ),
+            gpu_background_threshold=_persisted_policy_fraction(
+                row["gpu_background_threshold"],
+                "gpu_background_threshold",
+            ),
+            updated_at_us=_persisted_policy_nonnegative_int(
+                row["updated_at_us"],
+                "updated_at_us",
+            ),
+            updated_by_actor_id=updated_actor,
         )
 
     def set_mode(self, mode: ResourceMode) -> ResourcePolicy:
@@ -633,6 +678,40 @@ class ResourceManager:
                 )
                 """
             )
+
+
+def _persisted_policy_nonnegative_int(value: object, field: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise RuntimeError(
+            f"Persisted resource policy {field} has an invalid storage value."
+        )
+    return value
+
+
+def _persisted_policy_fraction(value: object, field: str) -> float:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise RuntimeError(
+            f"Persisted resource policy {field} has an invalid storage value."
+        )
+    result = float(value)
+    if not math.isfinite(result) or not 0.0 <= result <= 1.0:
+        raise RuntimeError(
+            f"Persisted resource policy {field} has an invalid storage value."
+        )
+    return result
+
+
+def _persisted_policy_uuid(value: object, field: str) -> uuid.UUID:
+    if not isinstance(value, bytes) or len(value) != 16:
+        raise RuntimeError(
+            f"Persisted resource policy {field} has an invalid storage value."
+        )
+    try:
+        return uuid_from_blob(value)
+    except (TypeError, ValueError) as exc:
+        raise RuntimeError(
+            f"Persisted resource policy {field} has an invalid storage value."
+        ) from exc
 
 
 def _resource_probe_snapshot(value: object) -> ResourceSnapshot:
