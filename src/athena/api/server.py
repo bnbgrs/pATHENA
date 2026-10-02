@@ -305,7 +305,15 @@ class CoreApiServer:
 
     def start(self) -> None:
         if self._server is not None:
-            return
+            if self._thread is not None and self._discovery is not None:
+                return
+            raise CoreApiServerError(
+                "ATHENA Core API cannot restart until failed lifecycle cleanup completes."
+            )
+        if self._thread is not None or self._discovery is not None:
+            raise CoreApiServerError(
+                "ATHENA Core API cannot restart while stale lifecycle state remains."
+            )
 
         server = _AthenaHttpServer(
             (self._host, self._configured_port),
@@ -324,30 +332,32 @@ class CoreApiServer:
         try:
             thread.start()
             thread_started = True
+            self._server = server
+            self._thread = thread
             discovery = self.runtime.publish(port=actual_port)
         except BaseException:
             if thread_started:
                 try:
-                    server.shutdown()
+                    self.stop()
                 except BaseException:
-                    logger.exception("Failed to shut down ATHENA Core API after startup error")
-            try:
-                server.server_close()
-            except BaseException:
-                logger.exception("Failed to close ATHENA Core API after startup error")
-            if thread_started:
+                    logger.exception(
+                        "Failed to fully roll back ATHENA Core API startup"
+                    )
+            else:
                 try:
-                    thread.join(timeout=_THREAD_JOIN_TIMEOUT_SECONDS)
+                    server.server_close()
                 except BaseException:
-                    logger.exception("Failed to join ATHENA Core API thread after startup error")
-            try:
-                self.runtime.clear()
-            except BaseException:
-                logger.exception("Failed to clear ATHENA Core API runtime after startup error")
+                    logger.exception(
+                        "Failed to close ATHENA Core API after thread startup error"
+                    )
+                try:
+                    self.runtime.clear()
+                except BaseException:
+                    logger.exception(
+                        "Failed to clear ATHENA Core API runtime after startup error"
+                    )
             raise
 
-        self._server = server
-        self._thread = thread
         self._discovery = discovery
         logger.info(
             "ATHENA Core API listening",
@@ -357,15 +367,16 @@ class CoreApiServer:
     def stop(self) -> None:
         server = self._server
         thread = self._thread
-        self._server = None
-        self._thread = None
-        self._discovery = None
         failures: list[BaseException] = []
+        server_closed = server is None
+        thread_stopped = thread is None
 
         try:
             self.runtime.clear()
         except BaseException as exc:
             failures.append(exc)
+        else:
+            self._discovery = None
 
         if server is not None:
             try:
@@ -376,6 +387,8 @@ class CoreApiServer:
                 server.server_close()
             except BaseException as exc:
                 failures.append(exc)
+            else:
+                server_closed = True
 
         if thread is not None:
             try:
@@ -385,7 +398,13 @@ class CoreApiServer:
             else:
                 if thread.is_alive():
                     failures.append(CoreApiServerError("ATHENA Core API thread did not stop."))
+                else:
+                    thread_stopped = True
 
+        if thread_stopped:
+            self._thread = None
+        if server_closed and thread_stopped:
+            self._server = None
         if failures:
             for failure in failures:
                 if not isinstance(failure, Exception):
