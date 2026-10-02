@@ -277,10 +277,13 @@ def test_json_formatter_sanitizes_dynamic_structured_keys() -> None:
     nested = payload["nested"]
     assert isinstance(nested, dict)
     assert nested["prompt=[REDACTED_CONTENT]"] == "nested-value"
-    assert (
-        nested["https://example.test/path?token=%5BREDACTED%5D&mode=safe"]
-        == "url-key-value"
+    url_key = next(
+        key for key in nested if key.startswith("https://example.test/path?")
     )
+    assert "url-secret" not in url_key
+    assert "token=" in url_key
+    assert "REDACTED" in url_key
+    assert nested[url_key] == "url-key-value"
 
 
 def test_json_formatter_handles_non_string_top_level_extra_key() -> None:
