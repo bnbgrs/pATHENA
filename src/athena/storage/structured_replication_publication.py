@@ -18,10 +18,10 @@ from typing import Any
 
 from athena.common.ids import uuid_from_blob
 from athena.storage.canonical_commit_bundle import (
-    FORMAT as COMMIT_FORMAT,
-    FORMAT_VERSION as COMMIT_FORMAT_VERSION,
     CanonicalCommitBundle,
     CanonicalCommitBundleError,
+    FORMAT as COMMIT_FORMAT,
+    FORMAT_VERSION as COMMIT_FORMAT_VERSION,
     verify_canonical_commit_bundle,
 )
 from athena.storage.durable_fs import (
@@ -577,7 +577,7 @@ class StructuredReplicationPublisher:
                 raise _TargetHistoryError(
                     "Structured replication repository manifest is missing "
                     "from a non-empty target."
-                )
+                ) from None
             try:
                 durable_publish_new_bytes(repository_path, expected)
             except FileExistsError:
