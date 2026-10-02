@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 import pytest
 
 from athena.chat.repository import ChatRepository
@@ -18,6 +20,62 @@ def test_local_user_actor_is_reused(tmp_path) -> None:
         "SELECT COUNT(*) FROM actors WHERE actor_type = 'user'"
     ).fetchone()[0]
     assert actor_count == 1
+    database.stop()
+
+
+def test_actor_ensure_reuses_identity_inside_repository_boundary(tmp_path) -> None:
+    database = SQLiteDatabase(tmp_path / "athena.db")
+    database.start()
+    repository = ChatRepository(database)
+
+    first = repository.ensure_actor(
+        actor_type="primary_model",
+        display_name="lmstudio:model-a",
+    )
+    second = repository.ensure_actor(
+        actor_type="primary_model",
+        display_name="lmstudio:model-a",
+    )
+
+    assert first == second
+    actor_count = database.connection.execute(
+        """
+        SELECT COUNT(*)
+        FROM actors
+        WHERE actor_type = 'primary_model'
+          AND display_name = 'lmstudio:model-a'
+          AND active = 1
+        """
+    ).fetchone()[0]
+    assert actor_count == 1
+    database.stop()
+
+
+def test_service_actor_ensure_does_not_split_lookup_from_creation(tmp_path) -> None:
+    database = SQLiteDatabase(tmp_path / "athena.db")
+    database.start()
+    repository = ChatRepository(database)
+    service = ChatService(repository)
+
+    with (
+        patch.object(
+            repository,
+            "find_active_actor",
+            side_effect=AssertionError("split actor lookup must not be used"),
+        ),
+        patch.object(
+            repository,
+            "create_actor",
+            side_effect=AssertionError("split actor creation must not be used"),
+        ),
+    ):
+        local_user = service.ensure_local_user()
+        primary_model = service.ensure_primary_model(
+            provider_id="lmstudio",
+            model_id="model-a",
+        )
+
+    assert local_user != primary_model
     database.stop()
 
 
