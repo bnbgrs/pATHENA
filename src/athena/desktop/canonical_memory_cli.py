@@ -231,17 +231,22 @@ def _run(app: AthenaApplication, args: argparse.Namespace) -> int:
 def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(list(argv) if argv is not None else None)
     app = AthenaApplication()
+    exit_code = 0
     try:
-        app.start(run_startup_maintenance=False)
-        return _run(app, args)
+        # Desktop helpers need canonical storage, not ownership of global Core services.
+        app.storage_bootstrap.start()
+        exit_code = _run(app, args)
     except Exception as exc:
         print(f"CANONICAL_MEMORY_ERROR {type(exc).__name__}: {exc}", file=sys.stderr)
-        return 2
-    finally:
-        try:
-            app.stop()
-        except Exception:
-            pass
+        exit_code = 2
+
+    try:
+        app.storage_bootstrap.stop()
+    except Exception as exc:
+        print(f"CANONICAL_MEMORY_ERROR {type(exc).__name__}: {exc}", file=sys.stderr)
+        exit_code = 2
+
+    return exit_code
 
 
 if __name__ == "__main__":
