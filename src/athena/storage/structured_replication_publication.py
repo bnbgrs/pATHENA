@@ -299,6 +299,42 @@ def _read_regular_file(path: Path, *, max_bytes: int) -> bytes:
         os.close(descriptor)
 
 
+
+def _assert_safe_partial_file(path: Path) -> None:
+    """Allow only inert regular files as crash residue inside managed storage."""
+    if is_link_boundary(path):
+        raise _TargetHistoryError(
+            f"Structured replication partial entry is a link boundary: {path.name}"
+        )
+    try:
+        mode = path.stat(follow_symlinks=False).st_mode
+    except OSError as exc:
+        raise _TargetHistoryError(
+            f"Structured replication partial entry identity is unstable: {path.name}"
+        ) from exc
+    if not stat.S_ISREG(mode):
+        raise _TargetHistoryError(
+            f"Structured replication partial entry is not a regular file: {path.name}"
+        )
+
+def _ensure_managed_directory(path: Path) -> None:
+    """Create or verify one managed directory without tolerating type redirection."""
+    if is_link_boundary(path):
+        raise _TargetHistoryError(
+            f"Structured replication managed path is a link boundary: {path.name}"
+        )
+    if path.exists() and not path.is_dir():
+        raise _TargetHistoryError(
+            f"Structured replication managed path is not a directory: {path.name}"
+        )
+    try:
+        durable_mkdir(path, parents=False, exist_ok=True)
+    except (FileExistsError, NotADirectoryError) as exc:
+        raise _TargetHistoryError(
+            f"Structured replication managed path changed during preparation: {path.name}"
+        ) from exc
+
+
 def _parse_manifest(path: Path) -> _ManifestEntry:
     data = _read_regular_file(path, max_bytes=_MANIFEST_LIMIT)
     try:
@@ -433,10 +469,10 @@ class StructuredReplicationPublisher:
                 target=target,
                 target_root=target_root,
             )
-            durable_mkdir(commits_dir, parents=False, exist_ok=True)
-            durable_mkdir(snapshots_dir, parents=False, exist_ok=True)
-            durable_mkdir(manifest_dir, parents=False, exist_ok=True)
-            durable_mkdir(replication_dir, parents=False, exist_ok=True)
+            _ensure_managed_directory(commits_dir)
+            _ensure_managed_directory(snapshots_dir)
+            _ensure_managed_directory(manifest_dir)
+            _ensure_managed_directory(replication_dir)
 
             entries = self._scan_target(
                 commits_dir=commits_dir,
@@ -565,14 +601,15 @@ class StructuredReplicationPublisher:
                 max_bytes=_REPOSITORY_LIMIT,
             )
         except FileNotFoundError:
-            unexpected = [
-                item
-                for item in target_root.iterdir()
-                if not (
+            unexpected: list[Path] = []
+            for item in target_root.iterdir():
+                if (
                     item.name.startswith(".repository.json.")
                     and item.name.endswith(".partial")
-                )
-            ]
+                ):
+                    _assert_safe_partial_file(item)
+                    continue
+                unexpected.append(item)
             if unexpected:
                 raise _TargetHistoryError(
                     "Structured replication repository manifest is missing "
@@ -607,25 +644,21 @@ class StructuredReplicationPublisher:
             expected_repository_id=target.target_id,
         )
 
-        directory_names = {
+        allowed = {
+            "repository.json",
             "commits",
             "snapshots",
             "manifests",
             "replication",
         }
         for item in target_root.iterdir():
-            if item.name in directory_names:
-                if is_link_boundary(item) or not item.is_dir():
-                    raise _TargetHistoryError(
-                        f"Long-term repository directory is unsafe: {item.name}"
-                    )
-                continue
-            if item.name == "repository.json":
+            if item.name in allowed:
                 continue
             if (
                 item.name.startswith(".repository.json.")
                 and item.name.endswith(".partial")
             ):
+                _assert_safe_partial_file(item)
                 continue
             raise _TargetHistoryError(
                 f"Unexpected long-term repository entry: {item.name}"
@@ -718,6 +751,7 @@ class StructuredReplicationPublisher:
         entries: list[_ManifestEntry] = []
         for path in sorted(manifest_dir.iterdir(), key=lambda item: item.name):
             if path.name.startswith(".") and path.name.endswith(".partial"):
+                _assert_safe_partial_file(path)
                 continue
             if not path.name.endswith(".json"):
                 raise _TargetHistoryError(
@@ -748,6 +782,7 @@ class StructuredReplicationPublisher:
         present_bundles: set[str] = set()
         for path in sorted(commits_dir.iterdir(), key=lambda item: item.name):
             if path.name.startswith(".") and path.name.endswith(".partial"):
+                _assert_safe_partial_file(path)
                 continue
             if is_link_boundary(path):
                 raise _TargetHistoryError(
