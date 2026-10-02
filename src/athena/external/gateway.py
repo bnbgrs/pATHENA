@@ -414,6 +414,16 @@ class ExternalAccessGateway:
             created_at_us=int(row["created_at_us"]),
         )
 
+    def validate_url(
+        self,
+        authorization_id: uuid.UUID,
+        url: str,
+    ) -> ExternalAccessAuthorizationRecord:
+        """Validate one URL against an active authorization without network access."""
+        if not isinstance(url, str):
+            raise ExternalDestinationError("External URL must be text.")
+        return self._require_authorized(authorization_id, url=url)
+
     def capture_url(
         self,
         authorization_id: uuid.UUID,
@@ -483,6 +493,14 @@ class ExternalAccessGateway:
                     )
                     raise ExternalTransportError("Redirect response has no Location header.")
                 if redirect_count >= self._MAX_REDIRECTS:
+                    self._audit(
+                        authorization,
+                        url=current_url,
+                        outcome="failed",
+                        reason_code="redirect_limit_exceeded",
+                        response_bytes=len(response.body),
+                        source_id=None,
+                    )
                     raise ExternalTransportError("External redirect limit exceeded.")
                 current_url = urljoin(current_url, location)
                 continue
@@ -511,7 +529,10 @@ class ExternalAccessGateway:
                 raise ExternalResponsePolicyError(
                     "External response exceeded configured body limit."
                 )
-            self._require_authorized(authorization_id, url=response.final_url)
+            self._authorized_or_audit(
+                authorization_id,
+                url=response.final_url,
+            )
             break
         else:
             raise ExternalTransportError("External redirect processing failed.")
@@ -899,9 +920,28 @@ class ExternalResearchService:
         output_reserve: int | None = None,
         safety_margin: int | None = None,
     ) -> JobRecord:
-        normalized_urls = tuple(item.strip() for item in urls if item.strip())
+        if isinstance(urls, (str, bytes)) or not isinstance(urls, Sequence):
+            raise ExternalAccessError(
+                "External Research URLs must be a sequence of URL strings."
+            )
+        normalized_items: list[str] = []
+        for item in urls:
+            if not isinstance(item, str):
+                raise ExternalAccessError(
+                    "External Research URLs must contain only URL strings."
+                )
+            normalized = item.strip()
+            if normalized:
+                normalized_items.append(normalized)
+        normalized_urls = tuple(normalized_items)
         if not normalized_urls:
             raise ExternalAccessError("External Research requires at least one URL.")
+
+        # Preflight the complete request set before the first Source capture so a
+        # later malformed/out-of-scope URL cannot leave an avoidable partial batch.
+        for url in normalized_urls:
+            self.gateway.validate_url(authorization_id, url)
+
         source_ids = tuple(
             self.gateway.capture_url(authorization_id, url).source.source_id
             for url in normalized_urls
