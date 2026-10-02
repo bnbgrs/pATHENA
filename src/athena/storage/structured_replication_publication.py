@@ -23,9 +23,7 @@ from athena.storage.canonical_commit_bundle import (
     verify_canonical_commit_bundle,
 )
 from athena.storage.canonical_commit_bundle import FORMAT as COMMIT_FORMAT
-from athena.storage.canonical_commit_bundle import (
-    FORMAT_VERSION as COMMIT_FORMAT_VERSION,
-)
+from athena.storage.canonical_commit_bundle import FORMAT_VERSION as COMMIT_FORMAT_VERSION
 from athena.storage.durable_fs import (
     durable_mkdir,
     durable_publish_new_bytes,
