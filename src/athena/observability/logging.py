@@ -11,7 +11,7 @@ import traceback
 from collections.abc import Mapping
 from datetime import datetime, timezone
 from types import TracebackType
-from typing import Any
+from typing import Any, cast
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 from uuid import UUID
 
@@ -266,6 +266,12 @@ def _safe_type_name(value: object) -> str:
     return f"<type:{type(value).__name__}>"
 
 
+def _safe_mapping_key(value: object) -> str:
+    if not isinstance(value, str):
+        return _safe_type_name(value)
+    return _sanitize_text(value)
+
+
 def _sanitize_value(
     value: object,
     *,
@@ -304,10 +310,11 @@ def _sanitize_value(
         try:
             sanitized_mapping: dict[str, object] = {}
             for raw_key, raw_value in value.items():
-                key = raw_key if isinstance(raw_key, str) else _safe_type_name(raw_key)
+                key = _safe_mapping_key(raw_key)
+                key_hint = raw_key if isinstance(raw_key, str) else key
                 sanitized_mapping[key] = _sanitize_value(
                     raw_value,
-                    key_hint=key,
+                    key_hint=key_hint,
                     depth=depth + 1,
                     seen=seen,
                 )
@@ -335,8 +342,9 @@ def _sanitize_format_args(args: object) -> object:
     if isinstance(args, Mapping):
         sanitized_mapping: dict[str, object] = {}
         for raw_key, raw_value in args.items():
-            key = raw_key if isinstance(raw_key, str) else _safe_type_name(raw_key)
-            sanitized_mapping[key] = _sanitize_value(raw_value, key_hint=key)
+            key = _safe_mapping_key(raw_key)
+            key_hint = raw_key if isinstance(raw_key, str) else key
+            sanitized_mapping[key] = _sanitize_value(raw_value, key_hint=key_hint)
         return sanitized_mapping
     if isinstance(args, tuple):
         return tuple(_sanitize_value(item) for item in args)
@@ -431,13 +439,19 @@ class JsonFormatter(logging.Formatter):
             "message": _safe_log_message(record),
         }
 
-        for key, value in record.__dict__.items():
-            if (
-                key not in self._standard_fields
-                and not key.startswith("_")
-                and key not in payload
-            ):
-                payload[key] = _sanitize_value(value, key_hint=key)
+        extra_fields = cast(Mapping[object, object], record.__dict__)
+        for raw_key, value in extra_fields.items():
+            if isinstance(raw_key, str):
+                if raw_key in self._standard_fields or raw_key.startswith("_"):
+                    continue
+                key_hint = raw_key
+            else:
+                key_hint = _safe_type_name(raw_key)
+
+            key = _safe_mapping_key(raw_key)
+            if key in payload:
+                continue
+            payload[key] = _sanitize_value(value, key_hint=key_hint)
 
         if record.exc_info:
             exc_type, _exc_value, exc_tb = record.exc_info
