@@ -10,7 +10,12 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-from athena.storage.durable_fs import durable_mkdir, fsync_directory, is_link_boundary
+from athena.storage.durable_fs import (
+    _windows_delete_bound_regular_file,
+    durable_mkdir,
+    fsync_directory,
+    is_link_boundary,
+)
 
 _MIB = 1024 * 1024
 _GIB = 1024 * _MIB
@@ -547,23 +552,25 @@ class EmergencyReserveStore:
                     os.close(descriptor)
                 os.close(root_fd)
 
-        if is_link_boundary(self.path):
-            raise EmergencyReserveError(
-                "Emergency reserve file path is unsafe and cannot be released automatically."
-            )
-        if not self.path.exists():
+        if os.name == "nt":
+            try:
+                _windows_delete_bound_regular_file(self.path)
+                fsync_directory(self.reserve_root)
+            except FileNotFoundError:
+                return 0
+            except OSError as exc:
+                raise EmergencyReserveError(
+                    "Emergency reserve could not be released with a verified Windows file handle."
+                ) from exc
+
+            # A bound delete removes only the verified reserve object. Windows does not
+            # provide a portable proof that no foreign HANDLE still retains the file's
+            # allocation, so reclaimed-byte accounting remains deliberately fail-closed.
             return 0
-        if not self.path.is_file():
-            raise EmergencyReserveError("Emergency reserve path is not a regular file.")
-        try:
-            size = self.path.stat(follow_symlinks=False).st_size
-            self.path.unlink()
-            fsync_directory(self.reserve_root)
-        except OSError as exc:
-            raise EmergencyReserveError(
-                "Emergency reserve could not be released durably."
-            ) from exc
-        return size
+
+        raise EmergencyReserveError(
+            "Identity-bound emergency reserve release is unsupported on this platform."
+        )
 
 
 VolumeSizeProvider = Callable[[Path], int]
