@@ -2,8 +2,8 @@
 
 The command plan mirrors the primary Python quality job in GitHub Actions:
 validate the dependency lock, then run the specification validator, Ruff,
-mypy, the isolated Desktop API controller regression, and the remaining
-pytest suite through the locked project environment with development and
+mypy, the isolated Desktop API controller and chat-selection regressions, and
+the remaining pytest suite through the locked project environment with development and
 desktop extras enabled.
 """
 
@@ -21,6 +21,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 UV_RUN_PREFIX = ("uv", "run", "--locked", "--extra", "dev", "--extra", "desktop")
 _DESKTOP_API_CONTROLLER_TEST = "tests/unit/test_desktop_api_controller.py"
+_DESKTOP_CHAT_SELECTION_TEST = "tests/unit/test_desktop_chat_selection_state.py"
 
 
 @dataclass(frozen=True, slots=True)
@@ -65,6 +66,16 @@ def build_checks() -> tuple[Check, ...]:
             ),
         ),
         Check(
+            name="pytest — Desktop chat selection state",
+            command=(
+                *UV_RUN_PREFIX,
+                "python",
+                "-m",
+                "pytest",
+                _DESKTOP_CHAT_SELECTION_TEST,
+            ),
+        ),
+        Check(
             name="pytest — remaining canonical suite",
             command=(
                 *UV_RUN_PREFIX,
@@ -72,6 +83,7 @@ def build_checks() -> tuple[Check, ...]:
                 "-m",
                 "pytest",
                 f"--ignore={_DESKTOP_API_CONTROLLER_TEST}",
+                f"--ignore={_DESKTOP_CHAT_SELECTION_TEST}",
             ),
         ),
     )
