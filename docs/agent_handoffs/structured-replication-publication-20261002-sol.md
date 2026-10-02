@@ -2,7 +2,7 @@
 
 ## Status / ownership
 
-Owner branch: `fix/structured-replication-publication-20261002-sol`  
+Owner branch: `fix/structured-replication-publication-20261002-sol`
 Draft PR: #385 — `Storage: verify append-only long-term replication publication`
 
 This is a stacked Storage slice. It builds on CanonicalCommitBundle serialization and
