@@ -1676,25 +1676,56 @@ _SCHEDULER_SUPERVISOR_LANES = (
 _SCHEDULER_PARENT_LOST_EXIT_CODE = 70
 _SCHEDULER_CHILD_START_TIMEOUT_SECONDS = 10.0
 _SCHEDULER_CHILD_READY_TIMEOUT_SECONDS = 30.0 * 60.0
+_SCHEDULER_GRACEFUL_STOP_TIMEOUT_SECONDS = 3.0
+_SCHEDULER_TERMINATE_TIMEOUT_SECONDS = 2.0
+_SCHEDULER_KILL_TIMEOUT_SECONDS = 1.0
+_SCHEDULER_STOP_COMMAND = b"stop\n"
 
 
-def _start_scheduler_supervisor_watchdog() -> None:
-    """Terminate a scheduler child immediately when its supervisor pipe closes."""
+def _start_scheduler_stdin_control(*, exit_on_eof: bool) -> threading.Event:
+    """Watch the inherited stdin pipe for an owned scheduler stop request.
+
+    Lane children keep the historical fail-fast parent-loss behavior: EOF means
+    their supervisor vanished and the process exits immediately. The top-level
+    supervisor instead treats desktop-parent EOF as a graceful stop request so it
+    can drain both lane processes before exiting.
+    """
+
+    stop_event = threading.Event()
 
     def watch_parent() -> None:
+        pending = b""
         try:
-            while os.read(sys.stdin.fileno(), 1):
-                pass
+            while True:
+                chunk = os.read(sys.stdin.fileno(), 64)
+                if not chunk:
+                    if exit_on_eof:
+                        os._exit(_SCHEDULER_PARENT_LOST_EXIT_CODE)
+                    stop_event.set()
+                    return
+
+                pending += chunk
+                while b"\n" in pending:
+                    raw_line, pending = pending.split(b"\n", 1)
+                    if raw_line.strip().lower() == b"stop":
+                        stop_event.set()
         except (OSError, ValueError):
-            pass
-        os._exit(_SCHEDULER_PARENT_LOST_EXIT_CODE)
+            if exit_on_eof:
+                os._exit(_SCHEDULER_PARENT_LOST_EXIT_CODE)
+            stop_event.set()
 
     thread = threading.Thread(
         target=watch_parent,
-        name="athena-scheduler-supervisor-watchdog",
+        name="athena-scheduler-stdin-control",
         daemon=True,
     )
     thread.start()
+    return stop_event
+
+
+def _start_scheduler_supervisor_watchdog() -> threading.Event:
+    """Keep fail-fast parent-loss protection while accepting graceful stop."""
+    return _start_scheduler_stdin_control(exit_on_eof=True)
 
 
 def _scheduler_run_owned_lanes(
@@ -1769,6 +1800,7 @@ def _scheduler_lane_command(
     ]
     if supervised_child:
         command.append("--supervised-child")
+    command.append("--control-stdin")
     command.append("--supervisor-watchdog")
     if args.max_ticks is not None:
         command.extend(
@@ -1780,21 +1812,74 @@ def _scheduler_lane_command(
     return command
 
 
+def _request_scheduler_child_stop(
+    process: subprocess.Popen[bytes],
+) -> bool:
+    if process.poll() is not None:
+        return True
+    stdin = getattr(process, "stdin", None)
+    if stdin is None:
+        return False
+    try:
+        written = stdin.write(_SCHEDULER_STOP_COMMAND)
+        if written != len(_SCHEDULER_STOP_COMMAND):
+            return False
+        stdin.flush()
+    except (BrokenPipeError, OSError, ValueError):
+        return False
+    return True
+
+
+def _wait_scheduler_children(
+    children: list[tuple[SchedulerLane, subprocess.Popen[bytes]]],
+    *,
+    timeout_seconds: float,
+) -> bool:
+    deadline = time.monotonic() + timeout_seconds
+    while any(process.poll() is None for _lane, process in children):
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return False
+        time.sleep(min(0.05, remaining))
+    return True
+
+
 def _stop_scheduler_children(
     children: list[tuple[SchedulerLane, subprocess.Popen[bytes]]],
 ) -> None:
+    # First ask every owned lane to stop through its control pipe. This lets the
+    # scheduler finish the current durable transition and release its lane lock.
+    graceful_requested = False
+    for _lane, process in children:
+        graceful_requested = (
+            _request_scheduler_child_stop(process)
+            or graceful_requested
+        )
+
+    if graceful_requested and _wait_scheduler_children(
+        children,
+        timeout_seconds=_SCHEDULER_GRACEFUL_STOP_TIMEOUT_SECONDS,
+    ):
+        return
+
     for _lane, process in children:
         if process.poll() is None:
             process.terminate()
 
+    if _wait_scheduler_children(
+        children,
+        timeout_seconds=_SCHEDULER_TERMINATE_TIMEOUT_SECONDS,
+    ):
+        return
+
     for _lane, process in children:
-        if process.poll() is not None:
-            continue
-        try:
-            process.wait(timeout=5)
-        except subprocess.TimeoutExpired:
+        if process.poll() is None:
             process.kill()
-            process.wait(timeout=5)
+
+    _wait_scheduler_children(
+        children,
+        timeout_seconds=_SCHEDULER_KILL_TIMEOUT_SECONDS,
+    )
 
 
 def _wait_scheduler_child_started(
@@ -1803,8 +1888,9 @@ def _wait_scheduler_child_started(
     started_file: Path,
     *,
     timeout_seconds: float = _SCHEDULER_CHILD_START_TIMEOUT_SECONDS,
-) -> None:
-    """Require proof that the supervised child entered its startup boundary."""
+    stop_event: threading.Event | None = None,
+) -> bool:
+    """Require startup proof, or return False when owned shutdown interrupts it."""
     if timeout_seconds <= 0:
         raise ValueError(
             "Scheduler child start timeout must be positive."
@@ -1813,6 +1899,9 @@ def _wait_scheduler_child_started(
     deadline = time.monotonic() + timeout_seconds
 
     while not started_file.is_file():
+        if stop_event is not None and stop_event.is_set():
+            return False
+
         returncode = process.poll()
 
         if returncode is not None:
@@ -1833,6 +1922,8 @@ def _wait_scheduler_child_started(
             min(0.05, remaining)
         )
 
+    return True
+
 
 def _wait_scheduler_child_ready(
     lane: SchedulerLane,
@@ -1840,7 +1931,8 @@ def _wait_scheduler_child_ready(
     ready_file: Path,
     *,
     timeout_seconds: float = _SCHEDULER_CHILD_READY_TIMEOUT_SECONDS,
-) -> None:
+    stop_event: threading.Event | None = None,
+) -> bool:
     if timeout_seconds <= 0:
         raise ValueError(
             "Scheduler child readiness timeout must be positive."
@@ -1849,6 +1941,9 @@ def _wait_scheduler_child_ready(
     deadline = time.monotonic() + timeout_seconds
 
     while not ready_file.is_file():
+        if stop_event is not None and stop_event.is_set():
+            return False
+
         returncode = process.poll()
         if returncode is not None:
             raise JobSchedulerError(
@@ -1867,11 +1962,18 @@ def _wait_scheduler_child_ready(
             min(0.05, remaining)
         )
 
+    return True
+
 
 def _run_scheduler_supervisor(args: argparse.Namespace) -> int:
     children: list[
         tuple[SchedulerLane, subprocess.Popen[bytes]]
     ] = []
+    stop_event = (
+        _start_scheduler_stdin_control(exit_on_eof=False)
+        if getattr(args, "control_stdin", False)
+        else None
+    )
 
     try:
         with tempfile.TemporaryDirectory(
@@ -1892,16 +1994,43 @@ def _run_scheduler_supervisor(args: argparse.Namespace) -> int:
                 stdin=subprocess.PIPE,
             )
             children.append((SchedulerLane.CONTROL, control))
-            _wait_scheduler_child_started(
-                SchedulerLane.CONTROL,
-                control,
-                control_started,
+            control_started_result = (
+                _wait_scheduler_child_started(
+                    SchedulerLane.CONTROL,
+                    control,
+                    control_started,
+                    stop_event=stop_event,
+                )
+                if stop_event is not None
+                else _wait_scheduler_child_started(
+                    SchedulerLane.CONTROL,
+                    control,
+                    control_started,
+                )
             )
-            _wait_scheduler_child_ready(
-                SchedulerLane.CONTROL,
-                control,
-                control_ready,
+            if control_started_result is False:
+                _stop_scheduler_children(children)
+                print("Scheduler supervisor stopped during startup.", flush=True)
+                return 0
+
+            control_ready_result = (
+                _wait_scheduler_child_ready(
+                    SchedulerLane.CONTROL,
+                    control,
+                    control_ready,
+                    stop_event=stop_event,
+                )
+                if stop_event is not None
+                else _wait_scheduler_child_ready(
+                    SchedulerLane.CONTROL,
+                    control,
+                    control_ready,
+                )
             )
+            if control_ready_result is False:
+                _stop_scheduler_children(children)
+                print("Scheduler supervisor stopped during startup.", flush=True)
+                return 0
 
             provider_started = ready_root / "provider.started"
             provider_ready = ready_root / "provider.ready"
@@ -1916,16 +2045,43 @@ def _run_scheduler_supervisor(args: argparse.Namespace) -> int:
                 stdin=subprocess.PIPE,
             )
             children.append((SchedulerLane.PROVIDER, provider))
-            _wait_scheduler_child_started(
-                SchedulerLane.PROVIDER,
-                provider,
-                provider_started,
+            provider_started_result = (
+                _wait_scheduler_child_started(
+                    SchedulerLane.PROVIDER,
+                    provider,
+                    provider_started,
+                    stop_event=stop_event,
+                )
+                if stop_event is not None
+                else _wait_scheduler_child_started(
+                    SchedulerLane.PROVIDER,
+                    provider,
+                    provider_started,
+                )
             )
-            _wait_scheduler_child_ready(
-                SchedulerLane.PROVIDER,
-                provider,
-                provider_ready,
+            if provider_started_result is False:
+                _stop_scheduler_children(children)
+                print("Scheduler supervisor stopped during startup.", flush=True)
+                return 0
+
+            provider_ready_result = (
+                _wait_scheduler_child_ready(
+                    SchedulerLane.PROVIDER,
+                    provider,
+                    provider_ready,
+                    stop_event=stop_event,
+                )
+                if stop_event is not None
+                else _wait_scheduler_child_ready(
+                    SchedulerLane.PROVIDER,
+                    provider,
+                    provider_ready,
+                )
             )
+            if provider_ready_result is False:
+                _stop_scheduler_children(children)
+                print("Scheduler supervisor stopped during startup.", flush=True)
+                return 0
 
             print(
                 "Scheduler supervisor lanes started: "
@@ -1937,6 +2093,11 @@ def _run_scheduler_supervisor(args: argparse.Namespace) -> int:
             )
 
             while True:
+                if stop_event is not None and stop_event.is_set():
+                    _stop_scheduler_children(children)
+                    print("Scheduler supervisor stopped.", flush=True)
+                    return 0
+
                 states = [
                     (lane, process, process.poll())
                     for lane, process in children
@@ -2002,7 +2163,12 @@ def _run_scheduler_supervisor(args: argparse.Namespace) -> int:
         raise
 
 
-def _run_job_command(app: AthenaApplication, args: argparse.Namespace) -> int:
+def _run_job_command(
+    app: AthenaApplication,
+    args: argparse.Namespace,
+    *,
+    scheduler_stop_event: threading.Event | None = None,
+) -> int:
     if args.job_command == "create":
         job = app.jobs.create(
             job_type=args.job_type,
@@ -2357,6 +2523,7 @@ def _run_job_command(app: AthenaApplication, args: argparse.Namespace) -> int:
                 worker_id=args.worker,
                 max_ticks=args.max_ticks,
                 lane=lane,
+                stop_event=scheduler_stop_event,
             )
         except KeyboardInterrupt:
             print("Scheduler interrupted.")
@@ -2436,12 +2603,20 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         return 2
 
+    scheduler_stop_event: threading.Event | None = None
     if (
         args.command == "job"
         and args.job_command == "scheduler-run"
         and args.supervisor_watchdog
     ):
-        _start_scheduler_supervisor_watchdog()
+        scheduler_stop_event = _start_scheduler_supervisor_watchdog()
+    elif (
+        args.command == "job"
+        and args.job_command == "scheduler-run"
+        and args.control_stdin
+        and args.lane != "supervisor"
+    ):
+        scheduler_stop_event = _start_scheduler_stdin_control(exit_on_eof=False)
 
     if (
         args.command == "job"
@@ -2643,7 +2818,11 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         if args.command == "job":
             try:
-                return _run_job_command(app, args)
+                return _run_job_command(
+                    app,
+                    args,
+                    scheduler_stop_event=scheduler_stop_event,
+                )
             except (
                 CheckpointNotFoundError,
                 JobLeaseError,

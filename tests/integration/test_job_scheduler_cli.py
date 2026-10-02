@@ -487,6 +487,64 @@ def test_scheduler_child_exits_when_supervisor_pipe_closes(
     assert released.returncode == 0, released.stderr
 
 
+def test_scheduler_control_stdin_stops_lane_cleanly_and_releases_owner(
+    tmp_path,
+) -> None:
+    local_root = tmp_path / "control-stop-runtime"
+    ready_file = tmp_path / "control-stop.ready"
+
+    env = os.environ.copy()
+    env["ATHENA_LOCAL_ROOT"] = str(local_root.resolve())
+
+    child = subprocess.Popen(
+        [
+            sys.executable,
+            "-m",
+            "athena",
+            "job",
+            "scheduler-run",
+            "--worker",
+            "control-stop-child",
+            "--lane",
+            "control",
+            "--ready-file",
+            str(ready_file),
+            "--control-stdin",
+        ],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        env=env,
+    )
+    try:
+        _wait_scheduler_ready_file(
+            ready_file,
+            child,
+        )
+        assert child.stdin is not None
+        child.stdin.write("stop\n")
+        child.stdin.flush()
+        assert child.wait(timeout=10) == 0
+    finally:
+        if child.poll() is None:
+            child.kill()
+            child.wait(timeout=10)
+
+    released = _run_cli(
+        local_root,
+        "job",
+        "scheduler-run",
+        "--worker",
+        "control-stop-released",
+        "--lane",
+        "control",
+        "--max-ticks",
+        "1",
+    )
+    assert released.returncode == 0, released.stderr
+
+
 def test_scheduler_child_ready_wait_has_bounded_timeout(
     tmp_path,
 ) -> None:
