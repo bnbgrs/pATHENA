@@ -133,6 +133,8 @@ def _settings_capture_ready(
     provider_text: str,
     network_text: str,
     news_text: str,
+    lmstudio_status: str,
+    lmstudio_busy: bool,
     snapshot_received: bool,
     news_requested: bool,
     news_busy: bool,
@@ -146,6 +148,16 @@ def _settings_capture_ready(
         return False, "model provider is still waiting"
     if network_text.strip() == "Local service · waiting":
         return False, "local service is still waiting"
+    normalized_lmstudio = lmstudio_status.strip().casefold()
+    if lmstudio_busy:
+        return False, "LM Studio runtime command is still active"
+    if normalized_lmstudio in {
+        "lm studio runtime · awaiting core",
+        "lm studio runtime · waiting for local core",
+    }:
+        return False, "LM Studio runtime is still waiting for Core"
+    if normalized_lmstudio.endswith(" …"):
+        return False, "LM Studio runtime status is still changing"
     if not news_requested:
         return False, "News profile has not been requested"
     if news_busy:
@@ -251,6 +263,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     from athena.desktop.app import create_application
     from athena.desktop.app import main as desktop_main
     from athena.desktop.command_palette import CommandPaletteController
+    from athena.desktop.lmstudio_runtime import LMStudioRuntimeController
     from athena.desktop.pathena_pallas_field import PallasGroundedFieldController
     from athena.desktop.pathena_pallas_semantic import (
         PallasGraphSnapshot,
@@ -400,6 +413,16 @@ def main(argv: Sequence[str] | None = None) -> int:
         runtime = window.property("pathenaSettingsRuntimeController")
         if runtime is None:
             raise RuntimeError("Settings runtime controller is unavailable.")
+        lmstudio = next(
+            (
+                child
+                for child in window.children()
+                if isinstance(child, LMStudioRuntimeController)
+            ),
+            None,
+        )
+        if lmstudio is None:
+            raise RuntimeError("LM Studio runtime controller is unavailable.")
 
         deadline = time.monotonic() + 15.0
         stable_signature: tuple[object, ...] | None = None
@@ -410,7 +433,11 @@ def main(argv: Sequence[str] | None = None) -> int:
             provider_text = str(getattr(runtime, "provider_value").text())
             network_text = str(getattr(runtime, "network_value").text())
             news_text = str(getattr(runtime, "news_status").text())
+            persistence_text = str(getattr(runtime, "persistence_value").text())
+            detail_text = str(getattr(runtime, "detail").text())
             shell_status = str(window.status_text.text())
+            lmstudio_status = lmstudio.status_text
+            lmstudio_busy = lmstudio.busy
             snapshot_received = getattr(runtime, "_last_snapshot", None) is not None
             news_requested = bool(getattr(runtime, "_news_requested", False))
             news_busy = getattr(runtime, "_news_task", None) is not None
@@ -420,6 +447,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 provider_text=provider_text,
                 network_text=network_text,
                 news_text=news_text,
+                lmstudio_status=lmstudio_status,
+                lmstudio_busy=lmstudio_busy,
                 snapshot_received=snapshot_received,
                 news_requested=news_requested,
                 news_busy=news_busy,
@@ -430,6 +459,12 @@ def main(argv: Sequence[str] | None = None) -> int:
                 provider_text,
                 network_text,
                 news_text,
+                persistence_text,
+                detail_text,
+                lmstudio_status,
+                lmstudio.auto_start.isChecked(),
+                lmstudio.auto_load.isChecked(),
+                lmstudio.idle_minutes.value(),
                 window.settings_model_selector.currentText(),
                 window.context_spin.value(),
                 window.max_output_spin.value(),
@@ -451,6 +486,10 @@ def main(argv: Sequence[str] | None = None) -> int:
                     "settings_provider_state": provider_text,
                     "settings_network_state": network_text,
                     "settings_news_state": news_text,
+                    "settings_persistence_state": persistence_text,
+                    "settings_detail_state": detail_text,
+                    "settings_lmstudio_state": lmstudio_status,
+                    "settings_lmstudio_busy": lmstudio_busy,
                 }
             time.sleep(0.1)
 
