@@ -98,8 +98,8 @@ from athena.retrieval.protected_source import (
 from athena.retrieval.ranking import RetrievalRankingService
 from athena.retrieval.search import LocalSearchService
 from athena.retrieval.semantic import LocalSemanticSearchService
-from athena.retrieval.universal import UniversalSearchService
 from athena.retrieval.source_context import SourceContextBuilderService
+from athena.retrieval.universal import UniversalSearchService
 from athena.security.crypto import CryptoProvider
 from athena.security.repository import ProtectionRepository
 from athena.security.service import ProtectedContentService
