@@ -102,6 +102,7 @@ def _publisher_metadata(payload: Mapping[str, object]) -> tuple[tuple[str, str],
         raise PluginManifestError("Plugin manifest publisher metadata is too large.")
 
     pairs: list[tuple[str, str]] = []
+    normalized_keys: set[str] = set()
     for key, value in raw.items():
         if not isinstance(key, str) or not key.strip():
             raise PluginManifestError("Plugin publisher keys must be non-empty strings.")
@@ -109,6 +110,11 @@ def _publisher_metadata(payload: Mapping[str, object]) -> tuple[tuple[str, str],
             raise PluginManifestError("Plugin publisher values must be non-empty strings.")
         normalized_key = key.strip()
         normalized_value = value.strip()
+        if normalized_key in normalized_keys:
+            raise PluginManifestError(
+                "Plugin publisher metadata contains duplicate normalized keys."
+            )
+        normalized_keys.add(normalized_key)
         if len(normalized_key) > 64 or len(normalized_value) > 512:
             raise PluginManifestError("Plugin publisher metadata field is too large.")
         _reject_unsafe_display_text(normalized_key, field="publisher key")

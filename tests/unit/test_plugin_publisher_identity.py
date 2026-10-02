@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import base64
 import hashlib
+from collections.abc import Mapping
+from typing import cast
 
 import pytest
 from cryptography.hazmat.primitives import serialization
@@ -14,7 +16,7 @@ from athena.plugins.identity import (
     canonical_plugin_identity_payload,
     verify_plugin_publisher_identity,
 )
-from athena.plugins.manifest import PluginManifest
+from athena.plugins.manifest import PluginManifest, PluginManifestError
 
 
 def _manifest(*, name: str = "Example", publisher: str = "Display Corp") -> PluginManifest:
@@ -170,4 +172,78 @@ def test_malformed_signature_and_trust_root_mismatch_fail_closed() -> None:
             signer_key_id=trusted.key_id,
             signature_b64=_signature(private, manifest, b"package"),
             trust_roots={trusted.key_id: other},
+        )
+
+
+def test_trusted_publisher_rejects_malformed_runtime_types() -> None:
+    with pytest.raises(PluginPublisherIdentityError, match="key_id"):
+        TrustedPluginPublisher(
+            key_id=cast(str, 123),
+            public_key=bytes(32),
+        )
+
+    with pytest.raises(PluginPublisherIdentityError, match="32 bytes"):
+        TrustedPluginPublisher(
+            key_id="publisher.example.v1",
+            public_key=cast(bytes, "x" * 32),
+        )
+
+
+def test_identity_payload_rejects_non_string_digest() -> None:
+    with pytest.raises(PluginPublisherIdentityError, match="package_sha256"):
+        canonical_plugin_identity_payload(
+            _manifest(),
+            package_sha256=cast(str, bytes(32)),
+        )
+
+
+def test_verification_rejects_malformed_trust_root_inputs() -> None:
+    manifest = _manifest()
+    package = b"package"
+    private, trusted = _keypair()
+    signature = _signature(private, manifest, package)
+
+    with pytest.raises(TypeError, match="must be a mapping"):
+        verify_plugin_publisher_identity(
+            manifest,
+            package_bytes=package,
+            signer_key_id=trusted.key_id,
+            signature_b64=signature,
+            trust_roots=cast(
+                Mapping[str, TrustedPluginPublisher],
+                [],
+            ),
+        )
+
+    with pytest.raises(PluginPublisherIdentityError, match="entry is invalid"):
+        verify_plugin_publisher_identity(
+            manifest,
+            package_bytes=package,
+            signer_key_id=trusted.key_id,
+            signature_b64=signature,
+            trust_roots={
+                trusted.key_id: cast(
+                    TrustedPluginPublisher,
+                    object(),
+                )
+            },
+        )
+
+
+def test_publisher_metadata_rejects_duplicate_normalized_keys() -> None:
+    with pytest.raises(PluginManifestError, match="duplicate normalized keys"):
+        PluginManifest.from_mapping(
+            {
+                "plugin_id": "example.plugin",
+                "name": "Example",
+                "version": "1.0.0",
+                "api_version": "1",
+                "entrypoint": "example.plugin:activate",
+                "permissions": [],
+                "capabilities": [],
+                "publisher": {
+                    "name": "Display Corp",
+                    " name ": "Spoof Corp",
+                },
+            }
         )
