@@ -101,6 +101,32 @@ def _safe_name(value: str) -> str:
 
 
 _PALLAS_VISUAL_CAPTURE_TICKS = 1
+_SETTINGS_CAPTURE_MIN_RUNTIME_SECONDS = 11.0
+_SETTINGS_CAPTURE_STABILITY_SECONDS = 0.5
+_SETTINGS_CAPTURE_TIMEOUT_SECONDS = 20.0
+_SETTINGS_TRANSITIONAL_STATUSES = frozenset(
+    {
+        "",
+        "Connecting…",
+        "LOCAL / CORE DISCONNECTED",
+    }
+)
+
+
+def _settings_state_is_ready(
+    *,
+    snapshot_ready: bool,
+    refreshing: bool,
+    news_ready: bool,
+    status_text: str,
+) -> bool:
+    """Return whether Settings exposes a settled snapshot-backed visual state."""
+    return (
+        snapshot_ready
+        and not refreshing
+        and news_ready
+        and status_text.strip() not in _SETTINGS_TRANSITIONAL_STATUSES
+    )
 
 
 def _pause_pallas_living_capture(controller: object) -> None:
@@ -365,6 +391,92 @@ def main(argv: Sequence[str] | None = None) -> int:
             f"detail_state={detail_state!r}, detail_id={detail_id!r}."
         )
 
+    def wait_for_settings_runtime(window: QMainWindow) -> dict[str, object]:
+        """Wait for the post-startup Settings state instead of capturing a race."""
+        runtime = window.property("pathenaSettingsRuntimeController")
+        if runtime is None:
+            raise RuntimeError("Settings visual capture has no runtime controller.")
+        controller = getattr(runtime, "controller", None)
+        if controller is None:
+            raise RuntimeError("Settings visual capture has no API controller.")
+
+        deadline = time.monotonic() + _SETTINGS_CAPTURE_TIMEOUT_SECONDS
+        stable_since: float | None = None
+        previous_state: tuple[object, ...] | None = None
+        last_state: tuple[object, ...] | None = None
+
+        while time.monotonic() < deadline:
+            app.processEvents()
+            now = time.monotonic()
+
+            gateway = getattr(controller, "gateway", None)
+            news_capable = gateway is not None and hasattr(gateway, "news_profile")
+            news_requested = bool(getattr(runtime, "_news_requested", False))
+            news_task = getattr(runtime, "_news_task", None)
+            news_ready = (not news_capable) or (news_requested and news_task is None)
+            snapshot_ready = getattr(runtime, "_last_snapshot", None) is not None
+            refreshing = bool(getattr(controller, "refreshing", True))
+
+            status_label = getattr(window, "status_text", None)
+            status_text = (
+                status_label.text().strip()
+                if status_label is not None and hasattr(status_label, "text")
+                else ""
+            )
+            model_selector = getattr(window, "settings_model_selector", None)
+            model_text = (
+                model_selector.currentText().strip()
+                if model_selector is not None and hasattr(model_selector, "currentText")
+                else ""
+            )
+
+            state = (
+                status_text,
+                model_text,
+                getattr(window.context_spin, "value")(),
+                getattr(window.max_output_spin, "value")(),
+                runtime.provider_value.text(),
+                runtime.network_value.text(),
+                runtime.persistence_value.text(),
+                runtime.detail.text(),
+                runtime.news_status.text(),
+            )
+            last_state = state
+
+            ready = (
+                now - started >= _SETTINGS_CAPTURE_MIN_RUNTIME_SECONDS
+                and _settings_state_is_ready(
+                    snapshot_ready=snapshot_ready,
+                    refreshing=refreshing,
+                    news_ready=news_ready,
+                    status_text=status_text,
+                )
+            )
+            if ready and state == previous_state:
+                if stable_since is None:
+                    stable_since = now
+                elif now - stable_since >= _SETTINGS_CAPTURE_STABILITY_SECONDS:
+                    return {
+                        "settings_fixture": "settled snapshot-backed local runtime",
+                        "settings_snapshot_ready": True,
+                        "settings_status": status_text,
+                        "settings_news_state": runtime.news_status.text(),
+                    }
+            else:
+                stable_since = None
+
+            previous_state = state
+            time.sleep(0.05)
+
+        raise RuntimeError(
+            "Settings did not reach a stable snapshot-backed capture state: "
+            f"last_state={last_state!r}, "
+            f"snapshot_ready={getattr(runtime, '_last_snapshot', None) is not None}, "
+            f"refreshing={getattr(controller, 'refreshing', None)!r}, "
+            f"news_requested={getattr(runtime, '_news_requested', None)!r}, "
+            f"news_task_active={getattr(runtime, '_news_task', None) is not None}."
+        )
+
     def capture_workspaces() -> None:
         window = find_window()
         navigation = getattr(window, "navigation", None)
@@ -400,6 +512,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             knowledge_evidence = (
                 wait_for_reference_knowledge(window) if row == 1 else {}
             )
+            settings_evidence = wait_for_settings_runtime(window) if row == 6 else {}
             save_widget(window, ordinal=row + 1, label=label, kind="workspace")
             captures[-1]["navigation_label"] = navigation.item(row).text()
             captures[-1]["row"] = row
@@ -470,6 +583,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     }
                 captures[-1]["source_controls"] = controls
             captures[-1].update(knowledge_evidence)
+            captures[-1].update(settings_evidence)
 
     def diagnostic_pallas_snapshot() -> PallasGraphSnapshot:
         focus = PallasSemanticNode(
