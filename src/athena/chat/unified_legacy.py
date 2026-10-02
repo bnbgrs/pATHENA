@@ -19,6 +19,7 @@ from athena.chat.generation import (
     GROUNDING_RETRY_POLICY,
     ChatGenerationResult,
     ChatGenerationService,
+    GenerationCancelledError,
 )
 from athena.chat.grounding import (
     GroundingContract,
@@ -509,7 +510,10 @@ class UnifiedLocalChatService:
         reasoning_mode: str | None = "off",
         allow_model_prior: bool = True,
         on_delta: Callable[[str], None] | None = None,
+        cancel_requested: Callable[[], bool] | None = None,
     ) -> UnifiedLocalChatResult:
+        if cancel_requested is not None and cancel_requested():
+            raise GenerationCancelledError("Chat generation was cancelled.")
         self._validate_request(
             max_memory_context_tokens=max_memory_context_tokens,
             max_memory_context_items=max_memory_context_items,
@@ -539,6 +543,8 @@ class UnifiedLocalChatService:
                 )
             retrieval_query_mode = "explicit_override"
 
+        if cancel_requested is not None and cancel_requested():
+            raise GenerationCancelledError("Chat generation was cancelled.")
         model = self.chat_generation.select_model(requested_model_id)
         context_limit = _resolve_context_limit(
             model=model,
@@ -977,6 +983,8 @@ class UnifiedLocalChatService:
             )
             self.source_context_builder.verify_bundle(source_context)
 
+        if cancel_requested is not None and cancel_requested():
+            raise GenerationCancelledError("Chat generation was cancelled.")
         try:
             generation = self.chat_generation.send_context_package(
                 chat_id=chat_id,
@@ -985,8 +993,9 @@ class UnifiedLocalChatService:
                 on_delta=on_delta,
                 grounding_contract=grounding_contract,
                 on_before_provider_call=before_provider,
+                cancel_requested=cancel_requested,
             )
-        except KeyboardInterrupt:
+        except (KeyboardInterrupt, GenerationCancelledError):
             self.model_runs.finish_run(
                 processing_run.processing_run_id,
                 status="cancelled",
