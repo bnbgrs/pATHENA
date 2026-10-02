@@ -63,8 +63,16 @@ class LocalSearchService:
         limit: int = 20,
         entity_type: SearchEntityType | None = None,
     ) -> tuple[SearchResult, ...]:
+        if not isinstance(query, str):
+            raise SearchError("Search query must be text.")
+        if isinstance(limit, bool) or not isinstance(limit, int):
+            raise SearchError("Search limit must be an integer.")
         if not 1 <= limit <= 200:
             raise SearchError("Search limit must be between 1 and 200.")
+        if entity_type is not None and not isinstance(entity_type, SearchEntityType):
+            raise SearchError(
+                "Search entity_type must be a SearchEntityType or None."
+            )
 
         fts_query = _safe_fts_query(query)
         self._ensure_current()
