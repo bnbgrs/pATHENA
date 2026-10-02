@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import hashlib
 import json
 from dataclasses import dataclass
 from pathlib import Path
@@ -12,6 +13,9 @@ from typing import Any, cast
 import numpy as np
 from numpy.typing import NDArray
 from PySide6.QtGui import QImage
+
+_PALLAS_SURFACE = "08-pallas.png"
+_PALLAS_HASH_FILENAME = "visual-pallas-windows.sha256"
 
 EXPECTED_SURFACES = (
     "01-chat.png",
@@ -166,6 +170,18 @@ def compare_bundle(
 
     results: list[dict[str, object]] = []
     failures: list[str] = []
+    pallas_hash_path = baseline_bundle.parent / _PALLAS_HASH_FILENAME
+    pallas_expected_sha256 = (
+        pallas_hash_path.read_text(encoding="utf-8").strip().lower()
+        if pallas_hash_path.is_file()
+        else None
+    )
+    if pallas_expected_sha256 is not None and (
+        len(pallas_expected_sha256) != 64
+        or any(character not in "0123456789abcdef" for character in pallas_expected_sha256)
+    ):
+        raise ValueError("Deterministic PALLAS SHA-256 reference is invalid")
+
     for name in EXPECTED_SURFACES:
         entry_value = surfaces[name]
         if not isinstance(entry_value, dict):
@@ -174,6 +190,25 @@ def compare_bundle(
         encoded = entry.get("png_base64")
         if not isinstance(encoded, str):
             raise ValueError(f"Missing baseline PNG payload for {name}")
+        if name == _PALLAS_SURFACE and pallas_expected_sha256 is not None:
+            actual_sha256 = hashlib.sha256(_png_bytes(actual_dir / name)).hexdigest()
+            status = "PASS" if actual_sha256 == pallas_expected_sha256 else "FAIL"
+            results.append(
+                {
+                    "surface": name,
+                    "status": status,
+                    "expected_sha256": pallas_expected_sha256,
+                    "actual_sha256": actual_sha256,
+                    "comparison": "deterministic exact PNG SHA-256",
+                }
+            )
+            if status == "PASS":
+                continue
+            failures.append(
+                f"{name}: deterministic SHA-256 {actual_sha256} "
+                f"!= {pallas_expected_sha256}"
+            )
+
         expected = _load_rgba_bytes(base64.b64decode(encoded, validate=True))
         actual = _load_rgba(actual_dir / name)
         if actual.shape != expected.shape:
