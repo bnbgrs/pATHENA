@@ -293,6 +293,8 @@ class PersonalMemoryRepository:
         limit: int = 50,
         include_inactive: bool = False,
     ) -> tuple[PersonalMemorySnapshot, ...]:
+        if isinstance(limit, bool) or not isinstance(limit, int):
+            raise TypeError("Personal Memory list limit must be an integer.")
         if not 1 <= limit <= 500:
             raise ValueError("limit must be between 1 and 500.")
         state_sql = "e.lifecycle_state = 'active'"
