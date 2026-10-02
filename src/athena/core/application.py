@@ -489,6 +489,10 @@ class AthenaApplication:
             source_analyses=self.source_analysis_repository,
             anchors=self.source_anchors,
         )
+        self.research_comparison = ResearchComparisonService(
+            database=self.database,
+            result_view=self.research_promotion.result_view,
+        )
         self.research_synthesis = ResearchSynthesisService(
             repository=self.research_repository,
             source_analysis=self.source_analysis_service,
