@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from types import SimpleNamespace
 
 import pytest
 
@@ -121,6 +122,93 @@ def test_news_schedule_profile_is_presented_in_settings(tmp_path) -> None:
         app.processEvents()
 
 
+def test_failed_initial_news_load_retries_on_later_snapshot(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    app = _app()
+    window = PathenaMainWindow(api_controller=None)
+    runtime = install_settings_runtime(window, None, settings=_settings(tmp_path))
+    refresh_calls: list[None] = []
+
+    def record_refresh() -> None:
+        refresh_calls.append(None)
+
+    try:
+        runtime._news_requested = True
+        runtime._apply_news_failure("Local Core refresh failed.")
+
+        assert runtime._news_requested is False
+        assert runtime.news_status.property("pathenaUiState") == "error"
+        assert runtime.news_save.isEnabled() is False
+        assert runtime.news_time.isEnabled() is False
+
+        monkeypatch.setattr(runtime, "refresh_news_schedule", record_refresh)
+        runtime.apply_snapshot(_snapshot())
+
+        assert refresh_calls == [None]
+    finally:
+        window.close()
+        app.processEvents()
+
+
+def test_news_loading_replaces_stale_error_semantics(tmp_path) -> None:
+    app = _app()
+    window = PathenaMainWindow(api_controller=None)
+    runtime = install_settings_runtime(window, None, settings=_settings(tmp_path))
+    queued: list[object] = []
+    runtime.controller = SimpleNamespace(
+        gateway=SimpleNamespace(news_profile=lambda: None),
+        thread_pool=SimpleNamespace(start=queued.append),
+    )
+    try:
+        runtime.news_status.setProperty("pathenaUiState", "error")
+        runtime.news_status.setAccessibleDescription("Previous failure")
+
+        runtime.refresh_news_schedule()
+
+        assert runtime.news_status.text() == "News schedule · loading…"
+        assert runtime.news_status.property("pathenaUiState") == "idle"
+        assert runtime.news_status.accessibleDescription() == runtime.news_status.text()
+        assert len(queued) == 1
+    finally:
+        window.close()
+        app.processEvents()
+
+
+def test_news_saving_replaces_stale_success_semantics(tmp_path) -> None:
+    app = _app()
+    window = PathenaMainWindow(api_controller=None)
+    runtime = install_settings_runtime(window, None, settings=_settings(tmp_path))
+    queued: list[object] = []
+    runtime.controller = SimpleNamespace(
+        gateway=SimpleNamespace(configure_news_schedule=lambda **_kwargs: None),
+        thread_pool=SimpleNamespace(start=queued.append),
+    )
+    try:
+        runtime.apply_news_profile(
+            NewsProfileResponse(
+                api_version="v1",
+                enabled=True,
+                timezone_name="Europe/Berlin",
+                local_hour=6,
+                local_minute=30,
+            )
+        )
+        assert runtime.news_status.property("pathenaUiState") == "success"
+
+        runtime.save_news_schedule()
+
+        assert runtime.news_status.text() == "News schedule · saving…"
+        assert runtime.news_status.property("pathenaUiState") == "idle"
+        assert runtime.news_status.accessibleDescription() == runtime.news_status.text()
+        assert runtime.news_save.isEnabled() is False
+        assert len(queued) == 1
+    finally:
+        window.close()
+        app.processEvents()
+
+
 def test_model_settings_persist_across_real_window_recreation(tmp_path) -> None:
     app = _app()
     snapshot = _snapshot()
@@ -163,6 +251,48 @@ def test_model_settings_persist_across_real_window_recreation(tmp_path) -> None:
         assert "restored locally" in second_runtime.persistence_value.text()
     finally:
         second.close()
+        app.processEvents()
+
+
+def test_settings_model_selector_restores_persisted_values(tmp_path) -> None:
+    app = _app()
+    first_model = _model("provider/model-a")
+    second_model = _model("provider/model-b")
+    settings = _settings(tmp_path)
+
+    settings.beginGroup(model_storage_group(second_model.backend_model_id))
+    settings.setValue("model_id", second_model.backend_model_id)
+    settings.setValue("context_tokens", 16_384)
+    settings.setValue("max_output_tokens", 1_024)
+    settings.setValue("temperature", 0.25)
+    settings.setValue("thinking", True)
+    settings.endGroup()
+    settings.sync()
+
+    window = PathenaMainWindow(api_controller=None)
+    runtime = install_settings_runtime(window, None, settings=settings)
+    try:
+        _apply(window, runtime, _snapshot(models=(first_model, second_model)))
+        assert window.model_selector.currentData() == first_model.backend_model_id
+
+        second_index = window.settings_model_selector.findData(
+            second_model.backend_model_id
+        )
+        assert second_index >= 0
+        window.settings_model_selector.setCurrentIndex(second_index)
+        window.settings_model_selector.activated.emit(second_index)
+
+        assert window.model_selector.currentData() == second_model.backend_model_id
+        assert window.settings_model_selector.currentData() == second_model.backend_model_id
+        assert window.context_spin.value() == 16_384
+        assert window.max_output_spin.value() == 1_024
+        assert window.temperature_spin.value() == pytest.approx(0.25)
+        assert window.thinking_checkbox.isChecked() is True
+        assert runtime.persistence_value.text() == "provider/model-b · restored locally"
+        assert runtime.persistence_value.property("pathenaUiState") == "success"
+        assert runtime.persistence_value.property("pathenaRuntimeFreshness") == "fresh"
+    finally:
+        window.close()
         app.processEvents()
 
 
@@ -254,6 +384,40 @@ def test_runtime_panel_never_turns_stale_or_missing_provider_into_ready(tmp_path
         assert runtime.network_value.property("pathenaInternetStateInferred") is False
         assert "Internet-access state is not inferred" in runtime.network_value.accessibleDescription()
         assert "loopback" not in runtime.network_value.toolTip().lower()
+    finally:
+        window.close()
+        app.processEvents()
+
+
+def test_settings_read_error_is_not_hidden_by_missing_model_identity(tmp_path) -> None:
+    class FailingSettings:
+        def beginGroup(self, _group: str) -> None:
+            return None
+
+        def endGroup(self) -> None:
+            return None
+
+        def value(self, _key: str, default=None):
+            return default
+
+        def status(self):
+            return QSettings.Status.FormatError
+
+    app = _app()
+    window = PathenaMainWindow(api_controller=None)
+    runtime = install_settings_runtime(window, None, settings=_settings(tmp_path))
+    try:
+        runtime.persistence_value.setText("Local Qwen · restored locally")
+        runtime.persistence_value.setProperty("pathenaUiState", "success")
+        runtime.persistence_value.setProperty("pathenaRuntimeFreshness", "fresh")
+        runtime.settings = FailingSettings()  # type: ignore[assignment]
+
+        stored = runtime._read_model("Local Qwen", display_name="Local Qwen")
+
+        assert stored is None
+        assert runtime.persistence_value.text() == "Local Qwen · local settings unreadable"
+        assert runtime.persistence_value.property("pathenaUiState") == "error"
+        assert runtime.persistence_value.property("pathenaRuntimeFreshness") == "unavailable"
     finally:
         window.close()
         app.processEvents()
