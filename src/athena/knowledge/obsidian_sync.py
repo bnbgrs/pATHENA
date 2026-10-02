@@ -28,6 +28,7 @@ class ObsidianWatchStatus(str, Enum):
     """Observable result for one stable managed-file observation."""
 
     SELF_WRITE_IGNORED = "self_write_ignored"
+    IMPORT_CANDIDATE = "import_candidate"
     APPLIED = "applied"
     UNCHANGED = "unchanged"
     CONFLICT = "conflict"
@@ -120,6 +121,7 @@ class ObsidianVaultWatcher:
         """Inspect once; terminally process files unchanged for the stability window."""
 
         observed_at = time.monotonic() if now is None else now
+        self._assert_safe_vault_root()
         discovered = self._managed_files()
         discovered_paths = set(discovered)
         for missing in set(self._observed) - discovered_paths:
@@ -128,21 +130,34 @@ class ObsidianVaultWatcher:
 
         results: list[ObsidianWatchResult] = []
         for relative_path, path in discovered.items():
-            before = path.stat(follow_symlinks=False)
-            signature = (before.st_size, before.st_mtime_ns)
-            previous = self._observed.get(relative_path)
-            if previous is None or (previous.size, previous.mtime_ns) != signature:
-                self._observed[relative_path] = _ObservedFile(
-                    size=signature[0],
-                    mtime_ns=signature[1],
-                    stable_since=observed_at,
-                )
-                continue
-            if observed_at - previous.stable_since < self._stability_window_seconds:
+            try:
+                if is_link_boundary(path):
+                    self._forget_observation(relative_path)
+                    continue
+                before = path.stat(follow_symlinks=False)
+                signature = (before.st_size, before.st_mtime_ns)
+                previous = self._observed.get(relative_path)
+                if previous is None or (previous.size, previous.mtime_ns) != signature:
+                    self._observed[relative_path] = _ObservedFile(
+                        size=signature[0],
+                        mtime_ns=signature[1],
+                        stable_since=observed_at,
+                    )
+                    continue
+                if observed_at - previous.stable_since < self._stability_window_seconds:
+                    continue
+
+                if is_link_boundary(path):
+                    self._forget_observation(relative_path)
+                    continue
+                payload = path.read_bytes()
+                after = path.stat(follow_symlinks=False)
+            except FileNotFoundError:
+                # Editors commonly implement save/rename as atomic replacement. A
+                # vanished discovery is a transient observation, not a sync failure.
+                self._forget_observation(relative_path)
                 continue
 
-            payload = path.read_bytes()
-            after = path.stat(follow_symlinks=False)
             if (after.st_size, after.st_mtime_ns) != signature:
                 self._observed[relative_path] = _ObservedFile(
                     size=after.st_size,
@@ -157,6 +172,10 @@ class ObsidianVaultWatcher:
             self._processed_hashes[relative_path] = digest
             results.append(self._process_stable(relative_path, payload))
         return tuple(results)
+
+    def _forget_observation(self, relative_path: str) -> None:
+        self._observed.pop(relative_path, None)
+        self._processed_hashes.pop(relative_path, None)
 
     def run(
         self,
@@ -184,14 +203,26 @@ class ObsidianVaultWatcher:
             )
         try:
             markdown = payload.decode("utf-8")
-            parsed = parse_obsidian_knowledge_edit(markdown)
-            revision = self._reconciler.apply_markdown(markdown)
         except UnicodeDecodeError as exc:
             return ObsidianWatchResult(
                 relative_path=relative_path,
                 status=ObsidianWatchStatus.REJECTED,
                 detail=f"Managed Obsidian projection is not UTF-8: {exc}",
             )
+
+        if not _contains_managed_identity(markdown):
+            return ObsidianWatchResult(
+                relative_path=relative_path,
+                status=ObsidianWatchStatus.IMPORT_CANDIDATE,
+                detail=(
+                    "Markdown file has no ATHENA identity; explicit import "
+                    "classification is required."
+                ),
+            )
+
+        try:
+            parsed = parse_obsidian_knowledge_edit(markdown)
+            revision = self._reconciler.apply_markdown(markdown)
         except ObsidianImportConflictError as exc:
             return ObsidianWatchResult(
                 relative_path=relative_path,
@@ -223,14 +254,29 @@ class ObsidianVaultWatcher:
             raise NotADirectoryError(
                 f"Obsidian Knowledge root is an unsafe filesystem boundary: {knowledge_root}"
             )
+
         files: dict[str, Path] = {}
-        for path in knowledge_root.iterdir():
-            if path.suffix.lower() != ".md":
+        pending = [knowledge_root]
+        while pending:
+            directory = pending.pop()
+            try:
+                entries = sorted(
+                    directory.iterdir(),
+                    key=lambda item: item.name.casefold(),
+                )
+            except FileNotFoundError:
+                # A nested directory may be renamed between discovery passes.
                 continue
-            if is_link_boundary(path) or not path.is_file():
-                continue
-            relative_path = path.relative_to(self._vault_root).as_posix()
-            files[relative_path] = path
+            for path in entries:
+                if is_link_boundary(path):
+                    continue
+                if path.is_dir():
+                    pending.append(path)
+                    continue
+                if path.suffix.lower() != ".md" or not path.is_file():
+                    continue
+                relative_path = path.relative_to(self._vault_root).as_posix()
+                files[relative_path] = path
         return files
 
     def _assert_safe_vault_root(self) -> None:
@@ -290,23 +336,29 @@ class ObsidianVaultWatchService:
 
     def start(self) -> None:
         with self._lock:
-            if self._state in {ObsidianSyncState.STARTING, ObsidianSyncState.RUNNING}:
+            if self._state in {
+                ObsidianSyncState.STARTING,
+                ObsidianSyncState.RUNNING,
+                ObsidianSyncState.PAUSED,
+            } and self._thread is not None:
                 return
             if self._state is ObsidianSyncState.STOPPING:
                 raise RuntimeError("Obsidian sync cannot start while it is stopping.")
 
+        initial_error: str | None = None
         try:
             _assert_safe_vault_root(self._vault_root)
         except (OSError, ValueError) as exc:
-            with self._lock:
-                self._state = ObsidianSyncState.PAUSED
-                self._last_error = str(exc)
-            return
+            initial_error = str(exc)
 
         self._stop_event.clear()
         with self._lock:
-            self._state = ObsidianSyncState.STARTING
-            self._last_error = None
+            self._state = (
+                ObsidianSyncState.PAUSED
+                if initial_error is not None
+                else ObsidianSyncState.STARTING
+            )
+            self._last_error = initial_error
             self._thread = threading.Thread(
                 target=self._run,
                 name="athena-obsidian-sync",
@@ -337,38 +389,85 @@ class ObsidianVaultWatchService:
                 self._state = ObsidianSyncState.STOPPED
 
     def _run(self) -> None:
-        database = SQLiteDatabase(self._database_path)
-        try:
-            database.start()
-            watcher = ObsidianVaultWatcher(
-                self._vault_root,
-                reconciler=ObsidianKnowledgeReconciler(
-                    repository=KnowledgeRepository(database),
-                    chat=ChatService(ChatRepository(database)),
-                ),
-                write_stamps=self._write_stamps,
-                stability_window_seconds=self._stability_window_seconds,
-                poll_interval_seconds=self._poll_interval_seconds,
-            )
-            with self._lock:
-                self._state = ObsidianSyncState.RUNNING
-            watcher.run(self._stop_event, on_result=self._record_result)
-        except Exception as exc:
-            with self._lock:
-                self._state = ObsidianSyncState.FAILED
-                self._last_error = f"{type(exc).__name__}: {exc}"
-        finally:
+        while not self._stop_event.is_set():
             try:
-                database.stop()
+                _assert_safe_vault_root(self._vault_root)
+            except (OSError, ValueError) as exc:
+                with self._lock:
+                    if self._state is not ObsidianSyncState.STOPPING:
+                        self._state = ObsidianSyncState.PAUSED
+                        self._last_error = str(exc)
+                self._stop_event.wait(self._poll_interval_seconds)
+                continue
+
+            database = SQLiteDatabase(self._database_path)
+            resume_after_vault_loss = False
+            try:
+                database.start()
+                watcher = ObsidianVaultWatcher(
+                    self._vault_root,
+                    reconciler=ObsidianKnowledgeReconciler(
+                        repository=KnowledgeRepository(database),
+                        chat=ChatService(ChatRepository(database)),
+                    ),
+                    write_stamps=self._write_stamps,
+                    stability_window_seconds=self._stability_window_seconds,
+                    poll_interval_seconds=self._poll_interval_seconds,
+                )
+                with self._lock:
+                    if self._state is not ObsidianSyncState.STOPPING:
+                        self._state = ObsidianSyncState.RUNNING
+                        self._last_error = None
+                try:
+                    watcher.run(self._stop_event, on_result=self._record_result)
+                except NotADirectoryError as exc:
+                    resume_after_vault_loss = True
+                    with self._lock:
+                        if self._state is not ObsidianSyncState.STOPPING:
+                            self._state = ObsidianSyncState.PAUSED
+                            self._last_error = str(exc)
             except Exception as exc:
                 with self._lock:
                     self._state = ObsidianSyncState.FAILED
                     self._last_error = f"{type(exc).__name__}: {exc}"
+                return
+            finally:
+                try:
+                    database.stop()
+                except Exception as exc:
+                    with self._lock:
+                        self._state = ObsidianSyncState.FAILED
+                        self._last_error = f"{type(exc).__name__}: {exc}"
+                    return
+
+            if not resume_after_vault_loss:
+                return
+            self._stop_event.wait(self._poll_interval_seconds)
 
     def _record_result(self, result: ObsidianWatchResult) -> None:
         with self._lock:
             self._last_result = result
 
+
+
+def _contains_managed_identity(markdown: str) -> bool:
+    """Return whether front matter claims a canonical/legacy ATHENA identity."""
+
+    normalized = markdown.replace("\r\n", "\n").replace("\r", "\n")
+    lines = normalized.split("\n")
+    if not lines or lines[0] != "---":
+        return False
+
+    try:
+        end = lines.index("---", 1)
+    except ValueError:
+        end = len(lines)
+
+    for line in lines[1:end]:
+        key, separator, _raw = line.partition(":")
+        if separator and key.strip() in {"athena_id", "athena_knowledge_id"}:
+            return True
+    return False
 
 def _normalize_relative_path(relative_path: str) -> str:
     if not isinstance(relative_path, str):
