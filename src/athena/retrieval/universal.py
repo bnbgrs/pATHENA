@@ -8,8 +8,10 @@ desktop index and it never exposes protected Source, Research, or Job text.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import math
+import re
 import sqlite3
 import uuid
 from dataclasses import dataclass
@@ -212,11 +214,6 @@ class UniversalSearchService:
             WHERE entity.lifecycle_state != 'deleted'
               AND s.lifecycle_state != 'deleted'
               AND protected.source_id IS NULL
-              AND NOT EXISTS (
-                    SELECT 1
-                    FROM source_protection_transitions AS transition
-                    WHERE transition.source_id = s.source_id
-              )
               AND {predicate}
             ORDER BY s.source_id ASC
             LIMIT ?
@@ -262,7 +259,8 @@ class UniversalSearchService:
             SELECT
                 result.result_id,
                 scope.query_text,
-                result.content_json
+                result.content_json,
+                result.content_hash
             FROM research_results AS result
             JOIN research_scopes AS scope
               ON scope.scope_id = result.scope_id
@@ -280,7 +278,16 @@ class UniversalSearchService:
         for row in rows:
             entity_id = _uuid_blob(row["result_id"], "Research result_id")
             title = _optional_text(row["query_text"])
-            content = _json_preview(_optional_text(row["content_json"]) or "")
+            content_json = _optional_text(row["content_json"]) or ""
+            content_hash = _sha256_blob(
+                row["content_hash"],
+                "Research content_hash",
+            )
+            if hashlib.sha256(content_json.encode("utf-8")).digest() != content_hash:
+                raise UniversalSearchError(
+                    "Research result content hash verification failed."
+                )
+            content = _json_preview(content_json)
             output.append(
                 _Candidate(
                     result_ref=f"research_result:{entity_id}",
@@ -352,14 +359,27 @@ class UniversalSearchService:
 
 
 def _term_predicate(expression: str, query: str) -> tuple[str, tuple[str, ...]]:
-    terms = tuple(part.casefold() for part in query.split())
+    terms = tuple(
+        dict.fromkeys(
+            part.casefold()
+            for part in re.findall(r"\w+", query, flags=re.UNICODE)
+        )
+    )
     if not terms:
-        raise UniversalSearchError("Universal search query must contain searchable terms.")
-    clause = " AND ".join(
+        raise UniversalSearchError(
+            "Universal search query must contain at least one letter or digit."
+        )
+    # Canonical LocalSearchService uses token-OR FTS semantics. Keep the
+    # operational domains aligned so one universal query does not silently
+    # tighten when it crosses from revisioned to non-revisioned records.
+    clause = " OR ".join(
         f"instr(lower({expression}), ?) > 0"
         for _term in terms
     )
-    return clause, terms
+    # The token predicate is embedded after additional fail-closed AND guards.
+    # Parenthesize the OR expression so later terms cannot bypass lifecycle or
+    # protection predicates through SQL operator precedence.
+    return f"({clause})", terms
 
 
 def _query_text(value: object) -> str:
@@ -415,8 +435,17 @@ def _revisioned_candidate(
         entity_type=entity_type,
         title=result.title,
         preview=_preview(result.text),
-        relevance=_relevance(query, result.title, result.text),
+        relevance=_relevance(query, result.title, result.text) + float(result.score),
     )
+
+
+def _sha256_blob(value: object, label: str) -> bytes:
+    if not isinstance(value, (bytes, bytearray, memoryview)):
+        raise TypeError(f"{label} must be persisted as BLOB bytes.")
+    raw = bytes(value)
+    if len(raw) != 32:
+        raise ValueError(f"{label} must contain exactly 32 bytes.")
+    return raw
 
 
 def _uuid_blob(value: object, label: str) -> uuid.UUID:

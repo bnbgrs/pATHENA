@@ -489,3 +489,75 @@ def test_client_rejects_negative_chat_offset(
         ).list_chats(
             offset=-1
         )
+
+
+
+@pytest.mark.parametrize(
+    ("source_anchor", "protection"),
+    [
+        (
+            {
+                "representation_id": (
+                    "33333333-3333-3333-3333-333333333333"
+                ),
+                "start_offset": 8,
+                "end_offset": 8,
+                "quoted_sha256": "0" * 64,
+            },
+            {
+                "state": "unprotected",
+                "protection_scope_id": None,
+            },
+        ),
+        (
+            None,
+            {
+                "state": "unprotected",
+                "protection_scope_id": (
+                    "44444444-4444-4444-4444-444444444444"
+                ),
+            },
+        ),
+    ],
+)
+def test_client_universal_search_normalizes_invalid_nested_contracts(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    source_anchor: dict[str, Any] | None,
+    protection: dict[str, Any],
+) -> None:
+    runtime_root = tmp_path / "api"
+    _bootstrap(runtime_root)
+
+    monkeypatch.setattr(
+        client_module,
+        "urlopen",
+        lambda request, timeout: _Response(
+            {
+                "items": [
+                    {
+                        "result_ref": (
+                            "source:"
+                            "55555555-5555-5555-5555-555555555555"
+                        ),
+                        "title": "Alpha.pdf",
+                        "preview": "application/pdf",
+                        "entity_type": "source",
+                        "revision_id": None,
+                        "rank": 1,
+                        "retrieval_methods": ["lexical"],
+                        "source_anchor": source_anchor,
+                        "protection": protection,
+                    }
+                ]
+            }
+        ),
+    )
+
+    with pytest.raises(
+        CoreApiClientError,
+        match="invalid Search result",
+    ) as exc_info:
+        CoreApiClient(runtime_root).universal_search("alpha")
+
+    assert exc_info.value.code == "invalid_response"
