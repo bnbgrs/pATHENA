@@ -1102,6 +1102,24 @@ def _actual_archive_fts_digest(
     )
 
 
+def _persisted_integer(
+    value: object,
+    *,
+    minimum: int,
+) -> int | None:
+    """Read a canonical persisted SQLite integer without coercing other storage classes."""
+    if isinstance(value, bool) or not isinstance(value, int) or value < minimum:
+        return None
+    return value
+
+
+def _persisted_blob(value: object) -> bytes | None:
+    """Read persisted SQLite BLOB bytes without coercing TEXT or numeric values."""
+    if not isinstance(value, (bytes, bytearray, memoryview)):
+        return None
+    return bytes(value)
+
+
 def _inspect_canonical_embeddings(
     connection: sqlite3.Connection,
     *,
@@ -1206,13 +1224,45 @@ def _inspect_canonical_embeddings(
             )
             continue
 
-        indexed_snapshot = int(state["indexed_commit_seq"])
-        dimensions = int(state["dimensions"])
-        document_count = int(state["document_count"])
+        indexed_snapshot = _persisted_integer(
+            state["indexed_commit_seq"],
+            minimum=0,
+        )
+        dimensions = _persisted_integer(
+            state["dimensions"],
+            minimum=1,
+        )
+        document_count = _persisted_integer(
+            state["document_count"],
+            minimum=0,
+        )
+
+        if (
+            indexed_snapshot is None
+            or dimensions is None
+            or document_count is None
+        ):
+            reports.append(
+                DerivedEmbeddingReport(
+                    storage_model_id=model_id,
+                    published=True,
+                    indexed_snapshot=indexed_snapshot,
+                    current_snapshot=current_snapshot,
+                    dimensions=dimensions,
+                    document_count=document_count,
+                    persisted_document_count=len(rows),
+                    unpublished_document_count=0,
+                    persisted_valid=False,
+                    embeddings_current=False,
+                    hnsw_files_plausible=False,
+                    embedding_rebuild_required=True,
+                    hnsw_rebuild_required=False,
+                )
+            )
+            continue
 
         persisted_valid = (
-            dimensions > 0
-            and len(rows) == document_count
+            len(rows) == document_count
             and _vectors_shape_valid(rows, dimensions)
         )
 
@@ -1221,10 +1271,22 @@ def _inspect_canonical_embeddings(
             and canonical_fts.status is DerivedLayerStatus.CURRENT
         ):
             for row in rows:
+                persisted_entity_id = _persisted_blob(row["entity_id"])
+                persisted_revision_id = _persisted_blob(row["revision_id"])
+                persisted_text_sha256 = _persisted_blob(row["text_sha256"])
+
+                if (
+                    persisted_entity_id is None
+                    or persisted_revision_id is None
+                    or persisted_text_sha256 is None
+                ):
+                    persisted_valid = False
+                    break
+
                 key = (
                     str(row["entity_type"]),
-                    bytes(row["entity_id"]),
-                    bytes(row["revision_id"]),
+                    persisted_entity_id,
+                    persisted_revision_id,
                 )
                 body = fts_bodies.get(key)
 
@@ -1232,7 +1294,7 @@ def _inspect_canonical_embeddings(
                     persisted_valid = False
                     break
 
-                if bytes(row["text_sha256"]) != hashlib.sha256(
+                if persisted_text_sha256 != hashlib.sha256(
                     body.encode("utf-8")
                 ).digest():
                     persisted_valid = False
@@ -1407,19 +1469,67 @@ def _inspect_archive_embeddings(
             )
             continue
 
-        indexed_snapshot = int(
-            state["indexed_chunk_generation"]
+        indexed_snapshot = _persisted_integer(
+            state["indexed_chunk_generation"],
+            minimum=0,
         )
-        indexed_visibility_commit_seq = int(
-            state["indexed_visibility_commit_seq"]
+        indexed_visibility_commit_seq = _persisted_integer(
+            state["indexed_visibility_commit_seq"],
+            minimum=0,
         )
-        dimensions = int(state["dimensions"])
-        document_count = int(state["document_count"])
+        dimensions = _persisted_integer(
+            state["dimensions"],
+            minimum=1,
+        )
+        document_count = _persisted_integer(
+            state["document_count"],
+            minimum=0,
+        )
 
+        if (
+            indexed_snapshot is None
+            or indexed_visibility_commit_seq is None
+            or dimensions is None
+            or document_count is None
+        ):
+            reports.append(
+                DerivedEmbeddingReport(
+                    storage_model_id=model_id,
+                    published=True,
+                    indexed_snapshot=indexed_snapshot,
+                    current_snapshot=current_snapshot,
+                    dimensions=dimensions,
+                    document_count=document_count,
+                    persisted_document_count=len(all_rows),
+                    unpublished_document_count=0,
+                    persisted_valid=False,
+                    embeddings_current=False,
+                    hnsw_files_plausible=False,
+                    embedding_rebuild_required=True,
+                    hnsw_rebuild_required=False,
+                )
+            )
+            continue
+
+        row_generations = [
+            _persisted_integer(
+                row["indexed_chunk_generation"],
+                minimum=0,
+            )
+            for row in all_rows
+        ]
+        generations_valid = all(
+            generation is not None
+            for generation in row_generations
+        )
         published_rows = [
             row
-            for row in all_rows
-            if int(row["indexed_chunk_generation"]) == indexed_snapshot
+            for row, generation in zip(
+                all_rows,
+                row_generations,
+                strict=True,
+            )
+            if generation == indexed_snapshot
         ]
 
         unpublished_document_count = (
@@ -1427,7 +1537,7 @@ def _inspect_archive_embeddings(
         )
 
         persisted_valid = (
-            dimensions > 0
+            generations_valid
             and len(published_rows) == document_count
             and _archive_vectors_shape_valid(
                 published_rows,
@@ -1491,12 +1601,18 @@ def _vectors_shape_valid(
     dimensions_seen: set[int] = set()
 
     for row in rows:
-        row_dimensions = int(row["dimensions"])
+        row_dimensions = _persisted_integer(
+            row["dimensions"],
+            minimum=1,
+        )
+        vector_blob = _persisted_blob(
+            row["vector_blob"]
+        )
 
-        if row_dimensions <= 0:
+        if row_dimensions is None or vector_blob is None:
             return False
 
-        if len(bytes(row["vector_blob"])) != row_dimensions * 4:
+        if len(vector_blob) != row_dimensions * 4:
             return False
 
         dimensions_seen.add(row_dimensions)
@@ -1523,12 +1639,29 @@ def _archive_vectors_shape_valid(
     dimensions_seen: set[int] = set()
 
     for row in rows:
-        row_dimensions = int(row["dimensions"])
+        row_dimensions = _persisted_integer(
+            row["dimensions"],
+            minimum=1,
+        )
+        vector_blob = _persisted_blob(
+            row["vector_blob"]
+        )
+        chunk_id = _persisted_blob(
+            row["chunk_id"]
+        )
+        text_sha256 = _persisted_blob(
+            row["text_sha256"]
+        )
 
-        if row_dimensions <= 0:
+        if (
+            row_dimensions is None
+            or vector_blob is None
+            or chunk_id is None
+            or text_sha256 is None
+        ):
             return False
 
-        if len(bytes(row["vector_blob"])) != row_dimensions * 4:
+        if len(vector_blob) != row_dimensions * 4:
             return False
 
         dimensions_seen.add(row_dimensions)
@@ -1539,9 +1672,7 @@ def _archive_vectors_shape_valid(
         ):
             return False
 
-        metadata = chunk_metadata.get(
-            bytes(row["chunk_id"])
-        )
+        metadata = chunk_metadata.get(chunk_id)
 
         if metadata is None:
             return False
@@ -1551,7 +1682,7 @@ def _archive_vectors_shape_valid(
         if not visible:
             return False
 
-        if bytes(row["text_sha256"]) != content_hash:
+        if text_sha256 != content_hash:
             return False
 
     return (

@@ -15,6 +15,7 @@ from athena.config.settings import AthenaSettings, ConfigurationError
 from athena.core.application import AthenaApplication
 from athena.model.adapters.lm_studio import LMStudioProvider
 from athena.model.domain import ProviderHealthStatus
+from athena.storage.durable_fs import is_link_boundary
 from athena.storage.paths import RuntimePaths
 from athena.storage.recovery import DatabaseRecoveryRequiredError, inspect_database_read_only
 from athena.version import __version__
@@ -36,20 +37,40 @@ class DoctorReport:
     model_ready: bool
 
 
+def _first_link_boundary(path: Path) -> Path | None:
+    cursor = path
+    while True:
+        if is_link_boundary(cursor):
+            return cursor
+        parent = cursor.parent
+        if parent == cursor:
+            return None
+        cursor = parent
+
+
 def _check_runtime_write(root: Path) -> DoctorCheck:
-    if root.is_symlink():
+    boundary = _first_link_boundary(root)
+    if boundary is not None:
         return DoctorCheck(
             "runtime-write",
             "FAIL",
-            f"runtime root is a symbolic link: {root}",
+            "runtime root crosses a symbolic link or reparse-point boundary: "
+            f"{boundary}",
         )
     try:
         root.mkdir(parents=True, exist_ok=True)
-        if root.is_symlink() or not root.is_dir():
+        boundary = _first_link_boundary(root)
+        if boundary is not None or not root.is_dir():
+            detail = (
+                "runtime root crosses a symbolic link or reparse-point boundary: "
+                f"{boundary}"
+                if boundary is not None
+                else f"runtime root is not a safe directory: {root}"
+            )
             return DoctorCheck(
                 "runtime-write",
                 "FAIL",
-                f"runtime root is not a safe directory: {root}",
+                detail,
             )
         with tempfile.NamedTemporaryFile(
             mode="wb",
@@ -84,8 +105,14 @@ def _check_optional_storage_root(
 ) -> DoctorCheck:
     if root is None:
         return DoctorCheck(name, missing_status, missing_detail)
-    if root.is_symlink():
-        return DoctorCheck(name, "WARN", f"configured root is a symbolic link: {root}")
+    boundary = _first_link_boundary(root)
+    if boundary is not None:
+        return DoctorCheck(
+            name,
+            "WARN",
+            "configured root crosses a symbolic link or reparse-point boundary: "
+            f"{boundary}",
+        )
     if not root.is_dir():
         return DoctorCheck(name, "WARN", f"configured root is unavailable: {root}")
 
