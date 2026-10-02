@@ -443,6 +443,8 @@ class ClaimRepository:
         )
 
     def list_current(self, *, limit: int = 50) -> tuple[ClaimSnapshot, ...]:
+        if isinstance(limit, bool) or not isinstance(limit, int):
+            raise TypeError("Claim list limit must be an integer.")
         if limit < 1 or limit > 500:
             raise ValueError("limit must be between 1 and 500.")
         rows = self.database.connection.execute(
