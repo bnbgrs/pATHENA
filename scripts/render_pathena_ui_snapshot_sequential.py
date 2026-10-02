@@ -119,6 +119,8 @@ def _settings_state_is_ready(
     refreshing: bool,
     news_ready: bool,
     status_text: str,
+    lmstudio_status: str,
+    lmstudio_busy: bool,
 ) -> bool:
     """Return whether Settings exposes a settled snapshot-backed visual state."""
     return (
@@ -126,6 +128,13 @@ def _settings_state_is_ready(
         and not refreshing
         and news_ready
         and status_text.strip() not in _SETTINGS_TRANSITIONAL_STATUSES
+        and not lmstudio_busy
+        and lmstudio_status.strip().casefold()
+        not in {
+            "lm studio runtime · awaiting core",
+            "lm studio runtime · waiting for local core",
+        }
+        and not lmstudio_status.strip().endswith(" …")
     )
 
 
@@ -246,6 +255,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     from athena.desktop.app import create_application
     from athena.desktop.app import main as desktop_main
     from athena.desktop.command_palette import CommandPaletteController
+    from athena.desktop.lmstudio_runtime import LMStudioRuntimeController
     from athena.desktop.pathena_pallas_field import PallasGroundedFieldController
     from athena.desktop.pathena_pallas_semantic import (
         PallasGraphSnapshot,
@@ -399,6 +409,16 @@ def main(argv: Sequence[str] | None = None) -> int:
         controller = getattr(runtime, "controller", None)
         if controller is None:
             raise RuntimeError("Settings visual capture has no API controller.")
+        lmstudio = next(
+            (
+                child
+                for child in window.children()
+                if isinstance(child, LMStudioRuntimeController)
+            ),
+            None,
+        )
+        if lmstudio is None:
+            raise RuntimeError("Settings visual capture has no LM Studio runtime controller.")
 
         deadline = time.monotonic() + _SETTINGS_CAPTURE_TIMEOUT_SECONDS
         stable_since: float | None = None
@@ -440,6 +460,10 @@ def main(argv: Sequence[str] | None = None) -> int:
                 runtime.persistence_value.text(),
                 runtime.detail.text(),
                 runtime.news_status.text(),
+                lmstudio.status_text,
+                lmstudio.auto_start.isChecked(),
+                lmstudio.auto_load.isChecked(),
+                lmstudio.idle_minutes.value(),
             )
             last_state = state
 
@@ -450,6 +474,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                     refreshing=refreshing,
                     news_ready=news_ready,
                     status_text=status_text,
+                    lmstudio_status=lmstudio.status_text,
+                    lmstudio_busy=lmstudio.busy,
                 )
             )
             if ready and state == previous_state:
@@ -461,6 +487,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                         "settings_snapshot_ready": True,
                         "settings_status": status_text,
                         "settings_news_state": runtime.news_status.text(),
+                        "settings_lmstudio_state": lmstudio.status_text,
+                        "settings_lmstudio_busy": lmstudio.busy,
                     }
             else:
                 stable_since = None
