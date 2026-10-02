@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
 
 import numpy as np
@@ -102,3 +103,49 @@ def test_extra_surface_fails_closed(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="Surface set mismatch"):
         compare_bundle(actual, bundle, diff)
+
+def test_deterministic_pallas_hash_is_exact_authority(tmp_path: Path) -> None:
+    baseline_capture = tmp_path / "baseline-capture"
+    actual = tmp_path / "actual"
+    bundle = tmp_path / "baseline.json"
+    diff = tmp_path / "diff"
+    _capture_set(baseline_capture)
+    _capture_set(actual, changed_surface="08-pallas.png")
+    write_baseline_bundle(baseline_capture, bundle, candidate_sha="e" * 40)
+
+    pallas_payload = (actual / "08-pallas.png").read_bytes()
+    (tmp_path / "visual-pallas-windows.sha256").write_text(
+        hashlib.sha256(pallas_payload).hexdigest() + "\n",
+        encoding="utf-8",
+    )
+
+    report = compare_bundle(actual, bundle, diff)
+
+    assert report["status"] == "PASS"
+    pallas = next(
+        item for item in report["results"]
+        if item["surface"] == "08-pallas.png"
+    )
+    assert pallas["status"] == "PASS"
+    assert pallas["comparison"] == "deterministic exact PNG SHA-256"
+
+
+def test_deterministic_pallas_hash_mismatch_fails_closed(tmp_path: Path) -> None:
+    actual = tmp_path / "actual"
+    bundle = tmp_path / "baseline.json"
+    diff = tmp_path / "diff"
+    _capture_set(actual)
+    write_baseline_bundle(actual, bundle, candidate_sha="f" * 40)
+    (tmp_path / "visual-pallas-windows.sha256").write_text(
+        "0" * 64 + "\n",
+        encoding="utf-8",
+    )
+
+    report = compare_bundle(actual, bundle, diff)
+
+    assert report["status"] == "FAIL"
+    assert any(
+        "08-pallas.png: deterministic SHA-256" in failure
+        for failure in report["failures"]
+    )
+
