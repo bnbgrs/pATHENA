@@ -31,6 +31,8 @@ class _Handler(BaseHTTPRequestHandler):
     queue_running: list[list[object]] = []
     queue_pending: list[list[object]] = []
     history: dict[str, object] = {}
+    system_stats_redirect: str | None = None
+    redirect_target_hits = 0
     system_stats: dict[str, object] = {
         "system": {"comfyui_version": "test-local"},
         "devices": [
@@ -55,6 +57,16 @@ class _Handler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:  # noqa: N802
         if self.path == "/system_stats":
+            redirect = type(self).system_stats_redirect
+            if redirect is not None:
+                self.send_response(302)
+                self.send_header("Location", redirect)
+                self.end_headers()
+                return
+            self._json(type(self).system_stats)
+            return
+        if self.path == "/redirect-target":
+            type(self).redirect_target_hits += 1
             self._json(type(self).system_stats)
             return
         if self.path == "/queue":
@@ -98,6 +110,8 @@ def comfyui_server() -> tuple[str, type[_Handler]]:
     _Handler.queue_running = []
     _Handler.queue_pending = []
     _Handler.history = {}
+    _Handler.system_stats_redirect = None
+    _Handler.redirect_target_hits = 0
     _Handler.system_stats = {
         "system": {"comfyui_version": "test-local"},
         "devices": [
@@ -155,6 +169,19 @@ def test_client_projects_live_system_stats(comfyui_server: tuple[str, type[_Hand
     assert snapshot.vram_free_bytes == 18 * _GIB
 
 
+def test_client_rejects_http_redirects_before_leaving_loopback_origin(
+    comfyui_server: tuple[str, type[_Handler]],
+) -> None:
+    endpoint, handler = comfyui_server
+    handler.system_stats_redirect = f"{endpoint}/redirect-target"
+    client = ComfyUiClient(endpoint)
+
+    with pytest.raises(ComfyUiError, match="must not follow HTTP redirects"):
+        client.health()
+
+    assert handler.redirect_target_hits == 0
+
+
 def test_client_reports_unavailable_vram_without_inventing_values(
     comfyui_server: tuple[str, type[_Handler]],
 ) -> None:
@@ -168,6 +195,76 @@ def test_client_reports_unavailable_vram_without_inventing_values(
     assert snapshot.device_count == 0
     assert snapshot.vram_total_bytes is None
     assert snapshot.vram_free_bytes is None
+
+
+@pytest.mark.parametrize(
+    "devices",
+    [
+        [
+            {"name": "gpu-a", "vram_total": 24 * _GIB},
+            {"name": "gpu-b", "vram_free": 12 * _GIB},
+        ],
+        [
+            {
+                "name": "gpu-a",
+                "vram_total": float("inf"),
+                "vram_free": 1 * _GIB,
+            }
+        ],
+        [
+            {
+                "name": "gpu-a",
+                "vram_total": 8 * _GIB,
+                "vram_free": 9 * _GIB,
+            }
+        ],
+        ["malformed-device"],
+    ],
+)
+def test_client_does_not_invent_vram_from_incomplete_or_invalid_devices(
+    comfyui_server: tuple[str, type[_Handler]],
+    devices: list[object],
+) -> None:
+    endpoint, handler = comfyui_server
+    handler.system_stats = {
+        "system": {"comfyui_version": "test-local"},
+        "devices": devices,
+    }
+    client = ComfyUiClient(endpoint)
+
+    snapshot = client.health()
+
+    assert snapshot.device_count == len(devices)
+    assert snapshot.vram_total_bytes is None
+    assert snapshot.vram_free_bytes is None
+
+
+def test_client_aggregates_vram_only_from_complete_per_device_pairs(
+    comfyui_server: tuple[str, type[_Handler]],
+) -> None:
+    endpoint, handler = comfyui_server
+    handler.system_stats = {
+        "system": {"comfyui_version": "test-local"},
+        "devices": [
+            {
+                "name": "gpu-a",
+                "vram_total": 8 * _GIB,
+                "vram_free": 6 * _GIB,
+            },
+            {
+                "name": "gpu-b",
+                "vram_total": 16 * _GIB,
+                "vram_free": 10 * _GIB,
+            },
+        ],
+    }
+    client = ComfyUiClient(endpoint)
+
+    snapshot = client.health()
+
+    assert snapshot.device_count == 2
+    assert snapshot.vram_total_bytes == 24 * _GIB
+    assert snapshot.vram_free_bytes == 16 * _GIB
 
 
 def test_client_queue_and_free_are_explicit_requests(
@@ -184,6 +281,110 @@ def test_client_queue_and_free_are_explicit_requests(
     assert receipt.node_errors == {}
     assert handler.posted == [{"prompt": workflow}]
     assert handler.freed == [{"unload_models": True, "free_memory": True}]
+
+
+def test_client_projects_truthful_terminal_history_states(
+    comfyui_server: tuple[str, type[_Handler]],
+) -> None:
+    endpoint, handler = comfyui_server
+    client = ComfyUiClient(endpoint)
+
+    handler.history = {
+        "succeeded": {
+            "status": {
+                "status_str": "success",
+                "completed": True,
+                "messages": [],
+            }
+        },
+        "failed": {
+            "status": {
+                "status_str": "error",
+                "completed": False,
+                "messages": [],
+            }
+        },
+        "stale": {
+            "status": {
+                "status_str": "running",
+                "completed": False,
+                "messages": [],
+            }
+        },
+    }
+
+    assert client.prompt_state("succeeded").state == "completed"
+    assert client.prompt_state("failed").state == "failed"
+    assert client.prompt_state("stale").state == "unknown"
+    assert client.prompt_state("missing").state == "unknown"
+
+
+@pytest.mark.parametrize(
+    "history_entry, error",
+    [
+        ({}, "no status object"),
+        ({"status": []}, "no status object"),
+        ({"status": {"completed": True}}, "status is incomplete"),
+        (
+            {"status": {"status_str": "success", "completed": "yes"}},
+            "completion flag is invalid",
+        ),
+        (
+            {"status": {"status_str": "success", "completed": False}},
+            "success without completion",
+        ),
+    ],
+)
+def test_client_fails_closed_on_malformed_history_status(
+    comfyui_server: tuple[str, type[_Handler]],
+    history_entry: object,
+    error: str,
+) -> None:
+    endpoint, handler = comfyui_server
+    handler.history = {"prompt-malformed": history_entry}
+    client = ComfyUiClient(endpoint)
+
+    with pytest.raises(ComfyUiError, match=error):
+        client.prompt_state("prompt-malformed")
+
+
+def test_dialog_projects_failed_history_without_fake_completion(
+    qt_app: QApplication,
+    comfyui_server: tuple[str, type[_Handler]],
+    tmp_path: Path,
+) -> None:
+    endpoint, handler = comfyui_server
+    host = QWidget()
+    palette = _Palette(host)
+    controller = install_comfyui_integration(
+        palette,
+        client=ComfyUiClient(endpoint),
+    )
+    dialog = controller.dialog
+    controller.load_workflow(_workflow_file(tmp_path))
+
+    assert controller.queue_selected_workflow() is True
+    handler.history = {
+        "prompt-1": {
+            "status": {
+                "status_str": "error",
+                "completed": False,
+                "messages": [],
+            }
+        }
+    }
+
+    assert controller.refresh_prompt_status() is True
+    qt_app.processEvents()
+
+    assert controller.job_status.property("pathenaUiState") == "failed"
+    assert dialog.property("pathenaComfyUiPromptState") == "failed"
+    assert "did not complete successfully" in controller.job_status.text()
+
+    controller.deleteLater()
+    dialog.deleteLater()
+    palette.deleteLater()
+    host.deleteLater()
 
 
 def test_dialog_projects_measured_vram_and_reference_hierarchy(
@@ -268,3 +469,9 @@ def test_invalid_endpoint_fails_closed() -> None:
         ComfyUiClient("https://example.com:8188")
     with pytest.raises(ComfyUiError, match="loopback"):
         ComfyUiClient("http://example.com:8188")
+    with pytest.raises(ComfyUiError, match="invalid port"):
+        ComfyUiClient("http://127.0.0.1:not-a-port")
+    with pytest.raises(ComfyUiError, match="invalid port"):
+        ComfyUiClient("http://127.0.0.1:0")
+    with pytest.raises(ComfyUiError, match="valid URL"):
+        ComfyUiClient("http://[::1")

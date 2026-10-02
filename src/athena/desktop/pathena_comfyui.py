@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ipaddress
 import json
+import math
 import os
 import urllib.error
 import urllib.parse
@@ -33,6 +34,22 @@ _GIB = 1024**3
 
 class ComfyUiError(RuntimeError):
     """Raised when the local ComfyUI contract cannot be used truthfully."""
+
+
+class _RejectRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """Keep the local ComfyUI bridge on its configured loopback origin."""
+
+    def redirect_request(
+        self,
+        req: urllib.request.Request,
+        fp: Any,
+        code: int,
+        msg: str,
+        headers: Any,
+        newurl: str,
+    ) -> urllib.request.Request | None:
+        del req, fp, code, msg, headers, newurl
+        raise ComfyUiError("Local ComfyUI requests must not follow HTTP redirects.")
 
 
 @dataclass(frozen=True, slots=True)
@@ -67,7 +84,10 @@ def _loopback_endpoint(value: str) -> str:
     raw = value.strip()
     if not raw:
         raise ComfyUiError("ComfyUI endpoint must not be empty.")
-    parsed = urllib.parse.urlsplit(raw)
+    try:
+        parsed = urllib.parse.urlsplit(raw)
+    except ValueError as exc:
+        raise ComfyUiError("ComfyUI endpoint is not a valid URL.") from exc
     if parsed.scheme != "http":
         raise ComfyUiError("ComfyUI must use local HTTP.")
     if parsed.username is not None or parsed.password is not None:
@@ -89,7 +109,12 @@ def _loopback_endpoint(value: str) -> str:
             raise ComfyUiError("ComfyUI endpoint must use localhost or a loopback IP.") from exc
         if not address.is_loopback:
             raise ComfyUiError("ComfyUI endpoint must use a loopback IP.")
-    port = parsed.port
+    try:
+        port = parsed.port
+    except ValueError as exc:
+        raise ComfyUiError("ComfyUI endpoint contains an invalid port.") from exc
+    if port is not None and not 1 <= port <= 65535:
+        raise ComfyUiError("ComfyUI endpoint contains an invalid port.")
     netloc = f"[{hostname}]" if ":" in hostname else hostname
     if port is not None:
         netloc = f"{netloc}:{port}"
@@ -132,21 +157,35 @@ def _queue_prompt_ids(items: object) -> tuple[str, ...]:
     return tuple(prompt_ids)
 
 
+def _vram_bytes(value: object) -> int | None:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    try:
+        numeric = float(value)
+    except OverflowError:
+        return None
+    if not math.isfinite(numeric) or numeric < 0:
+        return None
+    return int(numeric)
+
+
 def _device_vram(devices: list[object]) -> tuple[int | None, int | None]:
+    if not devices:
+        return None, None
+
     totals: list[int] = []
     frees: list[int] = []
     for device in devices:
         if not isinstance(device, dict):
-            continue
-        total = device.get("vram_total")
-        free = device.get("vram_free")
-        if isinstance(total, (int, float)) and not isinstance(total, bool) and total >= 0:
-            totals.append(int(total))
-        if isinstance(free, (int, float)) and not isinstance(free, bool) and free >= 0:
-            frees.append(int(free))
-    total_bytes = sum(totals) if totals else None
-    free_bytes = sum(frees) if frees and len(frees) == len(totals) else None
-    return total_bytes, free_bytes
+            return None, None
+        total = _vram_bytes(device.get("vram_total"))
+        free = _vram_bytes(device.get("vram_free"))
+        if total is None or free is None or free > total:
+            return None, None
+        totals.append(total)
+        frees.append(free)
+
+    return sum(totals), sum(frees)
 
 
 def _format_gib(value: int) -> str:
@@ -160,7 +199,10 @@ class ComfyUiClient:
         candidate = endpoint or os.environ.get(COMFYUI_URL_ENV, DEFAULT_COMFYUI_URL)
         self.endpoint = _loopback_endpoint(candidate)
         self.timeout = timeout
-        self._opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+        self._opener = urllib.request.build_opener(
+            urllib.request.ProxyHandler({}),
+            _RejectRedirectHandler(),
+        )
 
     def _request(
         self,
@@ -248,8 +290,32 @@ class ComfyUiClient:
 
         encoded = urllib.parse.quote(normalized, safe="")
         history = self._request("GET", f"/history/{encoded}")
-        if normalized in history:
+        if normalized not in history:
+            return ComfyUiPromptState(normalized, "unknown")
+
+        entry = history[normalized]
+        if not isinstance(entry, dict):
+            raise ComfyUiError("Local ComfyUI history entry is malformed.")
+        status = entry.get("status")
+        if not isinstance(status, dict):
+            raise ComfyUiError("Local ComfyUI history entry has no status object.")
+
+        status_value = status.get("status_str")
+        completed = status.get("completed")
+        if not isinstance(status_value, str) or not status_value.strip():
+            raise ComfyUiError("Local ComfyUI history status is incomplete.")
+        if not isinstance(completed, bool):
+            raise ComfyUiError("Local ComfyUI history completion flag is invalid.")
+
+        normalized_status = status_value.strip().casefold()
+        if normalized_status == "success":
+            if not completed:
+                raise ComfyUiError(
+                    "Local ComfyUI history reports success without completion."
+                )
             return ComfyUiPromptState(normalized, "completed")
+        if completed or normalized_status in {"error", "failed", "interrupted"}:
+            return ComfyUiPromptState(normalized, "failed")
         return ComfyUiPromptState(normalized, "unknown")
 
     def release_vram(self) -> None:
@@ -669,8 +735,11 @@ class ComfyUiController(QObject):
         labels = {
             "pending": "Waiting in the local queue.",
             "running": "Running locally in ComfyUI.",
-            "completed": "Completed.",
-            "unknown": "No longer present in the current queue or history.",
+            "completed": "Completed successfully.",
+            "failed": (
+                "ComfyUI reports that this workflow did not complete successfully."
+            ),
+            "unknown": "No terminal result is available in the current queue or history.",
         }
         self._set_job_status(state.state, labels[state.state])
         return True

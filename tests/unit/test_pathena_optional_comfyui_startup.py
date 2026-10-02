@@ -24,10 +24,20 @@ def _app() -> QApplication:
     return create_application(["pathena-optional-comfyui-startup-test"])
 
 
+@pytest.mark.parametrize(
+    ("endpoint", "error_fragment"),
+    [
+        ("https://example.com:8188", "local HTTP"),
+        ("http://127.0.0.1:not-a-port", "invalid port"),
+        ("http://127.0.0.1:0", "invalid port"),
+    ],
+)
 def test_invalid_optional_comfyui_config_stays_fail_closed_through_command_truth(
     monkeypatch: pytest.MonkeyPatch,
+    endpoint: str,
+    error_fragment: str,
 ) -> None:
-    monkeypatch.setenv(COMFYUI_URL_ENV, "https://example.com:8188")
+    monkeypatch.setenv(COMFYUI_URL_ENV, endpoint)
     app = _app()
     window = PathenaMainWindow(api_controller=None)
     grounded = install_pallas_grounded_field(window)
@@ -43,7 +53,7 @@ def test_invalid_optional_comfyui_config_stays_fail_closed_through_command_truth
     assert external.comfyui is None
     assert "Open ComfyUI" not in labels
     assert window.property("pathenaComfyUiInstalled") is False
-    assert "local HTTP" in str(window.property("pathenaComfyUiUnavailableReason"))
+    assert error_fragment in str(window.property("pathenaComfyUiUnavailableReason"))
     assert window.property("pathenaCommandPaletteTruthManaged") is True
 
     external.dispose()
