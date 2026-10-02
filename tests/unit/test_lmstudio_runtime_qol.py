@@ -13,9 +13,9 @@ from PySide6.QtCore import QObject, QSettings, Signal
 from PySide6.QtWidgets import QApplication
 
 from athena.api.contracts import HealthResponse, ModelResponse, ProviderHealthResponse
+from athena.desktop import lmstudio_runtime as runtime_module
 from athena.desktop.api_controller import DesktopApiSnapshot
 from athena.desktop.app import create_application
-from athena.desktop import lmstudio_runtime as runtime_module
 from athena.desktop.pathena_window import PathenaMainWindow
 
 
@@ -69,8 +69,8 @@ def _ready_snapshot(*, loaded: bool = False) -> DesktopApiSnapshot:
         ("http://localhost", 80),
     ],
 )
-def testruntime_module.runtime_module._endpoint_port_accepts_only_loopback_http(url: str, expected: int) -> None:
-    assert runtime_module.runtime_module._endpoint_port(url) == expected
+def test_endpoint_port_accepts_only_loopback_http(url: str, expected: int) -> None:
+    assert runtime_module._endpoint_port(url) == expected
 
 
 @pytest.mark.parametrize(
@@ -82,9 +82,9 @@ def testruntime_module.runtime_module._endpoint_port_accepts_only_loopback_http(
         "http://127.0.0.1:99999",
     ],
 )
-def testruntime_module.runtime_module._endpoint_port_rejects_unsafe_or_invalid_targets(url: str) -> None:
+def test_endpoint_port_rejects_unsafe_or_invalid_targets(url: str) -> None:
     with pytest.raises(ValueError):
-        runtime_module.runtime_module._endpoint_port(url)
+        runtime_module._endpoint_port(url)
 
 
 @pytest.mark.parametrize(
@@ -95,13 +95,13 @@ def testruntime_module.runtime_module._endpoint_port_rejects_unsafe_or_invalid_t
         ("http://[::1]:7777", ("::1", 7777)),
     ],
 )
-def testruntime_module._endpoint_preserves_loopback_bind_identity(
+def test_endpoint_preserves_loopback_bind_identity(
     url: str, expected: tuple[str, int]
 ) -> None:
     assert runtime_module._endpoint(url) == expected
 
 
-def test_headless_server_start_is_daemon_first_andruntime_module._endpoint_bound() -> None:
+def test_headless_server_start_is_daemon_first_and_endpoint_bound() -> None:
     daemon, server = runtime_module._server_start_steps("http://[::1]:7777")
     assert daemon.operation == "daemon_up"
     assert daemon.arguments == ("daemon", "up")
@@ -227,7 +227,7 @@ def test_core_snapshot_does_not_overwrite_active_cli_status(tmp_path: Path) -> N
         app.processEvents()
 
 
-def testruntime_module._process_command_preserves_arguments_for_native_executable() -> None:
+def test_process_command_preserves_arguments_for_native_executable() -> None:
     program, arguments = runtime_module._process_command(
         "/opt/lmstudio/lms",
         ("load", "model-id", "--context-length", "8192"),
@@ -237,7 +237,7 @@ def testruntime_module._process_command_preserves_arguments_for_native_executabl
 
 
 @pytest.mark.skipif(os.name != "nt", reason="Windows command wrappers are Windows-only")
-def testruntime_module._process_command_routes_cmd_wrappers_through_comspec(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_process_command_routes_cmd_wrappers_through_comspec(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("COMSPEC", "C:\\Windows\\System32\\cmd.exe")
     program, arguments = runtime_module._process_command(
         "C:\\Tools\\lms.cmd",
@@ -247,7 +247,7 @@ def testruntime_module._process_command_routes_cmd_wrappers_through_comspec(monk
     assert arguments[:4] == ["/d", "/s", "/c", "C:\\Tools\\lms.cmd"]
 
 
-def testruntime_module._find_lms_honors_explicit_executable_override(
+def test_find_lms_honors_explicit_executable_override(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     executable = tmp_path / ("lms.exe" if os.name == "nt" else "lms")
@@ -366,7 +366,7 @@ def test_model_confirmation_ignores_a_different_selected_model() -> None:
     ) == ("none", 3)
 
 
-def testruntime_module._find_lms_discovers_standard_per_user_install(
+def test_find_lms_discovers_standard_per_user_install(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     monkeypatch.delenv("ATHENA_LMS_EXECUTABLE", raising=False)
