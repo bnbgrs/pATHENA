@@ -524,6 +524,8 @@ class SourceRepository:
         *,
         limit: int = 50,
     ) -> tuple[tuple[SourceRecord, BlobRecord], ...]:
+        if isinstance(limit, bool) or not isinstance(limit, int):
+            raise TypeError("Source list limit must be an integer.")
         if limit < 1 or limit > 500:
             raise ValueError("Source list limit must be between 1 and 500.")
         rows = self.database.connection.execute(
@@ -547,13 +549,15 @@ class SourceRepository:
     ) -> tuple[tuple[SourceRecord, BlobRecord], ...]:
         """List Protected Sources belonging to the requested neutral scopes."""
 
-        if not protection_scope_ids:
-            return ()
-
+        if isinstance(limit, bool) or not isinstance(limit, int):
+            raise TypeError("Protected Source list limit must be an integer.")
         if not 1 <= limit <= 10001:
             raise ValueError(
                 "Protected Source list limit must be between 1 and 10001."
             )
+
+        if not protection_scope_ids:
+            return ()
 
         ordered_scopes = tuple(
             sorted(
