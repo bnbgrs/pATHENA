@@ -433,8 +433,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             state = (
                 status_text,
                 model_text,
-                getattr(window.context_spin, "value")(),
-                getattr(window.max_output_spin, "value")(),
+                window.context_spin.value(),
+                window.max_output_spin.value(),
                 runtime.provider_value.text(),
                 runtime.network_value.text(),
                 runtime.persistence_value.text(),
