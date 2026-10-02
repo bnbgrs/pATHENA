@@ -4,14 +4,19 @@ from pathlib import Path
 
 import pytest
 
-from athena.config import settings as config_settings
-from athena.core import application as core_application
-from athena.security import models as security_models
-from athena.security import service as security_service
-from athena.source import blob_store, models
+from athena.config.settings import AthenaSettings
+from athena.core.application import AthenaApplication
+from athena.security.models import Argon2idParameters
+from athena.security.service import ProtectionScopeLockedError
+from athena.source.blob_store import (
+    BlobIntegrityError,
+    BlobReadTooLargeError,
+    SourceChangedDuringCaptureError,
+)
+from athena.source.models import SourceType
 
 
-_TEST_KDF = security_models.Argon2idParameters(
+_TEST_KDF = Argon2idParameters(
     iterations=1,
     lanes=1,
     memory_cost_kib=8 * 1024,
@@ -19,9 +24,9 @@ _TEST_KDF = security_models.Argon2idParameters(
 )
 
 
-def _started_app(tmp_path: Path) -> core_application.AthenaApplication:
-    app = core_application.AthenaApplication(
-        settings=config_settings.AthenaSettings(
+def _started_app(tmp_path: Path) -> AthenaApplication:
+    app = AthenaApplication(
+        settings=AthenaSettings(
             local_root=tmp_path / "local",
         )
     )
@@ -45,7 +50,7 @@ def test_image_bytes_are_preserved_in_raw_archive_across_restart(
     )
     source_id = captured.source.source_id
 
-    assert captured.source.source_type is models.SourceType.IMAGE
+    assert captured.source.source_type is SourceType.IMAGE
     assert captured.source.mime_type == "image/png"
     assert captured.source.original_modified_at_us is None
     assert captured.source.source_uri == "clipboard://composer"
@@ -54,7 +59,7 @@ def test_image_bytes_are_preserved_in_raw_archive_across_restart(
 
     second = _started_app(tmp_path)
     source, blob = second.sources.get(source_id)
-    assert source.source_type is models.SourceType.IMAGE
+    assert source.source_type is SourceType.IMAGE
     assert source.blob_id == blob.blob_id
     assert second.sources.verify(source_id).read_bytes() == payload
     second.stop()
@@ -134,7 +139,7 @@ def test_image_byte_capture_enforces_size_limit_before_source_commit(
     payload = _png_payload()
 
     with pytest.raises(
-        blob_store.SourceChangedDuringCaptureError,
+        SourceChangedDuringCaptureError,
         match="maximum capture size",
     ):
         app.sources.capture_image_bytes(
@@ -189,7 +194,7 @@ def test_image_bytes_are_read_only_through_bounded_integrity_check(
         max_bytes=len(payload),
     ) == payload
 
-    with pytest.raises(blob_store.BlobReadTooLargeError, match="read limit"):
+    with pytest.raises(BlobReadTooLargeError, match="read limit"):
         app.sources.read_image_bytes(
             captured.source.source_id,
             max_bytes=len(payload) - 1,
@@ -212,7 +217,7 @@ def test_image_byte_read_fails_closed_after_archive_corruption(
     )
     stored_path.write_bytes(b"corrupt")
 
-    with pytest.raises(blob_store.BlobIntegrityError, match="integrity|length changed"):
+    with pytest.raises(BlobIntegrityError, match="integrity|length changed"):
         app.sources.read_image_bytes(
             captured.source.source_id,
             max_bytes=1024,
@@ -265,7 +270,7 @@ def test_protected_image_byte_read_preserves_bounds_and_lock_state(
         scope.protection_scope_id,
     )
 
-    assert protected.source.source_type is models.SourceType.IMAGE
+    assert protected.source.source_type is SourceType.IMAGE
     assert app.sources.read_image_bytes(
         protected.source.source_id,
         max_bytes=len(payload),
@@ -279,7 +284,7 @@ def test_protected_image_byte_read_preserves_bounds_and_lock_state(
         "read_protected_bytes",
         unexpected_decrypt,
     )
-    with pytest.raises(blob_store.BlobReadTooLargeError, match="read limit"):
+    with pytest.raises(BlobReadTooLargeError, match="read limit"):
         app.sources.read_image_bytes(
             protected.source.source_id,
             max_bytes=len(payload) - 1,
@@ -287,7 +292,7 @@ def test_protected_image_byte_read_preserves_bounds_and_lock_state(
 
     monkeypatch.undo()
     app.protected_content.lock_scope(scope.protection_scope_id)
-    with pytest.raises(security_service.ProtectionScopeLockedError):
+    with pytest.raises(ProtectionScopeLockedError):
         app.sources.read_image_bytes(
             protected.source.source_id,
             max_bytes=len(payload),
