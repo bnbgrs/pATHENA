@@ -5,8 +5,9 @@ import uuid
 
 import pytest
 
-from athena.source import models, representation_repository
-from athena.storage import database
+from athena.source.models import BlobRecord, BlobStorageArea, SourceRepresentationType
+from athena.source.representation_repository import SourceRepresentationRepository
+from athena.storage.database import SQLiteDatabase
 
 
 _SCHEMA_REPRESENTATION_TYPES = {
@@ -24,12 +25,12 @@ class _DatabaseMustNotBeTouched:
         raise AssertionError("invalid representation type must fail before DB access")
 
 
-def _existing_blob() -> models.BlobRecord:
-    return models.BlobRecord(
+def _existing_blob() -> BlobRecord:
+    return BlobRecord(
         blob_id=uuid.uuid4(),
         byte_length=4,
         media_type="text/plain; charset=utf-8",
-        storage_area=models.BlobStorageArea.SPOOL,
+        storage_area=BlobStorageArea.SPOOL,
         storage_locator="representations/test.blob",
         integrity_sha256=b"x" * 32,
         encryption_state="none",
@@ -39,7 +40,7 @@ def _existing_blob() -> models.BlobRecord:
 
 
 def test_source_representation_type_matches_persisted_schema_contract() -> None:
-    assert {value.value for value in models.SourceRepresentationType} == (
+    assert {value.value for value in SourceRepresentationType} == (
         _SCHEMA_REPRESENTATION_TYPES
     )
 
@@ -47,15 +48,15 @@ def test_source_representation_type_matches_persisted_schema_contract() -> None:
 @pytest.mark.parametrize(
     "representation_type",
     [
-        models.SourceRepresentationType.THUMBNAIL,
-        models.SourceRepresentationType.PAGE_IMAGES,
+        SourceRepresentationType.THUMBNAIL,
+        SourceRepresentationType.PAGE_IMAGES,
     ],
 )
 def test_retained_text_writer_rejects_binary_representation_types_before_db_access(
-    representation_type: models.SourceRepresentationType,
+    representation_type: SourceRepresentationType,
 ) -> None:
-    repository = representation_repository.SourceRepresentationRepository(
-        typing.cast(database.SQLiteDatabase, _DatabaseMustNotBeTouched())
+    repository = SourceRepresentationRepository(
+        typing.cast(SQLiteDatabase, _DatabaseMustNotBeTouched())
     )
 
     with pytest.raises(ValueError, match="textual representation type"):
