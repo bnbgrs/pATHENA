@@ -43,11 +43,14 @@ class FilesWorkspace(QWidget):
         self._selected_source_id: str | None = None
         self._selected_readiness: str | None = None
         self._selected_processable = False
+        self._pending_imports: list[str] = []
+        self._active_import_path: str | None = None
 
-        self.import_button = QPushButton("IMPORT FILE")
+        self.import_button = QPushButton("IMPORT FILES")
         self.import_button.setObjectName("newChatButton")
+        self.import_button.setAccessibleName("Import local files")
         self.import_button.setToolTip(
-            "Capture a local file and automatically queue retrieval processing"
+            "Capture one or more local files and queue retrieval processing sequentially"
         )
         self.import_button.clicked.connect(self._choose_file)
 
@@ -72,12 +75,20 @@ class FilesWorkspace(QWidget):
 
         self.sources = QListWidget()
         self.sources.setObjectName("sourceList")
+        self.sources.setAccessibleName("Sources")
+        self.sources.setAccessibleDescription(
+            "Captured local Sources with retrieval-processing readiness."
+        )
         self.sources.setMinimumWidth(430)
         self.sources.currentItemChanged.connect(self._selection_changed)
         set_pathena_ui_state(self.sources, "idle")
 
         self.details = QPlainTextEdit()
         self.details.setObjectName("sourceDetails")
+        self.details.setAccessibleName("Source details")
+        self.details.setAccessibleDescription(
+            "Capture, processing job and retrieval-readiness details for the selected Source."
+        )
         self.details.setReadOnly(True)
         self.details.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
         self.details.setPlaceholderText(
@@ -136,13 +147,13 @@ class FilesWorkspace(QWidget):
         return source_id[:8].upper() if source_id else ""
 
     def refresh(self) -> None:
-        if self._busy():
+        if self._busy() or self._pending_imports:
             return
         self._start("list", ["list", "--limit", "150"], "Refreshing Sources")
 
     def process_selected(self) -> None:
         source_id = self._selected_source_id
-        if self._busy() or not source_id:
+        if self._busy() or self._pending_imports or not source_id:
             return
         self.details.clear()
         set_pathena_ui_state(self.details, "busy")
@@ -154,22 +165,49 @@ class FilesWorkspace(QWidget):
         )
 
     def _choose_file(self) -> None:
-        if self._busy():
+        if self._busy() or self._pending_imports:
             return
-        selected, _ = QFileDialog.getOpenFileName(
+        selected, _ = QFileDialog.getOpenFileNames(
             self,
-            "Import file into pATHENA",
+            "Import files into pATHENA",
             str(Path.home()),
             "Supported documents (*.txt *.md *.markdown *.pdf *.docx *.html *.htm);;All files (*)",
         )
-        if not selected:
+        if selected:
+            self.import_paths(selected)
+
+    def import_paths(self, paths: list[str]) -> None:
+        """Queue local files for sequential capture through the existing helper process."""
+        for raw_path in paths:
+            candidate = Path(raw_path).expanduser()
+            if not candidate.is_file():
+                continue
+            normalized = str(candidate.absolute())
+            if normalized == self._active_import_path or normalized in self._pending_imports:
+                continue
+            self._pending_imports.append(normalized)
+        self._sync_controls()
+        self._start_next_import()
+
+    def _start_next_import(self) -> None:
+        if self._busy() or not self._pending_imports:
             return
+        selected = self._pending_imports.pop(0)
+        self._active_import_path = selected
+        queued_after = len(self._pending_imports)
+        suffix = "" if queued_after == 0 else f" · {queued_after} more queued"
         self._start(
             "import",
             ["import", selected],
-            "Capturing Source and queueing retrieval processing",
+            f"Capturing {Path(selected).name}{suffix}",
             source_id=None,
         )
+
+    def _resume_import_queue(self) -> bool:
+        if not self._pending_imports:
+            return False
+        QTimer.singleShot(0, self._start_next_import)
+        return True
 
     def _selection_changed(
         self,
@@ -224,7 +262,7 @@ class FilesWorkspace(QWidget):
             )
 
     def _refresh_if_visible(self) -> None:
-        if self.isVisible() and not self._busy():
+        if self.isVisible() and not self._busy() and not self._pending_imports:
             self.refresh()
 
     def _busy(self) -> bool:
@@ -250,7 +288,7 @@ class FilesWorkspace(QWidget):
         self._process.start(sys.executable, ["-m", "athena.desktop.sources_cli", *arguments])
 
     def _sync_controls(self, *, force_disabled: bool = False) -> None:
-        if force_disabled or self._busy():
+        if force_disabled or self._busy() or self._pending_imports:
             self.import_button.setEnabled(False)
             self.refresh_button.setEnabled(False)
             self.process_button.setEnabled(False)
@@ -292,6 +330,8 @@ class FilesWorkspace(QWidget):
         owns_details = self._operation_owns_details()
         self._operation = ""
         self._operation_source_id = None
+        if operation == "import":
+            self._active_import_path = None
         self._sync_controls()
         source_label = self._source_label(operation_source_id)
 
@@ -310,12 +350,14 @@ class FilesWorkspace(QWidget):
                 set_pathena_ui_state(self.details, "error")
             if operation == "list":
                 self.details.setPlainText(output)
+            self._resume_import_queue()
             return
 
         if operation == "list":
             self._render_source_list(output)
             self.status.setText(f"Sources refreshed: {self.sources.count()} shown.")
             set_pathena_ui_state(self.status, "success")
+            self._resume_import_queue()
             return
 
         if operation == "show":
@@ -323,6 +365,7 @@ class FilesWorkspace(QWidget):
             set_pathena_ui_state(self.status, "success")
             if owns_details:
                 set_pathena_ui_state(self.details, "success")
+            self._resume_import_queue()
             return
 
         if operation == "import":
@@ -331,7 +374,11 @@ class FilesWorkspace(QWidget):
             captured_label = self._source_label(captured_source_id)
             if captured_source_id is not None and owns_details:
                 self._selected_source_id = captured_source_id
-            prefix = f"Source {captured_label} captured" if captured_label else "Source captured"
+            prefix = (
+                f"Source {captured_label} captured"
+                if captured_label
+                else "Source captured"
+            )
             if "PROCESS_QUEUED" in output:
                 self.status.setText(f"{prefix}; retrieval processing queued.")
             elif "unsupported_format" in output:
@@ -343,7 +390,8 @@ class FilesWorkspace(QWidget):
             set_pathena_ui_state(self.status, "success")
             if owns_details:
                 set_pathena_ui_state(self.details, "success")
-            QTimer.singleShot(150, self.refresh)
+            if not self._resume_import_queue():
+                QTimer.singleShot(150, self.refresh)
             return
 
         if operation == "process":
@@ -354,7 +402,8 @@ class FilesWorkspace(QWidget):
             set_pathena_ui_state(self.status, "success")
             if owns_details and operation_source_id == self._selected_source_id:
                 set_pathena_ui_state(self.details, "success")
-            QTimer.singleShot(150, self.refresh)
+            if not self._resume_import_queue():
+                QTimer.singleShot(150, self.refresh)
 
     def _render_source_list(self, output: str) -> None:
         selected = self._selected_source_id
@@ -441,6 +490,8 @@ class FilesWorkspace(QWidget):
         owns_details = self._operation_owns_details()
         self._operation = ""
         self._operation_source_id = None
+        if operation == "import":
+            self._active_import_path = None
         self._sync_controls()
         source_label = self._source_label(source_id)
         subject = (
@@ -455,6 +506,7 @@ class FilesWorkspace(QWidget):
         set_pathena_ui_state(self.status, "error")
         if owns_details:
             set_pathena_ui_state(self.details, "error")
+        self._resume_import_queue()
 
 
 def _format_bytes(value: int) -> str:
