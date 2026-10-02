@@ -95,18 +95,22 @@ jobs:
           uv run --locked --extra dev --extra desktop python -m pytest tests/unit/test_desktop_chat_selection_state.py 2>&1 | tee .quality-evidence/pytest-desktop-chat-selection-state.txt
           chat_selection_status=${PIPESTATUS[0]}
 
-          # Run every remaining test in the canonical suite exactly once. The two
+          uv run --locked --extra dev --extra desktop python -m pytest tests/unit/test_desktop_direct_chat.py 2>&1 | tee .quality-evidence/pytest-desktop-direct-chat.txt
+          direct_chat_status=${PIPESTATUS[0]}
+
+          # Run every remaining test in the canonical suite exactly once. The
           # isolated Qt modules above remain mandatory and are only excluded here
           # to avoid executing them twice.
           uv run --locked --extra dev --extra desktop python -m pytest \
             --ignore=tests/unit/test_desktop_api_controller.py \
             --ignore=tests/unit/test_desktop_chat_selection_state.py \
+            --ignore=tests/unit/test_desktop_direct_chat.py \
             2>&1 | tee .quality-evidence/pytest.txt
           suite_status=${PIPESTATUS[0]}
           set -e
 
-          if [ "$controller_status" -ne 0 ] || [ "$chat_selection_status" -ne 0 ] || [ "$suite_status" -ne 0 ]; then
-            echo "ATHENA PYTEST: FAIL — controller=$controller_status chat_selection=$chat_selection_status suite=$suite_status" >&2
+          if [ "$controller_status" -ne 0 ] || [ "$chat_selection_status" -ne 0 ] || [ "$direct_chat_status" -ne 0 ] || [ "$suite_status" -ne 0 ]; then
+            echo "ATHENA PYTEST: FAIL — controller=$controller_status chat_selection=$chat_selection_status direct_chat=$direct_chat_status suite=$suite_status" >&2
             exit 1
           fi
           echo "ATHENA PYTEST: PASS — isolated native Qt modules and remaining canonical suite"
