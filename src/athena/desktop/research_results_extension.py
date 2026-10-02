@@ -425,7 +425,7 @@ class ResearchResultsExtension(QObject):
         self.workspace.details.setProperty("pathenaBackgroundOperationOwner", "")
         if operation == "result":
             try:
-                review = parse_research_result_review(output)
+                result_review = parse_research_result_review(output)
             except ResearchReviewError as exc:
                 self.workspace.details.setProperty(
                     "pathenaResearchResultReviewState", "error"
@@ -437,18 +437,26 @@ class ResearchResultsExtension(QObject):
                     f"Research run {job_label} returned an unreadable result."
                 )
                 return
-            self.workspace.details.setPlainText(render_research_result_review(review))
+            self.workspace.details.setPlainText(
+                render_research_result_review(result_review)
+            )
             self.workspace.details.setProperty(
                 "pathenaResearchResultReviewState", "ready"
             )
-            self.workspace.details.setProperty("pathenaResearchResultId", review.result_id)
-            self.workspace.details.setProperty("pathenaResearchJobId", review.job_id)
+            self.workspace.details.setProperty(
+                "pathenaResearchResultId",
+                result_review.result_id,
+            )
+            self.workspace.details.setProperty(
+                "pathenaResearchJobId",
+                result_review.job_id,
+            )
             self.proposal_status.setText(
                 f"ResearchResult {job_label} and evidence loaded."
             )
         elif operation == "compare":
             try:
-                review = parse_research_delta_review(output)
+                delta_review = parse_research_delta_review(output)
             except ResearchReviewError as exc:
                 self.workspace.details.setProperty(
                     "pathenaResearchComparisonState", "error"
@@ -461,25 +469,27 @@ class ResearchResultsExtension(QObject):
                     f"Research run {job_label} returned an unreadable comparison."
                 )
                 return
-            self.workspace.details.setPlainText(render_research_delta_review(review))
-            state = "ready" if review.available else "unavailable"
+            self.workspace.details.setPlainText(
+                render_research_delta_review(delta_review)
+            )
+            state = "ready" if delta_review.available else "unavailable"
             self.workspace.details.setProperty(
                 "pathenaResearchComparisonState", state
             )
-            if review.available:
+            if delta_review.available:
                 self.workspace.details.setProperty(
                     "pathenaResearchBaselineResultId",
-                    review.baseline_result_id,
+                    delta_review.baseline_result_id,
                 )
                 self.workspace.details.setProperty(
                     "pathenaResearchResultId",
-                    review.current_result_id,
+                    delta_review.current_result_id,
                 )
                 self.proposal_status.setText(
                     f"Research changes for run {job_label} loaded."
                 )
             else:
-                self.proposal_status.setText(review.reason)
+                self.proposal_status.setText(delta_review.reason)
         elif operation in {"propose", "proposals"}:
             self._render_proposals(output)
             verb = "created" if operation == "propose" else "loaded"
