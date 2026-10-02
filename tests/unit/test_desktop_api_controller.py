@@ -3,6 +3,7 @@ from __future__ import annotations
 import threading
 import uuid
 
+import pytest
 from PySide6.QtCore import QThreadPool
 from PySide6.QtTest import QSignalSpy
 from PySide6.QtWidgets import QApplication
@@ -18,9 +19,11 @@ from athena.api.contracts import (
     ModelResponse,
     ProviderHealthResponse,
 )
+from athena.api.search_contracts import SearchProtectionResponse, SearchResultResponse
 from athena.chat.send_identity import assistant_message_id_for_operation, chat_id_for_operation
 from athena.desktop.api_controller import DesktopApiController, DesktopApiSnapshot
 from athena.desktop.app import create_application
+from athena.retrieval.universal import UniversalSearchEntityType
 
 
 class _Gateway:
@@ -634,3 +637,137 @@ def test_controller_reports_accepted_but_late_stop_as_completed() -> None:
     assert sent.count() == 1
     assert cancelled.count() == 0
     assert controller.chat_busy is False
+
+
+class _SearchGateway(_Gateway):
+    def __init__(self, *, fail: bool = False) -> None:
+        super().__init__()
+        self.fail = fail
+        self.search_calls: list[tuple[str, int]] = []
+
+    def universal_search(
+        self,
+        query: str,
+        *,
+        limit: int = 20,
+        entity_types: tuple[UniversalSearchEntityType, ...] | None = None,
+    ) -> tuple[SearchResultResponse, ...]:
+        self._record()
+        assert entity_types is None
+        self.search_calls.append((query, limit))
+        if self.fail:
+            raise CoreApiClientError("Universal search unavailable.")
+        return (
+            SearchResultResponse(
+                result_ref=(
+                    "knowledge:"
+                    "11111111-1111-1111-1111-111111111111"
+                ),
+                title="Alpha project",
+                preview="Alpha durable knowledge.",
+                entity_type="knowledge",
+                revision_id="22222222-2222-2222-2222-222222222222",
+                rank=1,
+                retrieval_methods=("lexical",),
+                source_anchor=None,
+                protection=SearchProtectionResponse(
+                    state="unprotected",
+                    protection_scope_id=None,
+                ),
+            ),
+        )
+
+
+def test_controller_search_runs_off_ui_thread_and_emits_stable_request_id() -> None:
+    app = _app()
+    gateway = _SearchGateway()
+    pool = _pool()
+    controller = DesktopApiController(gateway, thread_pool=pool)
+    ready = QSignalSpy(controller.search_ready)
+    states = QSignalSpy(controller.search_state_changed)
+    main_thread = threading.get_ident()
+
+    request_id = controller.search("  alpha   project  ", limit=7)
+
+    assert request_id == 1
+    assert pool.waitForDone(2_000)
+    app.processEvents()
+
+    assert ready.count() == 1
+    assert ready.at(0)[0] == request_id
+    assert ready.at(0)[1] == "alpha project"
+    results = ready.at(0)[2]
+    assert len(results) == 1
+    assert results[0].result_ref == (
+        "knowledge:11111111-1111-1111-1111-111111111111"
+    )
+    assert gateway.search_calls == [("alpha project", 7)]
+    assert gateway.thread_ids
+    assert all(thread_id != main_thread for thread_id in gateway.thread_ids)
+    assert [states.at(index)[0] for index in range(states.count())] == [
+        True,
+        False,
+    ]
+
+
+def test_controller_search_reports_core_failure_without_fake_results() -> None:
+    app = _app()
+    gateway = _SearchGateway(fail=True)
+    pool = _pool()
+    controller = DesktopApiController(gateway, thread_pool=pool)
+    ready = QSignalSpy(controller.search_ready)
+    failed = QSignalSpy(controller.search_failed)
+
+    request_id = controller.search("alpha")
+
+    assert pool.waitForDone(2_000)
+    app.processEvents()
+
+    assert ready.count() == 0
+    assert failed.count() == 1
+    assert failed.at(0) == [
+        request_id,
+        "alpha",
+        "Universal search unavailable.",
+    ]
+
+
+def test_controller_search_rejects_invalid_request_before_thread_start() -> None:
+    gateway = _SearchGateway()
+    pool = _pool()
+    controller = DesktopApiController(gateway, thread_pool=pool)
+
+    with pytest.raises(ValueError, match="must not be empty"):
+        controller.search("   ")
+
+    with pytest.raises(ValueError, match="between 1 and 100"):
+        controller.search("alpha", limit=0)
+
+    assert gateway.search_calls == []
+
+
+
+def test_controller_search_busy_state_spans_multiple_inflight_requests() -> None:
+    app = _app()
+    gateway = _SearchGateway()
+    pool = _pool()
+    controller = DesktopApiController(gateway, thread_pool=pool)
+    ready = QSignalSpy(controller.search_ready)
+    states = QSignalSpy(controller.search_state_changed)
+
+    first = controller.search("alpha")
+    second = controller.search("beta")
+
+    assert (first, second) == (1, 2)
+    assert controller.search_busy is True
+    assert pool.waitForDone(2_000)
+    app.processEvents()
+
+    assert ready.count() == 2
+    assert {ready.at(index)[0] for index in range(ready.count())} == {1, 2}
+    assert gateway.search_calls == [("alpha", 30), ("beta", 30)]
+    assert controller.search_busy is False
+    assert [states.at(index)[0] for index in range(states.count())] == [
+        True,
+        False,
+    ]
