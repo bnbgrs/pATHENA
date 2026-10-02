@@ -10,8 +10,14 @@ from PySide6.QtCore import QObject, QProcess, QProcessEnvironment, Slot
 from athena.desktop.supervisor import core_process_launch_spec
 
 _START_TIMEOUT_MS = 5_000
-_TERMINATE_TIMEOUT_MS = 2_500
+_CONTROL_WRITE_TIMEOUT_MS = 500
+# The scheduler supervisor owns a 3s graceful + 2s terminate + 1s kill chain for
+# its lane children. The desktop owner must not terminate that supervisor before
+# the child process tree has had time to complete its own bounded cleanup.
+_GRACEFUL_SHUTDOWN_TIMEOUT_MS = 7_500
+_TERMINATE_TIMEOUT_MS = 1_500
 _KILL_TIMEOUT_MS = 1_000
+_STOP_COMMAND = b"stop\n"
 _VENV_LAUNCHER_ENV = "__PYVENV_LAUNCHER__"
 _SCHEDULER_ARGUMENTS = (
     "-m",
@@ -22,6 +28,7 @@ _SCHEDULER_ARGUMENTS = (
     "pathena-desktop",
     "--lane",
     "supervisor",
+    "--control-stdin",
 )
 
 
@@ -52,6 +59,10 @@ class ManagedSchedulerProcess(Protocol):
     def waitForStarted(self, msecs: int = ...) -> bool: ...  # noqa: N802
 
     def errorString(self) -> str: ...  # noqa: N802
+
+    def write(self, data: bytes) -> int: ...
+
+    def waitForBytesWritten(self, msecs: int = ...) -> bool: ...  # noqa: N802
 
     def waitForFinished(self, msecs: int = ...) -> bool: ...  # noqa: N802
 
@@ -135,10 +146,34 @@ class DesktopJobSchedulerSupervisor(QObject):
             # Keep the desktop alive; the heartbeat retries transient launch failures.
             return
 
+    def _request_graceful_stop(self) -> bool:
+        """Ask the owned scheduler supervisor to drain its process tree cleanly."""
+        try:
+            written = int(self.process.write(_STOP_COMMAND))
+        except RuntimeError:
+            return False
+
+        if written != len(_STOP_COMMAND):
+            return False
+
+        # The write return value proves Qt accepted the complete command. Give Qt a
+        # short opportunity to flush it to the child, but do not turn a transient
+        # waitForBytesWritten result into an immediate hard termination.
+        try:
+            self.process.waitForBytesWritten(_CONTROL_WRITE_TIMEOUT_MS)
+        except RuntimeError:
+            return False
+        return True
+
     @Slot()
     def stop(self) -> None:
         self._stopping = True
         if not self.child_active:
+            return
+
+        if self._request_graceful_stop() and self.process.waitForFinished(
+            _GRACEFUL_SHUTDOWN_TIMEOUT_MS
+        ):
             return
 
         self.process.terminate()
