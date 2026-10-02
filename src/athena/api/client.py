@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
@@ -47,12 +48,38 @@ from athena.api.search_contracts import (
 )
 from athena.config.settings import AthenaSettings
 from athena.retrieval.universal import UniversalSearchEntityType
+from athena.storage.durable_fs import is_link_boundary
 from athena.storage.paths import RuntimePaths
 
 _DISCOVERY_FILE = "core-api.json"
 _TOKEN_FILE = "core-api.token"
 _LOOPBACK_HOST = "127.0.0.1"
 _DEFAULT_TIMEOUT_SECONDS = 5.0
+
+
+def _path_has_link_boundary(path: Path) -> bool:
+    cursor = path
+    while True:
+        if is_link_boundary(cursor):
+            return True
+        parent = cursor.parent
+        if parent == cursor:
+            return False
+        cursor = parent
+
+
+def _positive_finite_seconds(value: object, label: str) -> float:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise TypeError(f"{label} must be numeric.")
+    try:
+        normalized = float(value)
+    except OverflowError as exc:
+        raise ValueError(
+            f"{label} must be a positive finite number."
+        ) from exc
+    if not math.isfinite(normalized) or normalized <= 0:
+        raise ValueError(f"{label} must be a positive finite number.")
+    return normalized
 
 
 class CoreApiClientError(RuntimeError):
@@ -100,20 +127,21 @@ class CoreApiClient:
         timeout_seconds: float = _DEFAULT_TIMEOUT_SECONDS,
         generation_timeout_seconds: float | None = None,
     ) -> None:
-        if timeout_seconds <= 0:
-            raise ValueError("ATHENA API client timeout must be positive.")
-        resolved_generation_timeout = (
-            timeout_seconds
-            if generation_timeout_seconds is None
-            else generation_timeout_seconds
+        resolved_timeout = _positive_finite_seconds(
+            timeout_seconds,
+            "ATHENA API client timeout",
         )
-        if resolved_generation_timeout <= 0:
-            raise ValueError(
-                "ATHENA API generation timeout must be positive."
+        resolved_generation_timeout = (
+            resolved_timeout
+            if generation_timeout_seconds is None
+            else _positive_finite_seconds(
+                generation_timeout_seconds,
+                "ATHENA API generation timeout",
             )
+        )
         self.runtime_root = Path(runtime_root)
         self.discovery_path = self.runtime_root / _DISCOVERY_FILE
-        self.timeout_seconds = timeout_seconds
+        self.timeout_seconds = resolved_timeout
         self.generation_timeout_seconds = resolved_generation_timeout
 
     @classmethod
@@ -175,8 +203,12 @@ class CoreApiClient:
         limit: int = 50,
         offset: int = 0,
     ) -> tuple[ChatSummaryResponse, ...]:
+        if isinstance(limit, bool) or not isinstance(limit, int):
+            raise ValueError("Chat list limit must be an integer.")
         if not 1 <= limit <= 200:
             raise ValueError("Chat list limit must be between 1 and 200.")
+        if isinstance(offset, bool) or not isinstance(offset, int):
+            raise ValueError("Chat list offset must be an integer.")
         if offset < 0:
             raise ValueError("Chat list offset must be zero or greater.")
 
@@ -830,12 +862,12 @@ class CoreApiClient:
 
     def _load_bootstrap(self) -> _Bootstrap:
         root = self.runtime_root
-        if root.is_symlink():
+        if _path_has_link_boundary(root):
             raise CoreApiClientError(
                 "ATHENA API runtime directory is not trusted.",
                 code="invalid_discovery",
             )
-        if self.discovery_path.is_symlink():
+        if is_link_boundary(self.discovery_path):
             raise CoreApiClientError(
                 "ATHENA API discovery file is not trusted.",
                 code="invalid_discovery",
@@ -898,7 +930,7 @@ class CoreApiClient:
                 "ATHENA Core token path cannot be validated.",
                 code="invalid_discovery",
             ) from exc
-        if resolved_token != resolved_expected or token_path.is_symlink():
+        if resolved_token != resolved_expected or is_link_boundary(token_path):
             raise CoreApiClientError(
                 "ATHENA Core discovery attempted an unexpected token path.",
                 code="invalid_discovery",
@@ -1002,7 +1034,19 @@ def _required_float(payload: dict[str, JsonValue], key: str) -> float:
             f"ATHENA Core response field {key!r} is invalid.",
             code="invalid_response",
         )
-    return float(value)
+    try:
+        normalized = float(value)
+    except OverflowError as exc:
+        raise CoreApiClientError(
+            f"ATHENA Core response field {key!r} is not finite.",
+            code="invalid_response",
+        ) from exc
+    if not math.isfinite(normalized):
+        raise CoreApiClientError(
+            f"ATHENA Core response field {key!r} is not finite.",
+            code="invalid_response",
+        )
+    return normalized
 
 
 def _optional_int(payload: dict[str, JsonValue], key: str) -> int | None:
