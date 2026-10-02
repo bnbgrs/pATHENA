@@ -376,7 +376,10 @@ def _term_predicate(expression: str, query: str) -> tuple[str, tuple[str, ...]]:
         f"instr(lower({expression}), ?) > 0"
         for _term in terms
     )
-    return clause, terms
+    # The token predicate is embedded after additional fail-closed AND guards.
+    # Parenthesize the OR expression so later terms cannot bypass lifecycle or
+    # protection predicates through SQL operator precedence.
+    return f"({clause})", terms
 
 
 def _query_text(value: object) -> str:
