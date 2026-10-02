@@ -14,8 +14,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: pathena-storage-focused-${{ github.event.pull_request.head.sha }}
-  cancel-in-progress: false
+  group: pathena-storage-focused-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 
 jobs:
   focused-storage-contract:

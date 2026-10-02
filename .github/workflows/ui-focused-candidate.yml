@@ -13,8 +13,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: pathena-ui-focused-${{ github.event.pull_request.head.sha }}
-  cancel-in-progress: false
+  group: pathena-ui-focused-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 
 jobs:
   focused-ui-contract:

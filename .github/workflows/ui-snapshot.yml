@@ -43,8 +43,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: pathena-visual-${{ github.sha }}-${{ github.run_id }}
-  cancel-in-progress: false
+  group: pathena-visual-${{ github.event_name }}-${{ github.event.pull_request.number || inputs.candidate_sha || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   compare:
