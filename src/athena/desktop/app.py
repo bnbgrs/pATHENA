@@ -116,6 +116,7 @@ from athena.desktop.scheduler_supervisor import DesktopJobSchedulerSupervisor
 from athena.desktop.supervisor import DesktopCoreSupervisor
 from athena.desktop.system_backup import install_system_backup
 from athena.desktop.system_workspace import install_system_workspace
+from athena.desktop.universal_switcher import install_universal_search_switcher
 
 _INITIAL_CORE_REFRESH_DELAYS_MS = (250, 750, 1_500, 3_000, 5_000, 10_000, 20_000)
 _CORE_REFRESH_HEARTBEAT_MS = 30_000
@@ -243,6 +244,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     apply_workspace_presentation(window)
     install_navigation_context_accessibility(window)
     command_palette = install_command_palette(window)
+    universal_search_switcher = install_universal_search_switcher(
+        window,
+        controller,
+    )
     v3_shell.bind_command_palette(command_palette.open)
     external_workspaces = install_external_workspaces(
         window,
@@ -369,6 +374,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     transient_dialog_shortcuts.deleteLater()
     external_workspaces.dispose()
     external_workspaces.deleteLater()
+    universal_search_switcher.deleteLater()
     command_palette.deleteLater()
     chat_grounding.deleteLater()
     pallas_context_inspector.deleteLater()
