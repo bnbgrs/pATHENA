@@ -2041,8 +2041,10 @@ class AthenaMainWindow(QMainWindow):
             self.send_button.setToolTip("Send message · Ctrl+Enter")
             return
 
-        if controller is not None and controller.can_cancel_active_chat:
-            if controller.chat_cancel_pending:
+        if controller is not None and bool(
+            getattr(controller, "can_cancel_active_chat", False)
+        ):
+            if bool(getattr(controller, "chat_cancel_pending", False)):
                 self.send_button.setText("STOPPING")
                 self.send_button.setAccessibleName("Cancellation requested")
                 self.send_button.setToolTip(
@@ -2069,8 +2071,8 @@ class AthenaMainWindow(QMainWindow):
             return
         if self._chat_busy:
             if (
-                controller.can_cancel_active_chat
-                and not controller.chat_cancel_pending
+                bool(getattr(controller, "can_cancel_active_chat", False))
+                and not bool(getattr(controller, "chat_cancel_pending", False))
             ):
                 controller.cancel_active_chat_operation()
             return
@@ -2243,8 +2245,8 @@ class AthenaMainWindow(QMainWindow):
         )
         cancellable = (
             controller is not None
-            and controller.can_cancel_active_chat
-            and not controller.chat_cancel_pending
+            and bool(getattr(controller, "can_cancel_active_chat", False))
+            and not bool(getattr(controller, "chat_cancel_pending", False))
         )
         self.prompt_input.setEnabled(enabled)
         self.ground_button.setEnabled(enabled)
