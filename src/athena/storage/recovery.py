@@ -208,6 +208,130 @@ class DatabasePreflightReport:
             )
 
 
+def _read_existing_database_snapshot(
+    requested: Path,
+) -> tuple[int, int, DatabaseFileSetIdentity]:
+    """Validate one read-only SQLite snapshot and capture its live file-set identity."""
+    try:
+        connection = sqlite3.connect(
+            f"{requested.resolve().as_uri()}?mode=ro",
+            uri=True,
+            timeout=5.0,
+            autocommit=True,
+        )
+    except sqlite3.Error as exc:
+        raise DatabaseRecoveryRequiredError(
+            "ATHENA database could not be opened read-only for startup preflight."
+        ) from exc
+
+    try:
+        connection.execute("PRAGMA query_only = ON")
+        application_id = int(connection.execute("PRAGMA application_id").fetchone()[0])
+        schema_version = int(connection.execute("PRAGMA user_version").fetchone()[0])
+
+        if application_id == 0:
+            raise DatabaseRecoveryRequiredError(
+                "Refusing to adopt a non-empty SQLite database without ATHENA application_id."
+            )
+        if application_id != ATHENA_APPLICATION_ID:
+            raise DatabaseRecoveryRequiredError(
+                "Database application_id does not belong to ATHENA."
+            )
+        if schema_version < 1:
+            raise DatabaseRecoveryRequiredError(
+                "Existing ATHENA database has no supported schema version."
+            )
+        if schema_version > SCHEMA_VERSION:
+            raise DatabaseRecoveryRequiredError(
+                f"Database schema version {schema_version} is newer than supported "
+                f"version {SCHEMA_VERSION}."
+            )
+
+        quick_check_rows = connection.execute("PRAGMA quick_check").fetchall()
+        quick_check = tuple(str(row[0]) for row in quick_check_rows)
+        if quick_check != ("ok",):
+            detail = "; ".join(quick_check[:8]) or "no result"
+            raise DatabaseRecoveryRequiredError(
+                f"SQLite startup quick_check failed: {detail}"
+            )
+        file_set_identity = capture_database_file_set_identity(requested)
+    except DatabaseRecoveryRequiredError:
+        raise
+    except (sqlite3.Error, TypeError, ValueError, IndexError) as exc:
+        raise DatabaseRecoveryRequiredError(
+            "ATHENA database read-only startup preflight could not establish integrity."
+        ) from exc
+    finally:
+        connection.close()
+
+    return application_id, schema_version, file_set_identity
+
+
+def _sidecars_are_complete_or_absent(identity: DatabaseFileSetIdentity) -> bool:
+    """SQLite sidecars are valid only as an absent pair or a complete WAL/SHM pair."""
+    return identity.wal.exists == identity.shm.exists
+
+
+def _stabilize_read_only_file_set(
+    requested: Path,
+    *,
+    application_id: int,
+    schema_version: int,
+    observed: DatabaseFileSetIdentity,
+) -> DatabaseFileSetIdentity:
+    """Accept bounded SQLite sidecar churn while keeping the primary identity pinned.
+
+    Read-only preflight may race another legitimate local SQLite process. Closing
+    either connection can publish, withdraw, or recreate the WAL/SHM pair without
+    replacing the canonical database. Revalidate such complete pair transitions
+    through a second read-only SQLite snapshot instead of treating them as a
+    primary-database substitution.
+    """
+    primary = observed.database
+    current = capture_database_file_set_identity(requested)
+
+    for _attempt in range(2):
+        if current.database != primary:
+            raise DatabaseStartupIdentityChangedError(
+                "ATHENA SQLite primary database identity changed after startup preflight."
+            )
+        if not _sidecars_are_complete_or_absent(current):
+            raise DatabaseStartupIdentityChangedError(
+                "ATHENA SQLite sidecars changed partially during startup preflight."
+            )
+        if current == observed:
+            return current
+
+        refreshed_application_id, refreshed_schema_version, refreshed = (
+            _read_existing_database_snapshot(requested)
+        )
+        if (
+            refreshed_application_id != application_id
+            or refreshed_schema_version != schema_version
+            or refreshed.database != primary
+        ):
+            raise DatabaseStartupIdentityChangedError(
+                "ATHENA SQLite database identity changed during startup revalidation."
+            )
+
+        current = capture_database_file_set_identity(requested)
+        if current.database != primary:
+            raise DatabaseStartupIdentityChangedError(
+                "ATHENA SQLite primary database identity changed during startup revalidation."
+            )
+        if not _sidecars_are_complete_or_absent(current):
+            raise DatabaseStartupIdentityChangedError(
+                "ATHENA SQLite sidecars changed partially during startup revalidation."
+            )
+        if current == refreshed:
+            return current
+        observed = refreshed
+
+    raise DatabaseStartupIdentityChangedError(
+        "ATHENA SQLite WAL/SHM identity kept changing during bounded startup revalidation."
+    )
+
+
 def inspect_database_read_only(path: Path) -> DatabasePreflightReport:
     """Validate an existing ATHENA database before any normal writer connection."""
 
@@ -267,59 +391,15 @@ def inspect_database_read_only(path: Path) -> DatabasePreflightReport:
                 "SQLite WAL/SHM sidecar is not a regular file."
             )
 
-    try:
-        connection = sqlite3.connect(
-            f"{requested.resolve().as_uri()}?mode=ro",
-            uri=True,
-            timeout=5.0,
-            autocommit=True,
-        )
-    except sqlite3.Error as exc:
-        raise DatabaseRecoveryRequiredError(
-            "ATHENA database could not be opened read-only for startup preflight."
-        ) from exc
-
-    try:
-        connection.execute("PRAGMA query_only = ON")
-        application_id = int(connection.execute("PRAGMA application_id").fetchone()[0])
-        schema_version = int(connection.execute("PRAGMA user_version").fetchone()[0])
-
-        if application_id == 0:
-            raise DatabaseRecoveryRequiredError(
-                "Refusing to adopt a non-empty SQLite database without ATHENA application_id."
-            )
-        if application_id != ATHENA_APPLICATION_ID:
-            raise DatabaseRecoveryRequiredError(
-                "Database application_id does not belong to ATHENA."
-            )
-        if schema_version < 1:
-            raise DatabaseRecoveryRequiredError(
-                "Existing ATHENA database has no supported schema version."
-            )
-        if schema_version > SCHEMA_VERSION:
-            raise DatabaseRecoveryRequiredError(
-                f"Database schema version {schema_version} is newer than supported "
-                f"version {SCHEMA_VERSION}."
-            )
-
-        quick_check_rows = connection.execute("PRAGMA quick_check").fetchall()
-        quick_check = tuple(str(row[0]) for row in quick_check_rows)
-        if quick_check != ("ok",):
-            detail = "; ".join(quick_check[:8]) or "no result"
-            raise DatabaseRecoveryRequiredError(
-                f"SQLite startup quick_check failed: {detail}"
-            )
-        file_set_identity = capture_database_file_set_identity(requested)
-    except DatabaseRecoveryRequiredError:
-        raise
-    except (sqlite3.Error, TypeError, ValueError, IndexError) as exc:
-        raise DatabaseRecoveryRequiredError(
-            "ATHENA database read-only startup preflight could not establish integrity."
-        ) from exc
-    finally:
-        connection.close()
-
-    assert_database_file_set_identity(requested, file_set_identity)
+    application_id, schema_version, file_set_identity = (
+        _read_existing_database_snapshot(requested)
+    )
+    file_set_identity = _stabilize_read_only_file_set(
+        requested,
+        application_id=application_id,
+        schema_version=schema_version,
+        observed=file_set_identity,
+    )
 
     return DatabasePreflightReport(
         path=requested,
