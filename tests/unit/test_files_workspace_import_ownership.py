@@ -20,8 +20,8 @@ def qapp() -> Iterator[QApplication]:
 
 class _FakeFileDialog:
     @staticmethod
-    def getOpenFileName(*_args: object, **_kwargs: object) -> tuple[str, str]:
-        return ("C:/tmp/new-source.txt", "")
+    def getOpenFileNames(*_args: object, **_kwargs: object) -> tuple[list[str], str]:
+        return (["C:/tmp/new-source.txt"], "")
 
 
 def test_import_does_not_claim_or_clear_selected_source_detail(
