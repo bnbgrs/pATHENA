@@ -79,7 +79,7 @@ jobs:
           retention-days: 2
 
   pytest-native-qt:
-    name: Pytest native Qt isolation
+    name: Pytest process isolation
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
@@ -129,6 +129,13 @@ jobs:
           set -o pipefail
           mkdir -p .quality-evidence
           uv run --locked --extra dev --extra desktop python -m pytest tests/unit/test_desktop_direct_chat.py 2>&1 | tee .quality-evidence/pytest-desktop-direct-chat.txt
+
+      - name: Pytest — durable scheduler reliability
+        if: always()
+        run: |
+          set -o pipefail
+          mkdir -p .quality-evidence
+          uv run --locked --extra dev --extra desktop python -m pytest tests/integration/test_durable_processing_reliability_audit_integration.py 2>&1 | tee .quality-evidence/pytest-durable-scheduler-reliability.txt
 
       - name: Upload native Qt diagnostics
         if: ${{ always() && !cancelled() }}
@@ -191,6 +198,7 @@ jobs:
               Path("tests/unit/test_desktop_api_controller.py"),
               Path("tests/unit/test_desktop_chat_selection_state.py"),
               Path("tests/unit/test_desktop_direct_chat.py"),
+              Path("tests/integration/test_durable_processing_reliability_audit_integration.py"),
           }
           files = [
               path
@@ -269,7 +277,7 @@ jobs:
 
           outcomes = {
               "Static quality": os.environ["STATIC_RESULT"],
-              "Native Qt isolation": os.environ["NATIVE_QT_RESULT"],
+              "Process isolation": os.environ["NATIVE_QT_RESULT"],
               "Pytest shards": os.environ["PYTEST_SHARDS_RESULT"],
           }
           failures = [name for name, outcome in outcomes.items() if outcome != "success"]
