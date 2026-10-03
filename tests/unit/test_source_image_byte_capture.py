@@ -15,7 +15,6 @@ from athena.source.blob_store import (
 )
 from athena.source.models import SourceType
 
-
 _TEST_KDF = Argon2idParameters(
     iterations=1,
     lanes=1,
