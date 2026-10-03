@@ -2,8 +2,11 @@ from __future__ import annotations
 
 import os
 
+import pytest
+
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
+from PySide6.QtGui import QCloseEvent
 from PySide6.QtWidgets import QApplication, QListWidget, QMainWindow
 
 from athena.desktop.pathena_system_tray import PathenaSystemTrayController
@@ -12,6 +15,7 @@ from athena.desktop.pathena_system_tray import PathenaSystemTrayController
 class _TrayWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
+        self.close_events = 0
         self.navigation = QListWidget(self)
         for label in (
             "Workspace",
@@ -24,6 +28,10 @@ class _TrayWindow(QMainWindow):
         ):
             self.navigation.addItem(label)
         self.navigation.setCurrentRow(0)
+
+    def closeEvent(self, event: QCloseEvent) -> None:  # noqa: N802
+        self.close_events += 1
+        super().closeEvent(event)
 
 
 def _app() -> QApplication:
@@ -65,6 +73,88 @@ def test_system_status_reuses_existing_navigation_and_restores_window() -> None:
 
     assert window.navigation.currentRow() == 5
     assert not window.isMinimized()
+
+    controller.shutdown()
+
+
+def test_close_to_tray_hides_without_delivering_main_window_close(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "athena.desktop.pathena_system_tray._system_tray_available",
+        lambda: True,
+    )
+    app = _app()
+    window = _TrayWindow()
+    window.show()
+    app.processEvents()
+    controller = PathenaSystemTrayController(window, app=app)
+
+    window.close()
+    app.processEvents()
+
+    assert window.close_events == 0
+    assert not window.isVisible()
+    assert controller.close_to_tray_enabled is True
+    assert window.property("pathenaCloseToTrayEnabled") is True
+
+    controller.open_window()
+    app.processEvents()
+    assert window.isVisible()
+
+    controller.shutdown()
+    window.close()
+
+
+def test_close_to_tray_can_be_disabled_and_shutdown_detaches_filter(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "athena.desktop.pathena_system_tray._system_tray_available",
+        lambda: True,
+    )
+    app = _app()
+    window = _TrayWindow()
+    controller = PathenaSystemTrayController(window, app=app)
+
+    controller.set_close_to_tray_enabled(False)
+    window.show()
+    window.close()
+    app.processEvents()
+    assert window.close_events == 1
+    assert window.property("pathenaCloseToTrayEnabled") is False
+
+    window.show()
+    controller.set_close_to_tray_enabled(True)
+    controller.shutdown()
+    window.close()
+    app.processEvents()
+    assert window.close_events == 2
+    assert controller.close_to_tray_enabled is False
+
+
+def test_close_to_tray_fails_safe_when_system_tray_is_unavailable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "athena.desktop.pathena_system_tray._system_tray_available",
+        lambda: False,
+    )
+    app = _app()
+    window = _TrayWindow()
+    window.show()
+    app.processEvents()
+    controller = PathenaSystemTrayController(window, app=app)
+
+    assert controller.tray_available is False
+    assert controller.close_to_tray_enabled is False
+    assert window.property("pathenaSystemTrayAvailable") is False
+    assert window.property("pathenaCloseToTrayEnabled") is False
+
+    window.close()
+    app.processEvents()
+    assert window.close_events == 1
+    assert not window.isVisible()
 
     controller.shutdown()
 
