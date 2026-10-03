@@ -92,7 +92,10 @@ def test_obsidian_export_button_is_visible_but_disabled_without_selection(
     try:
         assert workspace.obsidian_export_button.text() == "EXPORT TO OBSIDIAN"
         assert workspace.obsidian_export_button.isEnabled() is False
-        assert "preview" in workspace.obsidian_status.text().casefold()
+        assert "preview" in workspace.obsidian_export_button.toolTip().casefold()
+        status = workspace.obsidian_status.text().casefold()
+        assert "knowledge" in status
+        assert "select" in status or "no knowledge selected" in status
     finally:
         workspace.deleteLater()
 
