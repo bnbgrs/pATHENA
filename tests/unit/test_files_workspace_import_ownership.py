@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 from collections.abc import Iterator
 
 import pytest
@@ -19,15 +20,22 @@ def qapp() -> Iterator[QApplication]:
 
 
 class _FakeFileDialog:
+    selected_paths: list[str] = []
+
     @staticmethod
     def getOpenFileNames(*_args: object, **_kwargs: object) -> tuple[list[str], str]:
-        return (["C:/tmp/new-source.txt"], "")
+        return (_FakeFileDialog.selected_paths, "")
 
 
 def test_import_does_not_claim_or_clear_selected_source_detail(
     qapp: QApplication,
     monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> None:
+    selected = tmp_path / "new-source.txt"
+    selected.write_text("source", encoding="utf-8")
+    _FakeFileDialog.selected_paths = [str(selected)]
+
     workspace = FilesWorkspace()
     workspace._refresh_timer.stop()
     calls: list[tuple[str, list[str], str | None]] = []
@@ -47,7 +55,7 @@ def test_import_does_not_claim_or_clear_selected_source_detail(
         assert calls == [
             (
                 "import",
-                ["import", "C:/tmp/new-source.txt"],
+                ["import", str(selected)],
                 None,
             )
         ]
