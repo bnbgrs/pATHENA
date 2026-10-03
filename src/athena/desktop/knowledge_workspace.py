@@ -831,6 +831,9 @@ class KnowledgeWorkspace(QWidget):
             current = widget.currentItem()
             if current is not None and not current.isHidden():
                 continue
+            if widget.property("pathenaSelectionDisappeared"):
+                widget.setCurrentRow(-1)
+                continue
             if first_visible is not None:
                 widget.setCurrentItem(first_visible)
             else:
