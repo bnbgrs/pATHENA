@@ -15,7 +15,6 @@ def test_check_plan_matches_current_canonical_python_quality_lane() -> None:
     prefix = ("uv", "run", "--locked", "--extra", "dev", "--extra", "desktop")
     controller = "tests/unit/test_desktop_api_controller.py"
     chat_selection = "tests/unit/test_desktop_chat_selection_state.py"
-    chat_selection = "tests/unit/test_desktop_chat_selection_state.py"
 
     assert [check.name for check in checks] == [
         "Dependency lock",
@@ -51,16 +50,24 @@ def test_check_plan_matches_current_canonical_python_quality_lane() -> None:
     )
 
 
-def test_local_plan_is_present_in_canonical_quality_workflow() -> None:
+def test_local_plan_is_semantically_present_in_canonical_quality_workflow() -> None:
     workflow = (
         quality_script.REPO_ROOT / ".github" / "workflows" / "quality.yml"
     ).read_text(encoding="utf-8")
     normalized_workflow = " ".join(workflow.replace("\\\n", " ").split())
+    checks = quality_script.build_checks()
 
-    for check in quality_script.build_checks():
+    # The local runner stays serial and directly runnable, while CI is allowed to
+    # execute the same canonical coverage as separate static/native-Qt/sharded jobs.
+    for check in checks[:6]:
         command = " ".join(check.command)
         assert command in normalized_workflow
 
+    assert 'Path("tests").rglob("test_*.py")' in workflow
+    assert 'Path("tests/unit/test_desktop_api_controller.py")' in workflow
+    assert 'Path("tests/unit/test_desktop_chat_selection_state.py")' in workflow
+    assert 'python -m pytest "${TEST_FILES[@]}"' in workflow
+    assert "SHARD_COUNT: \"6\"" in workflow
     assert "QT_QPA_PLATFORM: offscreen" in workflow
 
 
