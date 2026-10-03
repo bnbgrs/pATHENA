@@ -2,22 +2,24 @@
 
 from __future__ import annotations
 
-V3_BG = "#090B0E"
-V3_CANVAS = "#101318"
-V3_SURFACE = "#14181D"
-V3_SURFACE_RAISED = "#1A2026"
-V3_SURFACE_HOVER = "#222930"
-V3_BORDER = "#29313A"
-V3_BORDER_STRONG = "#3B4652"
-V3_TEXT = "#F1F3F5"
-V3_TEXT_MUTED = "#A5ACB4"
-V3_TEXT_DIM = "#77818B"
-V3_ACCENT = "#78D1C5"
-V3_ACCENT_SOFT = "#13292B"
-V3_MINT = "#68B8C6"
-V3_WARNING = "#E7B96F"
-V3_DANGER = "#F17878"
-V3_COMPOSER_ACTION_SIZE = 44
+from athena.desktop.pathena_design_tokens import PALETTE, SHELL, TYPE
+
+V3_BG = PALETTE.canvas
+V3_CANVAS = PALETTE.surface
+V3_SURFACE = PALETTE.surface_raised
+V3_SURFACE_RAISED = PALETTE.surface_hover
+V3_SURFACE_HOVER = PALETTE.surface_hover
+V3_BORDER = PALETTE.border
+V3_BORDER_STRONG = PALETTE.border_strong
+V3_TEXT = PALETTE.text
+V3_TEXT_MUTED = PALETTE.text_muted
+V3_TEXT_DIM = PALETTE.text_quiet
+V3_ACCENT = PALETTE.accent
+V3_ACCENT_SOFT = PALETTE.accent_soft
+V3_MINT = PALETTE.info
+V3_WARNING = PALETTE.warning
+V3_DANGER = PALETTE.error
+V3_COMPOSER_ACTION_SIZE = SHELL.composer_action_size
 
 PATHENA_V3_STYLESHEET = """
 QMainWindow#athenaMainWindow {
@@ -1433,3 +1435,93 @@ QLabel#v3EmptyBody {
     font-size: 9.5pt;
 }
 """
+
+def _apply_v4_token_bridge(stylesheet: str) -> str:
+    """Project the stable V3 selector set onto the active V4 visual tokens."""
+    replacements = {
+        "#090B0E": PALETTE.canvas,
+        "#0D1014": PALETTE.surface,
+        "#0F1317": PALETTE.surface,
+        "#0F1318": PALETTE.surface,
+        "#101318": PALETTE.surface,
+        "#10161A": PALETTE.surface,
+        "#11151A": PALETTE.surface,
+        "#111718": PALETTE.surface,
+        "#12191A": PALETTE.surface_raised,
+        "#14181D": PALETTE.surface_raised,
+        "#1A2026": PALETTE.surface_hover,
+        "#222930": PALETTE.surface_hover,
+        "#163033": PALETTE.surface_selected,
+        "#20272D": PALETTE.border,
+        "#242B31": PALETTE.border,
+        "#252C33": PALETTE.border,
+        "#282F35": PALETTE.border,
+        "#29313A": PALETTE.border,
+        "#293638": PALETTE.border,
+        "#2A333B": PALETTE.border,
+        "#303748": PALETTE.border_strong,
+        "#343B42": PALETTE.border_strong,
+        "#3B4652": PALETTE.border_strong,
+        "#334143": PALETTE.border_strong,
+        "#F1F3F5": PALETTE.text,
+        "#D9DDDF": PALETTE.text,
+        "#D7DBDF": PALETTE.text,
+        "#C9CED2": PALETTE.text_muted,
+        "#A5ACB4": PALETTE.text_muted,
+        "#99A3AB": PALETTE.text_subtle,
+        "#9099A1": PALETTE.text_subtle,
+        "#8E98A3": PALETTE.text_subtle,
+        "#89929A": PALETTE.text_subtle,
+        "#8B949E": PALETTE.text_subtle,
+        "#77818B": PALETTE.text_quiet,
+        "#6F7A84": PALETTE.text_quiet,
+        "#68727A": PALETTE.text_quiet,
+        "#646E76": PALETTE.text_quiet,
+        "#78D1C5": PALETTE.accent,
+        "#9BE3D9": PALETTE.accent_hover,
+        "#5DAEA5": PALETTE.accent_pressed,
+        "#13292B": PALETTE.accent_soft,
+        "#173033": PALETTE.accent_soft,
+        "#11191A": PALETTE.accent_soft,
+        "#2C5D61": PALETTE.border_strong,
+        "#326B6D": PALETTE.border_strong,
+        "#3B7779": PALETTE.accent_pressed,
+    }
+    rendered = stylesheet
+    for legacy, current in replacements.items():
+        rendered = rendered.replace(legacy, current)
+    rendered = rendered.replace(
+        '"Segoe UI Variable", "Segoe UI", sans-serif',
+        TYPE.content_family,
+    )
+    rendered = rendered.replace('"Cascadia Mono"', TYPE.metadata_family)
+    return rendered
+
+
+PATHENA_V3_STYLESHEET = _apply_v4_token_bridge(PATHENA_V3_STYLESHEET)
+
+# V4 structural cleanup: high-information workspaces use document/list structure
+# rather than stacking bordered dashboard cards.
+PATHENA_V3_STYLESHEET += f"""
+QFrame#v3ResearchBrief,
+QFrame#v3KnowledgeBrowser {{
+    background: transparent;
+    border: none;
+    border-top: 1px solid {PALETTE.border};
+    border-bottom: 1px solid {PALETTE.border};
+    border-radius: 0;
+}}
+
+QFrame#helpCapabilityRow {{
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid {PALETTE.border};
+    border-radius: 0;
+}}
+
+QFrame#helpCapabilityRow:hover {{
+    background: {PALETTE.surface_hover};
+    border-bottom-color: {PALETTE.border_strong};
+}}
+"""
+

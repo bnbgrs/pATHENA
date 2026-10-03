@@ -279,11 +279,11 @@ QPushButton#sendButton {{
     min-height: {SHELL.composer_action_size - 2}px;
     max-height: {SHELL.composer_action_size - 2}px;
     padding: 0;
-    color: {PALETTE.text};
+    color: {PALETTE.canvas};
     background: {PALETTE.accent};
     border: 1px solid {PALETTE.accent};
-    border-radius: {SHELL.composer_action_size // 2}px;
-    font-size: 20px;
+    border-radius: {RADII.control}px;
+    font-size: 16px;
     font-weight: 600;
 }}
 
@@ -421,10 +421,11 @@ QPlainTextEdit#researchDetails,
 QPlainTextEdit#jobDetails,
 QPlainTextEdit#sourceDetails {{
     color: {PALETTE.text_muted};
-    background: {PALETTE.surface};
-    border: 1px solid {PALETTE.border};
-    border-radius: {RADII.panel}px;
-    padding: {SPACE.xs}px;
+    background: transparent;
+    border: none;
+    border-top: 1px solid {PALETTE.border};
+    border-radius: 0;
+    padding: {SPACE.xs}px 0;
     selection-background-color: {PALETTE.accent_soft};
     selection-color: {PALETTE.text};
 }}
