@@ -16,6 +16,7 @@ from PySide6.QtWidgets import QApplication, QSplitter, QWidget
 from athena.desktop.knowledge_workspace import KnowledgeWorkspace
 from scripts.render_pathena_ui_snapshot_sequential import (
     _REFERENCE_KNOWLEDGE_DRAFTS,
+    _knowledge_capture_ready,
     _seed_reference_knowledge,
 )
 
@@ -46,6 +47,42 @@ def _stop_workspace_processes(workspace: KnowledgeWorkspace) -> None:
             continue
         process.kill()
         process.waitForFinished(2_000)
+
+
+
+
+
+def test_visual_knowledge_capture_rejects_raw_helper_detail() -> None:
+    preferred_id = "knowledge-reference"
+    raw = (
+        "KNOWLEDGE knowledge-reference\n"
+        "LIFECYCLE active\n"
+        "TITLE Adaptive memory\n"
+        "BODY Local memory should preserve useful context."
+    )
+    ready, reason = _knowledge_capture_ready(
+        detail_id=preferred_id,
+        expected_id=preferred_id,
+        detail_state="ready",
+        detail_text=raw,
+    )
+    assert ready is False
+    assert "presentation" in reason or "raw helper" in reason
+
+    presented = (
+        "Adaptive memory\n"
+        "Knowledge · Concept · Supported · Active\n\n"
+        "Content\nLocal memory should preserve useful context.\n\n"
+        "Source & history\nNo provenance inputs were persisted for this revision."
+    )
+    ready, reason = _knowledge_capture_ready(
+        detail_id=preferred_id,
+        expected_id=preferred_id,
+        detail_state="ready",
+        detail_text=presented,
+    )
+    assert ready is True
+    assert reason == "stable presented Knowledge detail"
 
 
 def test_visual_knowledge_fixture_is_idempotent_and_renders_real_detail(
