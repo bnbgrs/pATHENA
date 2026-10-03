@@ -58,7 +58,8 @@ def test_v4_palette_is_graphite_with_precise_chartreuse_accent() -> None:
 def test_v4_typography_uses_geist_for_compact_application_hierarchy() -> None:
     assert "Geist" in TYPE.display_family
     assert "Geist" in TYPE.content_family
-    assert "serif" not in TYPE.display_family.lower()
+    assert "Georgia" not in TYPE.display_family
+    assert TYPE.display_family.lower().endswith("sans-serif")
     assert 32 <= TYPE.title_px <= 38
     assert 20 <= TYPE.section_px <= 24
     assert TYPE.body_px >= 15
