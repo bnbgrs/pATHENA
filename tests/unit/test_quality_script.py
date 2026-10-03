@@ -22,6 +22,7 @@ def test_quality_gate_keep_going_runs_every_check() -> None:
         CompletedProcess(args=("pytest-controller",), returncode=0),
         CompletedProcess(args=("pytest-chat-selection",), returncode=0),
         CompletedProcess(args=("pytest-direct-chat",), returncode=0),
+        CompletedProcess(args=("pytest-durable-scheduler",), returncode=0),
         CompletedProcess(args=("pytest-suite",), returncode=0),
     ]
 
