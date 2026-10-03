@@ -11,6 +11,11 @@ pytest.importorskip("PySide6")
 
 from PySide6.QtWidgets import QApplication, QWidget
 
+from athena.desktop.knowledge_review import (
+    parse_claim_list,
+    parse_knowledge_list,
+    parse_review_list,
+)
 from athena.desktop.knowledge_workspace import KnowledgeWorkspace
 from athena.desktop.pathena_knowledge_selection_continuity import (
     install_knowledge_selection_continuity,
@@ -43,7 +48,9 @@ def test_vanished_knowledge_identity_does_not_select_replacement(
     workspace._selected_knowledge_id = missing
 
     workspace._render_knowledge_list(
-        f"{replacement}\t1\tfact\tactive\tcurrent\tReplacement knowledge"
+        parse_knowledge_list(
+            f"{replacement}\t1\tfact\tactive\tcurrent\tReplacement knowledge"
+        )
     )
 
     assert workspace.knowledge_list.currentRow() == -1
@@ -62,7 +69,9 @@ def test_vanished_claim_identity_does_not_select_replacement(
     workspace._selected_claim_id = missing
 
     workspace._render_claim_list(
-        f"{replacement}\t1\tfact\tactive\tcurrent\tReplacement claim"
+        parse_claim_list(
+            f"{replacement}\t1\tfact\tactive\tcurrent\tReplacement claim"
+        )
     )
 
     assert workspace.claim_list.currentRow() == -1
@@ -81,7 +90,11 @@ def test_vanished_decision_identity_does_not_select_replacement(
     workspace._selected_review_id = missing
 
     workspace._render_review_list(
-        f"{replacement}\tcontradiction\tpending\t0.9\tleft\tright\tReplacement decision"
+        parse_review_list(
+            f"{replacement}\tcontradiction\tpending\t0.9\t"
+            "77777777-7777-7777-7777-777777777777\t"
+            "88888888-8888-8888-8888-888888888888\tReplacement decision"
+        )
     )
 
     assert workspace.review_list.currentRow() == -1
@@ -94,7 +107,9 @@ def test_vanished_decision_identity_does_not_select_replacement(
 def test_initial_knowledge_load_still_selects_first_row(qt_app: QApplication) -> None:
     workspace, controller = _workspace()
     workspace._render_knowledge_list(
-        "77777777-7777-7777-7777-777777777777\t1\tfact\tactive\tcurrent\tFirst"
+        parse_knowledge_list(
+            "77777777-7777-7777-7777-777777777777\t1\tfact\tactive\tcurrent\tFirst"
+        )
     )
 
     assert workspace.knowledge_list.currentRow() == 0
