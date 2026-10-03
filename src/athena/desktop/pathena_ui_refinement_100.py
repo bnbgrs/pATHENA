@@ -606,7 +606,7 @@ def apply_ui_refinements(window: QWidget) -> tuple[int, ...]:
         _accessible("Source capture and retrieval details"),
     )
     for task_id, object_name, label in (
-        (78, "fileImportButton", "Import local file"),
+        (78, "fileImportButton", "Import local files"),
         (79, "fileProcessButton", "Process or retry selected source"),
         (80, "fileRefreshButton", "Refresh imported sources"),
     ):
