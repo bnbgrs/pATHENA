@@ -12,9 +12,9 @@ permissions:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
-  # Newer candidate/develop heads supersede older CI work. PR heads are already
-  # exact-SHA qualified, and the final combined Develop head remains mandatory.
-  cancel-in-progress: true
+  # Newer PR heads and Develop candidates supersede older CI work. Keep main
+  # promotion runs non-cancelling so a release verification cannot be displaced.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || github.ref == 'refs/heads/develop/pathena-next' }}
 
 env:
   CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
