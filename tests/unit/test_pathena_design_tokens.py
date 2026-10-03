@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from athena.desktop.pathena_design_tokens import PALETTE, SHELL, TYPE
+from athena.desktop.pathena_v3_theme import PATHENA_V3_STYLESHEET
 
 
 def _relative_luminance(color: str) -> float:
@@ -65,6 +66,16 @@ def test_v4_typography_uses_geist_for_compact_application_hierarchy() -> None:
     assert TYPE.body_px >= 15
     assert TYPE.metadata_px >= 12
     assert TYPE.title_px > TYPE.section_px
+
+
+
+def test_v4_tokens_reach_the_runtime_desktop_stylesheet() -> None:
+    assert f"background: {PALETTE.canvas};" in PATHENA_V3_STYLESHEET
+    assert f"background: {PALETTE.accent};" in PATHENA_V3_STYLESHEET
+    assert f"color: {PALETTE.text};" in PATHENA_V3_STYLESHEET
+    assert TYPE.content_family in PATHENA_V3_STYLESHEET
+    assert "#090B0E" not in PATHENA_V3_STYLESHEET
+    assert "#78D1C5" not in PATHENA_V3_STYLESHEET
 
 
 def test_v4_shell_geometry_is_compact_and_workspace_first() -> None:
