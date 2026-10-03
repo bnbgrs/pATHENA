@@ -8,7 +8,7 @@ def _quality_workflow_text() -> str:
     return _QUALITY_WORKFLOW.read_text(encoding="utf-8")
 
 
-def test_canonical_quality_cancels_superseded_prs_but_not_pushes() -> None:
+def test_canonical_quality_cancels_superseded_candidates_but_not_main() -> None:
     workflow = _quality_workflow_text()
 
     assert "      - develop/pathena-next\n" in workflow
@@ -17,11 +17,11 @@ def test_canonical_quality_cancels_superseded_prs_but_not_pushes() -> None:
         "${{ github.event.pull_request.number || github.ref }}\n"
     ) in workflow
     assert (
-        "  cancel-in-progress: ${{ github.event_name == 'pull_request' }}\n"
+        "  cancel-in-progress: ${{ github.event_name == 'pull_request' || "
+        "github.ref == 'refs/heads/develop/pathena-next' }}\n"
         in workflow
     )
     assert '  CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}\n' in workflow
-
 
 def test_canonical_local_install_smoke_keeps_pypdf_packaging_guard() -> None:
     workflow = _quality_workflow_text()
@@ -44,43 +44,54 @@ def test_canonical_windows_path_safety_keeps_exact_sha_and_storage_regressions()
 
 def test_canonical_quality_keeps_full_pytest_and_enforces_all_core_checks() -> None:
     workflow = _quality_workflow_text()
-
-    assert "    timeout-minutes: 70\n" in workflow
-    assert "        timeout-minutes: 55\n" in workflow
     normalized = " ".join(workflow.replace("\\\n", " ").split())
 
-    controller_command = (
-        "uv run --locked --extra dev --extra desktop python -m pytest "
-        "tests/unit/test_desktop_api_controller.py 2>&1 | tee "
-        ".quality-evidence/pytest-desktop-api-controller.txt"
-    )
-    chat_selection_command = (
-        "uv run --locked --extra dev --extra desktop python -m pytest "
-        "tests/unit/test_desktop_chat_selection_state.py 2>&1 | tee "
-        ".quality-evidence/pytest-desktop-chat-selection-state.txt"
-    )
-    remaining_suite_command = (
-        "uv run --locked --extra dev --extra desktop python -m pytest "
-        "--ignore=tests/unit/test_desktop_api_controller.py "
-        "--ignore=tests/unit/test_desktop_chat_selection_state.py "
-        "2>&1 | tee .quality-evidence/pytest.txt"
-    )
-    assert controller_command in normalized
-    assert chat_selection_command in normalized
-    assert remaining_suite_command in normalized
-    assert 'controller_status=${PIPESTATUS[0]}' in workflow
-    assert 'chat_selection_status=${PIPESTATUS[0]}' in workflow
-    assert 'suite_status=${PIPESTATUS[0]}' in workflow
+    assert "  quality-static:\n" in workflow
+    assert "    name: Python 3.12 static quality\n" in workflow
+    assert "    timeout-minutes: 15\n" in workflow
     assert (
-        'if [ "$controller_status" -ne 0 ] || [ "$chat_selection_status" -ne 0 ] || '
-        '[ "$suite_status" -ne 0 ]; then' in workflow
+        "uv run --locked --extra dev --extra desktop python scripts/validate_spec.py"
+        in normalized
     )
-    assert 'SPEC_OUTCOME: ${{ steps.quality_spec.outcome }}' in workflow
-    assert 'RUFF_OUTCOME: ${{ steps.quality_ruff.outcome }}' in workflow
-    assert 'MYPY_OUTCOME: ${{ steps.quality_mypy.outcome }}' in workflow
-    assert 'PYTEST_OUTCOME: ${{ steps.quality_pytest.outcome }}' in workflow
-    assert 'failures = [name for name, outcome in outcomes.items() if outcome != "success"]' in workflow
+    assert (
+        "uv run --locked --extra dev --extra desktop python -m ruff check "
+        "src tests scripts" in normalized
+    )
+    assert (
+        "uv run --locked --extra dev --extra desktop python -m mypy src/athena"
+        in normalized
+    )
 
+    assert "  pytest-native-qt:\n" in workflow
+    assert "    name: Pytest native Qt isolation\n" in workflow
+    assert (
+        "uv run --locked --extra dev --extra desktop python -m pytest "
+        "tests/unit/test_desktop_api_controller.py" in normalized
+    )
+    assert (
+        "uv run --locked --extra dev --extra desktop python -m pytest "
+        "tests/unit/test_desktop_chat_selection_state.py" in normalized
+    )
+
+    assert "  pytest-shard:\n" in workflow
+    assert "    name: Pytest shard ${{ matrix.shard }}/6\n" in workflow
+    assert "        shard: [1, 2, 3, 4, 5, 6]\n" in workflow
+    assert "    timeout-minutes: 25\n" in workflow
+    assert 'Path("tests").rglob("test_*.py")' in workflow
+    assert 'Path("tests/unit/test_desktop_api_controller.py")' in workflow
+    assert 'Path("tests/unit/test_desktop_chat_selection_state.py")' in workflow
+    assert 'python -m pytest "${TEST_FILES[@]}"' in workflow
+
+    assert "  quality:\n" in workflow
+    assert "    name: Python 3.12 quality\n" in workflow
+    assert "      - quality-static\n" in workflow
+    assert "      - pytest-native-qt\n" in workflow
+    assert "      - pytest-shard\n" in workflow
+    assert 'STATIC_RESULT: ${{ needs.quality-static.result }}' in workflow
+    assert 'NATIVE_QT_RESULT: ${{ needs.pytest-native-qt.result }}' in workflow
+    assert 'PYTEST_SHARDS_RESULT: ${{ needs.pytest-shard.result }}' in workflow
+    assert 'failures = [name for name, outcome in outcomes.items() if outcome != "success"]' in workflow
+    assert "ATHENA QUALITY GATE: PASS — full canonical suite completed in parallel" in workflow
 
 def test_canonical_quality_keeps_storage_bootstrap_and_runtime_boundary_regressions() -> None:
     workflow = _quality_workflow_text()
