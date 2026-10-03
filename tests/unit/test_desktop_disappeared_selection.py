@@ -12,6 +12,7 @@ pytest.importorskip("PySide6")
 from PySide6.QtWidgets import QApplication
 
 from athena.desktop.files_workspace import FilesWorkspace
+from athena.desktop.jobs_lifecycle import parse_job_list
 from athena.desktop.jobs_workspace import JobsWorkspace
 from athena.desktop.research_workspace import ResearchWorkspace
 from athena.desktop.system_backup import BackupWorkspace
@@ -57,7 +58,9 @@ def test_job_refresh_does_not_replace_disappeared_selection(qt_app: QApplication
     workspace._selected_state = "waiting"
 
     workspace._render_job_list(
-        f"{replacement}\twaiting\t1\tresearch\tqueued\t0\t123\tReplacement job"
+        parse_job_list(
+            f"{replacement}\twaiting\t1\tresearch\tqueued\t0\t123\tReplacement job"
+        )
     )
 
     assert workspace.jobs.currentRow() == -1
