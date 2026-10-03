@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import uuid
 from dataclasses import dataclass
 
 _TERMINAL_STATES = frozenset({"cancelled", "failed", "completed"})
@@ -51,10 +52,88 @@ class JobActionAvailability:
 
 
 @dataclass(frozen=True)
+class JobListEntry:
+    job_id: str
+    state: str
+    priority: int
+    job_type: str
+    stage: str
+    retries: int
+    updated_at_us: int
+    summary: str
+
+
+@dataclass(frozen=True)
 class JobTransitionReceipt:
     operation: str
     job_id: str
     state: str
+
+
+def parse_job_list(output: str) -> tuple[JobListEntry, ...]:
+    """Validate the complete jobs CLI list response before the UI mutates state."""
+    entries: list[JobListEntry] = []
+    for line_number, raw_line in enumerate(output.splitlines(), start=1):
+        if not raw_line.strip():
+            continue
+        parts = raw_line.split("\t")
+        if len(parts) != 8:
+            raise JobLifecycleError(
+                f"The jobs list response is malformed at line {line_number}."
+            )
+        (
+            raw_job_id,
+            raw_state,
+            raw_priority,
+            job_type,
+            stage,
+            raw_retries,
+            raw_updated_at_us,
+            summary,
+        ) = parts
+
+        try:
+            job_id = str(uuid.UUID(raw_job_id))
+        except (ValueError, AttributeError) as exc:
+            raise JobLifecycleError(
+                f"The jobs list response has an invalid job ID at line {line_number}."
+            ) from exc
+
+        state = raw_state.casefold().strip()
+        if state not in _KNOWN_STATES:
+            raise JobLifecycleError(
+                f"The jobs list response has an unrecognized state at line {line_number}."
+            )
+        if not job_type.strip() or not stage.strip():
+            raise JobLifecycleError(
+                f"The jobs list response is missing job metadata at line {line_number}."
+            )
+        try:
+            priority = int(raw_priority)
+            retries = int(raw_retries)
+            updated_at_us = int(raw_updated_at_us)
+        except ValueError as exc:
+            raise JobLifecycleError(
+                f"The jobs list response has invalid numeric data at line {line_number}."
+            ) from exc
+        if retries < 0 or updated_at_us < 0:
+            raise JobLifecycleError(
+                f"The jobs list response has invalid numeric data at line {line_number}."
+            )
+
+        entries.append(
+            JobListEntry(
+                job_id=job_id,
+                state=state,
+                priority=priority,
+                job_type=job_type,
+                stage=stage,
+                retries=retries,
+                updated_at_us=updated_at_us,
+                summary=summary,
+            )
+        )
+    return tuple(entries)
 
 
 def action_availability(state: str | None) -> JobActionAvailability:
