@@ -17,24 +17,23 @@ from typing import Final
 class Palette:
     """Reference-family colors shared by all pATHENA desktop surfaces."""
 
-    # Direct inspection of the eleven reference screens places the application
-    # on a very dark navy field rather than neutral black. Cobalt is the shared
-    # interaction colour; warmer hues remain semantic state colours.
-    canvas: str = "#061421"
-    surface: str = "#06121F"
-    surface_raised: str = "#0D1A2A"
-    surface_hover: str = "#10263B"
-    surface_selected: str = "#12304E"
-    border: str = "#20364C"
-    border_strong: str = "#315675"
-    text: str = "#F3F6F9"
-    text_muted: str = "#B5C0CB"
-    text_subtle: str = "#8797A7"
-    text_quiet: str = "#617182"
-    accent: str = "#3B82F6"
-    accent_hover: str = "#5594FA"
-    accent_pressed: str = "#2869D8"
-    accent_soft: str = "#0D2B4D"
+    # V4 uses neutral graphite/ink surfaces, warm white type, and a precise
+    # chartreuse interaction accent. Semantic state colours remain distinct.
+    canvas: str = "#111210"
+    surface: str = "#171815"
+    surface_raised: str = "#1D1F1A"
+    surface_hover: str = "#252820"
+    surface_selected: str = "#2B3022"
+    border: str = "#30332C"
+    border_strong: str = "#484C40"
+    text: str = "#F4F1E8"
+    text_muted: str = "#C5C1B6"
+    text_subtle: str = "#98958C"
+    text_quiet: str = "#706F68"
+    accent: str = "#C7FF52"
+    accent_hover: str = "#D3FF78"
+    accent_pressed: str = "#A8DB3F"
+    accent_soft: str = "#29351B"
     success: str = "#45C58A"
     info: str = "#52B7E8"
     question: str = "#A98BFF"
@@ -46,14 +45,12 @@ class Palette:
 class Typography:
     """Editorial display hierarchy plus compact application text."""
 
-    content_family: str = '"Segoe UI Variable", "Segoe UI", "Inter", sans-serif'
-    # The opened reference family consistently uses a high-contrast editorial
-    # serif for large workspace titles while controls and body text remain sans.
-    display_family: str = '"Georgia", "Times New Roman", serif'
-    metadata_family: str = '"Cascadia Mono", "Consolas", monospace'
+    content_family: str = '"Geist", "Segoe UI Variable", "Segoe UI", "Inter", sans-serif'
+    display_family: str = '"Geist", "Segoe UI Variable", "Segoe UI", "Inter", sans-serif'
+    metadata_family: str = '"Geist Mono", "Cascadia Mono", "Consolas", monospace'
     body_px: int = 15
     metadata_px: int = 12
-    title_px: int = 42
+    title_px: int = 34
     section_px: int = 21
 
 
