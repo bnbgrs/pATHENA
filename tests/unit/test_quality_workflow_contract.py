@@ -23,6 +23,7 @@ def test_canonical_quality_cancels_superseded_candidates_but_not_main() -> None:
     )
     assert '  CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}\n' in workflow
 
+
 def test_canonical_local_install_smoke_keeps_pypdf_packaging_guard() -> None:
     workflow = _quality_workflow_text()
 
@@ -63,7 +64,7 @@ def test_canonical_quality_keeps_full_pytest_and_enforces_all_core_checks() -> N
     )
 
     assert "  pytest-native-qt:\n" in workflow
-    assert "    name: Pytest native Qt isolation\n" in workflow
+    assert "    name: Pytest process isolation\n" in workflow
     assert (
         "uv run --locked --extra dev --extra desktop python -m pytest "
         "tests/unit/test_desktop_api_controller.py" in normalized
@@ -76,6 +77,11 @@ def test_canonical_quality_keeps_full_pytest_and_enforces_all_core_checks() -> N
         "uv run --locked --extra dev --extra desktop python -m pytest "
         "tests/unit/test_desktop_direct_chat.py" in normalized
     )
+    assert (
+        "uv run --locked --extra dev --extra desktop python -m pytest "
+        "tests/integration/test_durable_processing_reliability_audit_integration.py"
+        in normalized
+    )
 
     assert "  pytest-shard:\n" in workflow
     assert "    name: Pytest shard ${{ matrix.shard }}/6\n" in workflow
@@ -85,6 +91,10 @@ def test_canonical_quality_keeps_full_pytest_and_enforces_all_core_checks() -> N
     assert 'Path("tests/unit/test_desktop_api_controller.py")' in workflow
     assert 'Path("tests/unit/test_desktop_chat_selection_state.py")' in workflow
     assert 'Path("tests/unit/test_desktop_direct_chat.py")' in workflow
+    assert (
+        'Path("tests/integration/test_durable_processing_reliability_audit_integration.py")'
+        in workflow
+    )
     assert 'python -m pytest "${TEST_FILES[@]}"' in workflow
 
     assert "  quality:\n" in workflow
@@ -94,9 +104,11 @@ def test_canonical_quality_keeps_full_pytest_and_enforces_all_core_checks() -> N
     assert "      - pytest-shard\n" in workflow
     assert 'STATIC_RESULT: ${{ needs.quality-static.result }}' in workflow
     assert 'NATIVE_QT_RESULT: ${{ needs.pytest-native-qt.result }}' in workflow
+    assert '"Process isolation": os.environ["NATIVE_QT_RESULT"]' in workflow
     assert 'PYTEST_SHARDS_RESULT: ${{ needs.pytest-shard.result }}' in workflow
     assert 'failures = [name for name, outcome in outcomes.items() if outcome != "success"]' in workflow
     assert "ATHENA QUALITY GATE: PASS — full canonical suite completed in parallel" in workflow
+
 
 def test_canonical_quality_keeps_storage_bootstrap_and_runtime_boundary_regressions() -> None:
     workflow = _quality_workflow_text()
