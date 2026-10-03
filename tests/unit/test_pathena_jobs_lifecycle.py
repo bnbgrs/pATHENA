@@ -8,6 +8,7 @@ from athena.desktop.app import create_application
 from athena.desktop.jobs_lifecycle import (
     JobLifecycleError,
     action_availability,
+    parse_job_list,
     parse_transition_receipt,
 )
 from athena.desktop.jobs_workspace import JobsWorkspace
@@ -175,6 +176,11 @@ def test_successful_transition_updates_selected_persisted_state_and_controls(
         assert workspace.status.text() == "PAUSE completed for job 11111111 · PAUSED."
         assert "transition" not in workspace.status.text().casefold()
         assert "persisted" not in workspace.status.text().casefold()
+        details = workspace.details.toPlainText()
+        assert "JOB_PAUSE" not in details
+        assert "PAUSE completed · PAUSED" in details
+        assert "Refreshing current details" in details
+        assert workspace.details.property("pathenaUiState") == "busy"
     finally:
         workspace.close()
         app.processEvents()
@@ -206,3 +212,237 @@ def test_unverified_receipt_fails_closed_and_preserves_raw_output(
     finally:
         workspace.close()
         app.processEvents()
+
+
+def _job_list_line(
+    *,
+    job_id: str = JOB_ID,
+    state: str = "queued",
+    priority: int = 4,
+    job_type: str = "research.run",
+    stage: str = "discovery",
+    retries: int = 2,
+    updated_at_us: int = 123456,
+    summary: str = "query=test",
+) -> str:
+    return "\t".join(
+        (
+            job_id,
+            state,
+            str(priority),
+            job_type,
+            stage,
+            str(retries),
+            str(updated_at_us),
+            summary,
+        )
+    )
+
+
+def test_job_list_parser_validates_complete_response_before_projection() -> None:
+    rows = parse_job_list(_job_list_line())
+
+    assert len(rows) == 1
+    row = rows[0]
+    assert row.job_id == JOB_ID
+    assert row.state == "queued"
+    assert row.priority == 4
+    assert row.job_type == "research.run"
+    assert row.stage == "discovery"
+    assert row.retries == 2
+    assert row.updated_at_us == 123456
+    assert row.summary == "query=test"
+
+    with pytest.raises(JobLifecycleError, match="line 2"):
+        parse_job_list(_job_list_line() + "\nBROKEN")
+
+    with pytest.raises(JobLifecycleError, match="unrecognized state"):
+        parse_job_list(_job_list_line(state="future_state"))
+
+
+def test_invalid_list_response_preserves_previous_selection_and_details(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(JobsWorkspace, "refresh", lambda _self: None)
+    app = _app()
+    workspace = JobsWorkspace()
+    workspace._refresh_timer.stop()
+    workspace._scheduler_status_timer.stop()
+    app.processEvents()
+    monkeypatch.setattr(workspace, "_drain_output", lambda: None)
+
+    item = QListWidgetItem("QUEUED")
+    item.setData(Qt.ItemDataRole.UserRole, JOB_ID)
+    item.setData(Qt.ItemDataRole.UserRole + 1, "queued")
+    workspace.jobs.blockSignals(True)
+    workspace.jobs.addItem(item)
+    workspace.jobs.setCurrentItem(item)
+    workspace.jobs.blockSignals(False)
+    workspace._selected_job_id = JOB_ID
+    workspace._selected_state = "queued"
+    workspace.details.setPlainText("Existing selected job details")
+    workspace._operation = "list"
+    workspace._operation_job_id = None
+    workspace._buffer = _job_list_line() + "\nBROKEN"
+
+    try:
+        workspace._process_finished(0, QProcess.ExitStatus.NormalExit)
+
+        assert workspace.jobs.count() == 1
+        assert workspace.jobs.item(0).data(Qt.ItemDataRole.UserRole) == JOB_ID
+        assert workspace._selected_job_id == JOB_ID
+        assert workspace.details.toPlainText() == "Existing selected job details"
+        assert workspace.status.property("pathenaUiState") == "error"
+        assert "invalid" in workspace.status.text().casefold()
+        assert "line 2" in workspace.status.toolTip()
+        assert "line 2" in workspace.status.accessibleDescription()
+    finally:
+        workspace.close()
+        app.processEvents()
+
+
+def test_success_clears_stale_job_status_diagnostic(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(JobsWorkspace, "refresh", lambda _self: None)
+    app = _app()
+    workspace = JobsWorkspace()
+    workspace._refresh_timer.stop()
+    workspace._scheduler_status_timer.stop()
+    app.processEvents()
+    monkeypatch.setattr(workspace, "_drain_output", lambda: None)
+    workspace._selected_job_id = JOB_ID
+    workspace._selected_state = "queued"
+
+    try:
+        workspace._operation = "cancel"
+        workspace._operation_job_id = JOB_ID
+        workspace._buffer = "not-a-receipt"
+        workspace._process_finished(0, QProcess.ExitStatus.NormalExit)
+
+        assert workspace.status.toolTip()
+        assert workspace.status.property("pathenaUiState") == "error"
+
+        workspace._operation = "show"
+        workspace._operation_job_id = JOB_ID
+        workspace._buffer = f"JOB {JOB_ID}\nSTATE queued\n"
+        workspace._process_finished(0, QProcess.ExitStatus.NormalExit)
+
+        assert workspace.status.text() == "Job 11111111 details loaded."
+        assert workspace.status.toolTip() == ""
+        assert workspace.status.accessibleDescription() == workspace.status.text()
+        assert workspace.status.property("pathenaUiState") == "success"
+    finally:
+        workspace.close()
+        app.processEvents()
+
+
+def test_process_error_is_not_overwritten_by_following_finished_signal(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(JobsWorkspace, "refresh", lambda _self: None)
+    app = _app()
+    workspace = JobsWorkspace()
+    workspace._refresh_timer.stop()
+    workspace._scheduler_status_timer.stop()
+    app.processEvents()
+    monkeypatch.setattr(workspace, "_drain_output", lambda: None)
+    workspace._selected_job_id = JOB_ID
+    workspace._selected_state = "queued"
+    workspace._operation = "pause"
+    workspace._operation_job_id = JOB_ID
+
+    try:
+        workspace._process_error(QProcess.ProcessError.Crashed)
+        error_text = workspace.status.text()
+
+        assert error_text == "PAUSE for job 11111111 failed: Crashed"
+        assert workspace.status.property("pathenaUiState") == "error"
+        assert workspace._process_error_reported is True
+
+        workspace._process_finished(1, QProcess.ExitStatus.CrashExit)
+
+        assert workspace.status.text() == error_text
+        assert workspace.status.property("pathenaUiState") == "error"
+        assert workspace._process_error_reported is False
+    finally:
+        workspace.close()
+        app.processEvents()
+
+def test_failed_background_refresh_preserves_selected_job_details(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(JobsWorkspace, "refresh", lambda _self: None)
+    app = _app()
+    workspace = JobsWorkspace()
+    workspace._refresh_timer.stop()
+    workspace._scheduler_status_timer.stop()
+    app.processEvents()
+    monkeypatch.setattr(workspace, "_drain_output", lambda: None)
+    workspace._selected_job_id = JOB_ID
+    workspace._selected_state = "running"
+    workspace.details.setPlainText("Selected job details stay visible")
+    workspace._operation = "list"
+    workspace._operation_job_id = None
+    workspace._buffer = "JOBS_ERROR RuntimeError: synthetic refresh failure"
+
+    try:
+        workspace._process_finished(2, QProcess.ExitStatus.NormalExit)
+
+        assert workspace.details.toPlainText() == "Selected job details stay visible"
+        assert workspace.status.text() == "Jobs could not be refreshed (exit 2)."
+        assert workspace.status.property("pathenaUiState") == "error"
+    finally:
+        workspace.close()
+        app.processEvents()
+
+def test_background_show_completion_loads_the_new_current_selection(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(JobsWorkspace, "refresh", lambda _self: None)
+    app = _app()
+    workspace = JobsWorkspace()
+    workspace._refresh_timer.stop()
+    workspace._scheduler_status_timer.stop()
+    app.processEvents()
+    monkeypatch.setattr(workspace, "_drain_output", lambda: None)
+
+    old_item = QListWidgetItem("RUNNING")
+    old_item.setData(Qt.ItemDataRole.UserRole, JOB_ID)
+    old_item.setData(Qt.ItemDataRole.UserRole + 1, "running")
+    new_job_id = "22222222-2222-2222-2222-222222222222"
+    new_item = QListWidgetItem("WAITING")
+    new_item.setData(Qt.ItemDataRole.UserRole, new_job_id)
+    new_item.setData(Qt.ItemDataRole.UserRole + 1, "waiting")
+    workspace.jobs.blockSignals(True)
+    workspace.jobs.addItem(old_item)
+    workspace.jobs.addItem(new_item)
+    workspace.jobs.setCurrentItem(new_item)
+    workspace.jobs.blockSignals(False)
+    workspace._selected_job_id = new_job_id
+    workspace._selected_state = "waiting"
+    workspace._operation = "show"
+    workspace._operation_job_id = JOB_ID
+    workspace._buffer = f"JOB {JOB_ID}\nSTATE running\n"
+    calls: list[tuple[str, list[str], str | None]] = []
+
+    def _record_start(
+        operation: str,
+        arguments: list[str],
+        _label: str,
+        *,
+        job_id: str | None = None,
+    ) -> None:
+        calls.append((operation, arguments, job_id))
+
+    monkeypatch.setattr(workspace, "_start", _record_start)
+    try:
+        workspace._process_finished(0, QProcess.ExitStatus.NormalExit)
+        app.processEvents()
+
+        assert calls == [("show", ["show", new_job_id], new_job_id)]
+        assert workspace.details.property("pathenaBackgroundOperationOwner") == ""
+    finally:
+        workspace.close()
+        app.processEvents()
+

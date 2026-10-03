@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import math
+import uuid
 from dataclasses import dataclass
 
 
@@ -28,6 +30,27 @@ class EvidenceReview:
 
 
 @dataclass(frozen=True)
+class CanonicalEntityListEntry:
+    entity_id: str
+    revision_no: int
+    kind: str
+    status: str
+    lifecycle: str
+    summary: str
+
+
+@dataclass(frozen=True)
+class PendingReviewListEntry:
+    review_id: str
+    review_type: str
+    status: str
+    confidence: float
+    left_entity_id: str | None
+    right_entity_id: str | None
+    reason: str
+
+
+@dataclass(frozen=True)
 class KnowledgeEntityReview:
     entity_type: str
     entity_id: str
@@ -41,6 +64,99 @@ class KnowledgeEntityReview:
     title: str | None
     provenance: tuple[ProvenanceReview, ...]
     evidence: tuple[EvidenceReview, ...]
+
+
+def _canonical_uuid(value: str, label: str) -> str:
+    try:
+        parsed = uuid.UUID(value)
+    except (ValueError, AttributeError) as exc:
+        raise KnowledgeReviewError(f"Persisted {label} is not a valid UUID.") from exc
+    canonical = str(parsed)
+    if value.casefold() != canonical:
+        raise KnowledgeReviewError(f"Persisted {label} is not canonical.")
+    return canonical
+
+
+def _optional_uuid(value: str, label: str) -> str | None:
+    if value == "-":
+        return None
+    return _canonical_uuid(value, label)
+
+
+def _single_line_field(value: str, label: str) -> str:
+    if not value or value.strip() != value or "\t" in value:
+        raise KnowledgeReviewError(f"Persisted {label} is invalid.")
+    if any(part != value for part in value.splitlines()):
+        raise KnowledgeReviewError(f"Persisted {label} breaks the line framing contract.")
+    return value
+
+
+def _parse_entity_list(output: str, *, entity_label: str) -> tuple[CanonicalEntityListEntry, ...]:
+    rows: list[CanonicalEntityListEntry] = []
+    if not output:
+        return ()
+    for raw_line in output.splitlines():
+        parts = raw_line.split("\t", 5)
+        if len(parts) != 6:
+            raise KnowledgeReviewError(
+                f"Persisted {entity_label} list response has an invalid record."
+            )
+        entity_id, revision_no, kind, status, lifecycle, summary = parts
+        rows.append(
+            CanonicalEntityListEntry(
+                entity_id=_canonical_uuid(entity_id, f"{entity_label} identity"),
+                revision_no=_integer(revision_no, f"{entity_label} revision number"),
+                kind=_single_line_field(kind, f"{entity_label} kind"),
+                status=_single_line_field(status, f"{entity_label} status"),
+                lifecycle=_single_line_field(lifecycle, f"{entity_label} lifecycle"),
+                summary=_single_line_field(summary, f"{entity_label} summary"),
+            )
+        )
+    return tuple(rows)
+
+
+def parse_knowledge_list(output: str) -> tuple[CanonicalEntityListEntry, ...]:
+    """Parse an all-or-nothing canonical Knowledge list response."""
+    return _parse_entity_list(output, entity_label="Knowledge")
+
+
+def parse_claim_list(output: str) -> tuple[CanonicalEntityListEntry, ...]:
+    """Parse an all-or-nothing canonical Claim list response."""
+    return _parse_entity_list(output, entity_label="Claim")
+
+
+def parse_review_list(output: str) -> tuple[PendingReviewListEntry, ...]:
+    """Parse an all-or-nothing pending semantic-review list response."""
+    rows: list[PendingReviewListEntry] = []
+    if not output:
+        return ()
+    for raw_line in output.splitlines():
+        parts = raw_line.split("\t", 6)
+        if len(parts) != 7:
+            raise KnowledgeReviewError(
+                "Persisted review list response has an invalid record."
+            )
+        review_id, review_type, status, confidence_text, left_id, right_id, reason = parts
+        try:
+            confidence = float(confidence_text)
+        except ValueError as exc:
+            raise KnowledgeReviewError(
+                "Persisted review confidence is invalid."
+            ) from exc
+        if not math.isfinite(confidence) or not 0.0 <= confidence <= 1.0:
+            raise KnowledgeReviewError("Persisted review confidence is invalid.")
+        rows.append(
+            PendingReviewListEntry(
+                review_id=_canonical_uuid(review_id, "review identity"),
+                review_type=_single_line_field(review_type, "review type"),
+                status=_single_line_field(status, "review status"),
+                confidence=confidence,
+                left_entity_id=_optional_uuid(left_id, "review left identity"),
+                right_entity_id=_optional_uuid(right_id, "review right identity"),
+                reason=_single_line_field(reason, "review reason"),
+            )
+        )
+    return tuple(rows)
 
 
 def _required(mapping: dict[str, str], key: str) -> str:
