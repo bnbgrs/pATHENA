@@ -12,16 +12,76 @@ permissions:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  # Newer PR heads and Develop candidates supersede older CI work. Keep main
+  # promotion runs non-cancelling so a release verification cannot be displaced.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || github.ref == 'refs/heads/develop/pathena-next' }}
 
 env:
   CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
 
 jobs:
-  quality:
-    name: Python 3.12 quality
+  quality-static:
+    name: Python 3.12 static quality
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 15
+    env:
+      QT_QPA_PLATFORM: offscreen
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ env.CANDIDATE_SHA }}
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install pinned resolver
+        run: |
+          python -m pip install --disable-pip-version-check "pip==26.1.2"
+          python -m pip install --disable-pip-version-check "uv==0.11.21"
+
+      - name: Validate dependency lock
+        run: uv lock --check
+
+      - name: Quality — specification validator
+        if: always()
+        run: |
+          set -o pipefail
+          mkdir -p .quality-evidence
+          uv run --locked --extra dev --extra desktop python scripts/validate_spec.py 2>&1 | tee .quality-evidence/specification-validator.txt
+
+      - name: Quality — Ruff
+        if: always()
+        run: |
+          set -o pipefail
+          mkdir -p .quality-evidence
+          uv run --locked --extra dev --extra desktop python -m ruff check src tests scripts 2>&1 | tee .quality-evidence/ruff.txt
+
+      - name: Quality — mypy
+        if: always()
+        run: |
+          set -o pipefail
+          mkdir -p .quality-evidence
+          uv run --locked --extra dev --extra desktop python -m mypy src/athena 2>&1 | tee .quality-evidence/mypy.txt
+
+      - name: Upload static quality diagnostics
+        if: ${{ always() && !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-static-${{ env.CANDIDATE_SHA }}
+          path: .quality-evidence/
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 2
+
+  pytest-native-qt:
+    name: Pytest process isolation
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     env:
       QT_QPA_PLATFORM: offscreen
 
@@ -50,94 +110,175 @@ jobs:
       - name: Validate dependency lock
         run: uv lock --check
 
-      # Keep every canonical check independently observable while still running all four.
-      # Persist complete text diagnostics so release verification does not depend on
-      # transient Actions log access.
-      - name: Quality — specification validator
-        id: quality_spec
+      - name: Pytest — desktop API controller
         run: |
           set -o pipefail
           mkdir -p .quality-evidence
-          uv run --locked --extra dev --extra desktop python scripts/validate_spec.py 2>&1 | tee .quality-evidence/specification-validator.txt
-
-      - name: Quality — Ruff
-        id: quality_ruff
-        if: always()
-        run: |
-          set -o pipefail
-          mkdir -p .quality-evidence
-          uv run --locked --extra dev --extra desktop python -m ruff check src tests scripts 2>&1 | tee .quality-evidence/ruff.txt
-
-      - name: Quality — mypy
-        id: quality_mypy
-        if: always()
-        run: |
-          set -o pipefail
-          mkdir -p .quality-evidence
-          uv run --locked --extra dev --extra desktop python -m mypy src/athena 2>&1 | tee .quality-evidence/mypy.txt
-
-      - name: Quality — pytest
-        id: quality_pytest
-        if: always()
-        timeout-minutes: 45
-        run: |
-          set -o pipefail
-          mkdir -p .quality-evidence
-
-          # PySide owns process-global native state. Keep the native Qt regressions
-          # fully mandatory, but execute modules with proven process-lifetime
-          # sensitivity in fresh interpreters so unrelated earlier tests cannot
-          # poison their event-loop/QObject teardown state.
-          set +e
           uv run --locked --extra dev --extra desktop python -m pytest tests/unit/test_desktop_api_controller.py 2>&1 | tee .quality-evidence/pytest-desktop-api-controller.txt
-          controller_status=${PIPESTATUS[0]}
 
+      - name: Pytest — desktop chat selection state
+        if: always()
+        run: |
+          set -o pipefail
+          mkdir -p .quality-evidence
           uv run --locked --extra dev --extra desktop python -m pytest tests/unit/test_desktop_chat_selection_state.py 2>&1 | tee .quality-evidence/pytest-desktop-chat-selection-state.txt
-          chat_selection_status=${PIPESTATUS[0]}
 
-          # Run every remaining test in the canonical suite exactly once. The two
-          # isolated Qt modules above remain mandatory and are only excluded here
-          # to avoid executing them twice.
-          uv run --locked --extra dev --extra desktop python -m pytest \
-            --ignore=tests/unit/test_desktop_api_controller.py \
-            --ignore=tests/unit/test_desktop_chat_selection_state.py \
-            2>&1 | tee .quality-evidence/pytest.txt
-          suite_status=${PIPESTATUS[0]}
-          set -e
+      - name: Pytest — desktop direct chat
+        if: always()
+        run: |
+          set -o pipefail
+          mkdir -p .quality-evidence
+          uv run --locked --extra dev --extra desktop python -m pytest tests/unit/test_desktop_direct_chat.py 2>&1 | tee .quality-evidence/pytest-desktop-direct-chat.txt
 
-          if [ "$controller_status" -ne 0 ] || [ "$chat_selection_status" -ne 0 ] || [ "$suite_status" -ne 0 ]; then
-            echo "ATHENA PYTEST: FAIL — controller=$controller_status chat_selection=$chat_selection_status suite=$suite_status" >&2
-            exit 1
-          fi
-          echo "ATHENA PYTEST: PASS — isolated native Qt modules and remaining canonical suite"
+      - name: Pytest — durable scheduler reliability
+        if: always()
+        run: |
+          set -o pipefail
+          mkdir -p .quality-evidence
+          uv run --locked --extra dev --extra desktop python -m pytest tests/integration/test_durable_processing_reliability_audit_integration.py 2>&1 | tee .quality-evidence/pytest-durable-scheduler-reliability.txt
+
+      - name: Upload native Qt diagnostics
+        if: ${{ always() && !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-native-qt-${{ env.CANDIDATE_SHA }}
+          path: .quality-evidence/
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 2
+
+  pytest-shard:
+    name: Pytest shard ${{ matrix.shard }}/6
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5, 6]
+    env:
+      QT_QPA_PLATFORM: offscreen
+      SHARD: ${{ matrix.shard }}
+      SHARD_COUNT: "6"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ env.CANDIDATE_SHA }}
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install pinned resolver
+        run: |
+          python -m pip install --disable-pip-version-check "pip==26.1.2"
+          python -m pip install --disable-pip-version-check "uv==0.11.21"
+
+      - name: Install desktop runtime libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y libegl1
+
+      - name: Validate dependency lock
+        run: uv lock --check
+
+      - name: Select balanced deterministic test files
+        run: |
+          mkdir -p .quality-evidence
+          python - <<'PY' > .quality-evidence/test-files.txt
+          import os
+          from pathlib import Path
+
+          shard = int(os.environ["SHARD"]) - 1
+          shard_count = int(os.environ["SHARD_COUNT"])
+          excluded = {
+              Path("tests/unit/test_desktop_api_controller.py"),
+              Path("tests/unit/test_desktop_chat_selection_state.py"),
+              Path("tests/unit/test_desktop_direct_chat.py"),
+              Path("tests/integration/test_durable_processing_reliability_audit_integration.py"),
+          }
+          files = [
+              path
+              for path in Path("tests").rglob("test_*.py")
+              if path not in excluded
+          ]
+          bins: list[list[Path]] = [[] for _ in range(shard_count)]
+          weights = [0] * shard_count
+          for path in sorted(files, key=lambda item: (-item.stat().st_size, item.as_posix())):
+              target = min(range(shard_count), key=lambda index: (weights[index], index))
+              bins[target].append(path)
+              weights[target] += path.stat().st_size
+
+          selected = sorted(bins[shard], key=lambda item: item.as_posix())
+          if not selected:
+              raise SystemExit(f"no tests selected for shard {shard + 1}/{shard_count}")
+          print("\n".join(path.as_posix() for path in selected))
+          PY
+          echo "Selected $(wc -l < .quality-evidence/test-files.txt) test modules for shard $SHARD/$SHARD_COUNT"
+          cat .quality-evidence/test-files.txt
+
+      - name: Run canonical pytest shard
+        run: |
+          set -o pipefail
+          mapfile -t TEST_FILES < .quality-evidence/test-files.txt
+          uv run --locked --extra dev --extra desktop python -m pytest "${TEST_FILES[@]}" 2>&1 | tee .quality-evidence/pytest-shard-${SHARD}.txt
+
+      - name: Upload pytest shard diagnostics
+        if: ${{ always() && !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-pytest-${{ env.CANDIDATE_SHA }}-shard-${{ matrix.shard }}
+          path: .quality-evidence/
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 2
+
+  quality:
+    name: Python 3.12 quality
+    runs-on: ubuntu-latest
+    needs:
+      - quality-static
+      - pytest-native-qt
+      - pytest-shard
+    if: ${{ always() && !cancelled() }}
+    timeout-minutes: 10
+
+    steps:
+      - name: Download parallel quality diagnostics
+        uses: actions/download-artifact@v4
+        with:
+          pattern: quality-*-${{ env.CANDIDATE_SHA }}*
+          path: .quality-evidence
+          merge-multiple: true
 
       - name: Upload canonical quality diagnostics
-        if: ${{ always() && !cancelled() }}
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: canonical-quality-diagnostics-${{ env.CANDIDATE_SHA }}
           path: .quality-evidence/
           include-hidden-files: true
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 7
 
       - name: Enforce canonical quality result
-        if: ${{ always() && !cancelled() }}
+        if: always()
         env:
-          SPEC_OUTCOME: ${{ steps.quality_spec.outcome }}
-          RUFF_OUTCOME: ${{ steps.quality_ruff.outcome }}
-          MYPY_OUTCOME: ${{ steps.quality_mypy.outcome }}
-          PYTEST_OUTCOME: ${{ steps.quality_pytest.outcome }}
+          STATIC_RESULT: ${{ needs.quality-static.result }}
+          NATIVE_QT_RESULT: ${{ needs.pytest-native-qt.result }}
+          PYTEST_SHARDS_RESULT: ${{ needs.pytest-shard.result }}
         run: |
           python - <<'PY'
           import os
           import sys
 
           outcomes = {
-              "Specification validator": os.environ["SPEC_OUTCOME"],
-              "Ruff": os.environ["RUFF_OUTCOME"],
-              "mypy": os.environ["MYPY_OUTCOME"],
-              "pytest": os.environ["PYTEST_OUTCOME"],
+              "Static quality": os.environ["STATIC_RESULT"],
+              "Process isolation": os.environ["NATIVE_QT_RESULT"],
+              "Pytest shards": os.environ["PYTEST_SHARDS_RESULT"],
           }
           failures = [name for name, outcome in outcomes.items() if outcome != "success"]
           for name, outcome in outcomes.items():
@@ -145,7 +286,7 @@ jobs:
           if failures:
               print("ATHENA QUALITY GATE: FAIL — " + ", ".join(failures), file=sys.stderr)
               sys.exit(1)
-          print("ATHENA QUALITY GATE: PASS")
+          print("ATHENA QUALITY GATE: PASS — full canonical suite completed in parallel")
           PY
 
   storage-regressions:
