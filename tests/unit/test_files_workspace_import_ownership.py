@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Iterator
 import os
 from pathlib import Path
-from collections.abc import Iterator
 
 import pytest
 from PySide6.QtCore import QProcess
