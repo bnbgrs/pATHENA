@@ -44,6 +44,9 @@ def test_canonical_windows_path_safety_keeps_exact_sha_and_storage_regressions()
 
 def test_canonical_quality_keeps_full_pytest_and_enforces_all_core_checks() -> None:
     workflow = _quality_workflow_text()
+
+    assert "    timeout-minutes: 70\n" in workflow
+    assert "        timeout-minutes: 55\n" in workflow
     normalized = " ".join(workflow.replace("\\\n", " ").split())
 
     controller_command = (
