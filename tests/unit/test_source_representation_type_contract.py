@@ -9,7 +9,6 @@ from athena.source.models import BlobRecord, BlobStorageArea, SourceRepresentati
 from athena.source.representation_repository import SourceRepresentationRepository
 from athena.storage.database import SQLiteDatabase
 
-
 _SCHEMA_REPRESENTATION_TYPES = {
     "normalized_text",
     "extracted_text",
