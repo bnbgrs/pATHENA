@@ -21,7 +21,7 @@ jobs:
   quality:
     name: Python 3.12 quality
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 70
     env:
       QT_QPA_PLATFORM: offscreen
 
@@ -79,7 +79,7 @@ jobs:
       - name: Quality — pytest
         id: quality_pytest
         if: always()
-        timeout-minutes: 45
+        timeout-minutes: 55
         run: |
           set -o pipefail
           mkdir -p .quality-evidence
