@@ -15,6 +15,7 @@ def test_check_plan_matches_current_canonical_python_quality_lane() -> None:
     prefix = ("uv", "run", "--locked", "--extra", "dev", "--extra", "desktop")
     controller = "tests/unit/test_desktop_api_controller.py"
     chat_selection = "tests/unit/test_desktop_chat_selection_state.py"
+    direct_chat = "tests/unit/test_desktop_direct_chat.py"
 
     assert [check.name for check in checks] == [
         "Dependency lock",
@@ -23,6 +24,7 @@ def test_check_plan_matches_current_canonical_python_quality_lane() -> None:
         "mypy",
         "pytest — Desktop API controller",
         "pytest — Desktop chat selection state",
+        "pytest — Desktop direct chat",
         "pytest — remaining canonical suite",
     ]
     assert checks[0].command == ("uv", "lock", "--check")
@@ -40,13 +42,15 @@ def test_check_plan_matches_current_canonical_python_quality_lane() -> None:
     assert checks[3].command == (*prefix, "python", "-m", "mypy", "src/athena")
     assert checks[4].command == (*prefix, "python", "-m", "pytest", controller)
     assert checks[5].command == (*prefix, "python", "-m", "pytest", chat_selection)
-    assert checks[6].command == (
+    assert checks[6].command == (*prefix, "python", "-m", "pytest", direct_chat)
+    assert checks[7].command == (
         *prefix,
         "python",
         "-m",
         "pytest",
         f"--ignore={controller}",
         f"--ignore={chat_selection}",
+        f"--ignore={direct_chat}",
     )
 
 
@@ -59,13 +63,14 @@ def test_local_plan_is_semantically_present_in_canonical_quality_workflow() -> N
 
     # The local runner stays serial and directly runnable, while CI is allowed to
     # execute the same canonical coverage as separate static/native-Qt/sharded jobs.
-    for check in checks[:6]:
+    for check in checks[:7]:
         command = " ".join(check.command)
         assert command in normalized_workflow
 
     assert 'Path("tests").rglob("test_*.py")' in workflow
     assert 'Path("tests/unit/test_desktop_api_controller.py")' in workflow
     assert 'Path("tests/unit/test_desktop_chat_selection_state.py")' in workflow
+    assert 'Path("tests/unit/test_desktop_direct_chat.py")' in workflow
     assert 'python -m pytest "${TEST_FILES[@]}"' in workflow
     assert "SHARD_COUNT: \"6\"" in workflow
     assert "QT_QPA_PLATFORM: offscreen" in workflow
@@ -139,7 +144,7 @@ def test_default_mode_stops_at_first_failure(monkeypatch: pytest.MonkeyPatch) ->
 def test_keep_going_runs_all_checks_and_returns_first_failure(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    returncodes = iter([0, 5, 0, 9, 0, 0, 0])
+    returncodes = iter([0, 5, 0, 9, 0, 0, 0, 0])
     calls: list[tuple[str, ...]] = []
 
     def fake_run(
@@ -190,8 +195,13 @@ def test_dry_run_works_from_outside_repository(tmp_path: Path) -> None:
     ) in result.stdout
     assert (
         "uv run --locked --extra dev --extra desktop python -m pytest "
+        "tests/unit/test_desktop_direct_chat.py"
+    ) in result.stdout
+    assert (
+        "uv run --locked --extra dev --extra desktop python -m pytest "
         "--ignore=tests/unit/test_desktop_api_controller.py "
-        "--ignore=tests/unit/test_desktop_chat_selection_state.py"
+        "--ignore=tests/unit/test_desktop_chat_selection_state.py "
+        "--ignore=tests/unit/test_desktop_direct_chat.py"
     ) in result.stdout
 
 
