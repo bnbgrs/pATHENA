@@ -164,13 +164,11 @@ class FilesWorkspace(QWidget):
         )
         if not selected:
             return
-        self.details.clear()
-        set_pathena_ui_state(self.details, "busy")
         self._start(
             "import",
             ["import", selected],
             "Capturing Source and queueing retrieval processing",
-            source_id=self._selected_source_id,
+            source_id=None,
         )
 
     def _selection_changed(
@@ -269,7 +267,10 @@ class FilesWorkspace(QWidget):
         )
 
     def _operation_owns_details(self) -> bool:
-        return self._operation_source_id == self._selected_source_id
+        return (
+            self._operation_source_id is not None
+            and self._operation_source_id == self._selected_source_id
+        )
 
     def _drain_output(self) -> None:
         chunk = bytes(self._process.readAllStandardOutput().data()).decode(
