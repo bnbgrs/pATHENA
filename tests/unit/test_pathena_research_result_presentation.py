@@ -37,13 +37,19 @@ def test_research_result_actions_are_progressively_disclosed() -> None:
         assert panel is not None
         assert "Result & canonical memory" in headings
         assert extension.result_button.text() == "View result"
+        assert extension.compare_button.text() == "Compare previous"
         assert extension.propose_button.text() == "Create proposals"
         assert extension.refresh_proposals_button.text() == "Review proposals"
         assert extension.accept_button.property("role") == "primary"
 
         assert extension.result_button.isHidden()
+        assert extension.compare_button.isHidden()
         assert extension.accept_button.isHidden()
         assert extension.reject_button.isHidden()
+
+        extension.compare_button.setEnabled(True)
+        _sync(extension)
+        assert extension.compare_button.isHidden() is False
 
         extension.proposal_list.addItem(
             "01  KNOWLEDGE      PENDING     A durable evidence-backed proposal"

@@ -184,3 +184,290 @@ def render_research_result_review(review: ResearchResultReview) -> str:
         identity += f" · Snapshot commit {review.snapshot_commit_seq}"
     lines.extend(("", identity, f"State · {review.scope_state}"))
     return "\n".join(lines)
+
+@dataclass(frozen=True)
+class ResearchDeltaReview:
+    available: bool
+    reason: str
+    query: str
+    baseline_result_id: str
+    current_result_id: str
+    baseline_snapshot_commit_seq: int | None
+    current_snapshot_commit_seq: int | None
+    baseline_model_signature_id: str
+    current_model_signature_id: str
+    baseline_coverage_ratio: float | None
+    current_coverage_ratio: float | None
+    baseline_summary: str
+    current_summary: str
+    baseline_uncertainty: str
+    current_uncertainty: str
+    summary_changed: bool
+    uncertainty_changed: bool
+    model_signature_changed: bool
+    added_findings: tuple[str, ...]
+    removed_findings: tuple[str, ...]
+    added_contradictions: tuple[str, ...]
+    removed_contradictions: tuple[str, ...]
+    added_source_ids: tuple[str, ...]
+    removed_source_ids: tuple[str, ...]
+
+
+def _optional_text(value: object, label: str) -> str:
+    if value is None:
+        return ""
+    if not isinstance(value, str):
+        raise ResearchReviewError(f"Research comparison {label} is invalid.")
+    return value
+
+
+def _bool(value: object, label: str) -> bool:
+    if not isinstance(value, bool):
+        raise ResearchReviewError(f"Research comparison {label} is invalid.")
+    return value
+
+
+def _text_tuple(value: object, label: str) -> tuple[str, ...]:
+    if not isinstance(value, list) or any(not isinstance(item, str) for item in value):
+        raise ResearchReviewError(f"Research comparison {label} is invalid.")
+    return tuple(value)
+
+
+def parse_research_delta_review(output: str) -> ResearchDeltaReview:
+    """Parse exact JSON emitted by the Research compare command."""
+    try:
+        payload = json.loads(output)
+    except json.JSONDecodeError as exc:
+        raise ResearchReviewError("Research comparison output is not valid JSON.") from exc
+    root = _object(payload, "comparison payload")
+    available = root.get("available")
+    if not isinstance(available, bool):
+        raise ResearchReviewError("Research comparison availability is invalid.")
+    if not available:
+        reason = _text(root.get("reason"), "comparison reason")
+        return ResearchDeltaReview(
+            available=False,
+            reason=reason,
+            query="",
+            baseline_result_id="",
+            current_result_id="",
+            baseline_snapshot_commit_seq=None,
+            current_snapshot_commit_seq=None,
+            baseline_model_signature_id="",
+            current_model_signature_id="",
+            baseline_coverage_ratio=None,
+            current_coverage_ratio=None,
+            baseline_summary="",
+            current_summary="",
+            baseline_uncertainty="",
+            current_uncertainty="",
+            summary_changed=False,
+            uncertainty_changed=False,
+            model_signature_changed=False,
+            added_findings=(),
+            removed_findings=(),
+            added_contradictions=(),
+            removed_contradictions=(),
+            added_source_ids=(),
+            removed_source_ids=(),
+        )
+
+    if root.get("comparison_mode") != "exact_persisted_text_and_provenance":
+        raise ResearchReviewError("Research comparison mode is unsupported.")
+    baseline = _object(root.get("baseline"), "comparison baseline")
+    current = _object(root.get("current"), "comparison current")
+    changes = _object(root.get("changes"), "comparison changes")
+    return ResearchDeltaReview(
+        available=True,
+        reason="",
+        query=_text(root.get("query"), "comparison query"),
+        baseline_result_id=_text(
+            baseline.get("result_id"),
+            "comparison baseline result_id",
+        ),
+        current_result_id=_text(
+            current.get("result_id"),
+            "comparison current result_id",
+        ),
+        baseline_snapshot_commit_seq=_optional_int(
+            baseline.get("snapshot_commit_seq"),
+            "comparison baseline snapshot commit",
+        ),
+        current_snapshot_commit_seq=_optional_int(
+            current.get("snapshot_commit_seq"),
+            "comparison current snapshot commit",
+        ),
+        baseline_model_signature_id=_optional_text(
+            baseline.get("model_signature_id"),
+            "baseline model signature",
+        ),
+        current_model_signature_id=_optional_text(
+            current.get("model_signature_id"),
+            "current model signature",
+        ),
+        baseline_coverage_ratio=_optional_ratio(baseline.get("coverage_ratio")),
+        current_coverage_ratio=_optional_ratio(current.get("coverage_ratio")),
+        baseline_summary=_text(
+            baseline.get("summary"),
+            "comparison baseline summary",
+        ),
+        current_summary=_text(
+            current.get("summary"),
+            "comparison current summary",
+        ),
+        baseline_uncertainty=_optional_text(
+            baseline.get("uncertainty"),
+            "baseline uncertainty",
+        ),
+        current_uncertainty=_optional_text(
+            current.get("uncertainty"),
+            "current uncertainty",
+        ),
+        summary_changed=_bool(changes.get("summary_changed"), "summary changed flag"),
+        uncertainty_changed=_bool(
+            changes.get("uncertainty_changed"),
+            "uncertainty changed flag",
+        ),
+        model_signature_changed=_bool(
+            changes.get("model_signature_changed"),
+            "model signature changed flag",
+        ),
+        added_findings=_text_tuple(changes.get("added_findings"), "added findings"),
+        removed_findings=_text_tuple(
+            changes.get("removed_findings"),
+            "removed findings",
+        ),
+        added_contradictions=_text_tuple(
+            changes.get("added_contradictions"),
+            "added contradictions",
+        ),
+        removed_contradictions=_text_tuple(
+            changes.get("removed_contradictions"),
+            "removed contradictions",
+        ),
+        added_source_ids=_text_tuple(
+            changes.get("added_source_ids"),
+            "added source IDs",
+        ),
+        removed_source_ids=_text_tuple(
+            changes.get("removed_source_ids"),
+            "removed source IDs",
+        ),
+    )
+
+
+def _delta_section(
+    title: str,
+    *,
+    added: tuple[str, ...],
+    removed: tuple[str, ...],
+    empty: str,
+) -> list[str]:
+    lines = ["", title]
+    if not added and not removed:
+        lines.append(empty)
+        return lines
+    lines.extend(f"+ {item}" for item in added)
+    lines.extend(f"- {item}" for item in removed)
+    return lines
+
+
+def render_research_delta_review(review: ResearchDeltaReview) -> str:
+    """Render an exact persisted result delta without semantic inference."""
+    if not review.available:
+        return f"RESEARCH CHANGES\n\n{review.reason}"
+
+    baseline = f"Result {_short_id(review.baseline_result_id)}"
+    current = f"Result {_short_id(review.current_result_id)}"
+    if review.baseline_snapshot_commit_seq is not None:
+        baseline += f" · Snapshot commit {review.baseline_snapshot_commit_seq}"
+    if review.current_snapshot_commit_seq is not None:
+        current += f" · Snapshot commit {review.current_snapshot_commit_seq}"
+
+    lines = [
+        "RESEARCH CHANGES",
+        review.query,
+        "",
+        "BASELINE → CURRENT",
+        baseline,
+        current,
+    ]
+    if (
+        review.baseline_coverage_ratio is not None
+        and review.current_coverage_ratio is not None
+    ):
+        before = review.baseline_coverage_ratio * 100
+        after = review.current_coverage_ratio * 100
+        delta = after - before
+        lines.extend(
+            (
+                "",
+                "COVERAGE",
+                f"{before:.1f}% → {after:.1f}% ({delta:+.1f} percentage points)",
+            )
+        )
+
+    lines.extend(
+        _delta_section(
+            "FINDINGS",
+            added=review.added_findings,
+            removed=review.removed_findings,
+            empty="No exact finding text changes.",
+        )
+    )
+    lines.extend(
+        _delta_section(
+            "CONTRADICTIONS",
+            added=review.added_contradictions,
+            removed=review.removed_contradictions,
+            empty="No exact contradiction text changes.",
+        )
+    )
+    lines.extend(
+        _delta_section(
+            "EVIDENCE SOURCES",
+            added=tuple(_short_id(item) for item in review.added_source_ids),
+            removed=tuple(_short_id(item) for item in review.removed_source_ids),
+            empty="No source identities changed in persisted finding-level provenance.",
+        )
+    )
+
+    if review.summary_changed:
+        lines.extend(
+            (
+                "",
+                "SUMMARY CHANGED",
+                "Before · " + review.baseline_summary,
+                "Now · " + review.current_summary,
+            )
+        )
+    else:
+        lines.extend(("", "SUMMARY", "No exact summary text change."))
+
+    if review.uncertainty_changed:
+        lines.extend(
+            (
+                "",
+                "UNCERTAINTY CHANGED",
+                "Before · " + (review.baseline_uncertainty or "None recorded"),
+                "Now · " + (review.current_uncertainty or "None recorded"),
+            )
+        )
+    else:
+        lines.extend(("", "UNCERTAINTY", "No exact uncertainty text change."))
+
+    lines.extend(
+        (
+            "",
+            "COMPARISON METHOD",
+            "Exact persisted text and provenance only. Reworded text is reported "
+            "as removed plus added; no model decides semantic equivalence.",
+        )
+    )
+    if review.model_signature_changed:
+        lines.append(
+            "Model signature changed between runs; wording changes may reflect "
+            "that model/configuration change."
+        )
+    return "\n".join(lines)
+

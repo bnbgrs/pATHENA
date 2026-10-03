@@ -21,3 +21,14 @@ def test_application_attaches_normal_hybrid_search_to_core_api(tmp_path: Path) -
     )
 
     assert app.api._normal_search is app.hybrid_retrieval
+
+def test_application_wires_research_comparison_to_persisted_result_view(
+    tmp_path: Path,
+) -> None:
+    app = AthenaApplication(
+        settings=AthenaSettings(local_root=tmp_path.absolute()),
+    )
+
+    assert app.research_comparison.database is app.database
+    assert app.research_comparison.result_view.__self__ is app.research_promotion
+

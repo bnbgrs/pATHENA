@@ -69,6 +69,7 @@ from athena.news.service import NewsService
 from athena.observability.health import HealthService
 from athena.observability.jsonl import close_jsonl_logging, configure_jsonl_logging
 from athena.observability.logging import configure_logging
+from athena.research.comparison import ResearchComparisonService
 from athena.research.promotion import ResearchPromotionService
 from athena.research.repository import ResearchRepository
 from athena.research.service import ResearchService
@@ -487,6 +488,10 @@ class AthenaApplication:
             research=self.research_repository,
             source_analyses=self.source_analysis_repository,
             anchors=self.source_anchors,
+        )
+        self.research_comparison = ResearchComparisonService(
+            database=self.database,
+            result_view=self.research_promotion.result_view,
         )
         self.research_synthesis = ResearchSynthesisService(
             repository=self.research_repository,
