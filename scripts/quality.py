@@ -2,7 +2,7 @@
 
 The command plan mirrors the primary Python quality job in GitHub Actions:
 validate the dependency lock, then run the specification validator, Ruff,
-mypy, the isolated Desktop API controller, chat-selection, and direct-chat regressions, and
+mypy, the isolated Desktop API controller, chat-selection, direct-chat, and durable scheduler regressions, and
 the remaining pytest suite through the locked project environment with development and
 desktop extras enabled.
 """
@@ -23,6 +23,9 @@ UV_RUN_PREFIX = ("uv", "run", "--locked", "--extra", "dev", "--extra", "desktop"
 _DESKTOP_API_CONTROLLER_TEST = "tests/unit/test_desktop_api_controller.py"
 _DESKTOP_CHAT_SELECTION_TEST = "tests/unit/test_desktop_chat_selection_state.py"
 _DESKTOP_DIRECT_CHAT_TEST = "tests/unit/test_desktop_direct_chat.py"
+_DURABLE_SCHEDULER_RELIABILITY_TEST = (
+    "tests/integration/test_durable_processing_reliability_audit_integration.py"
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -87,6 +90,16 @@ def build_checks() -> tuple[Check, ...]:
             ),
         ),
         Check(
+            name="pytest — durable scheduler reliability",
+            command=(
+                *UV_RUN_PREFIX,
+                "python",
+                "-m",
+                "pytest",
+                _DURABLE_SCHEDULER_RELIABILITY_TEST,
+            ),
+        ),
+        Check(
             name="pytest — remaining canonical suite",
             command=(
                 *UV_RUN_PREFIX,
@@ -96,6 +109,7 @@ def build_checks() -> tuple[Check, ...]:
                 f"--ignore={_DESKTOP_API_CONTROLLER_TEST}",
                 f"--ignore={_DESKTOP_CHAT_SELECTION_TEST}",
                 f"--ignore={_DESKTOP_DIRECT_CHAT_TEST}",
+                f"--ignore={_DURABLE_SCHEDULER_RELIABILITY_TEST}",
             ),
         ),
     )
