@@ -304,7 +304,7 @@ class AthenaMainWindow(QMainWindow):
         self.status_text = QLabel("LOCAL / CORE DISCONNECTED")
         self.prompt_input = PromptInput()
         self.ground_button = QPushButton("GROUND")
-        self.send_button = QPushButton("CTRL+ENTER")
+        self.send_button = QPushButton("→")
         self.chat_selector = QComboBox()
         self.model_selector = QComboBox()
         self.settings_model_selector = QComboBox()
@@ -1422,8 +1422,9 @@ class AthenaMainWindow(QMainWindow):
         )
 
         self.send_button.setObjectName("sendButton")
-        self.send_button.setText("SEND")
-        self.send_button.setToolTip("Send message ? Ctrl+Enter")
+        self.send_button.setText("→")
+        self.send_button.setAccessibleName("Send message")
+        self.send_button.setToolTip("Send message · Ctrl+Enter")
         self.send_button.setDisabled(True)
         self.send_button.clicked.connect(self._submit_prompt)
 
