@@ -1500,3 +1500,28 @@ def _apply_v4_token_bridge(stylesheet: str) -> str:
 
 PATHENA_V3_STYLESHEET = _apply_v4_token_bridge(PATHENA_V3_STYLESHEET)
 
+# V4 structural cleanup: high-information workspaces use document/list structure
+# rather than stacking bordered dashboard cards.
+PATHENA_V3_STYLESHEET += f"""
+QFrame#v3ResearchBrief,
+QFrame#v3KnowledgeBrowser {{
+    background: transparent;
+    border: none;
+    border-top: 1px solid {PALETTE.border};
+    border-bottom: 1px solid {PALETTE.border};
+    border-radius: 0;
+}}
+
+QFrame#helpCapabilityRow {{
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid {PALETTE.border};
+    border-radius: 0;
+}}
+
+QFrame#helpCapabilityRow:hover {{
+    background: {PALETTE.surface_hover};
+    border-bottom-color: {PALETTE.border_strong};
+}}
+"""
+
