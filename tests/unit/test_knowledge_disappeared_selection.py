@@ -104,6 +104,33 @@ def test_vanished_decision_identity_does_not_select_replacement(
     controller.deleteLater()
 
 
+def test_vanished_selection_stays_unselected_on_later_refresh(
+    qt_app: QApplication,
+) -> None:
+    workspace, controller = _workspace()
+    missing = "99999999-9999-9999-9999-999999999999"
+    first_replacement = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+    later_replacement = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
+    workspace._selected_knowledge_id = missing
+
+    workspace._render_knowledge_list(
+        parse_knowledge_list(
+            f"{first_replacement}\t1\tfact\tactive\tcurrent\tFirst replacement"
+        )
+    )
+    workspace._render_knowledge_list(
+        parse_knowledge_list(
+            f"{later_replacement}\t2\tfact\tactive\tcurrent\tLater replacement"
+        )
+    )
+
+    assert workspace.knowledge_list.currentRow() == -1
+    assert workspace._selected_knowledge_id is None
+    assert workspace.knowledge_list.property("pathenaSelectionDisappeared") == missing
+    assert "99999999" in workspace.knowledge_details.toPlainText()
+    controller.deleteLater()
+
+
 def test_initial_knowledge_load_still_selects_first_row(qt_app: QApplication) -> None:
     workspace, controller = _workspace()
     workspace._render_knowledge_list(
