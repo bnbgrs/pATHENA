@@ -12,7 +12,9 @@ permissions:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  # Newer candidate/develop heads supersede older CI work. PR heads are already
+  # exact-SHA qualified, and the final combined Develop head remains mandatory.
+  cancel-in-progress: true
 
 env:
   CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
