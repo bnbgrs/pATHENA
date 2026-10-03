@@ -2,24 +2,24 @@
 
 from __future__ import annotations
 
-from athena.desktop.pathena_design_tokens import PALETTE, TYPE
+from athena.desktop.pathena_design_tokens import PALETTE, SHELL, TYPE
 
-V3_BG = "#090B0E"
-V3_CANVAS = "#101318"
-V3_SURFACE = "#14181D"
-V3_SURFACE_RAISED = "#1A2026"
-V3_SURFACE_HOVER = "#222930"
-V3_BORDER = "#29313A"
-V3_BORDER_STRONG = "#3B4652"
-V3_TEXT = "#F1F3F5"
-V3_TEXT_MUTED = "#A5ACB4"
-V3_TEXT_DIM = "#77818B"
-V3_ACCENT = "#78D1C5"
-V3_ACCENT_SOFT = "#13292B"
-V3_MINT = "#68B8C6"
-V3_WARNING = "#E7B96F"
-V3_DANGER = "#F17878"
-V3_COMPOSER_ACTION_SIZE = 44
+V3_BG = PALETTE.canvas
+V3_CANVAS = PALETTE.surface
+V3_SURFACE = PALETTE.surface_raised
+V3_SURFACE_RAISED = PALETTE.surface_hover
+V3_SURFACE_HOVER = PALETTE.surface_hover
+V3_BORDER = PALETTE.border
+V3_BORDER_STRONG = PALETTE.border_strong
+V3_TEXT = PALETTE.text
+V3_TEXT_MUTED = PALETTE.text_muted
+V3_TEXT_DIM = PALETTE.text_quiet
+V3_ACCENT = PALETTE.accent
+V3_ACCENT_SOFT = PALETTE.accent_soft
+V3_MINT = PALETTE.info
+V3_WARNING = PALETTE.warning
+V3_DANGER = PALETTE.error
+V3_COMPOSER_ACTION_SIZE = SHELL.composer_action_size
 
 PATHENA_V3_STYLESHEET = """
 QMainWindow#athenaMainWindow {
