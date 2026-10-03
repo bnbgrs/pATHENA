@@ -123,6 +123,13 @@ jobs:
           mkdir -p .quality-evidence
           uv run --locked --extra dev --extra desktop python -m pytest tests/unit/test_desktop_chat_selection_state.py 2>&1 | tee .quality-evidence/pytest-desktop-chat-selection-state.txt
 
+      - name: Pytest — desktop direct chat
+        if: always()
+        run: |
+          set -o pipefail
+          mkdir -p .quality-evidence
+          uv run --locked --extra dev --extra desktop python -m pytest tests/unit/test_desktop_direct_chat.py 2>&1 | tee .quality-evidence/pytest-desktop-direct-chat.txt
+
       - name: Upload native Qt diagnostics
         if: ${{ always() && !cancelled() }}
         uses: actions/upload-artifact@v4
@@ -183,6 +190,7 @@ jobs:
           excluded = {
               Path("tests/unit/test_desktop_api_controller.py"),
               Path("tests/unit/test_desktop_chat_selection_state.py"),
+              Path("tests/unit/test_desktop_direct_chat.py"),
           }
           files = [
               path
