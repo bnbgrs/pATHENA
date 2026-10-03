@@ -8,8 +8,11 @@ from typing import Any
 import pytest
 
 import athena.storage.database as database_module
+import athena.storage.recovery as recovery_module
 from athena.storage.database import SQLiteDatabase
 from athena.storage.recovery import (
+    DatabaseFileIdentity,
+    DatabaseFileSetIdentity,
     DatabasePreflightReport,
     DatabaseStartupIdentityChangedError,
     assert_database_file_set_identity,
@@ -64,6 +67,82 @@ def test_file_set_identity_detects_each_member_replacement(tmp_path: Path) -> No
 
         with pytest.raises(DatabaseStartupIdentityChangedError, match="identity changed"):
             assert_database_file_set_identity(database_path, expected)
+
+
+def test_read_only_preflight_accepts_revalidated_complete_sidecar_publication(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    database_path = tmp_path / "athena.db"
+    primary = DatabaseFileIdentity(exists=True, device=1, inode=10)
+    missing = DatabaseFileIdentity(exists=False, device=None, inode=None)
+    observed = DatabaseFileSetIdentity(
+        database=primary,
+        wal=missing,
+        shm=missing,
+    )
+    published = DatabaseFileSetIdentity(
+        database=primary,
+        wal=DatabaseFileIdentity(exists=True, device=1, inode=11),
+        shm=DatabaseFileIdentity(exists=True, device=1, inode=12),
+    )
+    captures = iter((published, published))
+
+    monkeypatch.setattr(
+        recovery_module,
+        "capture_database_file_set_identity",
+        lambda _path: next(captures),
+    )
+    monkeypatch.setattr(
+        recovery_module,
+        "_read_existing_database_snapshot",
+        lambda _path: (0x4154484E, 1, published),
+    )
+
+    stabilized = recovery_module._stabilize_read_only_file_set(
+        database_path,
+        application_id=0x4154484E,
+        schema_version=1,
+        observed=observed,
+    )
+
+    assert stabilized == published
+
+
+def test_read_only_preflight_rejects_partial_sidecar_publication(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    database_path = tmp_path / "athena.db"
+    primary = DatabaseFileIdentity(exists=True, device=1, inode=10)
+    missing = DatabaseFileIdentity(exists=False, device=None, inode=None)
+    observed = DatabaseFileSetIdentity(
+        database=primary,
+        wal=missing,
+        shm=missing,
+    )
+    partial = DatabaseFileSetIdentity(
+        database=primary,
+        wal=DatabaseFileIdentity(exists=True, device=1, inode=11),
+        shm=missing,
+    )
+
+    monkeypatch.setattr(
+        recovery_module,
+        "capture_database_file_set_identity",
+        lambda _path: partial,
+    )
+
+    with pytest.raises(
+        DatabaseStartupIdentityChangedError,
+        match="sidecars changed partially",
+    ):
+        recovery_module._stabilize_read_only_file_set(
+            database_path,
+            application_id=0x4154484E,
+            schema_version=1,
+            observed=observed,
+        )
 
 
 def test_bound_preflight_rejects_primary_substitution_during_writer_open(
