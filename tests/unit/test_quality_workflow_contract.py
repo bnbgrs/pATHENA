@@ -72,6 +72,10 @@ def test_canonical_quality_keeps_full_pytest_and_enforces_all_core_checks() -> N
         "uv run --locked --extra dev --extra desktop python -m pytest "
         "tests/unit/test_desktop_chat_selection_state.py" in normalized
     )
+    assert (
+        "uv run --locked --extra dev --extra desktop python -m pytest "
+        "tests/unit/test_desktop_direct_chat.py" in normalized
+    )
 
     assert "  pytest-shard:\n" in workflow
     assert "    name: Pytest shard ${{ matrix.shard }}/6\n" in workflow
@@ -80,6 +84,7 @@ def test_canonical_quality_keeps_full_pytest_and_enforces_all_core_checks() -> N
     assert 'Path("tests").rglob("test_*.py")' in workflow
     assert 'Path("tests/unit/test_desktop_api_controller.py")' in workflow
     assert 'Path("tests/unit/test_desktop_chat_selection_state.py")' in workflow
+    assert 'Path("tests/unit/test_desktop_direct_chat.py")' in workflow
     assert 'python -m pytest "${TEST_FILES[@]}"' in workflow
 
     assert "  quality:\n" in workflow
