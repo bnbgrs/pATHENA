@@ -186,6 +186,24 @@ def test_tray_reflects_only_explicit_runtime_snapshot_states() -> None:
     controller.shutdown()
 
 
+def test_install_tray_keeps_close_to_tray_enabled_by_default(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "athena.desktop.pathena_system_tray._system_tray_available",
+        lambda: True,
+    )
+    monkeypatch.delenv("PATHENA_CLOSE_TO_TRAY", raising=False)
+    app = _app()
+    window = _TrayWindow()
+    controller = install_system_tray(window, app=app)
+
+    assert controller.close_to_tray_enabled is True
+    assert window.property("pathenaCloseToTrayEnabled") is True
+
+    controller.shutdown()
+
+
 def test_install_tray_honors_explicit_close_to_tray_opt_out(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
