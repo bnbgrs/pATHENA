@@ -127,6 +127,31 @@ def _advance_pallas_living_capture(
         tick()
 
 
+def _knowledge_capture_ready(
+    *,
+    detail_id: str,
+    expected_id: str,
+    detail_state: str,
+    detail_text: str,
+) -> tuple[bool, str]:
+    """Reject transient/raw Knowledge detail state from canonical visual evidence."""
+    if detail_id != expected_id:
+        return False, "preferred Knowledge identity is not selected"
+    if detail_state != "ready":
+        return False, "Knowledge detail is not marked ready"
+    normalized = detail_text.strip()
+    if not normalized:
+        return False, "Knowledge detail is empty"
+    expected_title = _REFERENCE_KNOWLEDGE_DRAFTS[0][1]
+    if expected_title not in normalized:
+        return False, "canonical Knowledge title has not rendered"
+    if "Source & history" not in normalized:
+        return False, "Knowledge presentation has not finished"
+    if normalized.startswith("KNOWLEDGE ") or "\nLIFECYCLE " in normalized:
+        return False, "raw helper output is still visible"
+    return True, "stable presented Knowledge detail"
+
+
 def _settings_capture_ready(
     *,
     shell_status: str,
@@ -390,23 +415,27 @@ def main(argv: Sequence[str] | None = None) -> int:
             detail_state = str(
                 knowledge_details.property("pathenaKnowledgeReviewState") or ""
             )
-            if (
-                stabilized
-                and detail_id == preferred_id
-                and detail_state == "ready"
-                and knowledge_details.toPlainText().strip()
-            ):
+            detail_text = knowledge_details.toPlainText()
+            ready, reason = _knowledge_capture_ready(
+                detail_id=detail_id,
+                expected_id=preferred_id,
+                detail_state=detail_state,
+                detail_text=detail_text,
+            )
+            if stabilized and ready:
                 return {
                     "fixture": "isolated repository-backed canonical Knowledge",
                     "knowledge_count": knowledge_list.count(),
                     "selected_knowledge_state": detail_state,
+                    "selected_knowledge_presentation": "stable",
                 }
             time.sleep(0.05)
 
         raise RuntimeError(
             "Repository-backed Knowledge did not become capture-ready: "
             f"expected={len(expected_ids)}, observed={len(observed_ids)}, "
-            f"detail_state={detail_state!r}, detail_id={detail_id!r}."
+            f"detail_state={detail_state!r}, detail_id={detail_id!r}, "
+            f"presentation={reason!r}."
         )
 
     def wait_for_settings_runtime(window: QMainWindow) -> dict[str, object]:
