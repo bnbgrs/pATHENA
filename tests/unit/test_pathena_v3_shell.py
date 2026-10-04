@@ -50,7 +50,9 @@ def test_v3_shell_is_structurally_distinct_and_keeps_route_contract() -> None:
     assert rail.minimumWidth() == rail.maximumWidth()
 
     nav_buttons = shell.findChildren(QToolButton, "v3NavButton")
-    assert all(button.width() <= rail.width() - 14 for button in nav_buttons)
+    assert all(button.width() <= rail.width() - 8 for button in nav_buttons)
+    knowledge_button = next(button for button in nav_buttons if button.text() == "Knowledge")
+    assert knowledge_button.fontMetrics().horizontalAdvance("Knowledge") <= knowledge_button.width()
     assert [button.text() for button in nav_buttons[:5]] == [
         "Chat",
         "Knowledge",
@@ -225,6 +227,14 @@ def test_v3_shell_keeps_core_chat_controls_visible_at_minimum_desktop_size() -> 
         assert controller._command_button.maximumWidth() == 70
         assert all(button.width() <= rail.width() - 8 for button in controller._nav_buttons.values())
         assert controller._pallas_button.width() <= rail.width() - 8
+        assert all(
+            button.toolButtonStyle() == Qt.ToolButtonStyle.ToolButtonTextUnderIcon
+            for button in (*controller._nav_buttons.values(), controller._pallas_button)
+        )
+        assert all(
+            button.toolButtonStyle() == Qt.ToolButtonStyle.ToolButtonIconOnly
+            for button in (*controller._nav_buttons.values(), controller._pallas_button)
+        )
         assert all(
             label.isHidden()
             for label in window.findChildren(QLabel, "v3MetaLabel")

@@ -144,7 +144,7 @@ class PathenaV3ShellController(QObject):
         self._rail = rail
 
         layout = QVBoxLayout(rail)
-        layout.setContentsMargins(7, 16, 7, 14)
+        layout.setContentsMargins(4, 16, 4, 14)
         layout.setSpacing(3)
 
         mark = QLabel("P")

@@ -97,8 +97,8 @@ class V3NavigationButton(QToolButton):
         self.setIcon(self._icons[False])
         self.setIconSize(QSize(22, 22))
         self.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextUnderIcon)
-        self._regular_size = QSize(SHELL.icon_rail_width - 14, 56)
-        self._compact_size = QSize(max(44, SHELL.icon_rail_width - 14), 52)
+        self._regular_size = QSize(SHELL.icon_rail_width - 8, 56)
+        self._compact_size = QSize(max(44, SHELL.icon_rail_width - 20), 52)
         self.setFixedSize(self._regular_size)
         self.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         self.setToolTip(label)
@@ -116,6 +116,11 @@ class V3NavigationButton(QToolButton):
         self.update()
 
     def set_compact(self, compact: bool) -> None:
+        self.setToolButtonStyle(
+            Qt.ToolButtonStyle.ToolButtonIconOnly
+            if compact
+            else Qt.ToolButtonStyle.ToolButtonTextUnderIcon
+        )
         self.setFixedSize(self._compact_size if compact else self._regular_size)
 
 
