@@ -13,6 +13,12 @@ from athena.news.schema import (
 from athena.storage.archive_replication_migration import (
     migrate_schema_v30_to_v31_restart_safe as _migrate_schema_v30_to_v31,
 )
+from athena.storage.job_dependency_graph_schema import (
+    migrate_schema_v41_to_v42 as _migrate_schema_v41_to_v42,
+)
+from athena.storage.job_dependency_graph_schema import (
+    verify_schema_v42 as _verify_schema_v42,
+)
 from athena.storage.schema_contract import (
     ARCHIVE_REPLICATION_MIGRATION_ID as ARCHIVE_REPLICATION_MIGRATION_ID,
 )
@@ -72,6 +78,12 @@ from athena.storage.schema_contract import (
 )
 from athena.storage.schema_contract import (
     HIERARCHICAL_SOURCE_EXTRACTION_SCHEMA_VERSION as HIERARCHICAL_SOURCE_EXTRACTION_SCHEMA_VERSION,
+)
+from athena.storage.schema_contract import (
+    JOB_DEPENDENCY_GRAPH_MIGRATION_ID as JOB_DEPENDENCY_GRAPH_MIGRATION_ID,
+)
+from athena.storage.schema_contract import (
+    JOB_DEPENDENCY_GRAPH_SCHEMA_VERSION as JOB_DEPENDENCY_GRAPH_SCHEMA_VERSION,
 )
 from athena.storage.schema_contract import (
     KNOWLEDGE_CORE_MIGRATION_ID as KNOWLEDGE_CORE_MIGRATION_ID,
@@ -774,8 +786,13 @@ def initialize_schema(connection: sqlite3.Connection, *, created_at_us: int) -> 
         _migrate_schema_v40_to_v41(connection)
         existing_user_version = STRUCTURED_REPLICATION_SCHEMA_VERSION
 
+    if existing_user_version == STRUCTURED_REPLICATION_SCHEMA_VERSION:
+        _verify_schema_v41(connection)
+        _migrate_schema_v41_to_v42(connection)
+        existing_user_version = JOB_DEPENDENCY_GRAPH_SCHEMA_VERSION
+
     _configure_connection(connection)
-    _verify_schema_v41(connection)
+    _verify_schema_v42(connection)
 
 
 
