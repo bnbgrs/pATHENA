@@ -18,6 +18,8 @@ on:
       - "scripts/windows_packaging_safety.ps1"
       - "src/athena/desktop/packaged_app.py"
       - "src/athena/desktop/packaged_worker.py"
+      - "src/athena/desktop/pathena_system_tray.py"
+      - "tests/unit/test_pathena_system_tray.py"
       - "src/athena/packaging_smoke.py"
       - "tests/unit/test_packaging_smoke.py"
       - "tests/unit/test_windows_packaging_contract.py"
@@ -377,6 +379,9 @@ jobs:
           $env:ATHENA_LOCAL_ROOT = $runtime
           $env:QT_QUICK_BACKEND = "software"
           $env:QT_OPENGL = "software"
+          # Interactive pATHENA defaults to close-to-tray. This smoke needs a real
+          # Qt quit so aboutToQuit drains Core and scheduler ownership cleanly.
+          $env:PATHENA_CLOSE_TO_TRAY = "0"
           $desktop = $null
           $graceful = $false
           try {
