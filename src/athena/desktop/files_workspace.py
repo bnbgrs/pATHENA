@@ -10,8 +10,6 @@ import re
 import sys
 from pathlib import Path
 
-import shiboken6
-
 from PySide6.QtCore import QProcess, Qt, QTimer
 from PySide6.QtGui import QTextCursor
 from PySide6.QtWidgets import (
@@ -26,6 +24,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+import shiboken6
 
 from athena.desktop.pathena_ui_refinement_600 import set_pathena_ui_state
 
