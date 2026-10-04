@@ -36,9 +36,9 @@ def test_v3_shell_is_structurally_distinct_and_keeps_route_contract() -> None:
     assert "#7C9CFF" not in PATHENA_V3_STYLESHEET
     assert (
         'QToolButton[v3Nav="true"]:focus {\n'
-        "    color: #D7DBDF;\n"
-        "    background: #14181D;\n"
-        "    border-color: #3B4652;"
+        "    color: #F4F1E8;\n"
+        "    background: #1D1F1A;\n"
+        "    border-color: #45483D;"
         in PATHENA_V3_STYLESHEET
     )
     assert "QFrame#v3ChatMeta {\n    background: transparent;" in PATHENA_V3_STYLESHEET
