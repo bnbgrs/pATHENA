@@ -10,6 +10,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 pytest.importorskip("PySide6")
 
+from PySide6.QtCore import QProcess
 from PySide6.QtWidgets import QApplication
 
 from athena.desktop.system_hardware_acceptance import (
@@ -49,9 +50,28 @@ def test_hardware_acceptance_projection_preserves_pass_evidence() -> None:
     presentation = project_hardware_acceptance_payload(
         {
             "overall_ready": True,
+            "gpu_ready": True,
+            "model_ready": True,
+            "inference_ready": True,
             "detected_gpus": ["AMD Radeon RX 7900 XTX"],
             "selected_model_id": "local-model",
-            "checks": [],
+            "checks": [
+                {
+                    "name": "target-gpu",
+                    "status": "PASS",
+                    "detail": "GPU matched",
+                },
+                {
+                    "name": "lm-studio-model",
+                    "status": "PASS",
+                    "detail": "model loaded",
+                },
+                {
+                    "name": "live-inference",
+                    "status": "PASS",
+                    "detail": "marker returned",
+                },
+            ],
         }
     )
 
@@ -66,6 +86,9 @@ def test_hardware_acceptance_projection_surfaces_first_real_failure() -> None:
     presentation = project_hardware_acceptance_payload(
         {
             "overall_ready": False,
+            "gpu_ready": False,
+            "model_ready": False,
+            "inference_ready": False,
             "detected_gpus": ["Microsoft Basic Display Adapter"],
             "selected_model_id": None,
             "checks": [
@@ -88,6 +111,225 @@ def test_hardware_acceptance_projection_surfaces_first_real_failure() -> None:
     assert presentation.detail.startswith("expected AMD Radeon RX 7900 XTX")
 
 
+@pytest.mark.parametrize(
+    ("payload", "message"),
+    (
+        (
+            {
+                "overall_ready": True,
+                "gpu_ready": False,
+                "model_ready": True,
+                "inference_ready": True,
+                "detected_gpus": ["AMD Radeon RX 7900 XTX"],
+                "selected_model_id": "local-model",
+                "checks": [
+                    {
+                    "name": "target-gpu",
+                    "status": "PASS",
+                    "detail": "GPU matched",
+                },
+                ],
+            },
+            "PASS contradicts readiness fields",
+        ),
+        (
+            {
+                "overall_ready": True,
+                "gpu_ready": True,
+                "model_ready": True,
+                "inference_ready": True,
+                "detected_gpus": ["AMD Radeon RX 7900 XTX"],
+                "selected_model_id": "local-model",
+                "checks": [
+                    {
+                    "name": "live-inference",
+                    "status": "FAIL",
+                    "detail": "marker missing",
+                },
+                ],
+            },
+            "PASS contradicts check statuses",
+        ),
+        (
+            {
+                "overall_ready": False,
+                "gpu_ready": True,
+                "model_ready": True,
+                "inference_ready": True,
+                "detected_gpus": ["AMD Radeon RX 7900 XTX"],
+                "selected_model_id": "local-model",
+                "checks": [
+                    {
+                    "name": "live-inference",
+                    "status": "PASS",
+                    "detail": "marker returned",
+                },
+                ],
+            },
+            "FAIL contradicts readiness fields",
+        ),
+    ),
+)
+def test_hardware_projection_rejects_contradictory_machine_reports(
+    payload: dict[str, object],
+    message: str,
+) -> None:
+    with pytest.raises(ValueError, match=message):
+        project_hardware_acceptance_payload(payload)
+
+
+def test_hardware_projection_accepts_real_configuration_failure_receipt() -> None:
+    presentation = project_hardware_acceptance_payload(
+        {
+            "overall_ready": False,
+            "checks": [
+                {
+                    "name": "configuration",
+                    "status": "FAIL",
+                    "detail": "runtime configuration is invalid",
+                }
+            ],
+        }
+    )
+
+    assert presentation.status == "FAIL"
+    assert presentation.detail == "runtime configuration is invalid"
+
+
+def test_hardware_projection_rejects_partially_missing_readiness() -> None:
+    with pytest.raises(ValueError, match="missing readiness fields"):
+        project_hardware_acceptance_payload(
+            {
+                "overall_ready": False,
+                "gpu_ready": False,
+                "inference_ready": False,
+                "detected_gpus": ["AMD Radeon RX 7900 XTX"],
+                "selected_model_id": None,
+                "checks": [
+                    {
+                        "name": "lm-studio-model",
+                        "status": "FAIL",
+                        "detail": "model missing",
+                    }
+                ],
+            }
+        )
+
+
+def test_hardware_projection_rejects_success_without_evidence() -> None:
+    with pytest.raises(ValueError, match="missing detected GPU evidence"):
+        project_hardware_acceptance_payload(
+            {
+                "overall_ready": True,
+                "gpu_ready": True,
+                "model_ready": True,
+                "inference_ready": True,
+                "detected_gpus": [],
+                "selected_model_id": "local-model",
+                "checks": [
+                    {
+                    "name": "live-inference",
+                    "status": "PASS",
+                    "detail": "marker returned",
+                },
+                ],
+            }
+        )
+
+
+def test_hardware_projection_binds_receipt_to_cli_exit_code() -> None:
+    ready = {
+        "overall_ready": True,
+        "gpu_ready": True,
+        "model_ready": True,
+        "inference_ready": True,
+        "detected_gpus": ["AMD Radeon RX 7900 XTX"],
+        "selected_model_id": "local-model",
+        "checks": [
+            {
+                "name": "target-gpu",
+                "status": "PASS",
+                "detail": "GPU matched",
+            },
+            {
+                "name": "lm-studio-model",
+                "status": "PASS",
+                "detail": "model loaded",
+            },
+            {
+                "name": "live-inference",
+                "status": "PASS",
+                "detail": "marker returned",
+            },
+        ],
+    }
+
+    project_hardware_acceptance_payload(ready, exit_code=0)
+
+    with pytest.raises(ValueError, match="report/exit-code mismatch"):
+        project_hardware_acceptance_payload(ready, exit_code=4)
+
+    configuration_failure = {
+        "overall_ready": False,
+        "checks": [
+            {
+                "name": "configuration",
+                "status": "FAIL",
+                "detail": "runtime configuration is invalid",
+            }
+        ],
+    }
+    project_hardware_acceptance_payload(configuration_failure, exit_code=5)
+
+
+def test_hardware_panel_rejects_success_report_from_failure_exit(
+    tmp_path: Path,
+) -> None:
+    _app()
+    report = tmp_path / "hardware.json"
+    report.write_text(
+        json.dumps(
+            {
+                "overall_ready": True,
+                "gpu_ready": True,
+                "model_ready": True,
+                "inference_ready": True,
+                "detected_gpus": ["AMD Radeon RX 7900 XTX"],
+                "selected_model_id": "loaded-model",
+                "checks": [
+                    {
+                        "name": "target-gpu",
+                        "status": "PASS",
+                        "detail": "GPU matched",
+                    },
+                    {
+                        "name": "lm-studio-model",
+                        "status": "PASS",
+                        "detail": "model loaded",
+                    },
+                    {
+                        "name": "live-inference",
+                        "status": "PASS",
+                        "detail": "marker returned",
+                    },
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    panel = SystemHardwareAcceptancePanel(
+        report_path=report,
+        executable=r"C:\pATHENA\pATHENA-Worker.exe",
+    )
+
+    assert panel.status.text() == "PASS"
+
+    panel._handle_finished(4, None)
+
+    assert panel.status.text() == "INVALID"
+    assert "report/exit-code mismatch" in panel.detail.text()
+
+
 def test_system_hardware_panel_loads_existing_machine_report(tmp_path: Path) -> None:
     _app()
     report = tmp_path / "hardware.json"
@@ -95,9 +337,28 @@ def test_system_hardware_panel_loads_existing_machine_report(tmp_path: Path) -> 
         json.dumps(
             {
                 "overall_ready": True,
+                "gpu_ready": True,
+                "model_ready": True,
+                "inference_ready": True,
                 "detected_gpus": ["AMD Radeon RX 7900 XTX"],
                 "selected_model_id": "loaded-model",
-                "checks": [],
+                "checks": [
+                    {
+                    "name": "target-gpu",
+                    "status": "PASS",
+                    "detail": "GPU matched",
+                },
+                    {
+                    "name": "lm-studio-model",
+                    "status": "PASS",
+                    "detail": "model loaded",
+                },
+                    {
+                    "name": "live-inference",
+                    "status": "PASS",
+                    "detail": "marker returned",
+                },
+                ],
             }
         ),
         encoding="utf-8",
@@ -123,3 +384,27 @@ def test_system_workspace_exposes_compact_target_hardware_panel() -> None:
     assert workspace.hardware_acceptance.run_button.accessibleName() == "Run hardware check"
     assert workspace.hardware_acceptance.property("pathenaTargetHardwareAcceptance") is True
     assert workspace.hardware_acceptance.status.text() in {"NOT RUN", "PASS", "FAIL", "INVALID"}
+
+def test_hardware_process_error_is_not_overwritten_by_late_finished(
+    tmp_path: Path,
+) -> None:
+    _app()
+    panel = SystemHardwareAcceptancePanel(
+        report_path=tmp_path / "hardware.json",
+        executable=r"C:\pATHENA\missing-worker.exe",
+    )
+
+    panel._handle_process_error(QProcess.ProcessError.FailedToStart)
+    error_detail = panel.detail.text()
+
+    assert panel.status.text() == "FAIL"
+    assert "Hardware acceptance process error:" in error_detail
+    assert panel._process_error_seen is True
+
+    panel._handle_finished(1, None)
+
+    assert panel.status.text() == "FAIL"
+    assert panel.detail.text() == error_detail
+    assert panel._process_error_seen is False
+    assert panel.run_button.text() == "Run again"
+
