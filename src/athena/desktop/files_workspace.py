@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import re
 import sys
+
+import shiboken6
 from pathlib import Path
 
 from PySide6.QtCore import QProcess, Qt, QTimer
@@ -147,6 +149,8 @@ class FilesWorkspace(QWidget):
         return source_id[:8].upper() if source_id else ""
 
     def refresh(self) -> None:
+        if not shiboken6.isValid(self):
+            return
         if self._busy() or self._pending_imports:
             return
         self._start("list", ["list", "--limit", "150"], "Refreshing Sources")
@@ -262,10 +266,14 @@ class FilesWorkspace(QWidget):
             )
 
     def _refresh_if_visible(self) -> None:
+        if not shiboken6.isValid(self):
+            return
         if self.isVisible() and not self._busy() and not self._pending_imports:
             self.refresh()
 
     def _busy(self) -> bool:
+        if not shiboken6.isValid(self) or not shiboken6.isValid(self._process):
+            return True
         return self._process.state() != QProcess.ProcessState.NotRunning
 
     def _start(
