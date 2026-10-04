@@ -86,9 +86,15 @@ class MutationBoundaryController(QObject):
         self._sync(widget)
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:  # noqa: N802
+        targets = getattr(self, "_targets", None)
+        if not isinstance(targets, dict) or not isinstance(watched, QWidget):
+            return False
+        try:
+            target = targets.get(watched)
+        except RuntimeError:
+            return False
         if (
-            isinstance(watched, QWidget)
-            and watched in self._targets
+            target is not None
             and (
                 event.type() == QEvent.Type.EnabledChange
                 or isinstance(event, QDynamicPropertyChangeEvent)
@@ -96,7 +102,10 @@ class MutationBoundaryController(QObject):
             )
         ):
             self._sync(watched)
-        return super().eventFilter(watched, event)
+        # This controller observes presentation state only and never consumes events.
+        # Returning False directly also keeps late teardown events away from a deleted
+        # QObject base implementation.
+        return False
 
     def _sync(self, widget: QWidget) -> None:
         target = self._targets[widget]

@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import sys
 
+import shiboken6
 from PySide6.QtCore import QProcess, QProcessEnvironment, Qt, QTimer
 from PySide6.QtGui import QTextCursor
 from PySide6.QtWidgets import (
@@ -58,6 +59,7 @@ _READ_DETAIL_OPERATIONS = (
     | _CLAIM_DETAIL_OPERATIONS
     | _REVIEW_DETAIL_OPERATIONS
 )
+
 
 
 class KnowledgeWorkspace(QWidget):
@@ -498,6 +500,8 @@ class KnowledgeWorkspace(QWidget):
 
     def refresh_knowledge(self) -> None:
         """Refresh the canonical view currently visible to the user."""
+        if not shiboken6.isValid(self):
+            return
         if self._knowledge_busy():
             return
         tab = self.browser_tabs.currentIndex()
@@ -886,14 +890,23 @@ class KnowledgeWorkspace(QWidget):
         set_pathena_ui_state(self.review_details, "empty")
 
     def _refresh_knowledge_if_visible(self) -> None:
+        if not shiboken6.isValid(self):
+            return
         if self.isVisible() and not self._knowledge_busy():
             self.refresh_knowledge()
 
     def _knowledge_busy(self) -> bool:
-        return (
-            self._knowledge_process.state() != QProcess.ProcessState.NotRunning
-            or self._obsidian_process.state() != QProcess.ProcessState.NotRunning
+        if not shiboken6.isValid(self):
+            return True
+        knowledge_busy = (
+            shiboken6.isValid(self._knowledge_process)
+            and self._knowledge_process.state() != QProcess.ProcessState.NotRunning
         )
+        obsidian_busy = (
+            shiboken6.isValid(self._obsidian_process)
+            and self._obsidian_process.state() != QProcess.ProcessState.NotRunning
+        )
+        return knowledge_busy or obsidian_busy
 
     def _start_knowledge(
         self,

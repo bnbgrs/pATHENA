@@ -39,6 +39,22 @@ _BACKUP_RE = re.compile(
 )
 
 
+def parse_backup_list(output: str) -> tuple[dict[str, str], ...]:
+    """Parse the canonical backup-list framing without silently dropping rows."""
+    rows: list[dict[str, str]] = []
+    for line_number, raw_line in enumerate(output.splitlines(), start=1):
+        line = raw_line.strip()
+        if not line:
+            continue
+        match = _BACKUP_RE.fullmatch(line)
+        if match is None:
+            raise ValueError(
+                f"Backup list row {line_number} does not match the canonical CLI format."
+            )
+        rows.append(match.groupdict())
+    return tuple(rows)
+
+
 class BackupWorkspace(QWidget):
     """Operate the existing verified BackupService through the canonical CLI."""
 
@@ -49,6 +65,7 @@ class BackupWorkspace(QWidget):
         self._operation_snapshot_id: str | None = None
         self._buffer = ""
         self._selected_snapshot_id: str | None = None
+        self._process_error_seen = False
 
         self.status = QLabel("Backup state has not been loaded yet.")
         self.status.setObjectName("settingsHelp")
@@ -229,6 +246,7 @@ class BackupWorkspace(QWidget):
     ) -> None:
         if self._busy():
             return
+        self._process_error_seen = False
         self._operation = operation
         self._operation_snapshot_id = snapshot_id
         self._buffer = ""
@@ -280,6 +298,13 @@ class BackupWorkspace(QWidget):
     @Slot(int, QProcess.ExitStatus)
     def _finished(self, exit_code: int, _status: QProcess.ExitStatus) -> None:
         self._drain_output()
+        if self._process_error_seen:
+            self._process_error_seen = False
+            self._operation = ""
+            self._operation_snapshot_id = None
+            self._set_controls(True)
+            return
+
         operation = self._operation
         operation_snapshot_id = self._operation_snapshot_id
         output = self._buffer
@@ -300,7 +325,20 @@ class BackupWorkspace(QWidget):
             return
 
         if operation == "list":
-            self._render_snapshots(output)
+            try:
+                rows = parse_backup_list(output)
+            except ValueError as exc:
+                self.status.setText(
+                    "Backup snapshots could not be refreshed because the local response "
+                    "was invalid."
+                )
+                if self._selected_snapshot_id is None:
+                    self.details.setPlainText(
+                        "BACKUP REFRESH COULD NOT BE VERIFIED\n"
+                        f"{exc}\n\nDiagnostic details:\n{output}"
+                    )
+                return
+            self._render_snapshots(rows)
             self.status.setText(f"Backup snapshots: {self.snapshots.count()} shown.")
         elif operation == "create":
             self.status.setText("Backup created and light verification completed.")
@@ -324,16 +362,17 @@ class BackupWorkspace(QWidget):
         elif operation == "register-target":
             self.status.setText("Backup target registered.")
 
-    def _render_snapshots(self, output: str) -> None:
+    def _render_snapshots(
+        self,
+        rows: tuple[dict[str, str], ...] | str,
+    ) -> None:
+        if isinstance(rows, str):
+            rows = parse_backup_list(rows)
         selected = self._selected_snapshot_id
         self.snapshots.blockSignals(True)
         self.snapshots.clear()
         selected_item: QListWidgetItem | None = None
-        for raw_line in output.splitlines():
-            match = _BACKUP_RE.match(raw_line.strip())
-            if match is None:
-                continue
-            data = match.groupdict()
+        for data in rows:
             snapshot_id = data["id"]
             item = QListWidgetItem(
                 f"{data['state'].upper():<10} {data['verify'].upper():<16} "
@@ -412,10 +451,12 @@ class BackupWorkspace(QWidget):
 
     @Slot(QProcess.ProcessError)
     def _process_error(self, error: QProcess.ProcessError) -> None:
+        self._process_error_seen = True
         snapshot_id = self._operation_snapshot_id
-        self._operation = ""
-        self._operation_snapshot_id = None
-        self._set_controls(True)
+        if self.process.state() == QProcess.ProcessState.NotRunning:
+            self._operation = ""
+            self._operation_snapshot_id = None
+            self._set_controls(True)
         snapshot_label = self._snapshot_label(snapshot_id)
         subject = f" for snapshot {snapshot_label}" if snapshot_label else ""
         self.status.setText(

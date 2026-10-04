@@ -1,10 +1,29 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
+
+import pytest
+
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+
+from PySide6.QtCore import QProcess
+from PySide6.QtWidgets import QApplication
 
 from athena.config.settings import AthenaSettings
 from athena.core.application import AthenaApplication
-from athena.desktop.system_backup import _BACKUP_RE
+from athena.desktop.system_backup import (
+    _BACKUP_RE,
+    BackupWorkspace,
+    parse_backup_list,
+)
+
+
+def _qt_app() -> QApplication:
+    existing = QApplication.instance()
+    if isinstance(existing, QApplication):
+        return existing
+    return QApplication([])
 
 
 def _app(root: Path) -> AthenaApplication:
@@ -26,6 +45,32 @@ def test_desktop_backup_line_parser_matches_canonical_cli_shape() -> None:
     assert match.group("verify") == "verified_light"
     assert match.group("commit") == "42"
     assert match.group("objects") == "7"
+
+
+def test_backup_list_parser_rejects_malformed_rows_instead_of_partial_success() -> None:
+    valid = (
+        "018f6a7d-6f5d-7c6d-8a2e-123456789abc "
+        "state=complete verify=verified_light commit=42 objects=7 "
+        "path=snapshots/018f6a7d"
+    )
+
+    with pytest.raises(ValueError, match="row 2"):
+        parse_backup_list(valid + "\nBROKEN BACKUP ROW\n")
+
+
+def test_backup_list_success_with_invalid_output_preserves_existing_rows() -> None:
+    _qt_app()
+    workspace = BackupWorkspace()
+    workspace.snapshots.addItem("existing snapshot")
+    workspace._operation = "list"
+    workspace._buffer = "BROKEN BACKUP ROW\n"
+
+    workspace._finished(0, QProcess.ExitStatus.NormalExit)
+
+    assert workspace.snapshots.count() == 1
+    assert workspace.snapshots.item(0).text() == "existing snapshot"
+    assert "could not be refreshed" in workspace.status.text()
+    assert "BACKUP REFRESH COULD NOT BE VERIFIED" in workspace.details.toPlainText()
 
 
 def test_explicit_backup_target_is_registered_verified_and_restored_isolated(
@@ -57,3 +102,22 @@ def test_explicit_backup_target_is_registered_verified_and_restored_isolated(
         assert (restore_root / "state" / "athena.db").is_file()
     finally:
         app.stop()
+
+
+def test_backup_process_error_is_not_overwritten_by_late_finished() -> None:
+    _qt_app()
+    workspace = BackupWorkspace()
+    workspace._operation = "list"
+
+    workspace._process_error(QProcess.ProcessError.FailedToStart)
+    error_status = workspace.status.text()
+
+    assert error_status == "Unable to start local backup command."
+    assert workspace._process_error_seen is True
+
+    workspace._finished(1, QProcess.ExitStatus.NormalExit)
+
+    assert workspace.status.text() == error_status
+    assert workspace._process_error_seen is False
+    assert workspace.refresh_button.isEnabled() is True
+

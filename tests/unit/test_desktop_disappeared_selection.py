@@ -10,11 +10,13 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 pytest.importorskip("PySide6")
 
 from PySide6.QtWidgets import QApplication
+from shiboken6 import delete
 
 from athena.desktop.files_workspace import FilesWorkspace
 from athena.desktop.jobs_lifecycle import parse_job_list
 from athena.desktop.jobs_workspace import JobsWorkspace
 from athena.desktop.research_workspace import ResearchWorkspace
+from athena.desktop.research_workspace_protocol import parse_research_job_list
 from athena.desktop.system_backup import BackupWorkspace
 
 
@@ -27,6 +29,19 @@ def qt_app() -> Iterator[QApplication]:
     app = QApplication([])
     yield app
     app.quit()
+
+
+@pytest.fixture(autouse=True)
+def _dispose_workspace_widgets(qt_app: QApplication) -> Iterator[None]:
+    """Do not leak parentless Qt workspaces into later sharded tests."""
+    existing = {id(widget) for widget in QApplication.topLevelWidgets()}
+    yield
+    qt_app.processEvents()
+    for widget in QApplication.topLevelWidgets():
+        if id(widget) in existing:
+            continue
+        widget.close()
+        delete(widget)
 
 
 def test_source_refresh_does_not_replace_disappeared_selection(qt_app: QApplication) -> None:
@@ -76,7 +91,9 @@ def test_research_refresh_does_not_replace_disappeared_selection(qt_app: QApplic
     workspace._selected_job_id = missing
 
     workspace._render_job_list(
-        f"{replacement}\twaiting\tqueued\t0.25\tReplacement research run"
+        parse_research_job_list(
+            f"{replacement}\twaiting\tqueued\t0.25\tReplacement research run"
+        )
     )
 
     assert workspace.jobs.currentRow() == -1
