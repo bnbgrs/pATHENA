@@ -6,10 +6,10 @@ import sqlite3
 
 from athena.storage.schema_contract import (
     BLOB_FORMAT_VERSION,
-    STRUCTURED_REPLICATION_SCHEMA_VERSION,
     JOB_DEPENDENCY_GRAPH_MIGRATION_ID,
     JOB_DEPENDENCY_GRAPH_SCHEMA_VERSION,
     STORAGE_LAYOUT_VERSION,
+    STRUCTURED_REPLICATION_SCHEMA_VERSION,
     DatabaseCompatibilityError,
     _user_tables,
 )
