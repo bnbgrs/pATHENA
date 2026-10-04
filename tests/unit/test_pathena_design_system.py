@@ -22,11 +22,11 @@ pathena_theme = pytest.importorskip(
 )
 
 
-def test_palette_matches_the_eleven_screen_reference_foundation() -> None:
-    assert PALETTE.canvas == "#061421"
-    assert PALETTE.surface == "#06121F"
-    assert PALETTE.text == "#F3F6F9"
-    assert PALETTE.accent == "#3B82F6"
+def test_palette_matches_the_v4_graphite_foundation() -> None:
+    assert PALETTE.canvas == "#111210"
+    assert PALETTE.surface == "#171815"
+    assert PALETTE.text == "#F4F1E8"
+    assert PALETTE.accent == "#C7FF52"
     assert PALETTE.success != PALETTE.accent
     assert PALETTE.warning != PALETTE.accent
     assert PALETTE.error != PALETTE.accent
@@ -43,7 +43,7 @@ def test_spacing_and_motion_are_small_bounded_scales() -> None:
     )
     assert SPACE.workspace_ratio == pytest.approx(0.618)
     assert (MOTION.fast_ms, MOTION.standard_ms, MOTION.deliberate_ms) == (80, 140, 220)
-    assert (TYPE.body_px, TYPE.metadata_px, TYPE.title_px) == (15, 12, 42)
+    assert (TYPE.body_px, TYPE.metadata_px, TYPE.title_px) == (15, 12, 34)
 
 
 @pytest.mark.parametrize("value", ["1", "true", "YES", "on"])

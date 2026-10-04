@@ -31,8 +31,8 @@ def test_v3_shell_is_structurally_distinct_and_keeps_route_contract() -> None:
     assert shell.findChild(QFrame, "conversation") is not None
     assert shell.findChild(QFrame, "v2Sidebar") is None
 
-    assert controller._header.height() == 68
-    assert "#78D1C5" in PATHENA_V3_STYLESHEET
+    assert controller._header.height() == 52
+    assert "#C7FF52" in PATHENA_V3_STYLESHEET
     assert "#7C9CFF" not in PATHENA_V3_STYLESHEET
     assert (
         'QToolButton[v3Nav="true"]:focus {\n'
@@ -46,7 +46,7 @@ def test_v3_shell_is_structurally_distinct_and_keeps_route_contract() -> None:
 
     rail = shell.findChild(QFrame, "v3Rail")
     assert rail is not None
-    assert 76 <= rail.width() <= 80
+    assert rail.width() == 64
     assert rail.minimumWidth() == rail.maximumWidth()
 
     nav_buttons = shell.findChildren(QToolButton, "v3NavButton")
@@ -197,8 +197,8 @@ def test_v3_shell_keeps_core_chat_controls_visible_at_minimum_desktop_size() -> 
         assert window.prompt_input.maximumHeight() == 120
         assert window.ground_button.isVisible()
         assert window.send_button.isVisible()
-        assert window.send_button.width() == 44
-        assert window.send_button.height() == 44
+        assert window.send_button.width() == 36
+        assert window.send_button.height() == 36
         assert window.ground_button.text() == "Sources"
         assert window.send_button.text() == "↑"
         assert "color: rgba(0, 0, 0, 0)" in window.ground_button.styleSheet()
@@ -217,8 +217,8 @@ def test_v3_shell_keeps_core_chat_controls_visible_at_minimum_desktop_size() -> 
 
         rail = window.findChild(QFrame, "v3Rail")
         assert rail is not None
-        assert rail.width() == 72
-        assert controller._header.height() == 58
+        assert rail.width() == 58
+        assert controller._header.height() == 46
         assert controller._header.hint_label.isHidden()
         assert controller._command_button.text() == "Ctrl K"
         assert controller._command_button.property("compact") is True
@@ -234,8 +234,8 @@ def test_v3_shell_keeps_core_chat_controls_visible_at_minimum_desktop_size() -> 
 
         window.resize(1480, 900)
         app.processEvents()
-        assert rail.width() == 78
-        assert controller._header.height() == 68
+        assert rail.width() == 64
+        assert controller._header.height() == 52
         assert controller._header.hint_label.isVisible()
         assert controller._command_button.text() == "Command   Ctrl K"
         assert controller._command_button.property("compact") is False
