@@ -4,15 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from athena.storage.schema_contract import (
-    BLOB_FORMAT_VERSION,
-    DatabaseCompatibilityError,
-    JOB_DEPENDENCY_GRAPH_MIGRATION_ID,
-    JOB_DEPENDENCY_GRAPH_SCHEMA_VERSION,
-    STORAGE_LAYOUT_VERSION,
-    STRUCTURED_REPLICATION_SCHEMA_VERSION,
-    _user_tables,
-)
+from athena.storage import schema_contract
 
 
 _GRAPH_TABLES = frozenset({"job_parent_links", "job_dependencies"})
@@ -28,11 +20,11 @@ _DEPENDENCY_COLUMNS = ("job_id", "depends_on_job_id", "created_at_us")
 
 def _verify_compatible_existing_graph_tables(connection: sqlite3.Connection) -> None:
     """Accept only a complete canonical partial v42 graph schema."""
-    present = _GRAPH_TABLES.intersection(_user_tables(connection))
+    present = _GRAPH_TABLES.intersection(schema_contract._user_tables(connection))
     if not present:
         return
     if present != _GRAPH_TABLES:
-        raise DatabaseCompatibilityError(
+        raise schema_contract.DatabaseCompatibilityError(
             "ATHENA job dependency graph migration found an incomplete partial schema."
         )
 
@@ -45,11 +37,11 @@ def _verify_compatible_existing_graph_tables(connection: sqlite3.Connection) -> 
         for row in connection.execute("PRAGMA table_info(job_dependencies)").fetchall()
     )
     if parent_columns != _PARENT_COLUMNS:
-        raise DatabaseCompatibilityError(
+        raise schema_contract.DatabaseCompatibilityError(
             "ATHENA job parent-link partial schema is incompatible."
         )
     if dependency_columns != _DEPENDENCY_COLUMNS:
-        raise DatabaseCompatibilityError(
+        raise schema_contract.DatabaseCompatibilityError(
             "ATHENA job dependency partial schema is incompatible."
         )
 
@@ -64,7 +56,7 @@ def _verify_compatible_existing_graph_tables(connection: sqlite3.Connection) -> 
         ("jobs", "parent_job_id", "job_id"),
     }
     if not expected_parent_foreign_keys.issubset(parent_foreign_keys):
-        raise DatabaseCompatibilityError(
+        raise schema_contract.DatabaseCompatibilityError(
             "ATHENA job parent-link partial foreign keys are incompatible."
         )
 
@@ -79,7 +71,7 @@ def _verify_compatible_existing_graph_tables(connection: sqlite3.Connection) -> 
         ("jobs", "depends_on_job_id", "job_id"),
     }
     if not expected_dependency_foreign_keys.issubset(dependency_foreign_keys):
-        raise DatabaseCompatibilityError(
+        raise schema_contract.DatabaseCompatibilityError(
             "ATHENA job dependency partial foreign keys are incompatible."
         )
 
@@ -87,8 +79,8 @@ def _verify_compatible_existing_graph_tables(connection: sqlite3.Connection) -> 
 def migrate_schema_v41_to_v42(connection: sqlite3.Connection) -> None:
     """Add explicit durable job graph edges without rewriting job payloads."""
     current = int(connection.execute("PRAGMA user_version").fetchone()[0])
-    if current != STRUCTURED_REPLICATION_SCHEMA_VERSION:
-        raise DatabaseCompatibilityError(
+    if current != schema_contract.STRUCTURED_REPLICATION_SCHEMA_VERSION:
+        raise schema_contract.DatabaseCompatibilityError(
             "Job dependency graph migration requires canonical schema v41."
         )
 
@@ -130,12 +122,12 @@ def migrate_schema_v41_to_v42(connection: sqlite3.Connection) -> None:
             ON job_dependencies(depends_on_job_id, job_id);
 
         UPDATE schema_metadata
-        SET schema_version = {JOB_DEPENDENCY_GRAPH_SCHEMA_VERSION},
-            last_migration_id = '{JOB_DEPENDENCY_GRAPH_MIGRATION_ID}',
-            minimum_reader_version = {JOB_DEPENDENCY_GRAPH_SCHEMA_VERSION}
+        SET schema_version = {schema_contract.JOB_DEPENDENCY_GRAPH_SCHEMA_VERSION},
+            last_migration_id = '{schema_contract.JOB_DEPENDENCY_GRAPH_MIGRATION_ID}',
+            minimum_reader_version = {schema_contract.JOB_DEPENDENCY_GRAPH_SCHEMA_VERSION}
         WHERE singleton_id = 1;
 
-        PRAGMA user_version = {JOB_DEPENDENCY_GRAPH_SCHEMA_VERSION};
+        PRAGMA user_version = {schema_contract.JOB_DEPENDENCY_GRAPH_SCHEMA_VERSION};
         COMMIT;
         """
     )
@@ -144,8 +136,8 @@ def migrate_schema_v41_to_v42(connection: sqlite3.Connection) -> None:
 def verify_schema_v42(connection: sqlite3.Connection) -> None:
     """Fail closed if the v42 graph schema or migration metadata drifted."""
     user_version = int(connection.execute("PRAGMA user_version").fetchone()[0])
-    if user_version != JOB_DEPENDENCY_GRAPH_SCHEMA_VERSION:
-        raise DatabaseCompatibilityError(
+    if user_version != schema_contract.JOB_DEPENDENCY_GRAPH_SCHEMA_VERSION:
+        raise schema_contract.DatabaseCompatibilityError(
             "ATHENA job dependency graph schema version verification failed."
         )
 
@@ -158,21 +150,21 @@ def verify_schema_v42(connection: sqlite3.Connection) -> None:
         """
     ).fetchone()
     expected = (
-        JOB_DEPENDENCY_GRAPH_SCHEMA_VERSION,
-        STORAGE_LAYOUT_VERSION,
-        BLOB_FORMAT_VERSION,
-        JOB_DEPENDENCY_GRAPH_MIGRATION_ID,
-        JOB_DEPENDENCY_GRAPH_SCHEMA_VERSION,
+        schema_contract.JOB_DEPENDENCY_GRAPH_SCHEMA_VERSION,
+        schema_contract.STORAGE_LAYOUT_VERSION,
+        schema_contract.BLOB_FORMAT_VERSION,
+        schema_contract.JOB_DEPENDENCY_GRAPH_MIGRATION_ID,
+        schema_contract.JOB_DEPENDENCY_GRAPH_SCHEMA_VERSION,
     )
     if metadata is None or tuple(metadata) != expected:
-        raise DatabaseCompatibilityError(
+        raise schema_contract.DatabaseCompatibilityError(
             "ATHENA job dependency graph schema_metadata verification failed."
         )
 
     required_tables = {"job_parent_links", "job_dependencies"}
-    missing = required_tables.difference(_user_tables(connection))
+    missing = required_tables.difference(schema_contract._user_tables(connection))
     if missing:
-        raise DatabaseCompatibilityError(
+        raise schema_contract.DatabaseCompatibilityError(
             "ATHENA job dependency graph schema is incomplete: "
             + ", ".join(sorted(missing))
             + "."
@@ -183,16 +175,16 @@ def verify_schema_v42(connection: sqlite3.Connection) -> None:
         for row in connection.execute("PRAGMA table_info(job_parent_links)").fetchall()
     )
     if parent_columns != _PARENT_COLUMNS:
-        raise DatabaseCompatibilityError("ATHENA job parent-link schema is incomplete.")
+        raise schema_contract.DatabaseCompatibilityError("ATHENA job parent-link schema is incomplete.")
 
     dependency_columns = tuple(
         str(row[1])
         for row in connection.execute("PRAGMA table_info(job_dependencies)").fetchall()
     )
     if dependency_columns != _DEPENDENCY_COLUMNS:
-        raise DatabaseCompatibilityError("ATHENA job dependency schema is incomplete.")
+        raise schema_contract.DatabaseCompatibilityError("ATHENA job dependency schema is incomplete.")
 
     if connection.execute("PRAGMA foreign_key_check").fetchall():
-        raise DatabaseCompatibilityError(
+        raise schema_contract.DatabaseCompatibilityError(
             "ATHENA job dependency graph foreign-key verification failed."
         )
