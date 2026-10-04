@@ -519,6 +519,10 @@ class LMStudioRuntimeController(QObject):
     @Slot(str)
     def _core_failed(self, _message: str) -> None:
         self.unload_button.setEnabled(False)
+        if self.busy:
+            # A transient Core refresh failure must not overwrite the truthful
+            # status of an LM Studio CLI operation that is still in progress.
+            return
         self._set_status("LM Studio runtime · waiting for local Core")
 
     @Slot(int)
