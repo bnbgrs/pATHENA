@@ -39,10 +39,43 @@ class _Repository:
         return call
 
 
+class _Graph:
+    def __init__(self, repository: _Repository) -> None:
+        self.repository = repository
+
+    def require_runnable(self, _job_id: object) -> None:
+        return None
+
+    def reconcile(self, *, now_us: int | None = None) -> tuple[()]:
+        del now_us
+        return ()
+
+    def eligible_queued(
+        self,
+        *,
+        now_us: int,
+        job_types: set[str] | frozenset[str] | None,
+        limit: int,
+    ) -> object:
+        return self.repository.list_eligible_queued(
+            now_us=now_us,
+            job_types=job_types,
+            limit=limit,
+        )
+
+
 def _service() -> tuple[DurableJobService, _Repository, _Chat]:
     repository = _Repository()
     chat = _Chat()
-    return DurableJobService(repository, chat), repository, chat  # type: ignore[arg-type]
+    return (
+        DurableJobService(  # type: ignore[arg-type]
+            repository,
+            chat,
+            graph=_Graph(repository),  # type: ignore[arg-type]
+        ),
+        repository,
+        chat,
+    )
 
 
 INVALID_CALLS: tuple[tuple[str, Callable[[DurableJobService], object]], ...] = (
