@@ -7,9 +7,7 @@ instead of fabricating success.
 
 from __future__ import annotations
 
-import os
-
-from PySide6.QtCore import QEvent, QObject, Slot
+from PySide6.QtCore import QEvent, QObject, QProcessEnvironment, Slot
 from PySide6.QtGui import QAction, QIcon
 from PySide6.QtWidgets import QApplication, QMenu, QStyle, QSystemTrayIcon, QWidget
 
@@ -31,10 +29,10 @@ def _close_to_tray_requested() -> bool:
     so automation and managed launchers can exercise the real Qt aboutToQuit
     cleanup path without force-killing the process tree.
     """
-    raw = os.environ.get(_CLOSE_TO_TRAY_ENV)
-    if raw is None:
+    raw = QProcessEnvironment.systemEnvironment().value(_CLOSE_TO_TRAY_ENV).strip()
+    if not raw:
         return True
-    return raw.strip().casefold() not in _FALSE_ENV_VALUES
+    return raw.casefold() not in _FALSE_ENV_VALUES
 
 
 class PathenaSystemTrayController(QObject):
