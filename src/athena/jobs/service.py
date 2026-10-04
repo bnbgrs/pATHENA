@@ -7,10 +7,16 @@ import math
 import secrets
 import sqlite3
 import uuid
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from typing import Any
 
 from athena.chat.service import ChatService
+from athena.jobs.dependency_graph import (
+    ChildCancellationPolicy,
+    JobDependencyGraph,
+    JobGraphSnapshot,
+    ParentCompletionPolicy,
+)
 from athena.jobs.models import (
     CheckpointRecord,
     JobPriority,
@@ -61,6 +67,7 @@ class DurableJobService:
     def __init__(self, repository: JobRepository, chat: ChatService) -> None:
         self.repository = repository
         self.chat = chat
+        self.graph = JobDependencyGraph(repository)
 
     def create(
         self,
@@ -70,6 +77,14 @@ class DurableJobService:
         requested_scope: Mapping[str, Any] | None = None,
         pinned_configuration: Mapping[str, Any] | None = None,
         next_run_at_us: int | None = None,
+        parent_job_id: uuid.UUID | None = None,
+        parent_completion_policy: ParentCompletionPolicy = (
+            ParentCompletionPolicy.INDEPENDENT
+        ),
+        child_cancellation_policy: ChildCancellationPolicy = (
+            ChildCancellationPolicy.INDEPENDENT
+        ),
+        depends_on_job_ids: Iterable[uuid.UUID] = (),
     ) -> JobRecord:
         normalized_job_type = self._registered_job_type(job_type)
         normalized_scope = _optional_mapping(requested_scope, "requested_scope")
@@ -79,6 +94,8 @@ class DurableJobService:
         )
         _job_priority(priority)
         _optional_nonnegative_int(next_run_at_us, "next_run_at_us")
+        if parent_job_id is not None:
+            _uuid_value(parent_job_id, "parent_job_id")
         try:
             if normalized_job_type in {NEWS_JOB_TYPE, NEWS_PERIOD_JOB_TYPE}:
                 validate_news_job_payload(
@@ -98,13 +115,17 @@ class DurableJobService:
         requested_scope_json = _canonical_json(normalized_scope)
         pinned_configuration_json = _canonical_json(normalized_configuration)
         actor_id = self.chat.ensure_local_user()
-        return self.repository.create(
+        return self.graph.create_job(
             job_type=normalized_job_type,
             actor_id=actor_id,
             priority=priority,
             requested_scope_json=requested_scope_json,
             pinned_configuration_json=pinned_configuration_json,
             next_run_at_us=next_run_at_us,
+            parent_job_id=parent_job_id,
+            parent_completion_policy=parent_completion_policy,
+            child_cancellation_policy=child_cancellation_policy,
+            depends_on_job_ids=depends_on_job_ids,
         )
 
     def active_for_type(
@@ -133,6 +154,7 @@ class DurableJobService:
         _canonical_text(worker_id, "worker_id")
         _positive_int(lease_seconds, "lease_seconds")
         _optional_nonnegative_int(now_us, "now_us")
+        self.graph.require_runnable(normalized_job_id)
         return self.repository.acquire_lease(
             job_id=normalized_job_id,
             worker_id=worker_id,
