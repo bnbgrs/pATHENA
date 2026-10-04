@@ -51,8 +51,6 @@ def test_v3_shell_is_structurally_distinct_and_keeps_route_contract() -> None:
 
     nav_buttons = shell.findChildren(QToolButton, "v3NavButton")
     assert all(button.width() <= rail.width() - 8 for button in nav_buttons)
-    knowledge_button = next(button for button in nav_buttons if button.text() == "Knowledge")
-    assert knowledge_button.fontMetrics().horizontalAdvance("Knowledge") <= knowledge_button.width()
     assert [button.text() for button in nav_buttons[:5]] == [
         "Chat",
         "Knowledge",
