@@ -16,10 +16,10 @@ from athena.source.protection_transition import (
 from athena.source.repository import SourceProtectionTransitionPendingError
 from athena.storage.database import SQLiteDatabase
 from athena.storage.schema import (
+    JOB_DEPENDENCY_GRAPH_MIGRATION_ID,
     PROTECTED_SOURCE_BLOB_MIGRATION_ID,
     PROTECTED_SOURCE_BLOB_SCHEMA_VERSION,
     SCHEMA_VERSION,
-    JOB_DEPENDENCY_GRAPH_MIGRATION_ID,
 )
 
 _TEST_KDF = Argon2idParameters(
