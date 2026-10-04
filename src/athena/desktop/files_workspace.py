@@ -8,9 +8,9 @@ from __future__ import annotations
 
 import re
 import sys
+from pathlib import Path
 
 import shiboken6
-from pathlib import Path
 
 from PySide6.QtCore import QProcess, Qt, QTimer
 from PySide6.QtGui import QTextCursor
