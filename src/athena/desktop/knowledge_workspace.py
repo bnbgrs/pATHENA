@@ -61,22 +61,6 @@ _READ_DETAIL_OPERATIONS = (
 )
 
 
-_KNOWLEDGE_DETAIL_OPERATIONS = frozenset({"show", "history"})
-_CLAIM_DETAIL_OPERATIONS = frozenset({"claim-show", "claim-history"})
-_REVIEW_DETAIL_OPERATIONS = frozenset({"review-show"})
-_REVIEW_MUTATION_OPERATIONS = frozenset({"review-accept", "review-reject"})
-_ENTITY_OPERATIONS = (
-    _KNOWLEDGE_DETAIL_OPERATIONS
-    | _CLAIM_DETAIL_OPERATIONS
-    | _REVIEW_DETAIL_OPERATIONS
-    | _REVIEW_MUTATION_OPERATIONS
-)
-_READ_DETAIL_OPERATIONS = (
-    _KNOWLEDGE_DETAIL_OPERATIONS
-    | _CLAIM_DETAIL_OPERATIONS
-    | _REVIEW_DETAIL_OPERATIONS
-)
-
 
 class KnowledgeWorkspace(QWidget):
     """Browse durable canonical memory while preserving the live review inbox."""
@@ -516,6 +500,8 @@ class KnowledgeWorkspace(QWidget):
 
     def refresh_knowledge(self) -> None:
         """Refresh the canonical view currently visible to the user."""
+        if not shiboken6.isValid(self):
+            return
         if self._knowledge_busy():
             return
         tab = self.browser_tabs.currentIndex()
@@ -904,10 +890,14 @@ class KnowledgeWorkspace(QWidget):
         set_pathena_ui_state(self.review_details, "empty")
 
     def _refresh_knowledge_if_visible(self) -> None:
+        if not shiboken6.isValid(self):
+            return
         if self.isVisible() and not self._knowledge_busy():
             self.refresh_knowledge()
 
     def _knowledge_busy(self) -> bool:
+        if not shiboken6.isValid(self):
+            return True
         knowledge_busy = (
             shiboken6.isValid(self._knowledge_process)
             and self._knowledge_process.state() != QProcess.ProcessState.NotRunning
