@@ -107,6 +107,14 @@ class FilesWorkspace(QWidget):
         self._refresh_timer.timeout.connect(self._refresh_if_visible)
         self._refresh_timer.start()
 
+        self._initial_refresh_timer = QTimer(self)
+        self._initial_refresh_timer.setSingleShot(True)
+        self._initial_refresh_timer.timeout.connect(self.refresh)
+
+        self._import_queue_timer = QTimer(self)
+        self._import_queue_timer.setSingleShot(True)
+        self._import_queue_timer.timeout.connect(self._start_next_import)
+
         layout = QVBoxLayout(self)
         layout.setContentsMargins(8, 0, 18, 28)
         layout.setSpacing(14)
@@ -140,7 +148,7 @@ class FilesWorkspace(QWidget):
         layout.addWidget(splitter, 1)
 
         self._sync_controls()
-        QTimer.singleShot(0, self.refresh)
+        self._initial_refresh_timer.start(0)
 
     @staticmethod
     def _source_label(source_id: str | None) -> str:
@@ -206,7 +214,7 @@ class FilesWorkspace(QWidget):
     def _resume_import_queue(self) -> bool:
         if not self._pending_imports:
             return False
-        QTimer.singleShot(0, self._start_next_import)
+        self._import_queue_timer.start(0)
         return True
 
     def _selection_changed(
