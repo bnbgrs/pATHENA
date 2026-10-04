@@ -4,9 +4,9 @@ import os
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
+import shiboken6
 from PySide6.QtCore import QCoreApplication, QEvent
 from PySide6.QtWidgets import QApplication
-import shiboken6
 
 from athena.desktop.knowledge_workspace import KnowledgeWorkspace
 
