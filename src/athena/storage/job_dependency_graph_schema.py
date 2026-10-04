@@ -15,6 +15,75 @@ from athena.storage.schema_contract import (
 )
 
 
+_GRAPH_TABLES = frozenset({"job_parent_links", "job_dependencies"})
+_PARENT_COLUMNS = (
+    "job_id",
+    "parent_job_id",
+    "completion_policy",
+    "cancellation_policy",
+    "created_at_us",
+)
+_DEPENDENCY_COLUMNS = ("job_id", "depends_on_job_id", "created_at_us")
+
+
+def _verify_compatible_existing_graph_tables(connection: sqlite3.Connection) -> None:
+    """Accept only a complete canonical partial v42 graph schema."""
+    present = _GRAPH_TABLES.intersection(_user_tables(connection))
+    if not present:
+        return
+    if present != _GRAPH_TABLES:
+        raise DatabaseCompatibilityError(
+            "ATHENA job dependency graph migration found an incomplete partial schema."
+        )
+
+    parent_columns = tuple(
+        str(row[1])
+        for row in connection.execute("PRAGMA table_info(job_parent_links)").fetchall()
+    )
+    dependency_columns = tuple(
+        str(row[1])
+        for row in connection.execute("PRAGMA table_info(job_dependencies)").fetchall()
+    )
+    if parent_columns != _PARENT_COLUMNS:
+        raise DatabaseCompatibilityError(
+            "ATHENA job parent-link partial schema is incompatible."
+        )
+    if dependency_columns != _DEPENDENCY_COLUMNS:
+        raise DatabaseCompatibilityError(
+            "ATHENA job dependency partial schema is incompatible."
+        )
+
+    parent_foreign_keys = {
+        (str(row[2]), str(row[3]), str(row[4]))
+        for row in connection.execute(
+            "PRAGMA foreign_key_list(job_parent_links)"
+        ).fetchall()
+    }
+    expected_parent_foreign_keys = {
+        ("jobs", "job_id", "job_id"),
+        ("jobs", "parent_job_id", "job_id"),
+    }
+    if not expected_parent_foreign_keys.issubset(parent_foreign_keys):
+        raise DatabaseCompatibilityError(
+            "ATHENA job parent-link partial foreign keys are incompatible."
+        )
+
+    dependency_foreign_keys = {
+        (str(row[2]), str(row[3]), str(row[4]))
+        for row in connection.execute(
+            "PRAGMA foreign_key_list(job_dependencies)"
+        ).fetchall()
+    }
+    expected_dependency_foreign_keys = {
+        ("jobs", "job_id", "job_id"),
+        ("jobs", "depends_on_job_id", "job_id"),
+    }
+    if not expected_dependency_foreign_keys.issubset(dependency_foreign_keys):
+        raise DatabaseCompatibilityError(
+            "ATHENA job dependency partial foreign keys are incompatible."
+        )
+
+
 def migrate_schema_v41_to_v42(connection: sqlite3.Connection) -> None:
     """Add explicit durable job graph edges without rewriting job payloads."""
     current = int(connection.execute("PRAGMA user_version").fetchone()[0])
@@ -23,11 +92,13 @@ def migrate_schema_v41_to_v42(connection: sqlite3.Connection) -> None:
             "Job dependency graph migration requires canonical schema v41."
         )
 
+    _verify_compatible_existing_graph_tables(connection)
+
     connection.executescript(
         f"""
         BEGIN IMMEDIATE;
 
-        CREATE TABLE job_parent_links (
+        CREATE TABLE IF NOT EXISTS job_parent_links (
             job_id BLOB(16) PRIMARY KEY CHECK(length(job_id) = 16),
             parent_job_id BLOB(16) NOT NULL CHECK(length(parent_job_id) = 16),
             completion_policy TEXT NOT NULL CHECK(
@@ -42,10 +113,10 @@ def migrate_schema_v41_to_v42(connection: sqlite3.Connection) -> None:
             FOREIGN KEY(parent_job_id) REFERENCES jobs(job_id)
         ) WITHOUT ROWID;
 
-        CREATE INDEX idx_job_parent_links_parent
+        CREATE INDEX IF NOT EXISTS idx_job_parent_links_parent
             ON job_parent_links(parent_job_id, job_id);
 
-        CREATE TABLE job_dependencies (
+        CREATE TABLE IF NOT EXISTS job_dependencies (
             job_id BLOB(16) NOT NULL CHECK(length(job_id) = 16),
             depends_on_job_id BLOB(16) NOT NULL CHECK(length(depends_on_job_id) = 16),
             created_at_us INTEGER NOT NULL,
@@ -55,7 +126,7 @@ def migrate_schema_v41_to_v42(connection: sqlite3.Connection) -> None:
             FOREIGN KEY(depends_on_job_id) REFERENCES jobs(job_id)
         ) WITHOUT ROWID;
 
-        CREATE INDEX idx_job_dependencies_depends_on
+        CREATE INDEX IF NOT EXISTS idx_job_dependencies_depends_on
             ON job_dependencies(depends_on_job_id, job_id);
 
         UPDATE schema_metadata
@@ -107,24 +178,18 @@ def verify_schema_v42(connection: sqlite3.Connection) -> None:
             + "."
         )
 
-    parent_columns = {
-        str(row[1]) for row in connection.execute("PRAGMA table_info(job_parent_links)")
-    }
-    required_parent_columns = {
-        "job_id",
-        "parent_job_id",
-        "completion_policy",
-        "cancellation_policy",
-        "created_at_us",
-    }
-    if not required_parent_columns.issubset(parent_columns):
+    parent_columns = tuple(
+        str(row[1])
+        for row in connection.execute("PRAGMA table_info(job_parent_links)").fetchall()
+    )
+    if parent_columns != _PARENT_COLUMNS:
         raise DatabaseCompatibilityError("ATHENA job parent-link schema is incomplete.")
 
-    dependency_columns = {
-        str(row[1]) for row in connection.execute("PRAGMA table_info(job_dependencies)")
-    }
-    required_dependency_columns = {"job_id", "depends_on_job_id", "created_at_us"}
-    if not required_dependency_columns.issubset(dependency_columns):
+    dependency_columns = tuple(
+        str(row[1])
+        for row in connection.execute("PRAGMA table_info(job_dependencies)").fetchall()
+    )
+    if dependency_columns != _DEPENDENCY_COLUMNS:
         raise DatabaseCompatibilityError("ATHENA job dependency schema is incomplete.")
 
     if connection.execute("PRAGMA foreign_key_check").fetchall():
