@@ -2,13 +2,18 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+import uuid
+from collections.abc import Iterable, Mapping
 from typing import Any
 
 from athena.jobs.backup_verify_payload import BACKUP_VERIFY_DEEP_JOB_TYPE
 from athena.jobs.backup_verify_service_boundary import (
     BackupDeepVerifyServiceBoundaryError,
     validate_backup_deep_verify_service_create,
+)
+from athena.jobs.dependency_graph import (
+    ChildCancellationPolicy,
+    ParentCompletionPolicy,
 )
 from athena.jobs.models import JobPriority, JobRecord
 from athena.jobs.service import DurableJobService, InvalidJobPayloadError
@@ -27,6 +32,14 @@ class BackupDeepVerifyDurableJobService(DurableJobService):
         requested_scope: Mapping[str, Any] | None = None,
         pinned_configuration: Mapping[str, Any] | None = None,
         next_run_at_us: int | None = None,
+        parent_job_id: uuid.UUID | None = None,
+        parent_completion_policy: ParentCompletionPolicy = (
+            ParentCompletionPolicy.INDEPENDENT
+        ),
+        child_cancellation_policy: ChildCancellationPolicy = (
+            ChildCancellationPolicy.INDEPENDENT
+        ),
+        depends_on_job_ids: Iterable[uuid.UUID] = (),
     ) -> JobRecord:
         if job_type != BACKUP_VERIFY_DEEP_JOB_TYPE:
             return super().create(
@@ -35,6 +48,10 @@ class BackupDeepVerifyDurableJobService(DurableJobService):
                 requested_scope=requested_scope,
                 pinned_configuration=pinned_configuration,
                 next_run_at_us=next_run_at_us,
+                parent_job_id=parent_job_id,
+                parent_completion_policy=parent_completion_policy,
+                child_cancellation_policy=child_cancellation_policy,
+                depends_on_job_ids=depends_on_job_ids,
             )
 
         try:
@@ -55,18 +72,25 @@ class BackupDeepVerifyDurableJobService(DurableJobService):
             _canonical_json,
             _job_priority,
             _optional_nonnegative_int,
+            _uuid_value,
         )
 
         _job_priority(priority)
         _optional_nonnegative_int(next_run_at_us, "next_run_at_us")
+        if parent_job_id is not None:
+            _uuid_value(parent_job_id, "parent_job_id")
         requested_scope_json = _canonical_json(validated.requested_scope)
         pinned_configuration_json = _canonical_json(validated.pinned_configuration)
         actor_id = self.chat.ensure_local_user()
-        return self.repository.create(
+        return self.graph.create_job(
             job_type=normalized_job_type,
             actor_id=actor_id,
             priority=priority,
             requested_scope_json=requested_scope_json,
             pinned_configuration_json=pinned_configuration_json,
             next_run_at_us=next_run_at_us,
+            parent_job_id=parent_job_id,
+            parent_completion_policy=parent_completion_policy,
+            child_cancellation_policy=child_cancellation_policy,
+            depends_on_job_ids=depends_on_job_ids,
         )
