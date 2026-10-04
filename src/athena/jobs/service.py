@@ -248,9 +248,11 @@ class DurableJobService:
         )
 
     def recover_startup(self, *, now_us: int | None = None) -> tuple[JobRecord, ...]:
-        """Recover only expired leases; live worker leases are never stolen."""
+        """Recover expired leases, then restore durable dependency waiting state."""
         _optional_nonnegative_int(now_us, "now_us")
-        return self.repository.recover_expired_leases(now_us=now_us)
+        recovered = self.repository.recover_expired_leases(now_us=now_us)
+        self.graph.reconcile(now_us=now_us)
+        return recovered
 
     def get(self, job_id: uuid.UUID) -> JobRecord:
         return self.repository.get(_uuid_value(job_id, "job_id"))
@@ -258,6 +260,23 @@ class DurableJobService:
     def list(self, *, limit: int = 100) -> tuple[JobRecord, ...]:
         _positive_int(limit, "limit")
         return self.repository.list(limit=limit)
+
+    def graph_snapshot(self, job_id: uuid.UUID) -> JobGraphSnapshot:
+        return self.graph.snapshot(_uuid_value(job_id, "job_id"))
+
+    def replace_dependencies(
+        self,
+        job_id: uuid.UUID,
+        depends_on_job_ids: Iterable[uuid.UUID],
+    ) -> JobRecord:
+        normalized_job_id = _uuid_value(job_id, "job_id")
+        self.graph.replace_dependencies(normalized_job_id, depends_on_job_ids)
+        return self.repository.get(normalized_job_id)
+
+    def effective_priority(self, job_id: uuid.UUID, *, now_us: int) -> JobPriority:
+        normalized_job_id = _uuid_value(job_id, "job_id")
+        _nonnegative_int(now_us, "now_us")
+        return self.graph.effective_priority(normalized_job_id, now_us=now_us)
 
     def eligible_queued(
         self,
@@ -269,7 +288,8 @@ class DurableJobService:
         _nonnegative_int(now_us, "now_us")
         _positive_int(limit, "limit")
         normalized_job_types = self._registered_job_type_filter(job_types)
-        return self.repository.list_eligible_queued(
+        self.graph.reconcile(now_us=now_us)
+        return self.graph.eligible_queued(
             now_us=now_us,
             job_types=normalized_job_types,
             limit=limit,
@@ -285,7 +305,9 @@ class DurableJobService:
         now_us: int | None = None,
     ) -> tuple[JobRecord, ...]:
         _optional_nonnegative_int(now_us, "now_us")
-        return self.repository.wake_due_waiting(now_us=now_us)
+        woken = self.repository.wake_due_waiting(now_us=now_us)
+        self.graph.reconcile(now_us=now_us)
+        return woken
 
     def schedule_retry(
         self,
@@ -373,16 +395,23 @@ class DurableJobService:
         )
 
     def wake(self, job_id: uuid.UUID) -> JobRecord:
-        return self.repository.wake(_uuid_value(job_id, "job_id"))
+        normalized_job_id = _uuid_value(job_id, "job_id")
+        woken = self.repository.wake(normalized_job_id)
+        self.graph.reconcile()
+        return self.repository.get(woken.job_id)
 
     def request_cancel(self, job_id: uuid.UUID) -> JobRecord:
-        return self.repository.request_cancel(_uuid_value(job_id, "job_id"))
+        normalized_job_id = _uuid_value(job_id, "job_id")
+        return self.graph.request_cancel_cascade(normalized_job_id)
 
     def pause(self, job_id: uuid.UUID) -> JobRecord:
         return self.repository.pause(_uuid_value(job_id, "job_id"))
 
     def resume(self, job_id: uuid.UUID) -> JobRecord:
-        return self.repository.resume(_uuid_value(job_id, "job_id"))
+        normalized_job_id = _uuid_value(job_id, "job_id")
+        resumed = self.repository.resume(normalized_job_id)
+        self.graph.reconcile()
+        return self.repository.get(resumed.job_id)
 
     def complete(
         self,
@@ -394,11 +423,14 @@ class DurableJobService:
         normalized_job_id = _uuid_value(job_id, "job_id")
         _lease_token(lease_token)
         _optional_nonnegative_int(now_us, "now_us")
-        return self.repository.complete(
+        self.graph.assert_parent_completion_allowed(normalized_job_id)
+        completed = self.repository.complete(
             job_id=normalized_job_id,
             lease_token=lease_token,
             now_us=now_us,
         )
+        self.graph.reconcile(now_us=now_us)
+        return completed
 
     def acknowledge_cancel(
         self,
