@@ -400,18 +400,92 @@ class ExternalAccessGateway:
             raise ExternalAuthorizationError(
                 f"External authorization {authorization_id} not found."
             )
+        authorization_id_value = _persisted_authorization_uuid(
+            row["authorization_id"],
+            label="authorization_id",
+        )
+        actor_id = _persisted_authorization_uuid(
+            row["actor_id"],
+            label="actor_id",
+        )
+        purpose = _persisted_authorization_text(
+            row["purpose"],
+            label="purpose",
+        )
+        allowed_hosts_json = _persisted_authorization_text(
+            row["allowed_hosts_json"],
+            label="allowed_hosts_json",
+        )
+        hosts = _string_array(allowed_hosts_json)
+        if not hosts:
+            raise ExternalAuthorizationError(
+                "Persisted external authorization host scope is empty."
+            )
+        for host in hosts:
+            try:
+                normalized_host = _normalize_host(host)
+                _reject_unsafe_literal_or_name(normalized_host)
+            except ExternalDestinationError as exc:
+                raise ExternalAuthorizationError(
+                    "Persisted external authorization host scope is invalid."
+                ) from exc
+            if normalized_host != host:
+                raise ExternalAuthorizationError(
+                    "Persisted external authorization host scope is non-canonical."
+                )
+
+        privacy_route = _persisted_authorization_text(
+            row["privacy_route"],
+            label="privacy_route",
+        )
+        if privacy_route not in {"tor_preferred", "tor", "direct_explicit"}:
+            raise ExternalAuthorizationError(
+                "Persisted external authorization privacy route is invalid."
+            )
+        origin = _persisted_authorization_text(
+            row["origin"],
+            label="origin",
+        )
+        if origin != "explicit_user":
+            raise ExternalAuthorizationError(
+                "Persisted external authorization origin is invalid."
+            )
+        expires_at_us = _persisted_authorization_int(
+            row["expires_at_us"],
+            label="expires_at_us",
+        )
+        created_at_us = _persisted_authorization_int(
+            row["created_at_us"],
+            label="created_at_us",
+        )
+        raw_revoked_at = row["revoked_at_us"]
+        revoked_at_us = (
+            None
+            if raw_revoked_at is None
+            else _persisted_authorization_int(
+                raw_revoked_at,
+                label="revoked_at_us",
+            )
+        )
+        if expires_at_us <= created_at_us:
+            raise ExternalAuthorizationError(
+                "Persisted external authorization expiry is invalid."
+            )
+        if revoked_at_us is not None and revoked_at_us < created_at_us:
+            raise ExternalAuthorizationError(
+                "Persisted external authorization revocation time is invalid."
+            )
+
         return ExternalAccessAuthorizationRecord(
-            authorization_id=uuid_from_blob(bytes(row["authorization_id"])),
-            actor_id=uuid_from_blob(bytes(row["actor_id"])),
-            purpose=str(row["purpose"]),
-            allowed_hosts_json=str(row["allowed_hosts_json"]),
-            privacy_route=str(row["privacy_route"]),
-            origin=str(row["origin"]),
-            expires_at_us=int(row["expires_at_us"]),
-            revoked_at_us=(
-                int(row["revoked_at_us"]) if row["revoked_at_us"] is not None else None
-            ),
-            created_at_us=int(row["created_at_us"]),
+            authorization_id=authorization_id_value,
+            actor_id=actor_id,
+            purpose=purpose,
+            allowed_hosts_json=allowed_hosts_json,
+            privacy_route=privacy_route,
+            origin=origin,
+            expires_at_us=expires_at_us,
+            revoked_at_us=revoked_at_us,
+            created_at_us=created_at_us,
         )
 
     def validate_url(
@@ -1124,6 +1198,47 @@ def _looks_like_access_challenge(response: ExternalResponse) -> bool:
         b"verify you are human" in sample
         and (b"captcha" in sample or b"cloudflare" in sample)
     )
+
+
+def _persisted_authorization_uuid(
+    value: object,
+    *,
+    label: str,
+) -> uuid.UUID:
+    if not isinstance(value, bytes) or len(value) != 16:
+        raise ExternalAuthorizationError(
+            f"Persisted external authorization {label} is invalid."
+        )
+    try:
+        return uuid_from_blob(value)
+    except (TypeError, ValueError) as exc:
+        raise ExternalAuthorizationError(
+            f"Persisted external authorization {label} is invalid."
+        ) from exc
+
+
+def _persisted_authorization_text(
+    value: object,
+    *,
+    label: str,
+) -> str:
+    if not isinstance(value, str) or not value.strip():
+        raise ExternalAuthorizationError(
+            f"Persisted external authorization {label} is invalid."
+        )
+    return value
+
+
+def _persisted_authorization_int(
+    value: object,
+    *,
+    label: str,
+) -> int:
+    if type(value) is not int:
+        raise ExternalAuthorizationError(
+            f"Persisted external authorization {label} is invalid."
+        )
+    return value
 
 
 def _canonical_json(value: object) -> str:
