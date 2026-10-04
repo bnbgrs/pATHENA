@@ -66,6 +66,7 @@ _BUTTON_REPLACEMENTS = {
     "WAKE": "Wake",
     "CANCEL": "Cancel",
     "IMPORT FILE": "Import file",
+    "IMPORT FILES": "Import files",
     "PROCESS / RETRY": "Process / retry",
     "REFRESH NOW": "Refresh",
     "CREATE BACKUP…": "Create backup",
@@ -479,7 +480,7 @@ def _configure_files_presentation(window: QWidget) -> None:
         return
 
     for button in files.findChildren(QPushButton):
-        if button.text() == "Import file":
+        if button.text() in {"Import file", "Import files"}:
             button.setObjectName("fileImportButton")
             button.setProperty("role", "primary")
         elif button.text() == "Process / retry":

@@ -38,23 +38,38 @@ class KnowledgeSelectionContinuity(QObject):
         empty_callback: object,
     ) -> None:
         previous_id, details, noun = self._selection_context(widget)
-        widget.setProperty("pathenaSelectionDisappeared", "")
-        details.setProperty("pathenaSelectionDisappeared", "")
+        disappeared_id = str(widget.property("pathenaSelectionDisappeared") or "")
 
-        if selected is not None or widget.count() == 0 or previous_id is None:
+        if selected is not None:
+            widget.setProperty("pathenaSelectionDisappeared", "")
+            details.setProperty("pathenaSelectionDisappeared", "")
             self._original(widget, selected, empty_callback=empty_callback)
             return
 
+        missing_id = previous_id or disappeared_id
+        if missing_id:
+            self._show_disappeared_selection(widget, details, noun, missing_id)
+            return
+
+        self._original(widget, selected, empty_callback=empty_callback)
+
+    def _show_disappeared_selection(
+        self,
+        widget: QListWidget,
+        details: QPlainTextEdit,
+        noun: str,
+        missing_id: str,
+    ) -> None:
         self._clear_selection_state(widget)
         widget.setCurrentRow(-1)
-        label = previous_id[:8].upper()
+        label = missing_id[:8].upper()
         message = (
             f"SELECTION CHANGED · {noun} {label} is no longer listed after refresh. "
             f"Select another {noun} to inspect its current provenance."
         )
         details.setPlainText(message)
-        widget.setProperty("pathenaSelectionDisappeared", previous_id)
-        details.setProperty("pathenaSelectionDisappeared", previous_id)
+        widget.setProperty("pathenaSelectionDisappeared", missing_id)
+        details.setProperty("pathenaSelectionDisappeared", missing_id)
         widget.setAccessibleDescription(message)
         details.setAccessibleDescription(message)
         widget.setStatusTip(message)

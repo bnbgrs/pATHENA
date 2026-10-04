@@ -49,6 +49,10 @@ class SourceRepresentationType(str, Enum):
 
     NORMALIZED_TEXT = "normalized_text"
     EXTRACTED_TEXT = "extracted_text"
+    OCR_TEXT = "ocr_text"
+    TRANSCRIPT = "transcript"
+    THUMBNAIL = "thumbnail"
+    PAGE_IMAGES = "page_images"
 
 
 class SourceRepresentationStructureType(str, Enum):
