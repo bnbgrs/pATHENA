@@ -15,6 +15,7 @@ from athena.desktop.files_workspace import FilesWorkspace
 from athena.desktop.jobs_lifecycle import parse_job_list
 from athena.desktop.jobs_workspace import JobsWorkspace
 from athena.desktop.research_workspace import ResearchWorkspace
+from athena.desktop.research_workspace_protocol import parse_research_job_list
 from athena.desktop.system_backup import BackupWorkspace
 
 
@@ -76,7 +77,9 @@ def test_research_refresh_does_not_replace_disappeared_selection(qt_app: QApplic
     workspace._selected_job_id = missing
 
     workspace._render_job_list(
-        f"{replacement}\twaiting\tqueued\t0.25\tReplacement research run"
+        parse_research_job_list(
+            f"{replacement}\twaiting\tqueued\t0.25\tReplacement research run"
+        )
     )
 
     assert workspace.jobs.currentRow() == -1
