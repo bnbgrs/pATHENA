@@ -16,11 +16,11 @@ from athena.chat.service import ChatService
 from athena.common.ids import uuid_to_blob
 from athena.storage.database import SQLiteDatabase
 from athena.storage.schema_contract import (
+    JOB_DEPENDENCY_GRAPH_MIGRATION_ID,
+    JOB_DEPENDENCY_GRAPH_SCHEMA_VERSION,
     PROTECTED_SOURCE_SEMANTIC_MIGRATION_ID,
     PROTECTED_SOURCE_SEMANTIC_SCHEMA_VERSION,
     SCHEMA_VERSION,
-    STRUCTURED_REPLICATION_MIGRATION_ID,
-    STRUCTURED_REPLICATION_SCHEMA_VERSION,
 )
 
 
@@ -62,7 +62,7 @@ def test_fresh_database_contains_grounded_receipt_schema(
 
         assert (
             user_version
-            == STRUCTURED_REPLICATION_SCHEMA_VERSION
+            == JOB_DEPENDENCY_GRAPH_SCHEMA_VERSION
             == SCHEMA_VERSION
         )
 
@@ -91,9 +91,9 @@ def test_fresh_database_contains_grounded_receipt_schema(
         assert metadata is not None
 
         assert tuple(metadata) == (
-            STRUCTURED_REPLICATION_SCHEMA_VERSION,
-            STRUCTURED_REPLICATION_MIGRATION_ID,
-            STRUCTURED_REPLICATION_SCHEMA_VERSION,
+            JOB_DEPENDENCY_GRAPH_SCHEMA_VERSION,
+            JOB_DEPENDENCY_GRAPH_MIGRATION_ID,
+            JOB_DEPENDENCY_GRAPH_SCHEMA_VERSION,
         )
 
     finally:

@@ -10,8 +10,8 @@ from athena.storage.database import SQLiteDatabase
 from athena.storage.schema_contract import (
     GROUNDED_RESPONSE_RECEIPT_MIGRATION_ID,
     GROUNDED_RESPONSE_RECEIPT_SCHEMA_VERSION,
-    STRUCTURED_REPLICATION_MIGRATION_ID,
-    STRUCTURED_REPLICATION_SCHEMA_VERSION,
+    JOB_DEPENDENCY_GRAPH_MIGRATION_ID,
+    JOB_DEPENDENCY_GRAPH_SCHEMA_VERSION,
     DatabaseCompatibilityError,
 )
 from athena.storage.structured_replication import (
@@ -212,9 +212,9 @@ def test_structured_replication_migration_restarts_from_compatible_partial_state
         ).fetchone()
         assert metadata is not None
         assert tuple(metadata) == (
-            STRUCTURED_REPLICATION_SCHEMA_VERSION,
-            STRUCTURED_REPLICATION_MIGRATION_ID,
-            STRUCTURED_REPLICATION_SCHEMA_VERSION,
+            JOB_DEPENDENCY_GRAPH_SCHEMA_VERSION,
+            JOB_DEPENDENCY_GRAPH_MIGRATION_ID,
+            JOB_DEPENDENCY_GRAPH_SCHEMA_VERSION,
         )
     finally:
         restarted.stop()

@@ -394,7 +394,7 @@ def test_physical_cleanup_migration_removes_deleted_canary(
 
     assert metadata == (
         schema_module.SCHEMA_VERSION,
-        schema_module.STRUCTURED_REPLICATION_MIGRATION_ID,
+        schema_module.JOB_DEPENDENCY_GRAPH_MIGRATION_ID,
         schema_module.SCHEMA_VERSION,
     )
 
@@ -609,7 +609,7 @@ def test_v38_second_start_does_not_repeat_cleanup(
 
     assert metadata == (
         schema_module.SCHEMA_VERSION,
-        schema_module.STRUCTURED_REPLICATION_MIGRATION_ID,
+        schema_module.JOB_DEPENDENCY_GRAPH_MIGRATION_ID,
         schema_module.SCHEMA_VERSION,
     )
 
