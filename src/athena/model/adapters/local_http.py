@@ -81,6 +81,10 @@ class _BoundedLocalResponse:
         return None
 
     def __iter__(self) -> Any:
+        if self._is_event_stream():
+            yield from self._iter_sse_events()
+            return
+
         while True:
             self._assert_before_deadline()
             raw_line = self.readline()
@@ -88,6 +92,72 @@ class _BoundedLocalResponse:
             if not raw_line:
                 return
             yield raw_line
+
+    def _is_event_stream(self) -> bool:
+        try:
+            headers = self._response.headers
+        except AttributeError:
+            return False
+
+        try:
+            content_type = headers.get_content_type()
+        except (AttributeError, TypeError, ValueError):
+            try:
+                raw_content_type = headers.get("Content-Type", "")
+            except (AttributeError, TypeError, ValueError):
+                return False
+            if not isinstance(raw_content_type, str):
+                return False
+            content_type = raw_content_type.partition(";")[0].strip()
+
+        return str(content_type).casefold() == "text/event-stream"
+
+    def _iter_sse_events(self) -> Any:
+        """Yield one normalized ``data:`` line per complete SSE event."""
+        data_lines: list[bytes] = []
+        first_line = True
+        while True:
+            self._assert_before_deadline()
+            raw_line = self.readline()
+            self._assert_before_deadline()
+            if not raw_line:
+                if data_lines:
+                    yield self._render_sse_data_event(data_lines)
+                return
+
+            line = self._strip_sse_line_ending(raw_line)
+            if first_line:
+                first_line = False
+                if line.startswith(b"\xef\xbb\xbf"):
+                    line = line[3:]
+
+            if not line:
+                if data_lines:
+                    yield self._render_sse_data_event(data_lines)
+                    data_lines.clear()
+                continue
+            if line.startswith(b":"):
+                continue
+
+            field, separator, value = line.partition(b":")
+            if not separator:
+                value = b""
+            elif value.startswith(b" "):
+                value = value[1:]
+            if field == b"data":
+                data_lines.append(value)
+
+    @staticmethod
+    def _strip_sse_line_ending(raw_line: bytes) -> bytes:
+        if raw_line.endswith(b"\r\n"):
+            return raw_line[:-2]
+        if raw_line.endswith((b"\n", b"\r")):
+            return raw_line[:-1]
+        return raw_line
+
+    @staticmethod
+    def _render_sse_data_event(data_lines: list[bytes]) -> bytes:
+        return b"data:" + b"\n".join(data_lines) + b"\n"
 
     def __getattr__(self, name: str) -> Any:
         if name in _BLOCKED_RESPONSE_READ_APIS:
@@ -240,10 +310,12 @@ def open_local_request(request: Request, *, timeout: float) -> Any:
     ``readline()`` calls, a cumulative byte cap, and a monotonic total deadline
     in addition to the socket inactivity timeout, preventing giant SSE lines,
     many-small-event floods, and indefinitely active local streams from bypassing
-    the configured transport and generation bounds. HTTP error bodies use the
-    same byte and total-time bounds before provider-specific error parsing.
-    Alternative raw response read APIs and body-handle escape attributes are
-    rejected so callers cannot bypass the bounded read/readline paths accidentally.
+    the configured transport and generation bounds. Event-stream responses are
+    framed into complete logical ``data:`` events only after each physical line
+    passes those bounds. HTTP error bodies use the same byte and total-time bounds
+    before provider-specific error parsing. Alternative raw response read APIs
+    and body-handle escape attributes are rejected so callers cannot bypass the
+    bounded read/readline paths accidentally.
     """
     if not isinstance(request, Request):
         raise TypeError("Local model transport requires urllib.request.Request.")
