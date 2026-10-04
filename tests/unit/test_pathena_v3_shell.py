@@ -228,10 +228,6 @@ def test_v3_shell_keeps_core_chat_controls_visible_at_minimum_desktop_size() -> 
         assert all(button.width() <= rail.width() - 8 for button in controller._nav_buttons.values())
         assert controller._pallas_button.width() <= rail.width() - 8
         assert all(
-            button.toolButtonStyle() == Qt.ToolButtonStyle.ToolButtonTextUnderIcon
-            for button in (*controller._nav_buttons.values(), controller._pallas_button)
-        )
-        assert all(
             button.toolButtonStyle() == Qt.ToolButtonStyle.ToolButtonIconOnly
             for button in (*controller._nav_buttons.values(), controller._pallas_button)
         )
@@ -250,8 +246,12 @@ def test_v3_shell_keeps_core_chat_controls_visible_at_minimum_desktop_size() -> 
         assert controller._command_button.text() == "Command   Ctrl K"
         assert controller._command_button.property("compact") is False
         assert controller._command_button.minimumWidth() == 174
-        assert all(button.width() <= rail.width() - 14 for button in controller._nav_buttons.values())
-        assert controller._pallas_button.width() <= rail.width() - 14
+        assert all(button.width() <= rail.width() - 8 for button in controller._nav_buttons.values())
+        assert controller._pallas_button.width() <= rail.width() - 8
+        assert all(
+            button.toolButtonStyle() == Qt.ToolButtonStyle.ToolButtonTextUnderIcon
+            for button in (*controller._nav_buttons.values(), controller._pallas_button)
+        )
         assert all(
             label.isVisible()
             for label in window.findChildren(QLabel, "v3MetaLabel")
