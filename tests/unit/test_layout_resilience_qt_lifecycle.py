@@ -7,6 +7,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PySide6.QtCore import QCoreApplication, QEvent
 from PySide6.QtWidgets import QApplication, QWidget
 
+from athena.desktop.files_workspace import FilesWorkspace
 from athena.desktop.pathena_layout_resilience_4000 import LayoutResilienceController
 
 
@@ -57,3 +58,16 @@ def test_layout_resilience_keeps_live_widgets_synchronized() -> None:
 
     assert target.property("pathenaCompactLayout") is False
     assert target.property("pathenaLayoutMode") == "regular"
+
+
+
+def test_files_workspace_deferred_callbacks_die_with_workspace() -> None:
+    _app()
+    workspace = FilesWorkspace()
+
+    workspace.deleteLater()
+    _flush_deferred_delete()
+
+    # Parent-owned timers are destroyed with the workspace, so flushing the
+    # event queue must not invoke callbacks against deleted Qt children.
+    QCoreApplication.processEvents()
