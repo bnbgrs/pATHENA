@@ -5,6 +5,7 @@ import json
 from unittest.mock import patch
 
 from PySide6.QtWidgets import QApplication, QLabel
+from shiboken6 import delete
 
 from athena.api.asgi import CoreApiAsgiApp
 from athena.api.client import CoreApiClient
@@ -76,6 +77,13 @@ def _model(model_id: str, *, loaded: bool, model_type: str = "llm") -> ModelResp
     )
 
 
+def _dispose_window(app: QApplication, window: AthenaMainWindow) -> None:
+    """Release the native Qt tree before the next sharded desktop test."""
+    window.close()
+    app.processEvents()
+    delete(window)
+
+
 def _snapshot() -> DesktopApiSnapshot:
     return DesktopApiSnapshot(
         health=HealthResponse(api_version="v1", core_status="ok", detail=None),
@@ -109,8 +117,7 @@ def test_desktop_starts_and_refreshes_in_explicit_new_chat_state() -> None:
         assert window.new_chat_button.text() == "NEW CHAT"
         assert window.chat_selector.findData("chat-existing") >= 0
     finally:
-        window.close()
-        app.processEvents()
+        _dispose_window(app, window)
 
 
 def test_model_selector_lists_available_llms_but_not_embeddings() -> None:
@@ -126,8 +133,7 @@ def test_model_selector_lists_available_llms_but_not_embeddings() -> None:
         window._on_model_selected(unloaded)
         assert window.status_text.text() == "LOCAL / MODEL NOT LOADED"
     finally:
-        window.close()
-        app.processEvents()
+        _dispose_window(app, window)
 
 
 def test_settings_expose_separate_context_output_temperature_and_thinking() -> None:
@@ -147,8 +153,7 @@ def test_settings_expose_separate_context_output_temperature_and_thinking() -> N
         assert window._temperature() == 0.25
         assert window._thinking_enabled() is True
     finally:
-        window.close()
-        app.processEvents()
+        _dispose_window(app, window)
 
 
 def test_transient_failed_turn_survives_thread_rerender() -> None:
@@ -193,8 +198,7 @@ def test_transient_failed_turn_survives_thread_rerender() -> None:
             for text in labels
         )
     finally:
-        window.close()
-        app.processEvents()
+        _dispose_window(app, window)
 
 
 def test_lm_studio_health_and_model_list_share_short_discovery_cache() -> None:

@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from athena.desktop.pathena_design_tokens import RADII, SHELL
 from athena.desktop.pathena_v3_components import (
     V3ComposerFrame,
     V3ControlRow,
@@ -79,7 +80,10 @@ class PathenaV3ShellController(QObject):
         self._apply_density(self._window.width())
         self._window.prompt_input.show()
         self._window.ground_button.show()
-        self._window.send_button.setFixedSize(44, 44)
+        self._window.send_button.setFixedSize(
+            SHELL.composer_action_size,
+            SHELL.composer_action_size,
+        )
         self._window.send_button.show()
         self._sync_navigation(max(0, self._window.navigation.currentRow()))
 
@@ -119,8 +123,8 @@ class PathenaV3ShellController(QObject):
         main_layout.addWidget(self._build_workspace(), 1)
 
         inspector.setParent(body)
-        inspector.setMinimumWidth(300)
-        inspector.setMaximumWidth(380)
+        inspector.setMinimumWidth(max(260, SHELL.inspector_width - 40))
+        inspector.setMaximumWidth(SHELL.inspector_width)
         inspector.hide()
 
         body_layout.addWidget(main, 1)
@@ -136,11 +140,11 @@ class PathenaV3ShellController(QObject):
     def _build_rail(self) -> QWidget:
         rail = QFrame()
         rail.setObjectName("v3Rail")
-        rail.setFixedWidth(78)
+        rail.setFixedWidth(SHELL.icon_rail_width)
         self._rail = rail
 
         layout = QVBoxLayout(rail)
-        layout.setContentsMargins(7, 16, 7, 14)
+        layout.setContentsMargins(4, 16, 4, 14)
         layout.setSpacing(3)
 
         mark = QLabel("P")
@@ -342,7 +346,7 @@ class PathenaV3ShellController(QObject):
         composer_layout.setSpacing(8)
 
         window.prompt_input.setParent(composer)
-        window.prompt_input.setMinimumHeight(56)
+        window.prompt_input.setMinimumHeight(SHELL.composer_min_height)
         window.prompt_input.setMaximumHeight(120)
         window.prompt_input.setPlaceholderText("Ask, research, or build…")
         window.prompt_input.show()
@@ -372,12 +376,16 @@ class PathenaV3ShellController(QObject):
         window.send_button.setAccessibleName("Send message")
         window.send_button.setToolTip("Send message · Ctrl+Enter")
         window.send_button.setStyleSheet(
-            "QPushButton { color: rgba(0, 0, 0, 0); background: transparent; border: 0; "
-            "border-radius: 22px; padding: 0; font-size: 15pt; font-weight: 800; } "
+            f"QPushButton {{ color: rgba(0, 0, 0, 0); background: transparent; border: 0; "
+            f"border-radius: {RADII.control}px; padding: 0; font-size: 15pt; "
+            "font-weight: 800; } "
             "QPushButton:disabled { color: rgba(0, 0, 0, 0); background: transparent; "
             "border: 0; }"
         )
-        window.send_button.setFixedSize(44, 44)
+        window.send_button.setFixedSize(
+            SHELL.composer_action_size,
+            SHELL.composer_action_size,
+        )
         composer_layout.addWidget(window.send_button)
         window.send_button.ensurePolished()
         window.send_button.show()
@@ -560,7 +568,7 @@ class PathenaV3ShellController(QObject):
 
         rail = self._rail
         if rail is not None:
-            rail.setFixedWidth(72 if compact else 78)
+            rail.setFixedWidth(58 if compact else SHELL.icon_rail_width)
 
         for button in (*self._nav_buttons.values(), self._pallas_button):
             button.set_compact(compact)

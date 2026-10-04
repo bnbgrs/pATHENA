@@ -31,14 +31,14 @@ def test_v3_shell_is_structurally_distinct_and_keeps_route_contract() -> None:
     assert shell.findChild(QFrame, "conversation") is not None
     assert shell.findChild(QFrame, "v2Sidebar") is None
 
-    assert controller._header.height() == 68
-    assert "#78D1C5" in PATHENA_V3_STYLESHEET
+    assert controller._header.height() == 52
+    assert "#C7FF52" in PATHENA_V3_STYLESHEET
     assert "#7C9CFF" not in PATHENA_V3_STYLESHEET
     assert (
         'QToolButton[v3Nav="true"]:focus {\n'
-        "    color: #D7DBDF;\n"
-        "    background: #14181D;\n"
-        "    border-color: #3B4652;"
+        "    color: #F4F1E8;\n"
+        "    background: #1D1F1A;\n"
+        "    border-color: #45483D;"
         in PATHENA_V3_STYLESHEET
     )
     assert "QFrame#v3ChatMeta {\n    background: transparent;" in PATHENA_V3_STYLESHEET
@@ -46,11 +46,11 @@ def test_v3_shell_is_structurally_distinct_and_keeps_route_contract() -> None:
 
     rail = shell.findChild(QFrame, "v3Rail")
     assert rail is not None
-    assert 76 <= rail.width() <= 80
+    assert rail.width() == 76
     assert rail.minimumWidth() == rail.maximumWidth()
 
     nav_buttons = shell.findChildren(QToolButton, "v3NavButton")
-    assert all(button.width() <= rail.width() - 14 for button in nav_buttons)
+    assert all(button.width() <= rail.width() - 8 for button in nav_buttons)
     assert [button.text() for button in nav_buttons[:5]] == [
         "Chat",
         "Knowledge",
@@ -197,8 +197,8 @@ def test_v3_shell_keeps_core_chat_controls_visible_at_minimum_desktop_size() -> 
         assert window.prompt_input.maximumHeight() == 120
         assert window.ground_button.isVisible()
         assert window.send_button.isVisible()
-        assert window.send_button.width() == 44
-        assert window.send_button.height() == 44
+        assert window.send_button.width() == 36
+        assert window.send_button.height() == 36
         assert window.ground_button.text() == "Sources"
         assert window.send_button.text() == "↑"
         assert "color: rgba(0, 0, 0, 0)" in window.ground_button.styleSheet()
@@ -217,14 +217,18 @@ def test_v3_shell_keeps_core_chat_controls_visible_at_minimum_desktop_size() -> 
 
         rail = window.findChild(QFrame, "v3Rail")
         assert rail is not None
-        assert rail.width() == 72
-        assert controller._header.height() == 58
+        assert rail.width() == 58
+        assert controller._header.height() == 46
         assert controller._header.hint_label.isHidden()
         assert controller._command_button.text() == "Ctrl K"
         assert controller._command_button.property("compact") is True
         assert controller._command_button.maximumWidth() == 70
-        assert all(button.width() == 58 for button in controller._nav_buttons.values())
-        assert controller._pallas_button.width() == 58
+        assert all(button.width() <= rail.width() - 8 for button in controller._nav_buttons.values())
+        assert controller._pallas_button.width() <= rail.width() - 8
+        assert all(
+            button.toolButtonStyle() == Qt.ToolButtonStyle.ToolButtonIconOnly
+            for button in (*controller._nav_buttons.values(), controller._pallas_button)
+        )
         assert all(
             label.isHidden()
             for label in window.findChildren(QLabel, "v3MetaLabel")
@@ -234,14 +238,18 @@ def test_v3_shell_keeps_core_chat_controls_visible_at_minimum_desktop_size() -> 
 
         window.resize(1480, 900)
         app.processEvents()
-        assert rail.width() == 78
-        assert controller._header.height() == 68
+        assert rail.width() == 76
+        assert controller._header.height() == 52
         assert controller._header.hint_label.isVisible()
         assert controller._command_button.text() == "Command   Ctrl K"
         assert controller._command_button.property("compact") is False
         assert controller._command_button.minimumWidth() == 174
-        assert all(button.width() == 64 for button in controller._nav_buttons.values())
-        assert controller._pallas_button.width() == 64
+        assert all(button.width() <= rail.width() - 8 for button in controller._nav_buttons.values())
+        assert controller._pallas_button.width() <= rail.width() - 8
+        assert all(
+            button.toolButtonStyle() == Qt.ToolButtonStyle.ToolButtonTextUnderIcon
+            for button in (*controller._nav_buttons.values(), controller._pallas_button)
+        )
         assert all(
             label.isVisible()
             for label in window.findChildren(QLabel, "v3MetaLabel")

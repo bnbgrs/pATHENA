@@ -45,25 +45,15 @@ def _prepare_application() -> QApplication:
         if "Segoe UI" in families
         else ("Arial" if "Arial" in families else app.font().family())
     )
-    display = (
-        "Georgia"
-        if "Georgia" in families
-        else ("Times New Roman" if "Times New Roman" in families else content)
-    )
+    display = content
     mono = "Consolas" if "Consolas" in families else content
 
-    from athena.desktop.pathena_v2_theme import PATHENA_V2_STYLESHEET
+    # Capture the same current runtime stylesheet as the real desktop app.
+    # The stylesheet itself owns the V4 token/fallback chain; this wrapper only
+    # ensures deterministic Windows fallback fonts are registered.
+    from athena.desktop.pathena_v3_theme import PATHENA_V3_STYLESHEET
 
-    stylesheet = PATHENA_V2_STYLESHEET
-    stylesheet = stylesheet.replace(
-        '"Segoe UI", "Inter", sans-serif', f'"{content}"'
-    )
-    stylesheet = stylesheet.replace(
-        '"Georgia", "Times New Roman", serif', f'"{display}"'
-    )
-    stylesheet = stylesheet.replace(
-        '"Cascadia Mono", "Consolas", monospace', f'"{mono}"'
-    )
+    stylesheet = PATHENA_V3_STYLESHEET
     app.setApplicationName("ATHENA")
     app.setOrganizationName("ATHENA")
     app.setApplicationDisplayName("pATHENA")
@@ -71,7 +61,7 @@ def _prepare_application() -> QApplication:
     app.setStyleSheet(stylesheet)
     print(
         f"font-safe capture families: content={content!r}, "
-        f"display={display!r}, mono={mono!r}"
+        f"display={display!r}, mono={mono!r}, theme='runtime-v4-token-bridge'"
     )
     return app
 
