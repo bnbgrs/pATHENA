@@ -13,8 +13,8 @@ from PySide6.QtWidgets import QApplication
 from athena.config.settings import AthenaSettings
 from athena.core.application import AthenaApplication
 from athena.desktop.system_backup import (
-    BackupWorkspace,
     _BACKUP_RE,
+    BackupWorkspace,
     parse_backup_list,
 )
 
