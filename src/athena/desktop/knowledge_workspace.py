@@ -60,6 +60,23 @@ _READ_DETAIL_OPERATIONS = (
 )
 
 
+_KNOWLEDGE_DETAIL_OPERATIONS = frozenset({"show", "history"})
+_CLAIM_DETAIL_OPERATIONS = frozenset({"claim-show", "claim-history"})
+_REVIEW_DETAIL_OPERATIONS = frozenset({"review-show"})
+_REVIEW_MUTATION_OPERATIONS = frozenset({"review-accept", "review-reject"})
+_ENTITY_OPERATIONS = (
+    _KNOWLEDGE_DETAIL_OPERATIONS
+    | _CLAIM_DETAIL_OPERATIONS
+    | _REVIEW_DETAIL_OPERATIONS
+    | _REVIEW_MUTATION_OPERATIONS
+)
+_READ_DETAIL_OPERATIONS = (
+    _KNOWLEDGE_DETAIL_OPERATIONS
+    | _CLAIM_DETAIL_OPERATIONS
+    | _REVIEW_DETAIL_OPERATIONS
+)
+
+
 class KnowledgeWorkspace(QWidget):
     """Browse durable canonical memory while preserving the live review inbox."""
 
