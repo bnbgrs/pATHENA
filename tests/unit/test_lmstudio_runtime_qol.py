@@ -227,6 +227,39 @@ def test_core_snapshot_does_not_overwrite_active_cli_status(tmp_path: Path) -> N
         app.processEvents()
 
 
+def test_core_failure_does_not_overwrite_active_cli_status(tmp_path: Path) -> None:
+    app = _app()
+    window = PathenaMainWindow(api_controller=None)
+    controller = _RuntimeControllerStub()
+    settings = QSettings(
+        str(tmp_path / "lmstudio-runtime-core-failure.ini"),
+        QSettings.Format.IniFormat,
+    )
+    runtime = runtime_module.LMStudioRuntimeController(
+        window,
+        controller,  # type: ignore[arg-type]
+        settings=settings,
+    )
+    try:
+        runtime._steps.append(  # noqa: SLF001
+            runtime_module._CommandStep(
+                operation="model_load",
+                arguments=("load", "model-id"),
+                status="Loading Local Model",
+            )
+        )
+        runtime._set_status("LM Studio runtime · Loading Local Model …")  # noqa: SLF001
+
+        runtime._core_failed("transient refresh failure")  # noqa: SLF001
+
+        assert runtime.status_text == "LM Studio runtime · Loading Local Model …"
+        assert runtime.unload_button.isEnabled() is False
+    finally:
+        runtime.dispose()
+        window.close()
+        app.processEvents()
+
+
 def test_process_command_preserves_arguments_for_native_executable() -> None:
     program, arguments = runtime_module._process_command(
         "/opt/lmstudio/lms",
