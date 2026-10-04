@@ -95,3 +95,20 @@ def test_model_chat_message_rejects_noncanonical_or_unsupported_roles(role: str)
 def test_model_chat_message_accepts_supported_roles(role: str) -> None:
     message = ModelChatMessage(role=role, content="hello")
     assert message.role == role
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("provider", " lmstudio"),
+        ("provider", "lmstudio "),
+        ("backend_model_id", " local/model"),
+        ("backend_model_id", "local/model "),
+    ],
+)
+def test_model_info_rejects_noncanonical_stable_identity_text(
+    field: str,
+    value: str,
+) -> None:
+    with pytest.raises(ValueError, match="canonical trimmed text"):
+        _model(**{field: value})
