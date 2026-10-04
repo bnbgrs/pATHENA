@@ -11,13 +11,7 @@ import os
 
 from PySide6.QtCore import QEvent, QObject, Slot
 from PySide6.QtGui import QAction, QIcon
-from PySide6.QtWidgets import (
-    QApplication,
-    QMenu,
-    QStyle,
-    QSystemTrayIcon,
-    QWidget,
-)
+from PySide6.QtWidgets import QApplication, QMenu, QStyle, QSystemTrayIcon, QWidget
 
 
 _CLOSE_TO_TRAY_ENV = "PATHENA_CLOSE_TO_TRAY"
