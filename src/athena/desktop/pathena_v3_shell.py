@@ -568,11 +568,7 @@ class PathenaV3ShellController(QObject):
 
         rail = self._rail
         if rail is not None:
-            rail.setFixedWidth(
-                max(56, SHELL.icon_rail_width - 6)
-                if compact
-                else SHELL.icon_rail_width
-            )
+            rail.setFixedWidth(58 if compact else SHELL.icon_rail_width)
 
         for button in (*self._nav_buttons.values(), self._pallas_button):
             button.set_compact(compact)
