@@ -20,8 +20,8 @@ from athena.source.protected_blob import (
 from athena.source.representation_store import UnsupportedTextSourceError
 from athena.source.service import ProtectedSourcePersistentPathUnavailableError
 from athena.storage.schema import (
-    SCHEMA_VERSION,
     JOB_DEPENDENCY_GRAPH_MIGRATION_ID,
+    SCHEMA_VERSION,
 )
 
 _TEST_KDF = Argon2idParameters(
