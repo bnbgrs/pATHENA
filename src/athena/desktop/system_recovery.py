@@ -123,6 +123,7 @@ class SystemRecoveryPanel(QFrame):
         self.setProperty("pathenaRecoveryReadOnly", True)
         self.setProperty("pathenaRecoveryRestoreAvailable", False)
         self._executable = executable or sys.executable
+        self._process_error_seen = False
         self._process = QProcess(self)
         self._process.setProcessChannelMode(QProcess.ProcessChannelMode.MergedChannels)
         self._process.finished.connect(self._handle_finished)
@@ -171,6 +172,7 @@ class SystemRecoveryPanel(QFrame):
     def run_diagnosis(self) -> bool:
         if self._process.state() != QProcess.ProcessState.NotRunning:
             return False
+        self._process_error_seen = False
         try:
             program, arguments = recovery_diagnose_launch_spec(self._executable)
         except ValueError as exc:
@@ -200,6 +202,12 @@ class SystemRecoveryPanel(QFrame):
             self._process.waitForFinished(1_000)
 
     def _handle_finished(self, exit_code: int, _exit_status: object) -> None:
+        if self._process_error_seen:
+            self._process_error_seen = False
+            self.run_button.setText("Run again")
+            self.run_button.setEnabled(True)
+            return
+
         output = bytes(self._process.readAllStandardOutput().data()).decode(
             "utf-8", errors="replace"
         ).strip()
@@ -223,12 +231,15 @@ class SystemRecoveryPanel(QFrame):
         self.run_button.setEnabled(True)
 
     def _handle_process_error(self, error: QProcess.ProcessError) -> None:
+        self._process_error_seen = True
         if error == QProcess.ProcessError.Crashed:
             detail = "Recovery diagnostic process crashed before completion."
         else:
             detail = f"Recovery diagnostic process error: {self._process.errorString()}"
         self._apply_presentation(RecoveryPresentation("FAIL", detail, "error"))
-        self.run_button.setEnabled(True)
+        if self._process.state() == QProcess.ProcessState.NotRunning:
+            self.run_button.setText("Run again")
+            self.run_button.setEnabled(True)
 
     def _apply_presentation(self, presentation: RecoveryPresentation) -> None:
         self.status.setText(presentation.status)
