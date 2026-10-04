@@ -9,6 +9,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 pytest.importorskip("PySide6")
 
+from PySide6.QtCore import QCoreApplication, QEvent
 from PySide6.QtWidgets import QApplication
 
 from athena.desktop.files_workspace import FilesWorkspace
@@ -28,6 +29,20 @@ def qt_app() -> Iterator[QApplication]:
     app = QApplication([])
     yield app
     app.quit()
+
+
+@pytest.fixture(autouse=True)
+def _dispose_workspace_widgets(qt_app: QApplication) -> Iterator[None]:
+    """Do not leak parentless Qt workspaces into later sharded tests."""
+    existing = {id(widget) for widget in QApplication.topLevelWidgets()}
+    yield
+    for widget in QApplication.topLevelWidgets():
+        if id(widget) in existing:
+            continue
+        widget.close()
+        widget.deleteLater()
+    QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+    qt_app.processEvents()
 
 
 def test_source_refresh_does_not_replace_disappeared_selection(qt_app: QApplication) -> None:
