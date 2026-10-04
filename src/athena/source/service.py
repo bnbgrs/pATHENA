@@ -16,6 +16,7 @@ from athena.security.service import (
 from athena.source.blob_store import (
     ORPHAN_BLOB_SAFETY_HORIZON_US,
     BlobOrphanReconciliationResult,
+    BlobReadTooLargeError,
     BlobStore,
 )
 from athena.source.models import BlobRecord, SourceCaptureResult, SourceRecord, SourceType
@@ -89,6 +90,96 @@ class SourceCaptureService:
                 original_name=source_path.name,
                 source_uri=source_path.as_uri(),
                 prepared_blob=prepared_blob,
+            )
+
+    def capture_image_bytes(
+        self,
+        data: bytes,
+        *,
+        original_name: str,
+        source_uri: str,
+        max_file_bytes: int | None = None,
+    ) -> SourceCaptureResult:
+        """Capture clipboard/image bytes as an immutable Raw Archive Source."""
+        if type(data) is not bytes:
+            raise TypeError("Image capture data must be immutable bytes.")
+        if not isinstance(original_name, str) or not original_name.strip():
+            raise ValueError("Image original_name must be non-empty text.")
+        if not isinstance(source_uri, str) or not source_uri.strip():
+            raise ValueError("Image source_uri must be non-empty text.")
+
+        detected_media_type = self.blob_store.detect_captured_media_type(
+            prefix=data[:64],
+            filename="",
+        )
+        if detected_media_type not in {
+            "image/png",
+            "image/jpeg",
+            "image/gif",
+        }:
+            raise ValueError(
+                "Image capture requires recognized PNG, JPEG, or GIF bytes."
+            )
+
+        with runtime_data_lock(self.runtime_lock_root):
+            prepared_blob = self.blob_store.capture_bytes(
+                data,
+                filename=original_name,
+                max_file_bytes=max_file_bytes,
+            )
+            existing_blob = self.repository.find_blob_by_integrity(
+                integrity_sha256=prepared_blob.integrity_sha256,
+                byte_length=prepared_blob.byte_length,
+            )
+            if existing_blob is not None:
+                self.blob_store.verify_blob(
+                    storage_area=existing_blob.storage_area,
+                    storage_locator=existing_blob.storage_locator,
+                    expected_sha256=existing_blob.integrity_sha256,
+                    expected_length=existing_blob.byte_length,
+                )
+            actor_id = self.chat.ensure_local_user()
+            return self.repository.capture_file(
+                actor_id=actor_id,
+                original_name=original_name,
+                source_uri=source_uri.strip(),
+                prepared_blob=prepared_blob,
+                source_type=SourceType.IMAGE,
+            )
+
+    def read_image_bytes(
+        self,
+        source_id: uuid.UUID,
+        *,
+        max_bytes: int,
+    ) -> bytes:
+        """Read a captured image through the verified Raw Archive boundary."""
+        if type(max_bytes) is not int or max_bytes < 0:
+            raise ValueError("max_bytes must be a non-negative integer.")
+
+        with runtime_data_lock(self.runtime_lock_root):
+            source, blob = self.repository.get(source_id)
+            if source.source_type is not SourceType.IMAGE:
+                raise ValueError("Requested Source is not an image.")
+            if source.protection_scope_id is not None:
+                metadata = self.load_protected_metadata(source_id)
+                if metadata.plaintext_byte_length > max_bytes:
+                    raise BlobReadTooLargeError(
+                        "Image Source exceeds the configured in-memory read limit."
+                    )
+                plaintext = self.read_protected_bytes(source_id)
+                if len(plaintext) > max_bytes:
+                    raise ProtectedContentIntegrityError(
+                        "Protected image exceeded its authenticated plaintext length."
+                    )
+                return plaintext
+
+            return self.blob_store.read_verified_bytes(
+                storage_area=blob.storage_area,
+                storage_locator=blob.storage_locator,
+                expected_sha256=blob.integrity_sha256,
+                expected_length=blob.byte_length,
+                max_bytes=max_bytes,
             )
 
     def capture_protected_file(

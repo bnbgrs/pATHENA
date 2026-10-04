@@ -67,7 +67,8 @@ def _parser() -> argparse.ArgumentParser:
 def _safe(value: str | None, *, fallback: str = "-") -> str:
     if not value:
         return fallback
-    return value.replace("\t", " ").replace("\r", " ").replace("\n", " ")
+    rendered = " ".join(value.replace("\t", " ").splitlines()).strip()
+    return rendered or fallback
 
 
 def _compact(value: str, *, limit: int = 120) -> str:

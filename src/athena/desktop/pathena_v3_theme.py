@@ -315,11 +315,11 @@ QPushButton#sendButton {
     color: #0D1014;
     background: #78D1C5;
     border: 0;
-    border-radius: 22px;
-    min-width: 44px;
-    max-width: 44px;
-    min-height: 44px;
-    max-height: 44px;
+    border-radius: 18px;
+    min-width: 36px;
+    max-width: 36px;
+    min-height: 36px;
+    max-height: 36px;
     padding: 0;
     font-size: 15pt;
     font-weight: 800;
