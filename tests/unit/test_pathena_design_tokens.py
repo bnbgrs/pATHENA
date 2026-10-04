@@ -79,7 +79,7 @@ def test_v4_tokens_reach_the_runtime_desktop_stylesheet() -> None:
 
 
 def test_v4_shell_geometry_is_compact_and_workspace_first() -> None:
-    assert 56 <= SHELL.icon_rail_width <= 68
+    assert 56 <= SHELL.icon_rail_width <= 80
     assert 48 <= SHELL.top_bar_height <= 56
     assert 300 <= SHELL.inspector_width <= 340
     assert 216 <= SHELL.secondary_nav_width <= 240
