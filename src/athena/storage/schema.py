@@ -584,6 +584,7 @@ def initialize_schema(connection: sqlite3.Connection, *, created_at_us: int) -> 
         OPERATIONAL_ERROR_PHYSICAL_CLEANUP_SCHEMA_VERSION,
         PROTECTED_SOURCE_SEMANTIC_SCHEMA_VERSION,
         GROUNDED_RESPONSE_RECEIPT_SCHEMA_VERSION,
+        STRUCTURED_REPLICATION_SCHEMA_VERSION,
         SCHEMA_VERSION,
     }
     if existing_user_version not in supported_versions:
