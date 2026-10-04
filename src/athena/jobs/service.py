@@ -64,10 +64,16 @@ class DurableJobService:
         }
     )
 
-    def __init__(self, repository: JobRepository, chat: ChatService) -> None:
+    def __init__(
+        self,
+        repository: JobRepository,
+        chat: ChatService,
+        *,
+        graph: JobDependencyGraph | None = None,
+    ) -> None:
         self.repository = repository
         self.chat = chat
-        self.graph = JobDependencyGraph(repository)
+        self.graph = graph or JobDependencyGraph(repository)
 
     def create(
         self,
@@ -112,9 +118,25 @@ class DurableJobService:
         except (BuiltinJobPayloadValidationError, NewsJobPayloadValidationError) as exc:
             raise InvalidJobPayloadError(str(exc)) from exc
 
+        dependencies = tuple(depends_on_job_ids)
         requested_scope_json = _canonical_json(normalized_scope)
         pinned_configuration_json = _canonical_json(normalized_configuration)
         actor_id = self.chat.ensure_local_user()
+        graph_requested = (
+            parent_job_id is not None
+            or bool(dependencies)
+            or parent_completion_policy is not ParentCompletionPolicy.INDEPENDENT
+            or child_cancellation_policy is not ChildCancellationPolicy.INDEPENDENT
+        )
+        if not graph_requested:
+            return self.repository.create(
+                job_type=normalized_job_type,
+                actor_id=actor_id,
+                priority=priority,
+                requested_scope_json=requested_scope_json,
+                pinned_configuration_json=pinned_configuration_json,
+                next_run_at_us=next_run_at_us,
+            )
         return self.graph.create_job(
             job_type=normalized_job_type,
             actor_id=actor_id,
@@ -125,7 +147,7 @@ class DurableJobService:
             parent_job_id=parent_job_id,
             parent_completion_policy=parent_completion_policy,
             child_cancellation_policy=child_cancellation_policy,
-            depends_on_job_ids=depends_on_job_ids,
+            depends_on_job_ids=dependencies,
         )
 
     def active_for_type(
