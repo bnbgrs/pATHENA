@@ -18,8 +18,8 @@ from athena.storage.database import SQLiteDatabase
 from athena.storage.schema import (
     ARCHIVE_REPLICATION_MIGRATION_ID,
     ARCHIVE_REPLICATION_SCHEMA_VERSION,
-    SCHEMA_VERSION,
     JOB_DEPENDENCY_GRAPH_MIGRATION_ID,
+    SCHEMA_VERSION,
 )
 
 _TEST_KDF = Argon2idParameters(
