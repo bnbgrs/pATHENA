@@ -7,14 +7,34 @@ instead of fabricating success.
 
 from __future__ import annotations
 
+import os
+
 from PySide6.QtCore import QEvent, QObject, Slot
 from PySide6.QtGui import QAction, QIcon
 from PySide6.QtWidgets import QApplication, QMenu, QStyle, QSystemTrayIcon, QWidget
 
 
+_CLOSE_TO_TRAY_ENV = "PATHENA_CLOSE_TO_TRAY"
+_FALSE_ENV_VALUES = frozenset({"0", "false", "no", "off"})
+
+
 def _system_tray_available() -> bool:
     """Return whether Qt can expose a tray icon in the current desktop session."""
     return bool(QSystemTrayIcon.isSystemTrayAvailable())
+
+
+def _close_to_tray_requested() -> bool:
+    """Resolve the opt-out used by managed/package smoke lifecycles.
+
+    Interactive desktop sessions retain close-to-tray by default. Setting
+    PATHENA_CLOSE_TO_TRAY=0 (or false/no/off) requests an ordinary window close
+    so automation and managed launchers can exercise the real Qt aboutToQuit
+    cleanup path without force-killing the process tree.
+    """
+    raw = os.environ.get(_CLOSE_TO_TRAY_ENV)
+    if raw is None:
+        return True
+    return raw.strip().casefold() not in _FALSE_ENV_VALUES
 
 
 class PathenaSystemTrayController(QObject):
@@ -185,13 +205,19 @@ def install_system_tray(
     window: QWidget,
     *,
     app: QApplication | None = None,
-    close_to_tray: bool = True,
+    close_to_tray: bool | None = None,
 ) -> PathenaSystemTrayController:
-    """Install the single desktop tray lifecycle controller."""
+    """Install the single desktop tray lifecycle controller.
+
+    None preserves the interactive default while honoring the explicit
+    PATHENA_CLOSE_TO_TRAY process setting. Direct callers can still pass a
+    boolean when they own the lifecycle policy themselves.
+    """
+    requested = _close_to_tray_requested() if close_to_tray is None else close_to_tray
     controller = PathenaSystemTrayController(
         window,
         app=app,
-        close_to_tray=close_to_tray,
+        close_to_tray=requested,
     )
     window.setProperty("pathenaSystemTrayInstalled", True)
     return controller
