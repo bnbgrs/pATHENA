@@ -21,7 +21,14 @@ from athena.jobs.dependency_graph import (
 )
 from athena.jobs.models import JobPriority, JobRecord, JobState, WaitingReason
 from athena.jobs.repository import JobNotFoundError
-from athena.storage.schema_contract import JOB_DEPENDENCY_GRAPH_SCHEMA_VERSION
+from athena.storage.database import SQLiteDatabase
+from athena.storage.schema_contract import (
+    JOB_DEPENDENCY_GRAPH_MIGRATION_ID,
+    JOB_DEPENDENCY_GRAPH_SCHEMA_VERSION,
+    STRUCTURED_REPLICATION_MIGRATION_ID,
+    STRUCTURED_REPLICATION_SCHEMA_VERSION,
+    DatabaseCompatibilityError,
+)
 
 
 def _app(root: Path) -> AthenaApplication:
@@ -83,6 +90,88 @@ def test_schema_v42_contains_durable_job_graph_tables(tmp_path: Path) -> None:
     }
     assert {"job_dependencies", "job_parent_links"}.issubset(tables)
     app.stop()
+
+
+def test_v42_migration_restarts_from_compatible_existing_graph_tables(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "restart-safe.db"
+    database = SQLiteDatabase(path)
+    database.start()
+    with database.write_transaction() as connection:
+        connection.execute(
+            """
+            UPDATE schema_metadata
+            SET schema_version = ?,
+                last_migration_id = ?,
+                minimum_reader_version = ?
+            WHERE singleton_id = 1
+            """,
+            (
+                STRUCTURED_REPLICATION_SCHEMA_VERSION,
+                STRUCTURED_REPLICATION_MIGRATION_ID,
+                STRUCTURED_REPLICATION_SCHEMA_VERSION,
+            ),
+        )
+        connection.execute(
+            f"PRAGMA user_version = {STRUCTURED_REPLICATION_SCHEMA_VERSION}"
+        )
+    database.stop()
+
+    restarted = SQLiteDatabase(path)
+    restarted.start()
+    try:
+        metadata = restarted.connection.execute(
+            """
+            SELECT schema_version, last_migration_id, minimum_reader_version
+            FROM schema_metadata
+            WHERE singleton_id = 1
+            """
+        ).fetchone()
+        assert metadata is not None
+        assert tuple(metadata) == (
+            JOB_DEPENDENCY_GRAPH_SCHEMA_VERSION,
+            JOB_DEPENDENCY_GRAPH_MIGRATION_ID,
+            JOB_DEPENDENCY_GRAPH_SCHEMA_VERSION,
+        )
+    finally:
+        restarted.stop()
+
+
+def test_v42_migration_rejects_incomplete_partial_graph_schema(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "incomplete-v42.db"
+    database = SQLiteDatabase(path)
+    database.start()
+    with database.write_transaction() as connection:
+        connection.execute("DROP TABLE job_dependencies")
+        connection.execute("DROP TABLE job_parent_links")
+        connection.execute(
+            "CREATE TABLE job_parent_links (job_id BLOB PRIMARY KEY)"
+        )
+        connection.execute(
+            """
+            UPDATE schema_metadata
+            SET schema_version = ?,
+                last_migration_id = ?,
+                minimum_reader_version = ?
+            WHERE singleton_id = 1
+            """,
+            (
+                STRUCTURED_REPLICATION_SCHEMA_VERSION,
+                STRUCTURED_REPLICATION_MIGRATION_ID,
+                STRUCTURED_REPLICATION_SCHEMA_VERSION,
+            ),
+        )
+        connection.execute(
+            f"PRAGMA user_version = {STRUCTURED_REPLICATION_SCHEMA_VERSION}"
+        )
+    database.stop()
+
+    incompatible = SQLiteDatabase(path)
+    with pytest.raises(DatabaseCompatibilityError, match="partial schema"):
+        incompatible.start()
 
 
 def test_dependency_is_durable_blocks_lease_and_wakes_after_completion(
