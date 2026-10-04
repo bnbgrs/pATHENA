@@ -26,6 +26,15 @@ from athena.storage.database import SQLiteDatabase
 CanonicalWriteFence = Callable[[sqlite3.Connection], None]
 
 
+_TEXT_REPRESENTATION_TYPES = frozenset(
+    {
+        SourceRepresentationType.NORMALIZED_TEXT,
+        SourceRepresentationType.EXTRACTED_TEXT,
+        SourceRepresentationType.OCR_TEXT,
+        SourceRepresentationType.TRANSCRIPT,
+    }
+)
+
 class SourceRepresentationNotFoundError(LookupError):
     """Raised when a requested SourceRepresentation does not exist."""
 
@@ -70,6 +79,14 @@ class SourceRepresentationRepository:
         ] = (),
         write_fence: CanonicalWriteFence | None = None,
     ) -> TextRepresentationResult:
+        if not isinstance(representation_type, SourceRepresentationType):
+            raise TypeError(
+                "representation_type must be a SourceRepresentationType."
+            )
+        if representation_type not in _TEXT_REPRESENTATION_TYPES:
+            raise ValueError(
+                "Retained text representation requires a textual representation type."
+            )
         if (stored_blob is None) == (existing_blob is None):
             raise ValueError("Exactly one of stored_blob or existing_blob is required.")
 
