@@ -59,11 +59,7 @@ jobs:
         run: |
           set -o pipefail
           mkdir -p .quality-evidence
-          uv run --locked --extra dev --extra desktop python -m ruff check src tests scripts --fix 2>&1 | tee .quality-evidence/ruff.txt
-          echo "RUFF_FIX_DIFF_BEGIN"
-          git diff -- src/athena/desktop/knowledge_workspace.py tests/unit/test_files_workspace_import_ownership.py
-          echo "RUFF_FIX_DIFF_END"
-          exit 1
+          uv run --locked --extra dev --extra desktop python -m ruff check src tests scripts 2>&1 | tee .quality-evidence/ruff.txt
 
       - name: Quality — mypy
         if: always()

@@ -43,7 +43,6 @@ from athena.desktop.knowledge_review import (
 )
 from athena.desktop.pathena_ui_refinement_600 import set_pathena_ui_state
 
-
 _KNOWLEDGE_DETAIL_OPERATIONS = frozenset({"show", "history"})
 _CLAIM_DETAIL_OPERATIONS = frozenset({"claim-show", "claim-history"})
 _REVIEW_DETAIL_OPERATIONS = frozenset({"review-show"})
