@@ -36,6 +36,12 @@ def _app() -> QApplication:
     return create_application(["lmstudio-runtime-qol-test"])
 
 
+def _dispose_window(app: QApplication, window: PathenaMainWindow) -> None:
+    window.close()
+    app.processEvents()
+    delete(window)
+
+
 def _ready_snapshot(*, loaded: bool = False) -> DesktopApiSnapshot:
     model = ModelResponse(
         provider="LM Studio",
