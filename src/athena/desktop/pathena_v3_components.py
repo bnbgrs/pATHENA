@@ -98,7 +98,7 @@ class V3NavigationButton(QToolButton):
         self.setIconSize(QSize(22, 22))
         self.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextUnderIcon)
         self._regular_size = QSize(SHELL.icon_rail_width - 8, 56)
-        self._compact_size = QSize(max(44, SHELL.icon_rail_width - 20), 52)
+        self._compact_size = QSize(48, 52)
         self.setFixedSize(self._regular_size)
         self.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         self.setToolTip(label)
