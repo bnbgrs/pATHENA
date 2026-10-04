@@ -8,6 +8,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 pytest.importorskip("PySide6")
 
+from PySide6.QtCore import QEvent
 from PySide6.QtWidgets import QApplication, QPlainTextEdit, QPushButton, QWidget
 
 from athena.desktop.pathena_mutation_boundary_5800 import (
@@ -110,3 +111,15 @@ def test_controller_does_not_turn_editable_surface_read_only() -> None:
 
     assert detail.isReadOnly() is False
     assert detail.property("pathenaVerifiedReadOnly") is False
+
+def test_event_filter_ignores_late_teardown_event_without_targets() -> None:
+    _app()
+    window = QWidget()
+    widget = QWidget(window)
+    controller = MutationBoundaryController(window)
+    del controller._targets
+
+    event = QEvent(QEvent.Type.EnabledChange)
+
+    assert controller.eventFilter(widget, event) is False
+
