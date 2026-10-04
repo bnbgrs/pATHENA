@@ -86,7 +86,7 @@ class ShellGeometry:
     """Stable geometry derived from the eleven-screen reference family."""
 
     top_bar_height: int = 52
-    icon_rail_width: int = 64
+    icon_rail_width: int = 68
     secondary_nav_width: int = 232
     inspector_width: int = 320
     composer_min_height: int = 56
