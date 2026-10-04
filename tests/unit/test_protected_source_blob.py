@@ -21,7 +21,7 @@ from athena.source.representation_store import UnsupportedTextSourceError
 from athena.source.service import ProtectedSourcePersistentPathUnavailableError
 from athena.storage.schema import (
     SCHEMA_VERSION,
-    STRUCTURED_REPLICATION_MIGRATION_ID,
+    JOB_DEPENDENCY_GRAPH_MIGRATION_ID,
 )
 
 _TEST_KDF = Argon2idParameters(
@@ -88,7 +88,7 @@ def test_fresh_schema_is_v33_and_allows_protected_blob_records(
         assert metadata is not None
         assert tuple(metadata) == (
             SCHEMA_VERSION,
-            STRUCTURED_REPLICATION_MIGRATION_ID,
+            JOB_DEPENDENCY_GRAPH_MIGRATION_ID,
             SCHEMA_VERSION,
         )
         tables = {
