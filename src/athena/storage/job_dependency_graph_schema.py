@@ -6,7 +6,6 @@ import sqlite3
 
 from athena.storage import schema_contract
 
-
 _GRAPH_TABLES = frozenset({"job_parent_links", "job_dependencies"})
 _PARENT_COLUMNS = (
     "job_id",
