@@ -11,6 +11,7 @@ pytest.importorskip("PySide6")
 
 from PySide6.QtCore import QObject, QSettings, Signal
 from PySide6.QtWidgets import QApplication
+from shiboken6 import delete
 
 from athena.api.contracts import HealthResponse, ModelResponse, ProviderHealthResponse
 from athena.desktop import lmstudio_runtime as runtime_module
@@ -33,6 +34,12 @@ class _RuntimeControllerStub(QObject):
 
 def _app() -> QApplication:
     return create_application(["lmstudio-runtime-qol-test"])
+
+
+def _dispose_window(app: QApplication, window: PathenaMainWindow) -> None:
+    window.close()
+    app.processEvents()
+    delete(window)
 
 
 def _ready_snapshot(*, loaded: bool = False) -> DesktopApiSnapshot:
@@ -223,8 +230,39 @@ def test_core_snapshot_does_not_overwrite_active_cli_status(tmp_path: Path) -> N
         assert runtime.unload_button.isEnabled() is False
     finally:
         runtime.dispose()
-        window.close()
-        app.processEvents()
+        _dispose_window(app, window)
+
+
+def test_core_failure_does_not_overwrite_active_cli_status(tmp_path: Path) -> None:
+    app = _app()
+    window = PathenaMainWindow(api_controller=None)
+    controller = _RuntimeControllerStub()
+    settings = QSettings(
+        str(tmp_path / "lmstudio-runtime-core-failure.ini"),
+        QSettings.Format.IniFormat,
+    )
+    runtime = runtime_module.LMStudioRuntimeController(
+        window,
+        controller,  # type: ignore[arg-type]
+        settings=settings,
+    )
+    try:
+        runtime._steps.append(  # noqa: SLF001
+            runtime_module._CommandStep(
+                operation="model_load",
+                arguments=("load", "model-id"),
+                status="Loading Local Model",
+            )
+        )
+        runtime._set_status("LM Studio runtime · Loading Local Model …")  # noqa: SLF001
+
+        runtime._core_failed("transient refresh failure")  # noqa: SLF001
+
+        assert runtime.status_text == "LM Studio runtime · Loading Local Model …"
+        assert runtime.unload_button.isEnabled() is False
+    finally:
+        runtime.dispose()
+        _dispose_window(app, window)
 
 
 def test_process_command_preserves_arguments_for_native_executable() -> None:
