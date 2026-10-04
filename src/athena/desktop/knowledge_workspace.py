@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import sys
 
+import shiboken6
 from PySide6.QtCore import QProcess, QProcessEnvironment, Qt, QTimer
 from PySide6.QtGui import QTextCursor
 from PySide6.QtWidgets import (
@@ -907,10 +908,15 @@ class KnowledgeWorkspace(QWidget):
             self.refresh_knowledge()
 
     def _knowledge_busy(self) -> bool:
-        return (
-            self._knowledge_process.state() != QProcess.ProcessState.NotRunning
-            or self._obsidian_process.state() != QProcess.ProcessState.NotRunning
+        knowledge_busy = (
+            shiboken6.isValid(self._knowledge_process)
+            and self._knowledge_process.state() != QProcess.ProcessState.NotRunning
         )
+        obsidian_busy = (
+            shiboken6.isValid(self._obsidian_process)
+            and self._obsidian_process.state() != QProcess.ProcessState.NotRunning
+        )
+        return knowledge_busy or obsidian_busy
 
     def _start_knowledge(
         self,
