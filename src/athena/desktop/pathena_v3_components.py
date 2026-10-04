@@ -19,9 +19,11 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-_INK = QColor("#F1F3F5")
-_MUTED = QColor("#7F8A91")
-_ACTIVE = QColor("#78D1C5")
+from athena.desktop.pathena_design_tokens import PALETTE, RADII, SHELL
+
+_INK = QColor(PALETTE.text)
+_MUTED = QColor(PALETTE.text_quiet)
+_ACTIVE = QColor(PALETTE.accent)
 
 
 def _glyph_icon(name: str, *, active: bool) -> QIcon:
@@ -123,7 +125,7 @@ class V3WorkspaceHeader(QFrame):
     def __init__(self, title: str, hint: str) -> None:
         super().__init__()
         self.setObjectName("v3Workbar")
-        self.setFixedHeight(68)
+        self.setFixedHeight(SHELL.top_bar_height)
 
         layout = QHBoxLayout(self)
         self._layout = layout
@@ -157,7 +159,9 @@ class V3WorkspaceHeader(QFrame):
         self.hint_label.setText(hint)
 
     def set_compact(self, compact: bool) -> None:
-        self.setFixedHeight(58 if compact else 68)
+        self.setFixedHeight(
+            max(46, SHELL.top_bar_height - 6) if compact else SHELL.top_bar_height
+        )
         self.hint_label.setVisible(not compact)
         if compact:
             self._layout.setContentsMargins(18, 7, 16, 7)
@@ -247,25 +251,31 @@ class V3ActionHost(QFrame):
             focused = button.hasFocus()
 
             if primary and enabled:
-                background = QColor("#9BE3D9" if hovered else "#78D1C5")
-                border = QColor("#F1F3F5" if focused else "#78D1C5")
-                foreground = QColor("#0D1014")
+                background = QColor(
+                    PALETTE.accent_hover if hovered else PALETTE.accent
+                )
+                border = QColor(PALETTE.text if focused else PALETTE.accent)
+                foreground = QColor(PALETTE.canvas)
             elif destructive and enabled:
-                background = QColor("#24191B" if hovered else "#181315")
-                border = QColor("#F17878" if focused else "#513036")
-                foreground = QColor("#F2A2A2")
+                background = QColor(PALETTE.surface_hover if hovered else PALETTE.surface)
+                border = QColor(PALETTE.error if focused else PALETTE.border)
+                foreground = QColor(PALETTE.error)
             elif enabled:
-                background = QColor("#1A2026" if hovered else "#14181D")
-                border = QColor("#78D1C5" if focused else "#29313A")
-                foreground = QColor("#F1F3F5" if hovered else "#A5ACB4")
+                background = QColor(
+                    PALETTE.surface_hover if hovered else PALETTE.surface_raised
+                )
+                border = QColor(PALETTE.accent if focused else PALETTE.border)
+                foreground = QColor(
+                    PALETTE.text if hovered else PALETTE.text_muted
+                )
             else:
-                background = QColor("#11151A")
-                border = QColor("#282F35")
-                foreground = QColor("#646E76")
+                background = QColor(PALETTE.surface)
+                border = QColor(PALETTE.border)
+                foreground = QColor(PALETTE.text_quiet)
 
             painter.setPen(QPen(border, 1.0))
             painter.setBrush(background)
-            painter.drawRoundedRect(rect, 10, 10)
+            painter.drawRoundedRect(rect, RADII.control, RADII.control)
             painter.setPen(foreground)
             painter.setFont(button.font())
             painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, button.text())
@@ -326,20 +336,20 @@ class V3ComposerFrame(QFrame):
         if ground is not None and not ground.isHidden():
             rect = QRectF(ground.geometry()).adjusted(0.5, 0.5, -0.5, -0.5)
             if ground.isChecked():
-                background = QColor("#13292B")
-                border = QColor("#2C5D61")
-                foreground = QColor("#DDF5F1")
+                background = QColor(PALETTE.accent_soft)
+                border = QColor(PALETTE.border_strong)
+                foreground = QColor(PALETTE.text)
             elif ground.isEnabled():
-                background = QColor("#13181D")
-                border = QColor("#2A3138")
-                foreground = QColor("#A5ACB4")
+                background = QColor(PALETTE.surface_raised)
+                border = QColor(PALETTE.border)
+                foreground = QColor(PALETTE.text_muted)
             else:
-                background = QColor("#141A1B")
-                border = QColor("#2B3738")
-                foreground = QColor("#7F8D8D")
+                background = QColor(PALETTE.surface)
+                border = QColor(PALETTE.border)
+                foreground = QColor(PALETTE.text_quiet)
             painter.setPen(QPen(border, 1.0))
             painter.setBrush(background)
-            painter.drawRoundedRect(rect, 9, 9)
+            painter.drawRoundedRect(rect, RADII.control, RADII.control)
             painter.setPen(foreground)
             painter.setFont(ground.font())
             painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, ground.text())
@@ -347,24 +357,24 @@ class V3ComposerFrame(QFrame):
         send = self._send_button
         if send is not None and not send.isHidden():
             slot = QRectF(send.geometry())
-            diameter = min(44.0, slot.height())
+            side = min(float(SHELL.composer_action_size), slot.height())
             rect = QRectF(
-                slot.center().x() - diameter / 2.0,
-                slot.center().y() - diameter / 2.0,
-                diameter,
-                diameter,
+                slot.center().x() - side / 2.0,
+                slot.center().y() - side / 2.0,
+                side,
+                side,
             ).adjusted(0.5, 0.5, -0.5, -0.5)
             if send.isEnabled():
-                background = QColor("#78D1C5")
-                border = QColor("#78D1C5")
-                foreground = QColor("#0D1014")
+                background = QColor(PALETTE.accent)
+                border = QColor(PALETTE.accent)
+                foreground = QColor(PALETTE.canvas)
             else:
-                background = QColor("#20292A")
-                border = QColor("#334143")
-                foreground = QColor("#AEBFBD")
+                background = QColor(PALETTE.surface_hover)
+                border = QColor(PALETTE.border_strong)
+                foreground = QColor(PALETTE.text_subtle)
             painter.setPen(QPen(border, 1.0))
             painter.setBrush(background)
-            painter.drawRoundedRect(rect, diameter / 2.0, diameter / 2.0)
+            painter.drawRoundedRect(rect, RADII.control, RADII.control)
             painter.setPen(foreground)
             painter.setFont(send.font())
             painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, send.text())

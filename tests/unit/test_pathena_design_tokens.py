@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from athena.desktop.pathena_design_tokens import PALETTE, SHELL, TYPE
+from athena.desktop.pathena_v3_theme import PATHENA_V3_STYLESHEET
 
 
 def _relative_luminance(color: str) -> float:
@@ -42,11 +43,12 @@ def test_quiet_text_remains_visually_below_subtle_metadata() -> None:
     assert _relative_luminance(PALETTE.text_subtle) < _relative_luminance(PALETTE.text_muted)
 
 
-def test_reference_palette_is_navy_black_with_cobalt_interaction_accent() -> None:
-    assert PALETTE.canvas == "#061421"
-    assert PALETTE.surface == "#06121F"
-    assert PALETTE.surface_raised == "#0D1A2A"
-    assert PALETTE.accent == "#3B82F6"
+def test_v4_palette_is_graphite_with_precise_chartreuse_accent() -> None:
+    assert PALETTE.canvas == "#111210"
+    assert PALETTE.surface == "#171815"
+    assert PALETTE.surface_raised == "#1D1F1A"
+    assert PALETTE.text == "#F4F1E8"
+    assert PALETTE.accent == "#C7FF52"
     assert PALETTE.warning == "#E9A84D"
     assert PALETTE.success != PALETTE.accent
     assert PALETTE.info != PALETTE.accent
@@ -54,21 +56,32 @@ def test_reference_palette_is_navy_black_with_cobalt_interaction_accent() -> Non
     assert PALETTE.error != PALETTE.accent
 
 
-def test_reference_typography_uses_editorial_display_and_modern_body() -> None:
-    assert "Georgia" in TYPE.display_family
-    assert "serif" in TYPE.display_family.lower()
-    assert "Segoe UI" in TYPE.content_family
-    assert TYPE.title_px >= 40
-    assert TYPE.section_px >= 20
+def test_v4_typography_uses_geist_for_compact_application_hierarchy() -> None:
+    assert "Geist" in TYPE.display_family
+    assert "Geist" in TYPE.content_family
+    assert "Georgia" not in TYPE.display_family
+    assert TYPE.display_family.lower().endswith("sans-serif")
+    assert 32 <= TYPE.title_px <= 38
+    assert 20 <= TYPE.section_px <= 24
     assert TYPE.body_px >= 15
     assert TYPE.metadata_px >= 12
     assert TYPE.title_px > TYPE.section_px
 
 
-def test_reference_shell_geometry_excludes_legacy_wide_sidebar() -> None:
-    assert 68 <= SHELL.icon_rail_width <= 82
-    assert 54 <= SHELL.top_bar_height <= 64
-    assert 330 <= SHELL.inspector_width <= 390
-    assert 240 <= SHELL.secondary_nav_width <= 280
-    assert SHELL.composer_min_height >= 72
-    assert SHELL.composer_action_size == 44
+
+def test_v4_tokens_reach_the_runtime_desktop_stylesheet() -> None:
+    assert f"background: {PALETTE.canvas};" in PATHENA_V3_STYLESHEET
+    assert f"background: {PALETTE.accent};" in PATHENA_V3_STYLESHEET
+    assert f"color: {PALETTE.text};" in PATHENA_V3_STYLESHEET
+    assert TYPE.content_family in PATHENA_V3_STYLESHEET
+    assert "#090B0E" not in PATHENA_V3_STYLESHEET
+    assert "#78D1C5" not in PATHENA_V3_STYLESHEET
+
+
+def test_v4_shell_geometry_is_compact_and_workspace_first() -> None:
+    assert 56 <= SHELL.icon_rail_width <= 68
+    assert 48 <= SHELL.top_bar_height <= 56
+    assert 300 <= SHELL.inspector_width <= 340
+    assert 216 <= SHELL.secondary_nav_width <= 240
+    assert 52 <= SHELL.composer_min_height <= 64
+    assert 32 <= SHELL.composer_action_size <= 40
