@@ -46,7 +46,7 @@ def test_v3_shell_is_structurally_distinct_and_keeps_route_contract() -> None:
 
     rail = shell.findChild(QFrame, "v3Rail")
     assert rail is not None
-    assert rail.width() == 68
+    assert rail.width() == 76
     assert rail.minimumWidth() == rail.maximumWidth()
 
     nav_buttons = shell.findChildren(QToolButton, "v3NavButton")
@@ -217,7 +217,7 @@ def test_v3_shell_keeps_core_chat_controls_visible_at_minimum_desktop_size() -> 
 
         rail = window.findChild(QFrame, "v3Rail")
         assert rail is not None
-        assert rail.width() == 62
+        assert rail.width() == 58
         assert controller._header.height() == 46
         assert controller._header.hint_label.isHidden()
         assert controller._command_button.text() == "Ctrl K"
@@ -238,7 +238,7 @@ def test_v3_shell_keeps_core_chat_controls_visible_at_minimum_desktop_size() -> 
 
         window.resize(1480, 900)
         app.processEvents()
-        assert rail.width() == 68
+        assert rail.width() == 76
         assert controller._header.height() == 52
         assert controller._header.hint_label.isVisible()
         assert controller._command_button.text() == "Command   Ctrl K"
