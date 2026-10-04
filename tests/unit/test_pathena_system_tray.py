@@ -9,7 +9,10 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PySide6.QtGui import QCloseEvent
 from PySide6.QtWidgets import QApplication, QListWidget, QMainWindow
 
-from athena.desktop.pathena_system_tray import PathenaSystemTrayController
+from athena.desktop.pathena_system_tray import (
+    PathenaSystemTrayController,
+    install_system_tray,
+)
 
 
 class _TrayWindow(QMainWindow):
@@ -179,5 +182,61 @@ def test_tray_reflects_only_explicit_runtime_snapshot_states() -> None:
     controller.apply_runtime_state("unexpected")
     assert controller.tray.property("pathenaRuntimeState") == "unavailable"
     assert controller.tray.toolTip() == "pATHENA · Status unavailable"
+
+    controller.shutdown()
+
+
+def test_install_tray_keeps_close_to_tray_enabled_by_default(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "athena.desktop.pathena_system_tray._system_tray_available",
+        lambda: True,
+    )
+    monkeypatch.delenv("PATHENA_CLOSE_TO_TRAY", raising=False)
+    app = _app()
+    window = _TrayWindow()
+    controller = install_system_tray(window, app=app)
+
+    assert controller.close_to_tray_enabled is True
+    assert window.property("pathenaCloseToTrayEnabled") is True
+
+    controller.shutdown()
+
+
+def test_install_tray_honors_explicit_close_to_tray_opt_out(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "athena.desktop.pathena_system_tray._system_tray_available",
+        lambda: True,
+    )
+    monkeypatch.setenv("PATHENA_CLOSE_TO_TRAY", "0")
+    app = _app()
+    window = _TrayWindow()
+    controller = install_system_tray(window, app=app)
+
+    assert controller.tray_available is True
+    assert controller.close_to_tray_enabled is False
+    assert window.property("pathenaCloseToTrayEnabled") is False
+
+    controller.shutdown()
+
+
+@pytest.mark.parametrize("value", ["false", "NO", "off"])
+def test_install_tray_accepts_false_like_close_to_tray_values(
+    monkeypatch: pytest.MonkeyPatch,
+    value: str,
+) -> None:
+    monkeypatch.setattr(
+        "athena.desktop.pathena_system_tray._system_tray_available",
+        lambda: True,
+    )
+    monkeypatch.setenv("PATHENA_CLOSE_TO_TRAY", value)
+    app = _app()
+    window = _TrayWindow()
+    controller = install_system_tray(window, app=app)
+
+    assert controller.close_to_tray_enabled is False
 
     controller.shutdown()
