@@ -362,7 +362,12 @@ class BackupWorkspace(QWidget):
         elif operation == "register-target":
             self.status.setText("Backup target registered.")
 
-    def _render_snapshots(self, rows: tuple[dict[str, str], ...]) -> None:
+    def _render_snapshots(
+        self,
+        rows: tuple[dict[str, str], ...] | str,
+    ) -> None:
+        if isinstance(rows, str):
+            rows = parse_backup_list(rows)
         selected = self._selected_snapshot_id
         self.snapshots.blockSignals(True)
         self.snapshots.clear()
