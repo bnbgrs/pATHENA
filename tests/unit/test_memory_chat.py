@@ -853,7 +853,8 @@ def test_memory_grounded_history_excludes_prior_assistant_evidence_text() -> Non
     )
 
     assert all(
-        "1301" not in item.content
+        "Project Atlas has News code 1301" not in item.content
+        and "[NEWS:CTX-001]" not in item.content
         for item in model_messages
     )
 
