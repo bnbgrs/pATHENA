@@ -245,13 +245,13 @@ class _ChatOperationOutcome:
             raise ValueError("Chat outcome cannot contain multiple result kinds.")
         if self.cancelled:
             if (
-                self.operation != "send"
+                self.operation not in {"send", "send_grounded"}
                 or self.operation_id is None
                 or self.error is not None
                 or result_count > 1
             ):
                 raise ValueError(
-                    "Cancelled chat outcome requires one direct-send operation identity."
+                    "Cancelled chat outcome requires one cancellable send operation identity."
                 )
             return
         if self.error is None and result_count != 1:
