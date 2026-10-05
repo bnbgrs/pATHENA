@@ -13,17 +13,17 @@ from athena.news.schema import (
 from athena.storage.archive_replication_migration import (
     migrate_schema_v30_to_v31_restart_safe as _migrate_schema_v30_to_v31,
 )
-from athena.storage.job_dependency_graph_schema import (
-    migrate_schema_v41_to_v42 as _migrate_schema_v41_to_v42,
-)
-from athena.storage.job_dependency_graph_schema import (
-    verify_schema_v42 as _verify_schema_v42,
-)
 from athena.storage.chat_preferences_schema import (
     migrate_schema_v42_to_v43 as _migrate_schema_v42_to_v43,
 )
 from athena.storage.chat_preferences_schema import (
     verify_schema_v43 as _verify_schema_v43,
+)
+from athena.storage.job_dependency_graph_schema import (
+    migrate_schema_v41_to_v42 as _migrate_schema_v41_to_v42,
+)
+from athena.storage.job_dependency_graph_schema import (
+    verify_schema_v42 as _verify_schema_v42,
 )
 from athena.storage.schema_contract import (
     ARCHIVE_REPLICATION_MIGRATION_ID as ARCHIVE_REPLICATION_MIGRATION_ID,
