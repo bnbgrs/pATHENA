@@ -2054,7 +2054,7 @@ class AthenaMainWindow(QMainWindow):
                 self.send_button.setText("STOP")
                 self.send_button.setAccessibleName("Stop response")
                 self.send_button.setToolTip(
-                    "Stop the current direct-chat generation · Ctrl+Enter"
+                    "Stop the current chat generation · Ctrl+Enter"
                 )
             return
 
