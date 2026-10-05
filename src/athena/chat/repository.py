@@ -991,29 +991,28 @@ class ChatRepository:
         if not isinstance(pinned, bool):
             raise TypeError("Chat pinned state must be bool.")
 
-        connection = self.database.connection
-        self._require_standard_chat(connection, chat_id)
-        connection.execute(
-            """
-            INSERT INTO chat_preferences (
-                chat_id,
-                pinned,
-                updated_at_us,
-                updated_by_actor_id
-            ) VALUES (?, ?, ?, ?)
-            ON CONFLICT(chat_id) DO UPDATE SET
-                pinned = excluded.pinned,
-                updated_at_us = excluded.updated_at_us,
-                updated_by_actor_id = excluded.updated_by_actor_id
-            """,
-            (
-                uuid_to_blob(chat_id),
-                1 if pinned else 0,
-                utc_now_us(),
-                uuid_to_blob(actor_id),
-            ),
-        )
-        connection.commit()
+        with self.database.write_transaction() as connection:
+            self._require_standard_chat(connection, chat_id)
+            connection.execute(
+                """
+                INSERT INTO chat_preferences (
+                    chat_id,
+                    pinned,
+                    updated_at_us,
+                    updated_by_actor_id
+                ) VALUES (?, ?, ?, ?)
+                ON CONFLICT(chat_id) DO UPDATE SET
+                    pinned = excluded.pinned,
+                    updated_at_us = excluded.updated_at_us,
+                    updated_by_actor_id = excluded.updated_by_actor_id
+                """,
+                (
+                    uuid_to_blob(chat_id),
+                    1 if pinned else 0,
+                    utc_now_us(),
+                    uuid_to_blob(actor_id),
+                ),
+            )
 
     def list_chats(
         self,
