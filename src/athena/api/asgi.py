@@ -17,15 +17,9 @@ from athena.api.service import (
     KnowledgeReviewConflictError,
     KnowledgeReviewNotFoundError,
 )
+from athena.chat import repository as chat_repository
 from athena.chat.cancellation import ChatOperationActiveError
 from athena.chat.generation import GenerationCancelledError
-from athena.chat.repository import (
-    ChatMessageNotFoundError as ChatBranchMessageNotFoundError,
-    ChatNotFoundError,
-    ChatRevisionConflictError,
-    UnsupportedChatForkError,
-    UnsupportedMessageEditError,
-)
 from athena.chat.send_identity import (
     SendOperationState,
     SendOperationStateError,
@@ -851,7 +845,7 @@ class CoreApiAsgiApp:
                 retryable=False,
             )
             return
-        except ChatBranchMessageNotFoundError:
+        except chat_repository.ChatMessageNotFoundError:
             await _send_problem(
                 send,
                 status=404,
@@ -860,7 +854,7 @@ class CoreApiAsgiApp:
                 request_id=request_id,
             )
             return
-        except ChatRevisionConflictError:
+        except chat_repository.ChatRevisionConflictError:
             await _send_problem(
                 send,
                 status=409,
@@ -870,7 +864,7 @@ class CoreApiAsgiApp:
                 retryable=False,
             )
             return
-        except UnsupportedMessageEditError:
+        except chat_repository.UnsupportedMessageEditError:
             await _send_problem(
                 send,
                 status=409,
@@ -880,7 +874,7 @@ class CoreApiAsgiApp:
                 retryable=False,
             )
             return
-        except UnsupportedChatForkError:
+        except chat_repository.UnsupportedChatForkError:
             await _send_problem(
                 send,
                 status=409,
@@ -986,7 +980,7 @@ class CoreApiAsgiApp:
                 retryable=False,
             )
             return
-        except ChatNotFoundError:
+        except chat_repository.ChatNotFoundError:
             await _send_problem(
                 send,
                 status=404,
