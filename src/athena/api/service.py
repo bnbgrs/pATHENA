@@ -30,6 +30,7 @@ from athena.api.contracts import (
     GroundedMemoryResponse,
     GroundingResponse,
     HealthResponse,
+    ImageSourceResponse,
     KnowledgeMergeReviewResponse,
     KnowledgeReviewResponse,
     KnowledgeUnitProposalResponse,
@@ -87,9 +88,10 @@ from athena.lifecycle.service import (
     LifecycleDeletionService,
 )
 from athena.memory.models import PersonalMemoryRevision
-from athena.model.domain import ModelInfo
+from athena.model.domain import ModelImageInput, ModelInfo
 from athena.model.ports import ModelDiscoveryProvider
 from athena.observability.health import HealthService
+from athena.source.models import SourceCaptureResult
 from athena.retrieval.hybrid import HybridSearchResult
 from athena.retrieval.search import SearchEntityType
 from athena.retrieval.universal import (
@@ -113,7 +115,29 @@ class DirectChatSender(Protocol):
         temperature: float | None = None,
         reasoning_mode: str | None = "off",
         cancel_requested: Callable[[], bool] | None = None,
+        image_inputs: tuple[ModelImageInput, ...] = (),
+        image_source_ids: tuple[uuid.UUID, ...] = (),
     ) -> object: ...
+
+
+class ImageSourceService(Protocol):
+    """Verified Raw Archive boundary used by direct vision chat."""
+
+    def capture_image_bytes(
+        self,
+        data: bytes,
+        *,
+        original_name: str,
+        source_uri: str,
+        max_file_bytes: int | None = None,
+    ) -> SourceCaptureResult: ...
+
+    def read_image_payload(
+        self,
+        source_id: uuid.UUID,
+        *,
+        max_bytes: int,
+    ) -> tuple[str, bytes]: ...
 
 
 class PersonalMemoryWriter(Protocol):
@@ -276,6 +300,8 @@ class CoreApiFacade:
         "chat.edit.user_message",
         "chat.fork",
         "chat.pin",
+        "chat.vision",
+        "source.image.capture",
         "chat.recovery.read",
         "chat.recovery.continue",
         "models.read",
@@ -289,12 +315,14 @@ class CoreApiFacade:
         model_provider: ModelDiscoveryProvider,
         direct_chat: DirectChatSender | None = None,
         lifecycle_deletion: LifecycleDeletionService | None = None,
+        image_sources: ImageSourceService | None = None,
     ) -> None:
         self._health = health
         self._chat = chat
         self._model_provider = model_provider
         self._direct_chat = direct_chat
         self._lifecycle_deletion = lifecycle_deletion
+        self._image_sources = image_sources
         self._unified_local_chat: UnifiedLocalChatSender | None = None
         self._personal_memory: PersonalMemoryWriter | None = None
         self._knowledge_extraction: MessageKnowledgeExtractor | None = None
@@ -641,6 +669,32 @@ class CoreApiFacade:
         )
         return _chat_thread(self._chat.load_chat(forked_chat_id))
 
+    def capture_image_source(
+        self,
+        *,
+        data: bytes,
+        original_name: str,
+        source_uri: str,
+    ) -> ImageSourceResponse:
+        service = self._image_sources
+        if service is None:
+            raise RuntimeError("Image capture is unavailable in this Core process.")
+        result = service.capture_image_bytes(
+            data,
+            original_name=original_name,
+            source_uri=source_uri,
+            max_file_bytes=12 * 1024 * 1024,
+        )
+        media_type = result.blob.media_type or result.source.mime_type
+        if media_type not in {"image/png", "image/jpeg", "image/gif"}:
+            raise RuntimeError("Captured image has no supported media type.")
+        return ImageSourceResponse(
+            source_id=str(result.source.source_id),
+            media_type=media_type,
+            original_name=result.source.original_name or original_name,
+            byte_length=result.blob.byte_length,
+        )
+
     def send_chat_message(
         self,
         chat_id: str,
@@ -652,6 +706,7 @@ class CoreApiFacade:
         max_output_tokens: int | None = None,
         temperature: float | None = None,
         thinking_enabled: bool | None = None,
+        image_source_ids: tuple[str, ...] = (),
     ) -> ChatThreadResponse:
         if self._direct_chat is None:
             raise RuntimeError(
@@ -659,6 +714,33 @@ class CoreApiFacade:
             )
 
         parsed_chat_id = uuid.UUID(chat_id)
+
+        if len(set(image_source_ids)) != len(image_source_ids):
+            raise ValueError("Vision image Source IDs must be unique.")
+        parsed_image_source_ids = tuple(
+            uuid.UUID(source_id)
+            for source_id in image_source_ids
+        )
+        image_inputs: tuple[ModelImageInput, ...] = ()
+        if parsed_image_source_ids:
+            source_service = self._image_sources
+            if source_service is None:
+                raise RuntimeError(
+                    "Vision chat is unavailable because image Sources are not attached."
+                )
+            image_inputs = tuple(
+                ModelImageInput(
+                    media_type=media_type,
+                    data=data,
+                )
+                for media_type, data in (
+                    source_service.read_image_payload(
+                        source_id,
+                        max_bytes=12 * 1024 * 1024,
+                    )
+                    for source_id in parsed_image_source_ids
+                )
+            )
 
         parsed_operation_id = (
             None
@@ -688,6 +770,8 @@ class CoreApiFacade:
                         chat_id=parsed_chat_id,
                         content=content,
                         requested_model_id=requested_model_id,
+                        image_inputs=image_inputs,
+                        image_source_ids=parsed_image_source_ids,
                     )
                 elif (
                     max_output_tokens is None
@@ -698,6 +782,8 @@ class CoreApiFacade:
                         chat_id=parsed_chat_id,
                         content=content,
                         requested_model_id=requested_model_id,
+                        image_inputs=image_inputs,
+                        image_source_ids=parsed_image_source_ids,
                         effective_context_limit=effective_context_limit,
                     )
                 else:
@@ -705,6 +791,8 @@ class CoreApiFacade:
                         chat_id=parsed_chat_id,
                         content=content,
                         requested_model_id=requested_model_id,
+                        image_inputs=image_inputs,
+                        image_source_ids=parsed_image_source_ids,
                         effective_context_limit=effective_context_limit,
                         output_reserve=(
                             2048
@@ -913,6 +1001,8 @@ class CoreApiFacade:
                         chat_id=parsed_chat_id,
                         content=content,
                         requested_model_id=requested_model_id,
+                        image_inputs=image_inputs,
+                        image_source_ids=parsed_image_source_ids,
                         requested_embedding_model_id=requested_embedding_model_id,
                     )
                 elif (
@@ -924,6 +1014,8 @@ class CoreApiFacade:
                         chat_id=parsed_chat_id,
                         content=content,
                         requested_model_id=requested_model_id,
+                        image_inputs=image_inputs,
+                        image_source_ids=parsed_image_source_ids,
                         requested_embedding_model_id=requested_embedding_model_id,
                         effective_context_limit=effective_context_limit,
                     )
@@ -932,6 +1024,8 @@ class CoreApiFacade:
                         chat_id=parsed_chat_id,
                         content=content,
                         requested_model_id=requested_model_id,
+                        image_inputs=image_inputs,
+                        image_source_ids=parsed_image_source_ids,
                         requested_embedding_model_id=requested_embedding_model_id,
                         effective_context_limit=effective_context_limit,
                         output_reserve=(
@@ -1525,6 +1619,7 @@ def _chat_message(message: ChatMessage) -> ChatMessageResponse:
         revision_id=str(message.revision_id),
         content=content,
         content_format=message.content_format,
+        source_ids=tuple(str(source_id) for source_id in message.source_ids),
     )
 
 
