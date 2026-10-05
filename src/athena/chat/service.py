@@ -7,6 +7,7 @@ import uuid
 from athena.chat.models import (
     ChatForkOrigin,
     ChatMessage,
+    ChatPreferences,
     ChatSummary,
     ChatThread,
     MessageType,
@@ -175,6 +176,22 @@ class ChatService:
             chat_id=chat_id,
             operation_id=operation_id,
             expected_content=content,
+        )
+
+    def get_chat_preferences(self, chat_id: uuid.UUID) -> ChatPreferences:
+        return self.repository.get_chat_preferences(chat_id=chat_id)
+
+    def set_chat_preferences(
+        self,
+        *,
+        chat_id: uuid.UUID,
+        pinned: bool | None = None,
+        favorited: bool | None = None,
+    ) -> ChatPreferences:
+        return self.repository.set_chat_preferences(
+            chat_id=chat_id,
+            pinned=pinned,
+            favorited=favorited,
         )
 
     def get_fork_origin(self, chat_id: uuid.UUID) -> ChatForkOrigin | None:
