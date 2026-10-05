@@ -78,6 +78,23 @@ class CoreApiGateway(Protocol):
 
     def load_chat(self, chat_id: str) -> ChatThreadResponse: ...
 
+    def edit_chat_message(
+        self,
+        chat_id: str,
+        message_id: str,
+        *,
+        expected_revision_id: str,
+        content: str,
+    ) -> ChatThreadResponse: ...
+
+    def fork_chat_from_message(
+        self,
+        chat_id: str,
+        message_id: str,
+        *,
+        revision_id: str,
+    ) -> ChatThreadResponse: ...
+
     def send_chat_message(
         self,
         chat_id: str,
@@ -419,6 +436,70 @@ class _ChatTask(QRunnable):
                 if thread.chat_id != resolved_chat_id:
                     raise RuntimeError(
                         "Loaded chat belongs to another chat."
+                    )
+                outcome = _ChatOperationOutcome(
+                    operation=self.operation,
+                    thread=thread,
+                )
+            elif self.operation == "edit":
+                message_id = self.message_id
+                revision_id = self.revision_id
+                content = self.content
+                if (
+                    resolved_chat_id is None
+                    or message_id is None
+                    or revision_id is None
+                    or content is None
+                    or not content.strip()
+                ):
+                    raise ValueError(
+                        "Chat edit requires stable message identity and content."
+                    )
+                thread = self.gateway.edit_chat_message(
+                    resolved_chat_id,
+                    message_id,
+                    expected_revision_id=revision_id,
+                    content=content,
+                )
+                if thread.chat_id != resolved_chat_id:
+                    raise RuntimeError(
+                        "Edited chat belongs to another chat."
+                    )
+                edited = next(
+                    (
+                        message
+                        for message in thread.messages
+                        if message.message_id == message_id
+                    ),
+                    None,
+                )
+                if edited is None or edited.content != content:
+                    raise RuntimeError(
+                        "Edited chat does not contain the requested revision."
+                    )
+                outcome = _ChatOperationOutcome(
+                    operation=self.operation,
+                    thread=thread,
+                )
+            elif self.operation == "fork":
+                message_id = self.message_id
+                revision_id = self.revision_id
+                if (
+                    resolved_chat_id is None
+                    or message_id is None
+                    or revision_id is None
+                ):
+                    raise ValueError(
+                        "Chat fork requires stable message identity."
+                    )
+                thread = self.gateway.fork_chat_from_message(
+                    resolved_chat_id,
+                    message_id,
+                    revision_id=revision_id,
+                )
+                if thread.chat_id == resolved_chat_id:
+                    raise RuntimeError(
+                        "Forked chat reused the source chat identity."
                     )
                 outcome = _ChatOperationOutcome(
                     operation=self.operation,
@@ -1393,6 +1474,51 @@ class DesktopApiController(QObject):
         if not chat_id or self._chat_busy:
             return
         self._start_chat_task(operation="load", chat_id=chat_id)
+
+    def edit_message(
+        self,
+        *,
+        chat_id: str,
+        message_id: str,
+        revision_id: str,
+        content: str,
+    ) -> None:
+        if (
+            self._chat_busy
+            or not chat_id
+            or not message_id
+            or not revision_id
+            or not content.strip()
+        ):
+            return
+        self._start_chat_task(
+            operation="edit",
+            chat_id=chat_id,
+            message_id=message_id,
+            revision_id=revision_id,
+            content=content,
+        )
+
+    def fork_chat_from_message(
+        self,
+        *,
+        chat_id: str,
+        message_id: str,
+        revision_id: str,
+    ) -> None:
+        if (
+            self._chat_busy
+            or not chat_id
+            or not message_id
+            or not revision_id
+        ):
+            return
+        self._start_chat_task(
+            operation="fork",
+            chat_id=chat_id,
+            message_id=message_id,
+            revision_id=revision_id,
+        )
 
     def send_message(
         self,
