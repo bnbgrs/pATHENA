@@ -210,6 +210,56 @@ class CoreApiAsgiApp:
                 return
 
             if (
+                path.startswith("/api/v1/chats/")
+                and path.endswith("/preferences")
+            ):
+                chat_id = path.removeprefix(
+                    "/api/v1/chats/"
+                ).removesuffix("/preferences")
+                if not chat_id or "/" in chat_id:
+                    raise ValueError(
+                        "Invalid chat preferences resource path."
+                    )
+                if method == "GET":
+                    await _send_contract(
+                        send,
+                        self._facade.chat_preferences(chat_id),
+                        request_id=request_id,
+                    )
+                    return
+                if method == "PATCH":
+                    payload = await _read_json_object(receive)
+                    unknown = set(payload) - {"pinned", "favorited"}
+                    if unknown:
+                        raise ValueError(
+                            "Chat preferences request contains unsupported fields."
+                        )
+                    if not payload:
+                        raise ValueError(
+                            "Chat preferences request must change at least one flag."
+                        )
+                    pinned = payload.get("pinned")
+                    favorited = payload.get("favorited")
+                    if pinned is not None and not isinstance(pinned, bool):
+                        raise ValueError(
+                            "Chat pinned preference must be boolean when provided."
+                        )
+                    if favorited is not None and not isinstance(favorited, bool):
+                        raise ValueError(
+                            "Chat favorite preference must be boolean when provided."
+                        )
+                    await _send_contract(
+                        send,
+                        self._facade.set_chat_preferences(
+                            chat_id,
+                            pinned=pinned,
+                            favorited=favorited,
+                        ),
+                        request_id=request_id,
+                    )
+                    return
+
+            if (
                 method == "PUT"
                 and path.startswith("/api/v1/chats/")
             ):
