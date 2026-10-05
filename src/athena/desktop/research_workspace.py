@@ -129,6 +129,7 @@ class ResearchWorkspace(QWidget):
         layout.addWidget(self.status)
 
         splitter = QSplitter(Qt.Orientation.Horizontal)
+        splitter.setProperty("pathenaSplitterPersistenceKey", "research-main")
         splitter.addWidget(self.jobs)
         splitter.addWidget(self.details)
         splitter.setStretchFactor(0, 1)
