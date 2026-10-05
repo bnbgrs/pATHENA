@@ -212,6 +212,29 @@ class CoreApiAsgiApp:
             if (
                 method == "PUT"
                 and path.startswith("/api/v1/chats/")
+                and path.endswith("/pin")
+            ):
+                chat_id = path.removeprefix("/api/v1/chats/").removesuffix("/pin")
+                chat_id = chat_id.removesuffix("/")
+                if not chat_id or "/" in chat_id:
+                    raise ValueError("Invalid chat pin resource path.")
+                payload = await _read_json_object(receive)
+                unknown = set(payload) - {"pinned"}
+                if unknown:
+                    raise ValueError("Chat pin request contains unsupported fields.")
+                pinned = payload.get("pinned")
+                if not isinstance(pinned, bool):
+                    raise ValueError("Chat pin state must be boolean.")
+                await _send_contract(
+                    send,
+                    self._facade.set_chat_pinned(chat_id, pinned=pinned),
+                    request_id=request_id,
+                )
+                return
+
+            if (
+                method == "PUT"
+                and path.startswith("/api/v1/chats/")
             ):
                 chat_id = path.removeprefix(
                     "/api/v1/chats/"
