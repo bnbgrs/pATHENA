@@ -3,9 +3,9 @@
 ## Baseline
 
 - Repository: `bnbgrs/pATHENA`
-- Stacked base: PR #486 / `desktop/chat-edit-fork-controller-20261005-sol`
+- Base: `develop/pathena-next` after merged PR #486
 - Branch: `desktop/chat-edit-fork-controls-20261005-sol`
-- Target after #486 merge: `develop/pathena-next`
+- Integration target: `develop/pathena-next`
 
 ## Implemented
 
