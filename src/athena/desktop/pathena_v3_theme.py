@@ -1,4 +1,4 @@
-"""V3 visual system: ink canvas, porcelain type and sea-glass accents."""
+"""V4 visual system: graphite/ink canvas, warm-white type and chartreuse accents."""
 
 from __future__ import annotations
 
@@ -295,11 +295,6 @@ QFrame#v3Composer {
     background: #111718;
     border: 1px solid #293638;
     border-radius: 18px;
-}
-
-QFrame#v3Composer:focus-within {
-    background: #12191A;
-    border-color: #5DAEA5;
 }
 
 QPlainTextEdit#promptInput {
