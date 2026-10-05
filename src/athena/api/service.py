@@ -275,6 +275,7 @@ class CoreApiFacade:
         "chat.create",
         "chat.edit.user_message",
         "chat.fork",
+        "chat.pin",
         "chat.recovery.read",
         "chat.recovery.continue",
         "models.read",
