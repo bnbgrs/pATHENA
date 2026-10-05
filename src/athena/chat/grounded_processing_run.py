@@ -316,6 +316,7 @@ def cancel_grounded_processing_run(
     processing_run_id: uuid.UUID,
     package: ContextPackage,
     trigger_actor_id: uuid.UUID,
+    error_detail: str = "KeyboardInterrupt",
 ) -> ProcessingRun:
     """Mark an interrupted Grounded execution cancelled, idempotently."""
     repository, run = _load_bound_run(
