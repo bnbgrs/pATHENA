@@ -1950,10 +1950,10 @@ def _required_str_tuple(
 def _chat_operation_recovery(
     payload: dict[str, JsonValue],
 ) -> ChatOperationRecoveryResponse:
-    operation_id = _required_text(payload, "operation_id")
-    chat_id = _required_text(payload, "chat_id")
-    mode = _required_text(payload, "mode")
-    state = _required_text(payload, "state")
+    operation_id = _required_str(payload, "operation_id")
+    chat_id = _required_str(payload, "chat_id")
+    mode = _required_str(payload, "mode")
+    state = _required_str(payload, "state")
     can_continue = payload.get("can_continue")
     processing_run_id = payload.get("processing_run_id")
     if mode != "grounded":
