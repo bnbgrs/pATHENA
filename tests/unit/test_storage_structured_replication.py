@@ -8,10 +8,10 @@ import pytest
 from athena.common.ids import uuid_to_blob
 from athena.storage.database import SQLiteDatabase
 from athena.storage.schema_contract import (
-    GROUNDED_RESPONSE_RECEIPT_MIGRATION_ID,
-    GROUNDED_RESPONSE_RECEIPT_SCHEMA_VERSION,
     CHAT_PREFERENCES_MIGRATION_ID,
     CHAT_PREFERENCES_SCHEMA_VERSION,
+    GROUNDED_RESPONSE_RECEIPT_MIGRATION_ID,
+    GROUNDED_RESPONSE_RECEIPT_SCHEMA_VERSION,
     DatabaseCompatibilityError,
 )
 from athena.storage.structured_replication import (
