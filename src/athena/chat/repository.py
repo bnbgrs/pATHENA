@@ -10,6 +10,7 @@ import uuid
 from athena.chat.models import (
     ChatForkOrigin,
     ChatMessage,
+    ChatPreferences,
     ChatSummary,
     ChatThread,
     MessageType,
@@ -980,6 +981,116 @@ class ChatRepository:
             state=state,
         )
 
+    def get_chat_preferences(
+        self,
+        *,
+        chat_id: uuid.UUID,
+    ) -> ChatPreferences:
+        self._require_standard_chat(
+            self.database.connection,
+            chat_id,
+        )
+        row = self.database.connection.execute(
+            """
+            SELECT pinned_at_us, favorited_at_us
+            FROM chat_preferences
+            WHERE chat_id = ?
+            """,
+            (uuid_to_blob(chat_id),),
+        ).fetchone()
+        return ChatPreferences(
+            chat_id=chat_id,
+            pinned=(row is not None and row["pinned_at_us"] is not None),
+            favorited=(row is not None and row["favorited_at_us"] is not None),
+        )
+
+    def set_chat_preferences(
+        self,
+        *,
+        chat_id: uuid.UUID,
+        pinned: bool | None = None,
+        favorited: bool | None = None,
+    ) -> ChatPreferences:
+        if pinned is None and favorited is None:
+            return self.get_chat_preferences(chat_id=chat_id)
+        if pinned is not None and not isinstance(pinned, bool):
+            raise TypeError("Chat pinned preference must be bool or None.")
+        if favorited is not None and not isinstance(favorited, bool):
+            raise TypeError("Chat favorite preference must be bool or None.")
+
+        now_us = utc_now_us()
+        with self.database.write_transaction() as connection:
+            self._require_standard_chat(connection, chat_id)
+            row = connection.execute(
+                """
+                SELECT pinned_at_us, favorited_at_us
+                FROM chat_preferences
+                WHERE chat_id = ?
+                """,
+                (uuid_to_blob(chat_id),),
+            ).fetchone()
+            current_pinned_at = (
+                int(row["pinned_at_us"])
+                if row is not None and row["pinned_at_us"] is not None
+                else None
+            )
+            current_favorited_at = (
+                int(row["favorited_at_us"])
+                if row is not None and row["favorited_at_us"] is not None
+                else None
+            )
+            pinned_at = (
+                current_pinned_at
+                if pinned is None
+                else now_us
+                if pinned and current_pinned_at is None
+                else current_pinned_at
+                if pinned
+                else None
+            )
+            favorited_at = (
+                current_favorited_at
+                if favorited is None
+                else now_us
+                if favorited and current_favorited_at is None
+                else current_favorited_at
+                if favorited
+                else None
+            )
+
+            if pinned_at is None and favorited_at is None:
+                connection.execute(
+                    "DELETE FROM chat_preferences WHERE chat_id = ?",
+                    (uuid_to_blob(chat_id),),
+                )
+            else:
+                connection.execute(
+                    """
+                    INSERT INTO chat_preferences (
+                        chat_id,
+                        pinned_at_us,
+                        favorited_at_us,
+                        updated_at_us
+                    ) VALUES (?, ?, ?, ?)
+                    ON CONFLICT(chat_id) DO UPDATE SET
+                        pinned_at_us = excluded.pinned_at_us,
+                        favorited_at_us = excluded.favorited_at_us,
+                        updated_at_us = excluded.updated_at_us
+                    """,
+                    (
+                        uuid_to_blob(chat_id),
+                        pinned_at,
+                        favorited_at,
+                        now_us,
+                    ),
+                )
+
+        return ChatPreferences(
+            chat_id=chat_id,
+            pinned=pinned_at is not None,
+            favorited=favorited_at is not None,
+        )
+
     def list_chats(
         self,
         *,
@@ -999,18 +1110,28 @@ class ChatRepository:
                 c.ended_at_us,
                 c.archive_mode,
                 c.lifecycle_state,
-                COUNT(m.message_id) AS message_count
+                COUNT(m.message_id) AS message_count,
+                CASE WHEN cp.pinned_at_us IS NULL THEN 0 ELSE 1 END AS pinned,
+                CASE WHEN cp.favorited_at_us IS NULL THEN 0 ELSE 1 END AS favorited
             FROM chats AS c
             LEFT JOIN chat_messages AS m
               ON m.chat_id = c.chat_id
+            LEFT JOIN chat_preferences AS cp
+              ON cp.chat_id = c.chat_id
             WHERE c.lifecycle_state != 'deleted'
             GROUP BY
                 c.chat_id,
                 c.started_at_us,
                 c.ended_at_us,
                 c.archive_mode,
-                c.lifecycle_state
-            ORDER BY c.started_at_us DESC, c.chat_id DESC
+                c.lifecycle_state,
+                cp.pinned_at_us,
+                cp.favorited_at_us
+            ORDER BY
+                pinned DESC,
+                favorited DESC,
+                c.started_at_us DESC,
+                c.chat_id DESC
             LIMIT ? OFFSET ?
             """,
             (limit, offset),
@@ -1026,6 +1147,8 @@ class ChatRepository:
                 archive_mode=str(row["archive_mode"]),
                 lifecycle_state=str(row["lifecycle_state"]),
                 message_count=int(row["message_count"]),
+                pinned=bool(row["pinned"]),
+                favorited=bool(row["favorited"]),
             )
             for row in rows
         )
