@@ -19,7 +19,11 @@ from athena.chat.models import ChatMessage, MessageType
 from athena.chat.provenance import strip_durable_provenance_manifest
 from athena.chat.service import ChatService
 from athena.model.domain import ModelChatMessage, ModelInfo
-from athena.model.ports import ChatModelProvider
+from athena.model.ports import (
+    CancellableChatModelProvider,
+    ChatModelProvider,
+    ProviderGenerationCancelledError,
+)
 from athena.model.signature_guard import (
     ModelSignatureDriftError,
     assert_runtime_model_matches_signature,
@@ -548,7 +552,20 @@ class ChatGenerationService:
 
             chunks: list[str] = []
 
-            if temperature is not None:
+            if (
+                operation_id is not None
+                and isinstance(self.provider, CancellableChatModelProvider)
+            ):
+                stream = self.provider.stream_chat_cancellable(
+                    request_id=str(operation_id),
+                    model_id=model.backend_model_id,
+                    messages=attempt_history,
+                    max_output_tokens=max_output_tokens,
+                    reasoning_mode=reasoning_mode,
+                    temperature=temperature,
+                    cancel_requested=cancel_requested,
+                )
+            elif temperature is not None:
                 stream = self.provider.stream_chat(
                     model_id=model.backend_model_id,
                     messages=attempt_history,
@@ -611,6 +628,10 @@ class ChatGenerationService:
                     raise GenerationCancelledError(
                         "Chat generation was cancelled."
                     )
+            except ProviderGenerationCancelledError as exc:
+                raise GenerationCancelledError(
+                    "Chat generation transport was cancelled."
+                ) from exc
             except GenerationCancelledError:
                 closer = getattr(stream, "close", None)
                 if callable(closer):
