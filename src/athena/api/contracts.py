@@ -185,6 +185,18 @@ class GroundedChatResponse(ApiContract):
 
 
 @dataclass(frozen=True, slots=True)
+class ChatOperationRecoveryResponse(ApiContract):
+    """Truthful durable recovery state for one persisted chat operation."""
+
+    operation_id: str
+    chat_id: str
+    mode: str
+    state: str
+    can_continue: bool
+    processing_run_id: str | None
+
+
+@dataclass(frozen=True, slots=True)
 class RememberedChatMessageResponse(ApiContract):
     chat_id: str
     message_id: str

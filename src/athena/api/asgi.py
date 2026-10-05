@@ -24,6 +24,8 @@ from athena.chat.send_identity import (
     SendOperationState,
     SendOperationStateError,
 )
+from athena.chat.unified import UnifiedGroundedRecoveryRequiredError
+from athena.chat.unified_replay import UnifiedReplayProjectionError
 from athena.lifecycle.service import (
     LifecycleDeletionAlreadyDeletedError,
     LifecycleDeletionNotFoundError,
@@ -529,6 +531,39 @@ class CoreApiAsgiApp:
                 )
                 return
 
+            recovery_resource = _chat_operation_action_resource(
+                path,
+                action="recovery",
+            )
+            if method == "GET" and recovery_resource is not None:
+                chat_id, operation_id = recovery_resource
+                await _send_contract(
+                    send,
+                    self._facade.chat_operation_recovery(
+                        chat_id,
+                        operation_id,
+                    ),
+                    request_id=request_id,
+                )
+                return
+
+            continue_resource = _chat_operation_action_resource(
+                path,
+                action="continue",
+            )
+            if method == "POST" and continue_resource is not None:
+                chat_id, operation_id = continue_resource
+                await _consume_empty_body(receive)
+                await _send_contract(
+                    send,
+                    self._facade.continue_unified_local_chat_operation(
+                        chat_id,
+                        operation_id,
+                    ),
+                    request_id=request_id,
+                )
+                return
+
             cancel_operation_id = _single_resource_id(
                 path,
                 prefix="/api/v1/chat-operations/",
@@ -903,6 +938,48 @@ class CoreApiAsgiApp:
                 retryable=False,
             )
             return
+        except UnifiedGroundedRecoveryRequiredError as exc:
+            state = exc.status.state.value
+            if state == "ambiguous":
+                code = "chat_recovery_ambiguous"
+                message = (
+                    "The persisted operation may already have crossed the provider "
+                    "boundary. ATHENA will not repeat it automatically."
+                )
+            elif state == "conflict":
+                code = "chat_recovery_conflict"
+                message = (
+                    "The persisted operation has conflicting recovery state and "
+                    "cannot be continued safely."
+                )
+            else:
+                code = "chat_recovery_unavailable"
+                message = (
+                    "The persisted operation is not in a state that can be "
+                    "continued safely."
+                )
+            await _send_problem(
+                send,
+                status=409,
+                code=code,
+                message=message,
+                request_id=request_id,
+                retryable=False,
+            )
+            return
+        except UnifiedReplayProjectionError:
+            await _send_problem(
+                send,
+                status=409,
+                code="chat_recovery_conflict",
+                message=(
+                    "The persisted Unified recovery state failed integrity "
+                    "validation and cannot be continued safely."
+                ),
+                request_id=request_id,
+                retryable=False,
+            )
+            return
         except GenerationCancelledError:
             await _send_problem(
                 send,
@@ -1071,6 +1148,10 @@ def _known_path(path: str) -> bool:
         suffix="/cancel",
     ) is not None:
         return True
+    if _chat_operation_action_resource(path, action="recovery") is not None:
+        return True
+    if _chat_operation_action_resource(path, action="continue") is not None:
+        return True
     if (
         path.startswith("/api/v1/chats/")
         and path.endswith("/deletion-preview")
@@ -1124,6 +1205,28 @@ def _known_path(path: str) -> bool:
         return bool(chat_id) and "/" not in chat_id
     return False
 
+
+
+def _chat_operation_action_resource(
+    path: str,
+    *,
+    action: str,
+) -> tuple[str, str] | None:
+    prefix = "/api/v1/chats/"
+    suffix = f"/{action}"
+    if not path.startswith(prefix) or not path.endswith(suffix):
+        return None
+    middle = path[len(prefix) : -len(suffix)]
+    chat_id, separator, operation_id = middle.partition("/operations/")
+    if (
+        separator != "/operations/"
+        or not chat_id
+        or not operation_id
+        or "/" in chat_id
+        or "/" in operation_id
+    ):
+        return None
+    return chat_id, operation_id
 
 
 def _message_action_resource(

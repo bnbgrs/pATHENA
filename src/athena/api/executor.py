@@ -9,6 +9,7 @@ from typing import Callable, TypeVar, cast
 
 from athena.api.contracts import (
     CapabilitiesResponse,
+    ChatOperationRecoveryResponse,
     ChatSummaryResponse,
     ChatThreadResponse,
     DeletionPreviewResponse,
@@ -500,6 +501,38 @@ class SerializedCoreApiSurface:
                     max_output_tokens=max_output_tokens,
                     temperature=temperature,
                     thinking_enabled=thinking_enabled,
+                )
+            )
+        finally:
+            self._surface.release_chat_operation(reservation)
+
+    def chat_operation_recovery(
+        self,
+        chat_id: str,
+        operation_id: str,
+    ) -> ChatOperationRecoveryResponse:
+        return self._executor.call(
+            lambda: self._surface.chat_operation_recovery(
+                chat_id,
+                operation_id,
+            )
+        )
+
+    def continue_unified_local_chat_operation(
+        self,
+        chat_id: str,
+        operation_id: str,
+    ) -> GroundedChatResponse:
+        reservation = self._surface.reserve_chat_operation(operation_id)
+        if reservation is None:
+            raise ChatOperationActiveError(
+                "The chat send operation is already active."
+            )
+        try:
+            return self._executor.call(
+                lambda: self._surface.continue_unified_local_chat_operation(
+                    chat_id,
+                    operation_id,
                 )
             )
         finally:

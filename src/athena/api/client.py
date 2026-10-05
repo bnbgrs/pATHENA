@@ -17,6 +17,7 @@ from athena.api.contracts import (
     CanonicalMergeReviewResponse,
     CapabilitiesResponse,
     ChatMessageResponse,
+    ChatOperationRecoveryResponse,
     ChatSummaryResponse,
     ChatThreadResponse,
     ClaimProposalResponse,
@@ -476,6 +477,68 @@ class CoreApiClient:
                 ),
             )
         )
+
+    def chat_operation_recovery(
+        self,
+        chat_id: str,
+        operation_id: str,
+    ) -> ChatOperationRecoveryResponse:
+        _require_path_segment(chat_id, label="Chat ID")
+        _require_path_segment(operation_id, label="Chat operation ID")
+        try:
+            canonical_chat_id = str(uuid.UUID(chat_id))
+            canonical_operation_id = str(uuid.UUID(operation_id))
+        except ValueError as exc:
+            raise ValueError(
+                "Chat and operation IDs must be valid UUIDs."
+            ) from exc
+
+        response = _chat_operation_recovery(
+            self._get(
+                f"/api/v1/chats/{canonical_chat_id}/operations/"
+                f"{canonical_operation_id}/recovery"
+            )
+        )
+        if (
+            response.chat_id != canonical_chat_id
+            or response.operation_id != canonical_operation_id
+        ):
+            raise CoreApiClientError(
+                "ATHENA Core returned recovery state for another operation.",
+                code="invalid_response",
+            )
+        return response
+
+    def continue_unified_local_chat_operation(
+        self,
+        chat_id: str,
+        operation_id: str,
+    ) -> GroundedChatResponse:
+        _require_path_segment(chat_id, label="Chat ID")
+        _require_path_segment(operation_id, label="Chat operation ID")
+        try:
+            canonical_chat_id = str(uuid.UUID(chat_id))
+            canonical_operation_id = str(uuid.UUID(operation_id))
+        except ValueError as exc:
+            raise ValueError(
+                "Chat and operation IDs must be valid UUIDs."
+            ) from exc
+
+        response = _grounded_chat(
+            self._request(
+                "POST",
+                f"/api/v1/chats/{canonical_chat_id}/operations/"
+                f"{canonical_operation_id}/continue",
+                expected_status=200,
+                timeout_seconds=self.generation_timeout_seconds,
+            )
+        )
+        if response.thread.chat_id != canonical_chat_id:
+            raise CoreApiClientError(
+                "ATHENA Core returned continued output for another chat.",
+                code="invalid_response",
+            )
+        return response
 
     def cancel_chat_operation(self, operation_id: str) -> bool:
         """Request cancellation for one currently reserved chat operation."""
@@ -1882,6 +1945,63 @@ def _required_str_tuple(
             code="invalid_response",
         )
     return tuple(cast(list[str], value))
+
+
+def _chat_operation_recovery(
+    payload: dict[str, JsonValue],
+) -> ChatOperationRecoveryResponse:
+    operation_id = _required_str(payload, "operation_id")
+    chat_id = _required_str(payload, "chat_id")
+    mode = _required_str(payload, "mode")
+    state = _required_str(payload, "state")
+    can_continue = payload.get("can_continue")
+    processing_run_id = payload.get("processing_run_id")
+    if mode != "grounded":
+        raise CoreApiClientError(
+            "ATHENA Core returned unsupported chat recovery mode.",
+            code="invalid_response",
+        )
+    if state not in {
+        "absent",
+        "resumable",
+        "ambiguous",
+        "result_available",
+        "finalization_required",
+        "complete",
+        "conflict",
+    }:
+        raise CoreApiClientError(
+            "ATHENA Core returned unknown chat recovery state.",
+            code="invalid_response",
+        )
+    if not isinstance(can_continue, bool):
+        raise CoreApiClientError(
+            "ATHENA Core returned invalid chat recovery action state.",
+            code="invalid_response",
+        )
+    if processing_run_id is not None and not isinstance(processing_run_id, str):
+        raise CoreApiClientError(
+            "ATHENA Core returned invalid recovery ProcessingRun identity.",
+            code="invalid_response",
+        )
+    expected_continue = state in {
+        "resumable",
+        "result_available",
+        "finalization_required",
+    }
+    if can_continue != expected_continue:
+        raise CoreApiClientError(
+            "ATHENA Core returned inconsistent chat recovery action state.",
+            code="invalid_response",
+        )
+    return ChatOperationRecoveryResponse(
+        operation_id=operation_id,
+        chat_id=chat_id,
+        mode=mode,
+        state=state,
+        can_continue=can_continue,
+        processing_run_id=processing_run_id,
+    )
 
 
 def _grounded_evidence(

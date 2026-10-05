@@ -6,16 +6,131 @@ import uuid
 from typing import Any
 
 from athena.api.asgi import CoreApiAsgiApp
+from athena.api.contracts import (
+    ChatMessageResponse,
+    ChatOperationRecoveryResponse,
+    ChatThreadResponse,
+    GroundedChatResponse,
+    GroundingResponse,
+)
 from athena.api.runtime import LocalApiRuntime
 from athena.api.service import CoreApiFacade
+from athena.chat.grounded_recovery import (
+    GroundedRecoveryState,
+    GroundedRecoveryStatus,
+)
 from athena.chat.models import ChatMessage, ChatSummary, ChatThread, MessageType
 from athena.chat.repository import ChatRevisionConflictError, UnsupportedChatForkError
+from athena.chat.unified import UnifiedGroundedRecoveryRequiredError
 from athena.model.domain import ModelInfo, ProviderHealth, ProviderHealthStatus
 from athena.observability.health import HealthService
 from athena.retrieval.universal import (
     UniversalSearchEntityType,
     UniversalSearchResult,
 )
+
+
+class _RecoveryFacade:
+    chat_id = "11111111-1111-4111-8111-111111111111"
+    operation_id = "22222222-2222-4222-8222-222222222222"
+
+    def __init__(self, *, ambiguous: bool = False) -> None:
+        self.ambiguous = ambiguous
+        self.continue_calls = 0
+
+    def chat_operation_recovery(
+        self,
+        chat_id: str,
+        operation_id: str,
+    ) -> ChatOperationRecoveryResponse:
+        assert chat_id == self.chat_id
+        assert operation_id == self.operation_id
+        return ChatOperationRecoveryResponse(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            mode="grounded",
+            state=(
+                GroundedRecoveryState.AMBIGUOUS.value
+                if self.ambiguous
+                else GroundedRecoveryState.RESUMABLE.value
+            ),
+            can_continue=not self.ambiguous,
+            processing_run_id="33333333-3333-4333-8333-333333333333",
+        )
+
+    def continue_unified_local_chat_operation(
+        self,
+        chat_id: str,
+        operation_id: str,
+    ) -> GroundedChatResponse:
+        assert chat_id == self.chat_id
+        assert operation_id == self.operation_id
+        self.continue_calls += 1
+        if self.ambiguous:
+            raise UnifiedGroundedRecoveryRequiredError(
+                GroundedRecoveryStatus(
+                    operation_id=uuid.UUID(operation_id),
+                    chat_id=uuid.UUID(chat_id),
+                    state=GroundedRecoveryState.AMBIGUOUS,
+                    receipt=None,
+                    processing_run_id=uuid.UUID(
+                        "33333333-3333-4333-8333-333333333333"
+                    ),
+                )
+            )
+        return GroundedChatResponse(
+            thread=ChatThreadResponse(
+                chat_id=chat_id,
+                started_at_us=1,
+                ended_at_us=None,
+                archive_mode="standard",
+                lifecycle_state="active",
+                messages=(
+                    ChatMessageResponse(
+                        message_id=operation_id,
+                        chat_id=chat_id,
+                        sequence_no=1,
+                        message_type="user",
+                        actor_id="44444444-4444-4444-8444-444444444444",
+                        created_at_us=1,
+                        revision_id="55555555-5555-4555-8555-555555555555",
+                        content="persisted request",
+                        content_format="text/plain",
+                    ),
+                    ChatMessageResponse(
+                        message_id="66666666-6666-4666-8666-666666666666",
+                        chat_id=chat_id,
+                        sequence_no=2,
+                        message_type="assistant",
+                        actor_id="77777777-7777-4777-8777-777777777777",
+                        created_at_us=2,
+                        revision_id="88888888-8888-4888-8888-888888888888",
+                        content="continued answer",
+                        content_format="text/plain",
+                    ),
+                ),
+            ),
+            assistant_text="continued answer",
+            evidence=(),
+            personal_memory=(),
+            grounding=GroundingResponse(
+                cited_context_ids=(),
+                canonical_context_ids=(),
+                user_statement_context_ids=(),
+                conversation_context_ids=(),
+                source_context_ids=(),
+                research_context_ids=(),
+                news_context_ids=(),
+                invalid_context_ids=(),
+                uses_inference=False,
+                uses_model_prior=False,
+                uses_unknown=False,
+                has_provenance_marker=True,
+            ),
+            processing_run_id="33333333-3333-4333-8333-333333333333",
+            model_id="local-model",
+            embedding_model_id=None,
+        )
 
 
 class _Chat:
@@ -818,3 +933,82 @@ def test_asgi_shutdown_requires_dedicated_process_opt_in(tmp_path) -> None:
     assert unavailable["code"] == "shutdown_unavailable"
     assert accepted_status == 202
     assert accepted == {"accepted": True}
+
+
+def test_asgi_recovery_routes_expose_persisted_continue_state(tmp_path) -> None:
+    runtime = LocalApiRuntime(tmp_path / "recovery-api")
+    runtime.publish(port=32126)
+    token = runtime.token_path.read_text(encoding="utf-8").strip()
+    facade = _RecoveryFacade()
+    app = CoreApiAsgiApp(
+        facade=facade,  # type: ignore[arg-type]
+        runtime=runtime,
+    )
+
+    recovery_status, _, recovery = asyncio.run(
+        _request(
+            app,
+            runtime,
+            method="GET",
+            path=(
+                f"/api/v1/chats/{facade.chat_id}/operations/"
+                f"{facade.operation_id}/recovery"
+            ),
+            token=token,
+        )
+    )
+    continue_status, _, continued = asyncio.run(
+        _request(
+            app,
+            runtime,
+            method="POST",
+            path=(
+                f"/api/v1/chats/{facade.chat_id}/operations/"
+                f"{facade.operation_id}/continue"
+            ),
+            token=token,
+        )
+    )
+
+    assert recovery_status == 200
+    assert recovery == {
+        "operation_id": facade.operation_id,
+        "chat_id": facade.chat_id,
+        "mode": "grounded",
+        "state": "resumable",
+        "can_continue": True,
+        "processing_run_id": "33333333-3333-4333-8333-333333333333",
+    }
+    assert continue_status == 200
+    assert continued["thread"]["chat_id"] == facade.chat_id
+    assert continued["assistant_text"] == "continued answer"
+    assert facade.continue_calls == 1
+
+
+def test_asgi_recovery_refuses_ambiguous_provider_boundary(tmp_path) -> None:
+    runtime = LocalApiRuntime(tmp_path / "ambiguous-recovery-api")
+    runtime.publish(port=32127)
+    token = runtime.token_path.read_text(encoding="utf-8").strip()
+    facade = _RecoveryFacade(ambiguous=True)
+    app = CoreApiAsgiApp(
+        facade=facade,  # type: ignore[arg-type]
+        runtime=runtime,
+    )
+
+    status, _, problem = asyncio.run(
+        _request(
+            app,
+            runtime,
+            method="POST",
+            path=(
+                f"/api/v1/chats/{facade.chat_id}/operations/"
+                f"{facade.operation_id}/continue"
+            ),
+            token=token,
+        )
+    )
+
+    assert status == 409
+    assert problem["code"] == "chat_recovery_ambiguous"
+    assert problem["retryable"] is False
+    assert facade.continue_calls == 1
