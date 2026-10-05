@@ -22,6 +22,7 @@ from athena.desktop.jobs_lifecycle import (
     JobLifecycleError,
     JobListEntry,
     action_availability,
+    parse_current_progress,
     parse_job_list,
     parse_transition_receipt,
 )
@@ -82,6 +83,11 @@ class JobsWorkspace(QWidget):
         self.status.setAccessibleDescription(self.status.text())
         set_pathena_ui_state(self.status, "idle")
 
+        self.progress = QLabel("PROGRESS · Select a job.")
+        self.progress.setObjectName("jobProgress")
+        self.progress.setAccessibleName("Job progress")
+        set_pathena_ui_state(self.progress, "empty")
+
         self.jobs = QListWidget()
         self.jobs.setObjectName("durableJobList")
         self.jobs.setMinimumWidth(430)
@@ -138,6 +144,7 @@ class JobsWorkspace(QWidget):
         intro.setWordWrap(True)
         layout.addWidget(intro)
         layout.addWidget(self.status)
+        layout.addWidget(self.progress)
 
         splitter = QSplitter(Qt.Orientation.Horizontal)
         splitter.addWidget(self.jobs)
@@ -224,6 +231,8 @@ class JobsWorkspace(QWidget):
         if self._selected_job_id:
             selected_job_id = self._selected_job_id
             set_pathena_ui_state(self.details, "busy")
+            self.progress.setText("PROGRESS · Loading durable checkpoint state …")
+            set_pathena_ui_state(self.progress, "busy")
             self._start(
                 "show",
                 ["show", selected_job_id],
@@ -409,6 +418,14 @@ class JobsWorkspace(QWidget):
             self._set_status(f"Job {job_label} details loaded.", "success")
             if owns_details:
                 set_pathena_ui_state(self.details, "success")
+                progress = parse_current_progress(output)
+                if progress is None:
+                    self.progress.setText("PROGRESS · No durable checkpoint progress recorded.")
+                    set_pathena_ui_state(self.progress, "idle")
+                else:
+                    self.progress.setText(f"PROGRESS · {progress}")
+                    self.progress.setToolTip(progress)
+                    set_pathena_ui_state(self.progress, "success")
             self._recover_background_selection(
                 operation,
                 owns_details=owns_details,
