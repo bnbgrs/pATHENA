@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import uuid
-from collections.abc import Iterator, Mapping, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from threading import Lock
 from time import monotonic
@@ -189,7 +189,7 @@ class LMStudioProvider:
         max_output_tokens: int | None = None,
         reasoning_mode: str | None = None,
         temperature: float | None = None,
-        request_id: str | None = None,
+        cancel_requested: Callable[[], bool] | None = None,
     ) -> Iterator[str]:
         """Stream chat with blocking HTTP I/O bound to one stable request ID."""
         yield from self.stream_chat(
@@ -199,6 +199,7 @@ class LMStudioProvider:
             reasoning_mode=reasoning_mode,
             temperature=temperature,
             request_id=request_id,
+            cancel_requested=cancel_requested,
         )
 
     def stream_chat(
@@ -209,6 +210,8 @@ class LMStudioProvider:
         max_output_tokens: int | None = None,
         reasoning_mode: str | None = None,
         temperature: float | None = None,
+        request_id: str | None = None,
+        cancel_requested: Callable[[], bool] | None = None,
     ) -> Iterator[str]:
         """Stream assistant text from LM Studio using SSE chat completions."""
         self._require_canonical_model_id(model_id)
@@ -269,6 +272,11 @@ class LMStudioProvider:
                     canonical_request_id,
                     transport,
                 )
+                if cancel_requested is not None and cancel_requested():
+                    transport.abort()
+                    raise ProviderGenerationCancelledError(
+                        "LM Studio generation was cancelled before transport open."
+                    )
                 response_context = transport.open()
 
             with response_context as response:
