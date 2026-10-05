@@ -52,3 +52,5 @@ class ChatSummary:
     archive_mode: str
     lifecycle_state: str
     message_count: int
+    pinned: bool = False
+    favorited: bool = False
