@@ -777,8 +777,6 @@ class CoreApiFacade:
                         chat_id=parsed_chat_id,
                         content=content,
                         requested_model_id=requested_model_id,
-                        image_inputs=image_inputs,
-                        image_source_ids=parsed_image_source_ids,
                     )
                 elif (
                     max_output_tokens is None
@@ -789,8 +787,6 @@ class CoreApiFacade:
                         chat_id=parsed_chat_id,
                         content=content,
                         requested_model_id=requested_model_id,
-                        image_inputs=image_inputs,
-                        image_source_ids=parsed_image_source_ids,
                         effective_context_limit=effective_context_limit,
                     )
                 else:
@@ -798,8 +794,6 @@ class CoreApiFacade:
                         chat_id=parsed_chat_id,
                         content=content,
                         requested_model_id=requested_model_id,
-                        image_inputs=image_inputs,
-                        image_source_ids=parsed_image_source_ids,
                         effective_context_limit=effective_context_limit,
                         output_reserve=(
                             2048
@@ -1008,8 +1002,6 @@ class CoreApiFacade:
                         chat_id=parsed_chat_id,
                         content=content,
                         requested_model_id=requested_model_id,
-                        image_inputs=image_inputs,
-                        image_source_ids=parsed_image_source_ids,
                         requested_embedding_model_id=requested_embedding_model_id,
                     )
                 elif (
@@ -1021,8 +1013,6 @@ class CoreApiFacade:
                         chat_id=parsed_chat_id,
                         content=content,
                         requested_model_id=requested_model_id,
-                        image_inputs=image_inputs,
-                        image_source_ids=parsed_image_source_ids,
                         requested_embedding_model_id=requested_embedding_model_id,
                         effective_context_limit=effective_context_limit,
                     )
@@ -1031,8 +1021,6 @@ class CoreApiFacade:
                         chat_id=parsed_chat_id,
                         content=content,
                         requested_model_id=requested_model_id,
-                        image_inputs=image_inputs,
-                        image_source_ids=parsed_image_source_ids,
                         requested_embedding_model_id=requested_embedding_model_id,
                         effective_context_limit=effective_context_limit,
                         output_reserve=(
