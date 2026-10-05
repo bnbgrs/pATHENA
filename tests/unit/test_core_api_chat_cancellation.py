@@ -83,6 +83,38 @@ class _CancellationSurface:
         raise AssertionError("owner callback started without observing cancellation")
 
 
+    def send_unified_local_chat_message(
+        self,
+        chat_id: str,
+        *,
+        content: str,
+        requested_model_id: str | None = None,
+        requested_embedding_model_id: str | None = None,
+        operation_id: str | None = None,
+        effective_context_limit: int | None = None,
+        max_output_tokens: int | None = None,
+        temperature: float | None = None,
+        thinking_enabled: bool | None = None,
+    ) -> object:
+        del (
+            chat_id,
+            content,
+            requested_model_id,
+            requested_embedding_model_id,
+            effective_context_limit,
+            max_output_tokens,
+            temperature,
+            thinking_enabled,
+        )
+        assert operation_id is not None
+        reservation = self.registry.get_or_reserve(uuid.UUID(operation_id))
+        self.send_started.set()
+        if reservation.cancel_requested():
+            self.send_observed_cancel.set()
+            raise GenerationCancelledError("grounded cancelled before provider")
+        raise AssertionError("grounded owner callback started without cancellation")
+
+
 def test_cancel_bypasses_owner_queue_and_closes_pre_dispatch_race() -> None:
     surface = _CancellationSurface()
     executor = _GateExecutor()
@@ -118,6 +150,43 @@ def test_cancel_bypasses_owner_queue_and_closes_pre_dispatch_race() -> None:
 
     assert thread.is_alive() is False
     assert surface.send_started.is_set()
+    assert surface.send_observed_cancel.is_set()
+    assert len(raised) == 1
+    assert isinstance(raised[0], GenerationCancelledError)
+    assert surface.registry.is_active(uuid.UUID(_OPERATION_ID)) is False
+
+
+def test_grounded_cancel_bypasses_owner_queue_and_closes_pre_dispatch_race() -> None:
+    surface = _CancellationSurface()
+    executor = _GateExecutor()
+    serialized = SerializedCoreApiSurface(
+        surface,  # type: ignore[arg-type]
+        executor,  # type: ignore[arg-type]
+    )
+    raised: list[Exception] = []
+
+    def run_send() -> None:
+        try:
+            serialized.send_unified_local_chat_message(
+                _CHAT_ID,
+                content="cancel grounded immediately",
+                operation_id=_OPERATION_ID,
+            )
+        except Exception as exc:
+            raised.append(exc)
+
+    thread = threading.Thread(target=run_send)
+    thread.start()
+
+    assert executor.queued.wait(2.0)
+    assert executor.calls == 1
+    assert serialized.cancel_chat_operation(_OPERATION_ID) is True
+    assert executor.calls == 1
+
+    executor.allow_owner.set()
+    thread.join(2.0)
+
+    assert thread.is_alive() is False
     assert surface.send_observed_cancel.is_set()
     assert len(raised) == 1
     assert isinstance(raised[0], GenerationCancelledError)

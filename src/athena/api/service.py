@@ -214,6 +214,7 @@ class UnifiedLocalChatSender(Protocol):
         output_reserve: int = 2048,
         temperature: float | None = None,
         reasoning_mode: str | None = "off",
+        cancel_requested: Callable[[], bool] | None = None,
     ) -> UnifiedLocalChatResult: ...
 
 
@@ -745,8 +746,57 @@ class CoreApiFacade:
             if operation_id is None
             else uuid.UUID(operation_id)
         )
-        if parsed_operation_id is None:
-            if (
+        cancellation_reservation = (
+            None
+            if parsed_operation_id is None
+            else self._chat_cancellations.get_or_reserve(parsed_operation_id)
+        )
+        cancel_requested = (
+            None
+            if cancellation_reservation is None
+            else cancellation_reservation.cancel_requested
+        )
+
+        try:
+            if parsed_operation_id is None:
+                if (
+                    effective_context_limit is None
+                    and max_output_tokens is None
+                    and temperature is None
+                    and thinking_enabled is None
+                ):
+                    result = self._unified_local_chat.send_message(
+                        chat_id=parsed_chat_id,
+                        content=content,
+                        requested_model_id=requested_model_id,
+                        requested_embedding_model_id=requested_embedding_model_id,
+                    )
+                elif (
+                    max_output_tokens is None
+                    and temperature is None
+                    and thinking_enabled is None
+                ):
+                    result = self._unified_local_chat.send_message(
+                        chat_id=parsed_chat_id,
+                        content=content,
+                        requested_model_id=requested_model_id,
+                        requested_embedding_model_id=requested_embedding_model_id,
+                        effective_context_limit=effective_context_limit,
+                    )
+                else:
+                    result = self._unified_local_chat.send_message(
+                        chat_id=parsed_chat_id,
+                        content=content,
+                        requested_model_id=requested_model_id,
+                        requested_embedding_model_id=requested_embedding_model_id,
+                        effective_context_limit=effective_context_limit,
+                        output_reserve=(
+                            2048 if max_output_tokens is None else max_output_tokens
+                        ),
+                        temperature=temperature,
+                        reasoning_mode=(None if thinking_enabled is True else "off"),
+                    )
+            elif (
                 effective_context_limit is None
                 and max_output_tokens is None
                 and temperature is None
@@ -757,6 +807,8 @@ class CoreApiFacade:
                     content=content,
                     requested_model_id=requested_model_id,
                     requested_embedding_model_id=requested_embedding_model_id,
+                    operation_id=parsed_operation_id,
+                    cancel_requested=cancel_requested,
                 )
             elif (
                 max_output_tokens is None
@@ -768,7 +820,9 @@ class CoreApiFacade:
                     content=content,
                     requested_model_id=requested_model_id,
                     requested_embedding_model_id=requested_embedding_model_id,
+                    operation_id=parsed_operation_id,
                     effective_context_limit=effective_context_limit,
+                    cancel_requested=cancel_requested,
                 )
             else:
                 result = self._unified_local_chat.send_message(
@@ -776,53 +830,19 @@ class CoreApiFacade:
                     content=content,
                     requested_model_id=requested_model_id,
                     requested_embedding_model_id=requested_embedding_model_id,
+                    operation_id=parsed_operation_id,
                     effective_context_limit=effective_context_limit,
                     output_reserve=(
                         2048 if max_output_tokens is None else max_output_tokens
                     ),
                     temperature=temperature,
                     reasoning_mode=(None if thinking_enabled is True else "off"),
+                    cancel_requested=cancel_requested,
                 )
-        elif (
-            effective_context_limit is None
-            and max_output_tokens is None
-            and temperature is None
-            and thinking_enabled is None
-        ):
-            result = self._unified_local_chat.send_message(
-                chat_id=parsed_chat_id,
-                content=content,
-                requested_model_id=requested_model_id,
-                requested_embedding_model_id=requested_embedding_model_id,
-                operation_id=parsed_operation_id,
-            )
-        elif (
-            max_output_tokens is None
-            and temperature is None
-            and thinking_enabled is None
-        ):
-            result = self._unified_local_chat.send_message(
-                chat_id=parsed_chat_id,
-                content=content,
-                requested_model_id=requested_model_id,
-                requested_embedding_model_id=requested_embedding_model_id,
-                operation_id=parsed_operation_id,
-                effective_context_limit=effective_context_limit,
-            )
-        else:
-            result = self._unified_local_chat.send_message(
-                chat_id=parsed_chat_id,
-                content=content,
-                requested_model_id=requested_model_id,
-                requested_embedding_model_id=requested_embedding_model_id,
-                operation_id=parsed_operation_id,
-                effective_context_limit=effective_context_limit,
-                output_reserve=(
-                    2048 if max_output_tokens is None else max_output_tokens
-                ),
-                temperature=temperature,
-                reasoning_mode=(None if thinking_enabled is True else "off"),
-            )
+        finally:
+            if cancellation_reservation is not None:
+                self._chat_cancellations.release(cancellation_reservation)
+
         return _grounded_chat_response(
             result,
             self._chat.load_chat(parsed_chat_id),

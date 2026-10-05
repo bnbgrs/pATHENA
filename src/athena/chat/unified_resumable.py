@@ -5,6 +5,7 @@ from __future__ import annotations
 import uuid
 from collections.abc import Callable
 
+from athena.chat.generation import GenerationCancelledError
 from athena.chat.grounded_recovery import (
     GroundedRecoveryState,
     GroundedRecoveryStatus,
@@ -64,6 +65,7 @@ class UnifiedLocalChatService(_DurableUnifiedLocalChatService):
         materialized: UnifiedPreUserResumeMaterialization,
         fingerprint: ChatRequestFingerprint,
         on_delta: Callable[[str], None] | None,
+        cancel_requested: Callable[[], bool] | None,
     ) -> UnifiedLocalChatResult:
         plan = materialized.plan
         projection = plan.projection
@@ -127,7 +129,15 @@ class UnifiedLocalChatService(_DurableUnifiedLocalChatService):
                 on_before_provider_call=lambda: self.source_context_builder.verify_bundle(
                     projection.source_context
                 ),
+                cancel_requested=cancel_requested,
             )
+        except GenerationCancelledError as exc:
+            durable_model_runs.finish_run(
+                processing_run.processing_run_id,
+                status="cancelled",
+                error_detail=type(exc).__name__,
+            )
+            raise
         except KeyboardInterrupt:
             durable_model_runs.finish_run(
                 processing_run.processing_run_id,
@@ -183,7 +193,10 @@ class UnifiedLocalChatService(_DurableUnifiedLocalChatService):
         allow_model_prior: bool = True,
         on_delta: Callable[[str], None] | None = None,
         operation_id: uuid.UUID | None = None,
+        cancel_requested: Callable[[], bool] | None = None,
     ) -> UnifiedLocalChatResult:
+        if cancel_requested is not None and cancel_requested():
+            raise GenerationCancelledError("Chat generation was cancelled.")
         normalized_retrieval_query: str | None = None
         if retrieval_query is not None:
             normalized_retrieval_query = retrieval_query.strip()
@@ -233,6 +246,7 @@ class UnifiedLocalChatService(_DurableUnifiedLocalChatService):
                 materialized=materialized,
                 fingerprint=fingerprint,
                 on_delta=on_delta,
+                cancel_requested=cancel_requested,
             )
         if pre_user.state is UnifiedPreUserRecoveryState.CONFLICT:
             raise UnifiedPreUserRecoveryRequiredError(pre_user)
@@ -260,6 +274,7 @@ class UnifiedLocalChatService(_DurableUnifiedLocalChatService):
                 allow_model_prior=allow_model_prior,
                 on_delta=on_delta,
                 operation_id=resolved_operation_id,
+                cancel_requested=cancel_requested,
             )
         except UnifiedGroundedRecoveryRequiredError as exc:
             raise UnifiedGroundedTransportRecoveryRequiredError(exc.status) from exc

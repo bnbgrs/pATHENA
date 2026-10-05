@@ -500,8 +500,6 @@ class _UnifiedDurableGenerationAdapter(ChatGenerationService):
         on_before_provider_call: Callable[[], None] | None = None,
         cancel_requested: Callable[[], bool] | None = None,
     ) -> ChatGenerationResult:
-        if cancel_requested is not None and cancel_requested():
-            raise GenerationCancelledError("Chat generation was cancelled.")
         if chat_id != self._state.chat_id:
             raise RuntimeError("Unified generation escaped its durable chat identity.")
         if operation_id is not None and operation_id != self._state.operation_id:
@@ -558,6 +556,7 @@ class _UnifiedDurableGenerationAdapter(ChatGenerationService):
             on_delta=on_delta,
             grounding_contract=grounding_contract,
             on_before_provider_call=before_provider,
+            cancel_requested=cancel_requested,
         )
 
 
@@ -738,6 +737,7 @@ class UnifiedLocalChatService(_LegacyUnifiedLocalChatService):
         fingerprint: ChatRequestFingerprint,
         retrieval_query_override: str | None,
         on_delta: Callable[[str], None] | None,
+        cancel_requested: Callable[[], bool] | None,
     ) -> UnifiedLocalChatResult:
         if status.state is not GroundedRecoveryState.RESUMABLE:
             raise UnifiedGroundedRecoveryRequiredError(status)
@@ -815,6 +815,7 @@ class UnifiedLocalChatService(_LegacyUnifiedLocalChatService):
             operation_id=status.operation_id,
             on_delta=on_delta,
             grounding_contract=grounding_contract,
+            cancel_requested=cancel_requested,
         )
         coordinator.finalize_recorded_result(
             operation_id=status.operation_id,
@@ -854,7 +855,10 @@ class UnifiedLocalChatService(_LegacyUnifiedLocalChatService):
         allow_model_prior: bool = True,
         on_delta: Callable[[str], None] | None = None,
         operation_id: uuid.UUID | None = None,
+        cancel_requested: Callable[[], bool] | None = None,
     ) -> UnifiedLocalChatResult:
+        if cancel_requested is not None and cancel_requested():
+            raise GenerationCancelledError("Chat generation was cancelled.")
         normalized_retrieval_query: str | None = None
         if retrieval_query is not None:
             normalized_retrieval_query = retrieval_query.strip()
@@ -915,6 +919,7 @@ class UnifiedLocalChatService(_LegacyUnifiedLocalChatService):
                 fingerprint=fingerprint,
                 retrieval_query_override=normalized_retrieval_query,
                 on_delta=on_delta,
+                cancel_requested=cancel_requested,
             )
         if recovery.state is not GroundedRecoveryState.ABSENT:
             raise UnifiedGroundedRecoveryRequiredError(recovery)
@@ -988,6 +993,7 @@ class UnifiedLocalChatService(_LegacyUnifiedLocalChatService):
             reasoning_mode=reasoning_mode,
             allow_model_prior=allow_model_prior,
             on_delta=on_delta,
+            cancel_requested=cancel_requested,
         )
         coordinator.finalize_recorded_result(
             operation_id=resolved_operation_id,

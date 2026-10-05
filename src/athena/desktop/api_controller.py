@@ -245,13 +245,13 @@ class _ChatOperationOutcome:
             raise ValueError("Chat outcome cannot contain multiple result kinds.")
         if self.cancelled:
             if (
-                self.operation != "send"
+                self.operation not in {"send", "send_grounded"}
                 or self.operation_id is None
                 or self.error is not None
                 or result_count > 1
             ):
                 raise ValueError(
-                    "Cancelled chat outcome requires one direct-send operation identity."
+                    "Cancelled chat outcome requires one cancellable send operation identity."
                 )
             return
         if self.error is None and result_count != 1:
@@ -844,10 +844,17 @@ class _ChatTask(QRunnable):
                     reconciled = None
 
                 if reconciled is None:
-                    outcome = _ChatOperationOutcome(
-                        operation=self.operation,
-                        error=str(exc),
-                    )
+                    if exc.code == "generation_cancelled":
+                        outcome = _ChatOperationOutcome(
+                            operation=self.operation,
+                            operation_id=self.operation_id,
+                            cancelled=True,
+                        )
+                    else:
+                        outcome = _ChatOperationOutcome(
+                            operation=self.operation,
+                            error=str(exc),
+                        )
                 else:
                     state = _classify_direct_send(
                         reconciled,
@@ -865,6 +872,20 @@ class _ChatTask(QRunnable):
                                 "grounded response payload was lost. Retry "
                                 "the same operation to replay it."
                             ),
+                        )
+                    elif (
+                        exc.code == "generation_cancelled"
+                        and state in {"absent", "incomplete"}
+                    ):
+                        outcome = _ChatOperationOutcome(
+                            operation=self.operation,
+                            thread=(
+                                reconciled
+                                if state == "incomplete"
+                                else None
+                            ),
+                            operation_id=self.operation_id,
+                            cancelled=True,
                         )
                     elif state == "incomplete":
                         outcome = _ChatOperationOutcome(
@@ -1304,7 +1325,7 @@ class DesktopApiController(QObject):
     def can_cancel_active_chat(self) -> bool:
         return (
             self._chat_busy
-            and self._active_chat_operation_kind == "send"
+            and self._active_chat_operation_kind in {"send", "send_grounded"}
             and self._active_chat_operation_id is not None
         )
 
@@ -1538,7 +1559,9 @@ class DesktopApiController(QObject):
         self._active_chat_task = task
         self._active_chat_operation_kind = operation
         self._active_chat_operation_id = (
-            operation_id if operation == "send" else None
+            operation_id
+            if operation in {"send", "send_grounded"}
+            else None
         )
         self._chat_cancel_state = "idle"
         self._chat_cancel_detail = ""
@@ -1744,6 +1767,11 @@ class DesktopApiController(QObject):
                 return
 
             if outcome.grounded is not None:
+                if self.chat_cancel_pending:
+                    self._set_chat_cancel_state(
+                        "expired",
+                        "Generation completed before cancellation could take effect.",
+                    )
                 self.grounded_chat_sent.emit(outcome.grounded)
             elif outcome.deletion_preview is not None:
                 self.chat_deletion_preview_ready.emit(outcome.deletion_preview)

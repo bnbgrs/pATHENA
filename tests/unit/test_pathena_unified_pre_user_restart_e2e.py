@@ -6,10 +6,11 @@ from pathlib import Path
 
 import pytest
 
-from athena.chat.generation import ChatGenerationService
+from athena.chat.generation import ChatGenerationService, GenerationCancelledError
 from athena.chat.grounded_send import GroundedSendCoordinator
 from athena.chat.repository import ChatRepository
 from athena.chat.send_identity import SendOperationStateError
+from athena.chat.send_operation import ChatSendOperationRepository
 from athena.chat.service import ChatService
 from athena.chat.unified_pre_user_recovery import UnifiedPreUserRecoveryState
 from athena.chat.unified_resumable import (
@@ -279,6 +280,117 @@ def test_pre_user_crash_restarts_without_retrieval_or_duplicate_turns(
         assert completed.processing_run.status == "succeeded"
         reloaded_plan = UnifiedSendPlanRepository(database).load(operation_id)
         assert reloaded_plan == plan
+    finally:
+        database.stop()
+
+
+def test_pre_user_restart_cancellation_finishes_bound_run_cancelled(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    path = tmp_path / "athena.db"
+    provider = _Provider()
+    embedding = _EmbeddingProvider()
+    hybrid = _EmptyRetrieval()
+    archive = _EmptyRetrieval()
+    operation_id = new_uuid7()
+    content = "Cancel the resumed frozen pre-user operation."
+
+    database = SQLiteDatabase(path)
+    database.start()
+    try:
+        chat_id = ChatService(ChatRepository(database)).create_chat()
+        service = _service(
+            database,
+            provider=provider,
+            embedding=embedding,
+            hybrid=hybrid,
+            archive=archive,
+        )
+
+        def crash_before_user_operation(
+            self: GroundedSendCoordinator,
+            *args: object,
+            **kwargs: object,
+        ) -> object:
+            del self, args, kwargs
+            raise RuntimeError("synthetic crash before durable user operation")
+
+        with monkeypatch.context() as scoped:
+            scoped.setattr(
+                GroundedSendCoordinator,
+                "start",
+                crash_before_user_operation,
+            )
+            with pytest.raises(
+                RuntimeError,
+                match="synthetic crash before durable user operation",
+            ):
+                _send(
+                    service,
+                    chat_id=chat_id,
+                    operation_id=operation_id,
+                    content=content,
+                )
+
+        plan = UnifiedSendPlanRepository(database).load(operation_id)
+        assert plan is not None
+        assert ChatRepository(database).load_chat(chat_id).messages == ()
+        retrieval_counts = (
+            embedding.calls,
+            hybrid.calls,
+            hybrid.lexical_calls,
+            archive.calls,
+            archive.lexical_calls,
+        )
+
+        database.stop()
+        database = SQLiteDatabase(path)
+        database.start()
+        restarted = _service(
+            database,
+            provider=provider,
+            embedding=embedding,
+            hybrid=hybrid,
+            archive=archive,
+        )
+        polls = 0
+
+        def cancel_requested() -> bool:
+            nonlocal polls
+            polls += 1
+            return polls >= 2
+
+        with pytest.raises(GenerationCancelledError):
+            restarted.send_message(
+                chat_id=chat_id,
+                content=content,
+                requested_model_id="primary",
+                requested_embedding_model_id="embed",
+                operation_id=operation_id,
+                cancel_requested=cancel_requested,
+            )
+
+        assert provider.calls == 0
+        assert (
+            embedding.calls,
+            hybrid.calls,
+            hybrid.lexical_calls,
+            archive.calls,
+            archive.lexical_calls,
+        ) == retrieval_counts
+        messages = ChatRepository(database).load_chat(chat_id).messages
+        assert len(messages) == 1
+        assert messages[0].message_id == operation_id
+
+        operation = ChatSendOperationRepository(database).load(operation_id)
+        assert operation is not None
+        assert operation.processing_run_id is not None
+        run = ModelRunRepository(database).load_run(operation.processing_run_id)
+        assert run.status == "cancelled"
+        assert run.finished_at_us is not None
+        assert run.error_detail == "GenerationCancelledError"
+        assert UnifiedSendPlanRepository(database).load(operation_id) == plan
     finally:
         database.stop()
 
