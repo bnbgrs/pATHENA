@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import unicodedata
-from collections.abc import Iterator, Mapping, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from typing import Any, Protocol, runtime_checkable
 
 from athena.model.domain import ModelChatMessage, ModelInfo, ProviderHealth
@@ -132,6 +132,7 @@ class CancellableChatModelProvider(ChatModelProvider, Protocol):
         max_output_tokens: int | None = None,
         reasoning_mode: str | None = None,
         temperature: float | None = None,
+        cancel_requested: Callable[[], bool] | None = None,
     ) -> Iterator[str]:
         """Yield one stream whose blocking transport is bound to request_id."""
         ...
