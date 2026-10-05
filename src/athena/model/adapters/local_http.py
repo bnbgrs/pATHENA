@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import http.client
 import ipaddress
 import math
+import socket
 from numbers import Real
+from threading import Lock
 from time import monotonic
 from typing import Any
 from urllib.error import HTTPError
@@ -20,6 +23,10 @@ _BLOCKED_RESPONSE_BODY_ESCAPE_ATTRS = frozenset({"file", "fileno", "fp", "raw"})
 
 class LocalResponseTooLargeError(OSError):
     """Raised when a local provider response unit exceeds its byte cap."""
+
+
+class LocalResponseAbortedError(OSError):
+    """Raised when an explicitly cancelled local request aborts transport I/O."""
 
 
 class _RejectRedirects(HTTPRedirectHandler):
@@ -244,6 +251,164 @@ class _BoundedLocalResponse:
         self._bytes_read = next_bytes_read
         self._assert_before_deadline()
         return raw
+
+
+class CancellableLocalRequest:
+    """One loopback-only HTTP request whose socket can be aborted out of band."""
+
+    def __init__(
+        self,
+        request: Request,
+        *,
+        timeout: float,
+        connect_timeout: float | None = None,
+    ) -> None:
+        if not isinstance(request, Request):
+            raise TypeError("Local model transport requires urllib.request.Request.")
+        _assert_loopback_http_request(request)
+        validated_timeout = _validated_timeout(timeout)
+        validated_connect_timeout = (
+            validated_timeout
+            if connect_timeout is None
+            else _validated_timeout(connect_timeout)
+        )
+        self._request = request
+        self._deadline = monotonic() + validated_timeout
+        self._connect_timeout = validated_connect_timeout
+        self._lock = Lock()
+        self._connection: http.client.HTTPConnection | None = None
+        self._aborted = False
+        self._opened = False
+
+    @property
+    def aborted(self) -> bool:
+        with self._lock:
+            return self._aborted
+
+    def _assert_not_aborted(self) -> None:
+        if self.aborted:
+            raise LocalResponseAbortedError(
+                "Local model request was cancelled before transport completed."
+            )
+
+    def _remaining_timeout(self) -> float:
+        remaining = self._deadline - monotonic()
+        if remaining <= 0:
+            raise TimeoutError(
+                "Local model request exceeded the configured total timeout."
+            )
+        return remaining
+
+    def abort(self) -> None:
+        """Interrupt a blocking connect/header/body read without exposing raw handles."""
+        with self._lock:
+            if self._aborted:
+                return
+            self._aborted = True
+            connection = self._connection
+
+        if connection is None:
+            return
+
+        raw_socket = connection.sock
+        if raw_socket is not None:
+            try:
+                raw_socket.shutdown(socket.SHUT_RDWR)
+            except OSError:
+                pass
+        try:
+            connection.close()
+        except OSError:
+            pass
+
+    def close(self) -> None:
+        with self._lock:
+            connection = self._connection
+            self._connection = None
+        if connection is not None:
+            try:
+                connection.close()
+            except OSError:
+                pass
+
+    def open(self) -> _BoundedLocalResponse:
+        """Open once and return the same bounded response contract as urllib transport."""
+        self._assert_not_aborted()
+        with self._lock:
+            if self._opened:
+                raise RuntimeError("Cancellable local request may only be opened once.")
+            self._opened = True
+
+        parsed = urlsplit(self._request.full_url)
+        host = parsed.hostname
+        assert host is not None
+        if parsed.scheme == "https":
+            connection_type: type[http.client.HTTPConnection] = (
+                http.client.HTTPSConnection
+            )
+        else:
+            connection_type = http.client.HTTPConnection
+
+        connect_timeout = min(
+            self._connect_timeout,
+            self._remaining_timeout(),
+        )
+        connection = connection_type(
+            host,
+            port=parsed.port,
+            timeout=connect_timeout,
+        )
+        with self._lock:
+            if self._aborted:
+                connection.close()
+                raise LocalResponseAbortedError(
+                    "Local model request was cancelled before connection."
+                )
+            self._connection = connection
+
+        target = parsed.path or "/"
+        if parsed.query:
+            target += "?" + parsed.query
+        headers = {
+            name: value
+            for name, value in self._request.header_items()
+        }
+
+        try:
+            connection.request(
+                self._request.get_method(),
+                target,
+                body=self._request.data,
+                headers=headers,
+            )
+            self._assert_not_aborted()
+            if connection.sock is not None:
+                connection.sock.settimeout(self._remaining_timeout())
+            response = connection.getresponse()
+            self._assert_not_aborted()
+        except (OSError, http.client.HTTPException) as exc:
+            if self.aborted:
+                raise LocalResponseAbortedError(
+                    "Local model request transport was aborted."
+                ) from exc
+            if isinstance(exc, OSError):
+                raise
+            raise OSError("Local model HTTP transport failed.") from exc
+
+        bounded = _BoundedLocalResponse(
+            response,
+            max_bytes=MAX_LOCAL_RESPONSE_BYTES,
+            total_timeout_seconds=self._remaining_timeout(),
+        )
+        if response.status >= 400:
+            raise HTTPError(
+                self._request.full_url,
+                response.status,
+                response.reason,
+                response.headers,
+                bounded,
+            )
+        return bounded
 
 
 def _assert_loopback_http_request(request: Request) -> None:
