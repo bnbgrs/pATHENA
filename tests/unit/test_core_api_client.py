@@ -239,7 +239,7 @@ def test_client_forks_chat_from_exact_message_revision(
         del timeout
         body = json.loads(request.data.decode("utf-8"))
         seen.append((request.get_method(), request.full_url, body))
-        return _Response(_chat_thread_payload(chat_id=fork_chat_id))
+        return _Response(_chat_thread_payload(chat_id=fork_chat_id), status=201)
 
     monkeypatch.setattr(client_module, "urlopen", fake_urlopen)
 
