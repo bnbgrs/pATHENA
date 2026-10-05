@@ -192,6 +192,10 @@ class SourceCaptureService:
         source, blob = self.repository.get(source_id)
         if source.source_type is not SourceType.IMAGE:
             raise ValueError("Requested Source is not an image.")
+        if source.protection_scope_id is not None:
+            raise ProtectedSourcePersistentPathUnavailableError(
+                "Protected image Sources cannot be projected into model chat."
+            )
         media_type = blob.media_type or source.mime_type
         if media_type not in {"image/png", "image/jpeg", "image/gif"}:
             raise ValueError("Image Source has no supported canonical media type.")
