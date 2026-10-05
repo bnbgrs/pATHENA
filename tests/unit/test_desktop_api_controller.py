@@ -620,6 +620,7 @@ def test_controller_rejected_stop_keeps_send_running_and_allows_retry() -> None:
     states = QSignalSpy(controller.chat_cancel_state_changed)
     sent = QSignalSpy(controller.chat_sent)
     cancelled = QSignalSpy(controller.chat_cancelled)
+    loaded = QSignalSpy(controller.chat_loaded)
     chat_id = str(uuid.uuid4())
 
     controller.send_message(chat_id=chat_id, content="finish normally")
@@ -1088,6 +1089,7 @@ class _BlockingRecoveryGateway(_RecoveryGateway):
         super().__init__()
         self.continue_entered = threading.Event()
         self.cancel_called = threading.Event()
+        self.active_chat_id: str | None = None
         self.active_operation_id: str | None = None
 
     def continue_unified_local_chat_operation(
@@ -1095,8 +1097,8 @@ class _BlockingRecoveryGateway(_RecoveryGateway):
         chat_id: str,
         operation_id: str,
     ) -> GroundedChatResponse:
-        del chat_id
         self._record()
+        self.active_chat_id = chat_id
         self.active_operation_id = operation_id
         self.continue_entered.set()
         assert self.cancel_called.wait(2.0)
@@ -1112,6 +1114,31 @@ class _BlockingRecoveryGateway(_RecoveryGateway):
         assert operation_id == self.active_operation_id
         self.cancel_called.set()
         return True
+
+    def load_chat(self, chat_id: str) -> ChatThreadResponse:
+        self._record()
+        assert chat_id == self.active_chat_id
+        assert self.active_operation_id is not None
+        return ChatThreadResponse(
+            chat_id=chat_id,
+            started_at_us=1,
+            ended_at_us=None,
+            archive_mode="standard",
+            lifecycle_state="active",
+            messages=(
+                ChatMessageResponse(
+                    message_id=self.active_operation_id,
+                    chat_id=chat_id,
+                    sequence_no=1,
+                    message_type="user",
+                    actor_id=str(uuid.uuid4()),
+                    created_at_us=1,
+                    revision_id=str(uuid.uuid4()),
+                    content="persisted recovery input",
+                    content_format="text/plain",
+                ),
+            ),
+        )
 
 
 def test_controller_continue_recovery_keeps_stop_available() -> None:
@@ -1145,5 +1172,10 @@ def test_controller_continue_recovery_keeps_stop_available() -> None:
 
     assert cancelled.count() == 1
     assert cancelled.at(0)[0] == operation_id
+    assert loaded.count() == 1
+    reconciled = loaded.at(0)[0]
+    assert isinstance(reconciled, ChatThreadResponse)
+    assert reconciled.chat_id == chat_id
+    assert reconciled.messages[0].message_id == operation_id
     assert controller.chat_busy is False
     assert controller.can_cancel_active_chat is False
