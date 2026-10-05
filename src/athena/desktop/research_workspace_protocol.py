@@ -48,8 +48,18 @@ class ResearchComparisonReceipt:
     current_job_id: str
     baseline_job_id: str | None
     query: str
+    baseline_result_id: str | None
+    current_result_id: str | None
+    baseline_snapshot_commit_seq: int | None
+    current_snapshot_commit_seq: int | None
+    baseline_model_signature_id: str | None
+    current_model_signature_id: str | None
     baseline_coverage: float | None
     current_coverage: float | None
+    baseline_summary: str
+    current_summary: str
+    baseline_uncertainty: str
+    current_uncertainty: str
     summary_changed: bool
     uncertainty_changed: bool
     model_signature_changed: bool
@@ -263,8 +273,18 @@ def parse_research_comparison_receipt(
             current_job_id=current_job_id,
             baseline_job_id=None,
             query="",
+            baseline_result_id=None,
+            current_result_id=None,
+            baseline_snapshot_commit_seq=None,
+            current_snapshot_commit_seq=None,
+            baseline_model_signature_id=None,
+            current_model_signature_id=None,
             baseline_coverage=None,
             current_coverage=None,
+            baseline_summary="",
+            current_summary="",
+            baseline_uncertainty="",
+            current_uncertainty="",
             summary_changed=False,
             uncertainty_changed=False,
             model_signature_changed=False,
@@ -303,8 +323,11 @@ def parse_research_comparison_receipt(
             "The Research comparison response belongs to another run."
         )
 
+    normalized_results: dict[str, str] = {}
+    normalized_snapshots: dict[str, int] = {}
+    normalized_models: dict[str, str | None] = {}
     for container, label in ((baseline, "baseline"), (current, "current")):
-        _canonical_uuid(
+        normalized_results[label] = _canonical_uuid(
             container.get("result_id"),
             field=f"{label} result ID",
         )
@@ -313,9 +336,12 @@ def parse_research_comparison_receipt(
             raise ResearchWorkspaceProtocolError(
                 f"The Research comparison response has invalid {label} snapshot."
             )
+        normalized_snapshots[label] = snapshot
         model_signature = container.get("model_signature_id")
-        if model_signature is not None:
-            _canonical_uuid(
+        if model_signature is None:
+            normalized_models[label] = None
+        else:
+            normalized_models[label] = _canonical_uuid(
                 model_signature,
                 field=f"{label} model signature ID",
             )
@@ -346,6 +372,12 @@ def parse_research_comparison_receipt(
         current_job_id=current_job_id,
         baseline_job_id=baseline_job_id,
         query=query,
+        baseline_result_id=normalized_results["baseline"],
+        current_result_id=normalized_results["current"],
+        baseline_snapshot_commit_seq=normalized_snapshots["baseline"],
+        current_snapshot_commit_seq=normalized_snapshots["current"],
+        baseline_model_signature_id=normalized_models["baseline"],
+        current_model_signature_id=normalized_models["current"],
         baseline_coverage=_comparison_coverage(
             baseline.get("coverage_ratio"),
             field="baseline coverage",
@@ -354,6 +386,10 @@ def parse_research_comparison_receipt(
             current.get("coverage_ratio"),
             field="current coverage",
         ),
+        baseline_summary=baseline["summary"],
+        current_summary=current["summary"],
+        baseline_uncertainty=baseline["uncertainty"],
+        current_uncertainty=current["uncertainty"],
         summary_changed=flags["summary_changed"],
         uncertainty_changed=flags["uncertainty_changed"],
         model_signature_changed=flags["model_signature_changed"],
