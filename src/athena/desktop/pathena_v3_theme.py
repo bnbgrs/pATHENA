@@ -1538,8 +1538,4 @@ QFrame#v3SourcesCommand {{
     border-radius: 0;
 }}
 
-QFrame#v3JobsCommand:focus-within,
-QFrame#v3SourcesCommand:focus-within {{
-    border-bottom-color: {PALETTE.border_strong};
-}}
 """
