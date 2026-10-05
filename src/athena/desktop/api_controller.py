@@ -24,6 +24,7 @@ from athena.api.contracts import (
     NewsProfileResponse,
     ProviderHealthResponse,
     RememberedChatMessageResponse,
+    StorageHealthResponse,
 )
 from athena.api.search_contracts import SearchResultResponse
 from athena.chat.send_identity import (
@@ -40,6 +41,8 @@ class CoreApiGateway(Protocol):
     def health(self) -> HealthResponse: ...
 
     def provider_health(self) -> ProviderHealthResponse: ...
+
+    def storage_health(self) -> StorageHealthResponse: ...
 
     def list_models(self) -> tuple[ModelResponse, ...]: ...
 
@@ -168,6 +171,8 @@ class DesktopApiSnapshot:
     model_error: str | None = None
     chat_freshness: SnapshotFreshness | None = None
     model_freshness: SnapshotFreshness | None = None
+    storage: StorageHealthResponse | None = None
+    storage_error: str | None = None
 
     @property
     def loaded_model(self) -> ModelResponse | None:
@@ -1083,6 +1088,17 @@ def _model_snapshot(
         return provider, (), "ATHENA model list refresh failed."
 
 
+def _storage_snapshot(
+    gateway: CoreApiGateway,
+) -> tuple[StorageHealthResponse | None, str | None]:
+    try:
+        return gateway.storage_health(), None
+    except CoreApiClientError as exc:
+        return None, str(exc)
+    except Exception:
+        return None, "ATHENA storage status refresh failed."
+
+
 def _collect_snapshot(
     gateway: CoreApiGateway,
     *,
@@ -1091,6 +1107,7 @@ def _collect_snapshot(
     health = gateway.health()
     chats, chat_error = _chat_snapshot(gateway, chat_limit=chat_limit)
     provider, models, model_error = _model_snapshot(gateway)
+    storage, storage_error = _storage_snapshot(gateway)
     return DesktopApiSnapshot(
         health=health,
         provider=provider,
@@ -1098,6 +1115,8 @@ def _collect_snapshot(
         chats=chats,
         chat_error=chat_error,
         model_error=model_error,
+        storage=storage,
+        storage_error=storage_error,
     )
 
 
@@ -1641,6 +1660,8 @@ class DesktopApiController(QObject):
             model_error=snapshot.model_error,
             chat_freshness=chat_freshness,
             model_freshness=model_freshness,
+            storage=snapshot.storage,
+            storage_error=snapshot.storage_error,
         )
 
     @Slot()
