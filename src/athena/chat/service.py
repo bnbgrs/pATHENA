@@ -94,6 +94,7 @@ class ChatService:
         chat_id: uuid.UUID,
         content: str,
         operation_id: uuid.UUID | None = None,
+        source_ids: tuple[uuid.UUID, ...] = (),
     ) -> ChatMessage:
         if not content.strip():
             raise EmptyMessageError(
@@ -116,6 +117,7 @@ class ChatService:
             message_type=MessageType.USER,
             content=content,
             message_id=message_id,
+            source_ids=source_ids,
         )
 
 
