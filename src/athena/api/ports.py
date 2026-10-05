@@ -6,6 +6,7 @@ from typing import Protocol
 
 from athena.api.contracts import (
     CapabilitiesResponse,
+    ChatOperationRecoveryResponse,
     ChatSummaryResponse,
     ChatThreadResponse,
     DeletionPreviewResponse,
@@ -155,6 +156,18 @@ class CoreDomainSurface(Protocol):
         temperature: float | None = None,
         thinking_enabled: bool | None = None,
     ) -> ChatThreadResponse: ...
+
+    def chat_operation_recovery(
+        self,
+        chat_id: str,
+        operation_id: str,
+    ) -> ChatOperationRecoveryResponse: ...
+
+    def continue_unified_local_chat_operation(
+        self,
+        chat_id: str,
+        operation_id: str,
+    ) -> GroundedChatResponse: ...
 
     def send_unified_local_chat_message(
         self,
