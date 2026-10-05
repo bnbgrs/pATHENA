@@ -10,7 +10,7 @@ from athena.chat.durable_grounded_generation import (
     DurableGroundedGenerationError,
     DurableGroundedGenerationService,
 )
-from athena.chat.generation import ChatGenerationService
+from athena.chat.generation import ChatGenerationService, GenerationCancelledError
 from athena.chat.grounded_recovery import GroundedRecoveryState
 from athena.chat.grounded_send import GroundedSendCoordinator
 from athena.chat.repository import ChatRepository
@@ -236,6 +236,45 @@ def test_keyboard_interrupt_cancels_processing_run(tmp_path: Path) -> None:
             chat_id=chat_id,
             fingerprint=fingerprint,
         ).state is GroundedRecoveryState.AMBIGUOUS
+        assert coordinator.provider_attempts.load_result(operation_id) is None
+    finally:
+        database.stop()
+
+
+def test_explicit_user_cancellation_marks_grounded_run_cancelled(
+    tmp_path: Path,
+) -> None:
+    database = SQLiteDatabase(tmp_path / "athena.db")
+    database.start()
+    try:
+        (
+            _chats,
+            chat_id,
+            operation_id,
+            fingerprint,
+            coordinator,
+            user_message,
+            package,
+            run_id,
+            service,
+        ) = _fixture(database, _AnswerProvider())
+
+        with pytest.raises(GenerationCancelledError):
+            service.send_context_package(
+                operation_id=operation_id,
+                chat_id=chat_id,
+                user_message=user_message,
+                context_package=package,
+                processing_run_id=run_id,
+                fingerprint=fingerprint,
+                receipt_payload_builder=lambda content, provider_id, model_id: "{}",
+                cancel_requested=lambda: True,
+            )
+
+        run = ModelRunRepository(database).load_run(run_id)
+        assert run.status == "cancelled"
+        assert run.finished_at_us is not None
+        assert run.error_detail == "GenerationCancelledError"
         assert coordinator.provider_attempts.load_result(operation_id) is None
     finally:
         database.stop()
