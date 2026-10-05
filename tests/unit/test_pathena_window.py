@@ -7,16 +7,14 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PySide6.QtWidgets import QApplication, QFrame, QLabel, QPushButton, QWidget
 
 from athena.desktop import window as window_module
+from athena.desktop.app import create_application
 from athena.desktop.pathena_design_tokens import PALETTE, SHELL
 from athena.desktop.pathena_v3_theme import V3_COMPOSER_ACTION_SIZE
 from athena.desktop.pathena_window import PathenaMainWindow
 
 
 def _app() -> QApplication:
-    app = QApplication.instance()
-    if isinstance(app, QApplication):
-        return app
-    return QApplication([])
+    return create_application(["pathena-window-test"])
 
 
 def _assert_inspector_width(inspector: QFrame) -> None:
