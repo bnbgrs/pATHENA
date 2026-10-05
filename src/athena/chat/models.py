@@ -45,6 +45,13 @@ class ChatForkOrigin:
 
 
 @dataclass(frozen=True, slots=True)
+class ChatPreferences:
+    chat_id: uuid.UUID
+    pinned: bool
+    favorited: bool
+
+
+@dataclass(frozen=True, slots=True)
 class ChatSummary:
     chat_id: uuid.UUID
     started_at_us: int
