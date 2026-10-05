@@ -478,6 +478,84 @@ class _BlockingCancelableGateway(_Gateway):
         )
 
 
+class _BlockingGroundedCancelableGateway(_BlockingCancelableGateway):
+    def send_unified_local_chat_message(
+        self,
+        chat_id: str,
+        *,
+        content: str,
+        model_id: str | None = None,
+        embedding_model_id: str | None = None,
+        operation_id: str | None = None,
+        effective_context_limit: int | None = None,
+        max_output_tokens: int | None = None,
+        temperature: float | None = None,
+        thinking_enabled: bool | None = None,
+    ) -> GroundedChatResponse:
+        del (
+            model_id,
+            embedding_model_id,
+            effective_context_limit,
+            max_output_tokens,
+            temperature,
+            thinking_enabled,
+        )
+        assert operation_id is not None
+        self.send_thread_id = threading.get_ident()
+        self.sent_chat_id = chat_id
+        self.sent_operation_id = operation_id
+        self.sent_content = content
+        self.send_entered.set()
+        assert self.cancel_called.wait(2.0)
+        raise CoreApiClientError(
+            "Grounded chat generation was cancelled.",
+            status=409,
+            code="generation_cancelled",
+            retryable=False,
+        )
+
+
+def test_controller_stop_bypasses_blocked_grounded_send_pool() -> None:
+    app = _app()
+    gateway = _BlockingGroundedCancelableGateway(cancel_accepted=True)
+    send_pool = _pool()
+    control_pool = _pool()
+    controller = DesktopApiController(
+        gateway,
+        thread_pool=send_pool,
+        control_thread_pool=control_pool,
+    )
+    cancelled = QSignalSpy(controller.chat_cancelled)
+    loaded = QSignalSpy(controller.chat_loaded)
+    chat_id = str(uuid.uuid4())
+
+    controller.send_grounded_message(
+        chat_id=chat_id,
+        content="stop grounded",
+    )
+
+    assert gateway.send_entered.wait(1.0)
+    assert controller.chat_busy is True
+    assert controller.can_cancel_active_chat is True
+    assert controller.cancel_active_chat_operation() is True
+
+    assert control_pool.waitForDone(2_000)
+    assert send_pool.waitForDone(2_000)
+    app.processEvents()
+    app.processEvents()
+
+    assert gateway.cancel_called.is_set()
+    assert cancelled.count() == 1
+    assert cancelled.at(0)[0] == gateway.sent_operation_id
+    assert loaded.count() == 1
+    thread = loaded.at(0)[0]
+    assert isinstance(thread, ChatThreadResponse)
+    assert len(thread.messages) == 1
+    assert thread.messages[0].message_type == "user"
+    assert controller.chat_busy is False
+    assert controller.can_cancel_active_chat is False
+
+
 def test_controller_stop_bypasses_blocked_single_thread_send_pool() -> None:
     app = _app()
     gateway = _BlockingCancelableGateway(cancel_accepted=True)
