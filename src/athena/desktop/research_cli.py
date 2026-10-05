@@ -32,6 +32,9 @@ def _parser() -> argparse.ArgumentParser:
 
     cancel = commands.add_parser("cancel")
     cancel.add_argument("job_id", type=uuid.UUID)
+
+    compare_previous = commands.add_parser("compare-previous")
+    compare_previous.add_argument("job_id", type=uuid.UUID)
     return parser
 
 
@@ -123,6 +126,30 @@ def _print_show(app: AthenaApplication, job_id: uuid.UUID) -> None:
         )
 
 
+def _print_compare_previous(
+    app: AthenaApplication,
+    job_id: uuid.UUID,
+) -> None:
+    delta = app.research_comparison.compare_previous(job_id)
+    if delta is None:
+        payload: dict[str, object] = {
+            "available": False,
+            "comparison_mode": "exact_persisted_text_and_provenance",
+            "current_job_id": str(job_id),
+        }
+    else:
+        payload = delta.as_dict()
+    print(
+        "RESEARCH_COMPARE "
+        + json.dumps(
+            payload,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+        )
+    )
+
+
 def _run(app: AthenaApplication, args: argparse.Namespace) -> int:
     if args.command == "enqueue":
         job = app.research.enqueue_local(
@@ -144,6 +171,10 @@ def _run(app: AthenaApplication, args: argparse.Namespace) -> int:
     if args.command == "cancel":
         job = app.research.cancel(args.job_id)
         print(f"JOB_CANCEL {job.job_id} {job.state.value}")
+        return 0
+
+    if args.command == "compare-previous":
+        _print_compare_previous(app, args.job_id)
         return 0
 
     raise RuntimeError(f"Unsupported research desktop command: {args.command!r}")
