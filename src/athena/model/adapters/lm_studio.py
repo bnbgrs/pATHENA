@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import uuid
 from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from threading import Lock
@@ -11,9 +12,16 @@ from typing import Any, cast
 from urllib.error import HTTPError, URLError
 from urllib.request import Request
 
-from athena.model.adapters.local_http import open_local_request
+from athena.model.adapters.local_http import (
+    CancellableLocalRequest,
+    LocalResponseAbortedError,
+    open_local_request,
+)
 from athena.model.domain import ModelChatMessage, ModelInfo, ProviderHealth, ProviderHealthStatus
-from athena.model.ports import controlled_structured_contract_prefix
+from athena.model.ports import (
+    ProviderGenerationCancelledError,
+    controlled_structured_contract_prefix,
+)
 
 
 class ModelProviderError(RuntimeError):
@@ -59,6 +67,12 @@ class LMStudioProvider:
         default_factory=list, init=False, repr=False, compare=False
     )
     _model_discovery_lock: Any = field(
+        default_factory=Lock, init=False, repr=False, compare=False
+    )
+    _active_generation_transports: dict[str, CancellableLocalRequest] = field(
+        default_factory=dict, init=False, repr=False, compare=False
+    )
+    _generation_transport_lock: Any = field(
         default_factory=Lock, init=False, repr=False, compare=False
     )
 
@@ -120,6 +134,73 @@ class LMStudioProvider:
             self._model_discovery_cache[:] = [(monotonic(), normalized)]
             return normalized
 
+    @staticmethod
+    def _canonical_generation_request_id(request_id: str) -> str:
+        if not isinstance(request_id, str):
+            raise TypeError("LM Studio generation request_id must be text.")
+        try:
+            parsed = uuid.UUID(request_id)
+        except (ValueError, AttributeError) as exc:
+            raise ValueError(
+                "LM Studio generation request_id must be a canonical UUID."
+            ) from exc
+        canonical = str(parsed)
+        if canonical != request_id:
+            raise ValueError(
+                "LM Studio generation request_id must use canonical UUID text."
+            )
+        return canonical
+
+    def _register_generation_transport(
+        self,
+        request_id: str,
+        transport: CancellableLocalRequest,
+    ) -> None:
+        with self._generation_transport_lock:
+            if request_id in self._active_generation_transports:
+                raise RuntimeError(
+                    "LM Studio generation request_id is already active."
+                )
+            self._active_generation_transports[request_id] = transport
+
+    def _release_generation_transport(
+        self,
+        request_id: str,
+        transport: CancellableLocalRequest,
+    ) -> None:
+        with self._generation_transport_lock:
+            if self._active_generation_transports.get(request_id) is transport:
+                self._active_generation_transports.pop(request_id, None)
+
+    def cancel_generation(self, request_id: str) -> None:
+        """Abort one active LM Studio request without touching Core state."""
+        canonical = self._canonical_generation_request_id(request_id)
+        with self._generation_transport_lock:
+            transport = self._active_generation_transports.get(canonical)
+        if transport is not None:
+            transport.abort()
+
+    def stream_chat_cancellable(
+        self,
+        *,
+        request_id: str,
+        model_id: str,
+        messages: Sequence[ModelChatMessage],
+        max_output_tokens: int | None = None,
+        reasoning_mode: str | None = None,
+        temperature: float | None = None,
+        request_id: str | None = None,
+    ) -> Iterator[str]:
+        """Stream chat with blocking HTTP I/O bound to one stable request ID."""
+        yield from self.stream_chat(
+            model_id=model_id,
+            messages=messages,
+            max_output_tokens=max_output_tokens,
+            reasoning_mode=reasoning_mode,
+            temperature=temperature,
+            request_id=request_id,
+        )
+
     def stream_chat(
         self,
         *,
@@ -166,11 +247,31 @@ class LMStudioProvider:
             },
         )
 
+        canonical_request_id = (
+            None
+            if request_id is None
+            else self._canonical_generation_request_id(request_id)
+        )
+        transport: CancellableLocalRequest | None = None
         try:
-            with open_local_request(
-                request,
-                timeout=self.generation_timeout_seconds,
-            ) as response:
+            if canonical_request_id is None:
+                response_context = open_local_request(
+                    request,
+                    timeout=self.generation_timeout_seconds,
+                )
+            else:
+                transport = CancellableLocalRequest(
+                    request,
+                    timeout=self.generation_timeout_seconds,
+                    connect_timeout=self.timeout_seconds,
+                )
+                self._register_generation_transport(
+                    canonical_request_id,
+                    transport,
+                )
+                response_context = transport.open()
+
+            with response_context as response:
                 saw_done = False
                 for raw_line in response:
                     try:
@@ -200,6 +301,10 @@ class LMStudioProvider:
                     raise ProviderProtocolError(
                         "LM Studio chat stream ended without a [DONE] marker."
                     )
+        except LocalResponseAbortedError as exc:
+            raise ProviderGenerationCancelledError(
+                "LM Studio generation transport was cancelled."
+            ) from exc
         except HTTPError as exc:
             detail = self._http_error_detail(exc)
             if self._is_context_limit_error(exc.code, detail):
@@ -213,6 +318,13 @@ class LMStudioProvider:
             raise ProviderUnavailableError(
                 f"LM Studio chat generation failed at {self.base_url}."
             ) from exc
+        finally:
+            if transport is not None and canonical_request_id is not None:
+                self._release_generation_transport(
+                    canonical_request_id,
+                    transport,
+                )
+                transport.close()
 
     def generate_structured(
         self,
