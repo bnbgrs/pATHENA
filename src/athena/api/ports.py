@@ -13,6 +13,7 @@ from athena.api.contracts import (
     DeletionResultResponse,
     GroundedChatResponse,
     HealthResponse,
+    ImageSourceResponse,
     KnowledgeMergeReviewResponse,
     KnowledgeReviewResponse,
     MessageKnowledgeExtractionResponse,
@@ -64,6 +65,14 @@ class CoreDomainSurface(Protocol):
     ) -> ChatThreadResponse: ...
 
     def load_chat(self, chat_id: str) -> ChatThreadResponse: ...
+
+    def capture_image_source(
+        self,
+        *,
+        data: bytes,
+        original_name: str,
+        source_uri: str,
+    ) -> ImageSourceResponse: ...
 
     def edit_chat_message(
         self,
@@ -162,6 +171,7 @@ class CoreDomainSurface(Protocol):
         max_output_tokens: int | None = None,
         temperature: float | None = None,
         thinking_enabled: bool | None = None,
+        image_source_ids: tuple[str, ...] = (),
     ) -> ChatThreadResponse: ...
 
     def chat_operation_recovery(
