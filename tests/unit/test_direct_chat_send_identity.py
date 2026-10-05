@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from collections.abc import Iterator, Mapping, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -100,8 +100,9 @@ class _TransportCancelledProvider(_Provider):
         max_output_tokens: int | None = None,
         reasoning_mode: str | None = None,
         temperature: float | None = None,
+        cancel_requested: Callable[[], bool] | None = None,
     ) -> Iterator[str]:
-        del messages
+        del messages, cancel_requested
         assert model_id == "primary"
         assert max_output_tokens == 1000
         assert reasoning_mode == "off"
