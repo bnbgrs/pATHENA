@@ -18,7 +18,12 @@ from athena.chat.grounding import (
 from athena.chat.models import ChatMessage, MessageType
 from athena.chat.provenance import strip_durable_provenance_manifest
 from athena.chat.service import ChatService
-from athena.model.domain import ModelChatMessage, ModelInfo
+from athena.model.domain import (
+    ModelCapabilitySupport,
+    ModelChatMessage,
+    ModelImageInput,
+    ModelInfo,
+)
 from athena.model.ports import ChatModelProvider
 from athena.model.signature_guard import (
     ModelSignatureDriftError,
@@ -402,6 +407,7 @@ class ChatGenerationService:
         grounding_contract: GroundingContract | None = None,
         on_before_provider_call: Callable[[], None] | None = None,
         cancel_requested: Callable[[], bool] | None = None,
+        image_inputs: tuple[ModelImageInput, ...] = (),
     ) -> ChatGenerationResult:
         """Generate strictly from ContextPackage sections, without DB history access."""
         if user_message.chat_id != chat_id:
@@ -427,6 +433,15 @@ class ChatGenerationService:
             )
 
         model = self.select_model(context_package.model_signature.model_identifier)
+        if image_inputs:
+            if grounding_contract is not None:
+                raise ModelSelectionError(
+                    "Vision image inputs are not yet accepted by grounded generation."
+                )
+            if model.capabilities.vision is not ModelCapabilitySupport.SUPPORTED:
+                raise ModelSelectionError(
+                    "Selected model does not truthfully advertise vision support."
+                )
         signature = context_package.model_signature
         try:
             assert_runtime_model_matches_signature(model=model, signature=signature)
@@ -473,6 +488,7 @@ class ChatGenerationService:
                     on_before_provider_call=on_before_provider_call,
                     cancel_requested=cancel_requested,
                     interactive_lease=lease,
+                    image_inputs=image_inputs,
                 )
 
         return self._generate_and_persist(
@@ -489,6 +505,7 @@ class ChatGenerationService:
             on_before_provider_call=on_before_provider_call,
             cancel_requested=cancel_requested,
             interactive_lease=None,
+            image_inputs=image_inputs,
         )
 
     def _generate_and_persist(
@@ -507,6 +524,7 @@ class ChatGenerationService:
         on_before_provider_call: Callable[[], None] | None,
         cancel_requested: Callable[[], bool] | None,
         interactive_lease: InteractiveDemandLease | None,
+        image_inputs: tuple[ModelImageInput, ...],
     ) -> ChatGenerationResult:
         if max_output_tokens is not None and max_output_tokens < 1:
             raise ValueError("max_output_tokens must be positive when provided.")
@@ -553,7 +571,44 @@ class ChatGenerationService:
                 "stream_chat_cancellable",
                 None,
             )
-            if cancel_requested is not None and callable(cancellable_stream):
+            vision_stream = getattr(
+                self.provider,
+                "stream_chat_vision",
+                None,
+            )
+            cancellable_vision_stream = getattr(
+                self.provider,
+                "stream_chat_vision_cancellable",
+                None,
+            )
+            if (
+                image_inputs
+                and cancel_requested is not None
+                and callable(cancellable_vision_stream)
+            ):
+                stream = cancellable_vision_stream(
+                    model_id=model.backend_model_id,
+                    messages=attempt_history,
+                    images=image_inputs,
+                    cancel_requested=cancel_requested,
+                    max_output_tokens=max_output_tokens,
+                    reasoning_mode=reasoning_mode,
+                    temperature=temperature,
+                )
+            elif image_inputs and callable(vision_stream):
+                stream = vision_stream(
+                    model_id=model.backend_model_id,
+                    messages=attempt_history,
+                    images=image_inputs,
+                    max_output_tokens=max_output_tokens,
+                    reasoning_mode=reasoning_mode,
+                    temperature=temperature,
+                )
+            elif image_inputs:
+                raise ModelSelectionError(
+                    "Selected provider exposes no explicit vision-chat transport."
+                )
+            elif cancel_requested is not None and callable(cancellable_stream):
                 stream = cancellable_stream(
                     model_id=model.backend_model_id,
                     messages=attempt_history,
