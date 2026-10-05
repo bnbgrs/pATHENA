@@ -507,3 +507,74 @@ def test_direct_send_operation_incomplete_fails_closed_before_provider(
 
     finally:
         database.stop()
+
+
+class _TransportCancellableProvider(_Provider):
+    def __init__(self) -> None:
+        super().__init__()
+        self.cancellable_stream_calls = 0
+
+    def stream_chat(
+        self,
+        *,
+        model_id: str,
+        messages: Sequence[ModelChatMessage],
+        max_output_tokens: int | None = None,
+        reasoning_mode: str | None = None,
+        temperature: float | None = None,
+    ) -> Iterator[str]:
+        del model_id, messages, max_output_tokens, reasoning_mode, temperature
+        raise AssertionError(
+            "ordinary stream_chat must not be used when cancellable transport exists"
+        )
+
+    def stream_chat_cancellable(
+        self,
+        *,
+        model_id: str,
+        messages: Sequence[ModelChatMessage],
+        cancel_requested,
+        max_output_tokens: int | None = None,
+        reasoning_mode: str | None = None,
+        temperature: float | None = None,
+    ) -> Iterator[str]:
+        del messages
+        assert model_id == "primary"
+        assert max_output_tokens == 1000
+        assert reasoning_mode == "off"
+        assert temperature is None
+        assert cancel_requested() is False
+        self.cancellable_stream_calls += 1
+        yield "cancellable answer"
+
+
+def test_generation_prefers_transport_cancellable_stream_when_available(
+    tmp_path: Path,
+) -> None:
+    database = SQLiteDatabase(tmp_path / "athena.db")
+    database.start()
+    try:
+        provider = _TransportCancellableProvider()
+        chat = ChatService(ChatRepository(database))
+        generation = ChatGenerationService(chat, provider)
+        service = DirectChatService(
+            chat_generation=generation,
+            context_packages=ContextPackageService(database),
+            model_runs=ModelRunRepository(database),
+        )
+        chat_id = chat.create_chat()
+
+        result = service.send_message(
+            chat_id=chat_id,
+            content="use cancellable transport",
+            requested_model_id="primary",
+            operation_id=_OPERATION_ID,
+            output_reserve=1000,
+            safety_margin=100,
+            cancel_requested=lambda: False,
+        )
+
+        assert provider.cancellable_stream_calls == 1
+        assert result.generation.assistant_message.content == "cancellable answer"
+    finally:
+        database.stop()
