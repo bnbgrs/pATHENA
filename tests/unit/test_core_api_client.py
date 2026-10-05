@@ -79,8 +79,6 @@ def _chat_thread_payload(
     }
 
 
-
-
 def test_client_health_reads_discovery_and_authenticates(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
