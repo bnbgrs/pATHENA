@@ -86,7 +86,10 @@ from athena.lifecycle.service import (
 )
 from athena.memory.models import PersonalMemoryRevision
 from athena.model.domain import ModelInfo
-from athena.model.ports import ModelDiscoveryProvider
+from athena.model.ports import (
+    CancellableChatModelProvider,
+    ModelDiscoveryProvider,
+)
 from athena.observability.health import HealthService
 from athena.retrieval.hybrid import HybridSearchResult
 from athena.retrieval.search import SearchEntityType
@@ -303,8 +306,15 @@ class CoreApiFacade:
         self._chat_cancellations.release(reservation)
 
     def cancel_chat_operation(self, operation_id: str) -> bool:
-        """Signal one known active send without touching domain or SQLite state."""
-        return self._chat_cancellations.cancel(uuid.UUID(operation_id))
+        """Signal one active send and abort its provider transport when supported."""
+        parsed_operation_id = uuid.UUID(operation_id)
+        accepted = self._chat_cancellations.cancel(parsed_operation_id)
+        if (
+            accepted
+            and isinstance(self._model_provider, CancellableChatModelProvider)
+        ):
+            self._model_provider.cancel_generation(str(parsed_operation_id))
+        return accepted
 
     def attach_news(self, news: NewsProfileService) -> None:
         """Attach the existing durable News profile exactly once."""
