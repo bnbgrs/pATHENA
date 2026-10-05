@@ -1919,7 +1919,7 @@ class AthenaMainWindow(QMainWindow):
             if not image.save(buffer, b"PNG"):
                 self.connection_detail.setText("Could not encode pasted image.")
                 return
-            payload = buffer.data().data()
+            payload = bytes(buffer.data().data())
         finally:
             buffer.close()
 
