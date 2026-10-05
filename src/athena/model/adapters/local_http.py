@@ -4,9 +4,14 @@ from __future__ import annotations
 
 import ipaddress
 import math
+import socket
+from contextlib import contextmanager
+from http.client import HTTPConnection, HTTPSConnection
+from io import BytesIO
 from numbers import Real
+from threading import Event, Thread
 from time import monotonic
-from typing import Any
+from typing import Any, Callable, Iterator, TypeVar
 from urllib.error import HTTPError
 from urllib.parse import urlsplit
 from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
@@ -20,6 +25,10 @@ _BLOCKED_RESPONSE_BODY_ESCAPE_ATTRS = frozenset({"file", "fileno", "fp", "raw"})
 
 class LocalResponseTooLargeError(OSError):
     """Raised when a local provider response unit exceeds its byte cap."""
+
+
+class LocalRequestCancelledError(OSError):
+    """Raised when explicit cancellation interrupts local provider HTTP I/O."""
 
 
 class _RejectRedirects(HTTPRedirectHandler):
@@ -335,3 +344,235 @@ def open_local_request(request: Request, *, timeout: float) -> Any:
         max_bytes=MAX_LOCAL_RESPONSE_BYTES,
         total_timeout_seconds=validated_timeout,
     )
+
+def _direct_request_coordinates(
+    request: Request,
+) -> tuple[str, str, int | None, str]:
+    parsed = urlsplit(request.full_url)
+    scheme = parsed.scheme.casefold()
+    host = parsed.hostname
+    if host is None:
+        raise ValueError("Local model transport request is missing a host.")
+    target = parsed.path or "/"
+    if parsed.query:
+        target += "?" + parsed.query
+    return scheme, host, parsed.port, target
+
+
+def _interrupt_connection(connection: HTTPConnection) -> None:
+    sock = connection.sock
+    if sock is not None:
+        try:
+            sock.shutdown(socket.SHUT_RDWR)
+        except OSError:
+            pass
+    try:
+        connection.close()
+    except OSError:
+        pass
+
+
+_T = TypeVar("_T")
+
+
+def _run_cancellable_io(
+    operation: Callable[[], _T],
+    *,
+    cancel_requested: Callable[[], bool],
+    interrupt: Callable[[], None],
+    poll_seconds: float,
+) -> _T:
+    """Run one blocking transport operation behind a cancellation polling fence.
+
+    CPython cannot rely on closing a socket in one thread to synchronously wake a
+    different thread that is blocked inside http.client on every supported
+    platform. Windows in particular may keep getresponse() or buffered
+    readline() blocked after another thread calls shutdown().
+
+    Keep the potentially blocking stdlib call in a daemon worker and let the
+    caller poll the canonical cancellation predicate. Cancellation therefore
+    returns promptly even when the platform delays unblocking the worker. The
+    exact connection is still interrupted so the abandoned operation cannot
+    continue consuming a provider stream once the OS releases it.
+    """
+    completed = Event()
+    values: list[_T] = []
+    errors: list[BaseException] = []
+
+    def run() -> None:
+        try:
+            values.append(operation())
+        except BaseException as exc:
+            errors.append(exc)
+        finally:
+            completed.set()
+
+    worker = Thread(
+        target=run,
+        name="athena-local-http-io",
+        daemon=True,
+    )
+    worker.start()
+
+    while not completed.wait(poll_seconds):
+        if cancel_requested():
+            interrupt()
+            raise LocalRequestCancelledError(
+                "Local model request was cancelled during transport I/O."
+            )
+
+    if cancel_requested():
+        interrupt()
+        raise LocalRequestCancelledError(
+            "Local model request was cancelled during transport I/O."
+        )
+
+    if errors:
+        raise errors[0]
+    if not values:
+        raise OSError("Local model transport operation completed without a result.")
+    return values[0]
+
+
+class _CancellableBoundedLocalResponse(_BoundedLocalResponse):
+    """Bounded response whose blocking reads remain promptly cancellable."""
+
+    def __init__(
+        self,
+        response: Any,
+        *,
+        max_bytes: int,
+        total_timeout_seconds: float,
+        cancel_requested: Callable[[], bool],
+        interrupt: Callable[[], None],
+        poll_seconds: float,
+    ) -> None:
+        super().__init__(
+            response,
+            max_bytes=max_bytes,
+            total_timeout_seconds=total_timeout_seconds,
+        )
+        self._cancel_requested = cancel_requested
+        self._interrupt = interrupt
+        self._poll_seconds = poll_seconds
+
+    def readline(self) -> bytes:
+        readline = super().readline
+        return _run_cancellable_io(
+            readline,
+            cancel_requested=self._cancel_requested,
+            interrupt=self._interrupt,
+            poll_seconds=self._poll_seconds,
+        )
+
+    def read(self, amt: int | None = None) -> bytes:
+        read = super().read
+        return _run_cancellable_io(
+            lambda: read(amt),
+            cancel_requested=self._cancel_requested,
+            interrupt=self._interrupt,
+            poll_seconds=self._poll_seconds,
+        )
+
+
+@contextmanager
+def open_cancellable_local_request(
+    request: Request,
+    *,
+    timeout: float,
+    cancel_requested: Callable[[], bool],
+    poll_seconds: float = 0.05,
+) -> Iterator[_BoundedLocalResponse]:
+    """Open a loopback request whose blocking socket I/O can be interrupted."""
+    if not isinstance(request, Request):
+        raise TypeError("Local model transport requires urllib.request.Request.")
+    if not callable(cancel_requested):
+        raise TypeError("Local model cancellation predicate must be callable.")
+    if (
+        isinstance(poll_seconds, bool)
+        or not isinstance(poll_seconds, Real)
+        or not math.isfinite(float(poll_seconds))
+        or float(poll_seconds) <= 0
+    ):
+        raise ValueError(
+            "Local model cancellation poll interval must be finite and > 0."
+        )
+
+    _assert_loopback_http_request(request)
+    validated_timeout = _validated_timeout(timeout)
+    validated_poll = float(poll_seconds)
+    scheme, host, port, target = _direct_request_coordinates(request)
+    connection_type = HTTPSConnection if scheme == "https" else HTTPConnection
+    connection = connection_type(
+        host,
+        port=port,
+        timeout=validated_timeout,
+    )
+
+    def interrupt() -> None:
+        _interrupt_connection(connection)
+
+    try:
+        if cancel_requested():
+            raise LocalRequestCancelledError(
+                "Local model request was cancelled before transport start."
+            )
+
+        headers = {
+            str(key): str(value)
+            for key, value in request.header_items()
+        }
+        _run_cancellable_io(
+            lambda: connection.request(
+                request.get_method(),
+                target,
+                body=request.data,
+                headers=headers,
+            ),
+            cancel_requested=cancel_requested,
+            interrupt=interrupt,
+            poll_seconds=validated_poll,
+        )
+        response = _run_cancellable_io(
+            connection.getresponse,
+            cancel_requested=cancel_requested,
+            interrupt=interrupt,
+            poll_seconds=validated_poll,
+        )
+
+        bounded = _CancellableBoundedLocalResponse(
+            response,
+            max_bytes=MAX_LOCAL_RESPONSE_BYTES,
+            total_timeout_seconds=validated_timeout,
+            cancel_requested=cancel_requested,
+            interrupt=interrupt,
+            poll_seconds=validated_poll,
+        )
+        if response.status >= 300:
+            error_body = bounded.read()
+            raise HTTPError(
+                request.full_url,
+                response.status,
+                response.reason,
+                response.headers,
+                BytesIO(error_body),
+            )
+
+        try:
+            yield bounded
+        except (OSError, TimeoutError) as exc:
+            if cancel_requested():
+                raise LocalRequestCancelledError(
+                    "Local model request was cancelled during response I/O."
+                ) from exc
+            raise
+    except LocalRequestCancelledError:
+        raise
+    except (OSError, TimeoutError) as exc:
+        if cancel_requested():
+            raise LocalRequestCancelledError(
+                "Local model request was cancelled during transport I/O."
+            ) from exc
+        raise
+    finally:
+        interrupt()

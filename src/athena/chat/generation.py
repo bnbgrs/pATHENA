@@ -548,7 +548,21 @@ class ChatGenerationService:
 
             chunks: list[str] = []
 
-            if temperature is not None:
+            cancellable_stream = getattr(
+                self.provider,
+                "stream_chat_cancellable",
+                None,
+            )
+            if cancel_requested is not None and callable(cancellable_stream):
+                stream = cancellable_stream(
+                    model_id=model.backend_model_id,
+                    messages=attempt_history,
+                    cancel_requested=cancel_requested,
+                    max_output_tokens=max_output_tokens,
+                    reasoning_mode=reasoning_mode,
+                    temperature=temperature,
+                )
+            elif temperature is not None:
                 stream = self.provider.stream_chat(
                     model_id=model.backend_model_id,
                     messages=attempt_history,

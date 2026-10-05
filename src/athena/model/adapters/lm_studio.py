@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Iterator, Mapping, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from threading import Lock
 from time import monotonic
@@ -11,7 +11,11 @@ from typing import Any, cast
 from urllib.error import HTTPError, URLError
 from urllib.request import Request
 
-from athena.model.adapters.local_http import open_local_request
+from athena.model.adapters.local_http import (
+    LocalRequestCancelledError,
+    open_cancellable_local_request,
+    open_local_request,
+)
 from athena.model.domain import ModelChatMessage, ModelInfo, ProviderHealth, ProviderHealthStatus
 from athena.model.ports import controlled_structured_contract_prefix
 
@@ -130,6 +134,47 @@ class LMStudioProvider:
         temperature: float | None = None,
     ) -> Iterator[str]:
         """Stream assistant text from LM Studio using SSE chat completions."""
+        return self._stream_chat(
+            model_id=model_id,
+            messages=messages,
+            max_output_tokens=max_output_tokens,
+            reasoning_mode=reasoning_mode,
+            temperature=temperature,
+            cancel_requested=None,
+        )
+
+    def stream_chat_cancellable(
+        self,
+        *,
+        model_id: str,
+        messages: Sequence[ModelChatMessage],
+        cancel_requested: Callable[[], bool],
+        max_output_tokens: int | None = None,
+        reasoning_mode: str | None = None,
+        temperature: float | None = None,
+    ) -> Iterator[str]:
+        """Stream chat while allowing explicit cancellation to interrupt socket I/O."""
+        if not callable(cancel_requested):
+            raise TypeError("cancel_requested must be callable.")
+        return self._stream_chat(
+            model_id=model_id,
+            messages=messages,
+            max_output_tokens=max_output_tokens,
+            reasoning_mode=reasoning_mode,
+            temperature=temperature,
+            cancel_requested=cancel_requested,
+        )
+
+    def _stream_chat(
+        self,
+        *,
+        model_id: str,
+        messages: Sequence[ModelChatMessage],
+        max_output_tokens: int | None,
+        reasoning_mode: str | None,
+        temperature: float | None,
+        cancel_requested: Callable[[], bool] | None,
+    ) -> Iterator[str]:
         self._require_canonical_model_id(model_id)
         if not messages:
             raise ValueError("At least one chat message is required.")
@@ -167,12 +212,23 @@ class LMStudioProvider:
         )
 
         try:
-            with open_local_request(
-                request,
-                timeout=self.generation_timeout_seconds,
-            ) as response:
+            response_context = (
+                open_local_request(
+                    request,
+                    timeout=self.generation_timeout_seconds,
+                )
+                if cancel_requested is None
+                else open_cancellable_local_request(
+                    request,
+                    timeout=self.generation_timeout_seconds,
+                    cancel_requested=cancel_requested,
+                )
+            )
+            with response_context as response:
                 saw_done = False
                 for raw_line in response:
+                    if cancel_requested is not None and cancel_requested():
+                        return
                     try:
                         line = raw_line.decode("utf-8").strip()
                     except UnicodeDecodeError as exc:
@@ -196,10 +252,16 @@ class LMStudioProvider:
                     if chunk:
                         yield chunk
 
+                if cancel_requested is not None and cancel_requested():
+                    return
                 if not saw_done:
                     raise ProviderProtocolError(
                         "LM Studio chat stream ended without a [DONE] marker."
                     )
+        except LocalRequestCancelledError:
+            if cancel_requested is not None and cancel_requested():
+                return
+            raise
         except HTTPError as exc:
             detail = self._http_error_detail(exc)
             if self._is_context_limit_error(exc.code, detail):
@@ -210,6 +272,8 @@ class LMStudioProvider:
                 f"LM Studio returned HTTP {exc.code} during chat generation."
             ) from exc
         except (URLError, TimeoutError, OSError) as exc:
+            if cancel_requested is not None and cancel_requested():
+                return
             raise ProviderUnavailableError(
                 f"LM Studio chat generation failed at {self.base_url}."
             ) from exc
