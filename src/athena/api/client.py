@@ -18,6 +18,7 @@ from athena.api.contracts import (
     CapabilitiesResponse,
     ChatMessageResponse,
     ChatOperationRecoveryResponse,
+    ChatPreferencesResponse,
     ChatSummaryResponse,
     ChatThreadResponse,
     ClaimProposalResponse,
@@ -230,6 +231,57 @@ class CoreApiClient:
             _chat_summary(item)
             for item in _items(payload)
         )
+
+    def chat_preferences(
+        self,
+        chat_id: str,
+    ) -> ChatPreferencesResponse:
+        _require_path_segment(chat_id, label="Chat ID")
+        return _chat_preferences(
+            self._get(
+                f"/api/v1/chats/{chat_id}/preferences"
+            )
+        )
+
+    def set_chat_preferences(
+        self,
+        chat_id: str,
+        *,
+        pinned: bool | None = None,
+        favorited: bool | None = None,
+    ) -> ChatPreferencesResponse:
+        _require_path_segment(chat_id, label="Chat ID")
+        if pinned is None and favorited is None:
+            raise ValueError(
+                "At least one chat preference must be provided."
+            )
+        if pinned is not None and not isinstance(pinned, bool):
+            raise ValueError(
+                "Chat pinned preference must be boolean when provided."
+            )
+        if favorited is not None and not isinstance(favorited, bool):
+            raise ValueError(
+                "Chat favorite preference must be boolean when provided."
+            )
+        payload: dict[str, JsonValue] = {}
+        if pinned is not None:
+            payload["pinned"] = pinned
+        if favorited is not None:
+            payload["favorited"] = favorited
+        response = _chat_preferences(
+            self._request(
+                "PATCH",
+                f"/api/v1/chats/{chat_id}/preferences",
+                expected_status=200,
+                json_body=payload,
+            )
+        )
+        if response.chat_id != chat_id:
+            raise CoreApiClientError(
+                "ATHENA Core returned preferences for another chat.",
+                code="invalid_response",
+            )
+        return response
 
     def create_chat(
         self,
@@ -1380,8 +1432,20 @@ def _chat_summary(payload: dict[str, JsonValue]) -> ChatSummaryResponse:
         archive_mode=_required_str(payload, "archive_mode"),
         lifecycle_state=_required_str(payload, "lifecycle_state"),
         message_count=_required_int(payload, "message_count"),
+        pinned=_required_bool(payload, "pinned"),
+        favorited=_required_bool(payload, "favorited"),
     )
 
+
+
+def _chat_preferences(
+    payload: dict[str, JsonValue],
+) -> ChatPreferencesResponse:
+    return ChatPreferencesResponse(
+        chat_id=_required_str(payload, "chat_id"),
+        pinned=_required_bool(payload, "pinned"),
+        favorited=_required_bool(payload, "favorited"),
+    )
 
 
 def _remembered_chat_message(
