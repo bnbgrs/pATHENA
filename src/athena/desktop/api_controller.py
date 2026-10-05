@@ -1058,8 +1058,14 @@ class _ChatTask(QRunnable):
                 and self.operation_id is not None
                 and exc.code == "generation_cancelled"
             ):
+                thread = (
+                    self.gateway.load_chat(self.chat_id)
+                    if self.chat_id is not None
+                    else None
+                )
                 outcome = _ChatOperationOutcome(
                     operation=self.operation,
+                    thread=thread,
                     operation_id=self.operation_id,
                     cancelled=True,
                 )
