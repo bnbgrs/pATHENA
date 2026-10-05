@@ -275,6 +275,77 @@ class CoreApiClient:
             raise ValueError("Chat ID must be a single non-empty path segment.")
         return _chat_thread(self._get(f"/api/v1/chats/{chat_id}"))
 
+    def edit_chat_message(
+        self,
+        chat_id: str,
+        message_id: str,
+        *,
+        expected_revision_id: str,
+        content: str,
+    ) -> ChatThreadResponse:
+        _require_path_segment(chat_id, label="Chat ID")
+        _require_path_segment(message_id, label="Message ID")
+        if not content.strip():
+            raise ValueError("Edited chat content must contain non-whitespace text.")
+        try:
+            canonical_revision_id = str(uuid.UUID(expected_revision_id))
+        except ValueError as exc:
+            raise ValueError("Expected message revision ID must be a valid UUID.") from exc
+        thread = _chat_thread(
+            self._request(
+                "PATCH",
+                f"/api/v1/chats/{chat_id}/messages/{message_id}/edit",
+                expected_status=200,
+                json_body={
+                    "expected_revision_id": canonical_revision_id,
+                    "content": content,
+                },
+            )
+        )
+        if thread.chat_id != chat_id:
+            raise CoreApiClientError(
+                "ATHENA Core returned an edited thread for another chat.",
+                code="invalid_response",
+            )
+        edited = next(
+            (item for item in thread.messages if item.message_id == message_id),
+            None,
+        )
+        if edited is None or edited.content != content:
+            raise CoreApiClientError(
+                "ATHENA Core did not return the requested edited message.",
+                code="invalid_response",
+            )
+        return thread
+
+    def fork_chat_from_message(
+        self,
+        chat_id: str,
+        message_id: str,
+        *,
+        revision_id: str,
+    ) -> ChatThreadResponse:
+        _require_path_segment(chat_id, label="Chat ID")
+        _require_path_segment(message_id, label="Message ID")
+        try:
+            canonical_revision_id = str(uuid.UUID(revision_id))
+        except ValueError as exc:
+            raise ValueError("Fork message revision ID must be a valid UUID.") from exc
+        thread = _chat_thread(
+            self._request(
+                "POST",
+                f"/api/v1/chats/{chat_id}/messages/{message_id}/fork",
+                expected_status=201,
+                json_body={"revision_id": canonical_revision_id},
+            )
+        )
+        if thread.chat_id == chat_id:
+            raise CoreApiClientError(
+                "ATHENA Core returned the source chat instead of a durable fork.",
+                code="invalid_response",
+            )
+        return thread
+
     def send_chat_message(
         self,
         chat_id: str,

@@ -63,21 +63,25 @@ class MessageActionAccessibilityController(QObject):
         self.sync()
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:  # noqa: N802
-        if watched is self.document and event.type() == QEvent.Type.ChildAdded:
+        document = getattr(self, "document", None)
+        if watched is document and event.type() == QEvent.Type.ChildAdded:
             QTimer.singleShot(0, self.sync)
         return super().eventFilter(watched, event)
 
     def sync(self) -> None:
-        if not isinstance(self.document, QWidget):
+        document = getattr(self, "document", None)
+        managed = getattr(self, "_managed", None)
+        if not isinstance(document, QWidget) or managed is None:
             return
         for spec in _ACTIONS:
-            for button in self.document.findChildren(QPushButton, spec.object_name):
+            for button in document.findChildren(QPushButton, spec.object_name):
                 self._apply(button, spec)
 
     def _apply(self, button: QPushButton, spec: MessageActionSpec) -> None:
-        if button in self._managed:
+        managed = getattr(self, "_managed", None)
+        if managed is None or button in managed:
             return
-        self._managed.add(button)
+        managed.add(button)
         button.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         button.setAccessibleName(spec.label)
         button.setAccessibleDescription(spec.description)

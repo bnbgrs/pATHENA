@@ -145,6 +145,8 @@ def test_capabilities_are_explicit_and_stable() -> None:
         "capabilities",
         "chat.read",
         "chat.create",
+        "chat.edit.user_message",
+        "chat.fork",
         "models.read",
     )
     assert result.to_dict()["features"] == [
@@ -152,6 +154,8 @@ def test_capabilities_are_explicit_and_stable() -> None:
         "capabilities",
         "chat.read",
         "chat.create",
+        "chat.edit.user_message",
+        "chat.fork",
         "models.read",
     ]
 
