@@ -1,12 +1,12 @@
 from __future__ import annotations
 
+import importlib
 import uuid
 from types import SimpleNamespace
 from typing import Any
 
 import pytest
 
-import athena.chat.unified as unified_module
 from athena.chat.grounded_recovery import GroundedRecoveryState, GroundedRecoveryStatus
 from athena.chat.request_fingerprint import ChatRequestFingerprint
 from athena.chat.unified import (
@@ -14,6 +14,8 @@ from athena.chat.unified import (
     UnifiedLocalChatService,
 )
 
+
+unified_module = importlib.import_module("athena.chat.unified")
 
 _CHAT_ID = uuid.UUID("11111111-1111-4111-8111-111111111111")
 _OPERATION_ID = uuid.UUID("22222222-2222-4222-8222-222222222222")
