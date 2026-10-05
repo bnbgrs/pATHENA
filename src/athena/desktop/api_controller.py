@@ -844,10 +844,17 @@ class _ChatTask(QRunnable):
                     reconciled = None
 
                 if reconciled is None:
-                    outcome = _ChatOperationOutcome(
-                        operation=self.operation,
-                        error=str(exc),
-                    )
+                    if exc.code == "generation_cancelled":
+                        outcome = _ChatOperationOutcome(
+                            operation=self.operation,
+                            operation_id=self.operation_id,
+                            cancelled=True,
+                        )
+                    else:
+                        outcome = _ChatOperationOutcome(
+                            operation=self.operation,
+                            error=str(exc),
+                        )
                 else:
                     state = _classify_direct_send(
                         reconciled,
@@ -865,6 +872,20 @@ class _ChatTask(QRunnable):
                                 "grounded response payload was lost. Retry "
                                 "the same operation to replay it."
                             ),
+                        )
+                    elif (
+                        exc.code == "generation_cancelled"
+                        and state in {"absent", "incomplete"}
+                    ):
+                        outcome = _ChatOperationOutcome(
+                            operation=self.operation,
+                            thread=(
+                                reconciled
+                                if state == "incomplete"
+                                else None
+                            ),
+                            operation_id=self.operation_id,
+                            cancelled=True,
                         )
                     elif state == "incomplete":
                         outcome = _ChatOperationOutcome(
@@ -1304,7 +1325,7 @@ class DesktopApiController(QObject):
     def can_cancel_active_chat(self) -> bool:
         return (
             self._chat_busy
-            and self._active_chat_operation_kind == "send"
+            and self._active_chat_operation_kind in {"send", "send_grounded"}
             and self._active_chat_operation_id is not None
         )
 
@@ -1538,7 +1559,9 @@ class DesktopApiController(QObject):
         self._active_chat_task = task
         self._active_chat_operation_kind = operation
         self._active_chat_operation_id = (
-            operation_id if operation == "send" else None
+            operation_id
+            if operation in {"send", "send_grounded"}
+            else None
         )
         self._chat_cancel_state = "idle"
         self._chat_cancel_detail = ""
