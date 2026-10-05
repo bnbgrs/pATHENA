@@ -279,6 +279,7 @@ class KnowledgeWorkspace(QWidget):
     def _build_knowledge_tab(self) -> QWidget:
         splitter = QSplitter(Qt.Orientation.Horizontal)
         splitter.setObjectName("canonicalMemorySplit")
+        splitter.setProperty("pathenaSplitterPersistenceKey", "knowledge-main")
         left = QWidget()
         left.setObjectName("canonicalMemoryListPane")
         left_layout = QVBoxLayout(left)
@@ -314,6 +315,7 @@ class KnowledgeWorkspace(QWidget):
     def _build_claims_tab(self) -> QWidget:
         splitter = QSplitter(Qt.Orientation.Horizontal)
         splitter.setObjectName("canonicalMemorySplit")
+        splitter.setProperty("pathenaSplitterPersistenceKey", "claims-main")
         left = QWidget()
         left.setObjectName("canonicalMemoryListPane")
         left_layout = QVBoxLayout(left)
@@ -347,6 +349,7 @@ class KnowledgeWorkspace(QWidget):
     def _build_reviews_tab(self) -> QWidget:
         splitter = QSplitter(Qt.Orientation.Horizontal)
         splitter.setObjectName("canonicalMemorySplit")
+        splitter.setProperty("pathenaSplitterPersistenceKey", "reviews-main")
         left = QWidget()
         left.setObjectName("canonicalMemoryListPane")
         left_layout = QVBoxLayout(left)
