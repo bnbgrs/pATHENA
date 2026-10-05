@@ -597,7 +597,6 @@ class SerializedCoreApiSurface:
                         chat_id,
                         content=content,
                         requested_model_id=requested_model_id,
-                        image_source_ids=image_source_ids,
                         requested_embedding_model_id=requested_embedding_model_id,
                     )
                 )
@@ -611,7 +610,6 @@ class SerializedCoreApiSurface:
                         chat_id,
                         content=content,
                         requested_model_id=requested_model_id,
-                        image_source_ids=image_source_ids,
                         requested_embedding_model_id=requested_embedding_model_id,
                         effective_context_limit=effective_context_limit,
                     )
@@ -647,7 +645,6 @@ class SerializedCoreApiSurface:
                         chat_id,
                         content=content,
                         requested_model_id=requested_model_id,
-                        image_source_ids=image_source_ids,
                         requested_embedding_model_id=requested_embedding_model_id,
                         operation_id=operation_id,
                     )
@@ -662,7 +659,6 @@ class SerializedCoreApiSurface:
                         chat_id,
                         content=content,
                         requested_model_id=requested_model_id,
-                        image_source_ids=image_source_ids,
                         requested_embedding_model_id=requested_embedding_model_id,
                         operation_id=operation_id,
                         effective_context_limit=effective_context_limit,
