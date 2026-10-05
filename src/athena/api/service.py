@@ -256,6 +256,8 @@ class CoreApiFacade:
         "capabilities",
         "chat.read",
         "chat.create",
+        "chat.edit.user_message",
+        "chat.fork",
         "models.read",
     )
 
@@ -564,6 +566,37 @@ class CoreApiFacade:
     def load_chat(self, chat_id: str) -> ChatThreadResponse:
         parsed_chat_id = uuid.UUID(chat_id)
         return _chat_thread(self._chat.load_chat(parsed_chat_id))
+
+    def edit_chat_message(
+        self,
+        chat_id: str,
+        message_id: str,
+        *,
+        expected_revision_id: str,
+        content: str,
+    ) -> ChatThreadResponse:
+        parsed_chat_id = uuid.UUID(chat_id)
+        self._chat.edit_user_message(
+            chat_id=parsed_chat_id,
+            message_id=uuid.UUID(message_id),
+            expected_revision_id=uuid.UUID(expected_revision_id),
+            content=content,
+        )
+        return _chat_thread(self._chat.load_chat(parsed_chat_id))
+
+    def fork_chat_from_message(
+        self,
+        chat_id: str,
+        message_id: str,
+        *,
+        revision_id: str,
+    ) -> ChatThreadResponse:
+        forked_chat_id = self._chat.fork_chat_from_message(
+            chat_id=uuid.UUID(chat_id),
+            source_message_id=uuid.UUID(message_id),
+            source_revision_id=uuid.UUID(revision_id),
+        )
+        return _chat_thread(self._chat.load_chat(forked_chat_id))
 
     def send_chat_message(
         self,
