@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import json
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
@@ -16,7 +17,13 @@ from athena.model.adapters.local_http import (
     open_cancellable_local_request,
     open_local_request,
 )
-from athena.model.domain import ModelChatMessage, ModelInfo, ProviderHealth, ProviderHealthStatus
+from athena.model.domain import (
+    ModelChatMessage,
+    ModelImageInput,
+    ModelInfo,
+    ProviderHealth,
+    ProviderHealthStatus,
+)
 from athena.model.ports import controlled_structured_contract_prefix
 
 
@@ -141,6 +148,30 @@ class LMStudioProvider:
             reasoning_mode=reasoning_mode,
             temperature=temperature,
             cancel_requested=None,
+            images=(),
+        )
+
+    def stream_chat_vision(
+        self,
+        *,
+        model_id: str,
+        messages: Sequence[ModelChatMessage],
+        images: Sequence[ModelImageInput],
+        max_output_tokens: int | None = None,
+        reasoning_mode: str | None = None,
+        temperature: float | None = None,
+    ) -> Iterator[str]:
+        """Stream a multimodal chat request using OpenAI-compatible image content."""
+        if not images:
+            raise ValueError("Vision chat requires at least one image.")
+        return self._stream_chat(
+            model_id=model_id,
+            messages=messages,
+            max_output_tokens=max_output_tokens,
+            reasoning_mode=reasoning_mode,
+            temperature=temperature,
+            cancel_requested=None,
+            images=images,
         )
 
     def stream_chat_cancellable(
@@ -163,6 +194,33 @@ class LMStudioProvider:
             reasoning_mode=reasoning_mode,
             temperature=temperature,
             cancel_requested=cancel_requested,
+            images=(),
+        )
+
+    def stream_chat_vision_cancellable(
+        self,
+        *,
+        model_id: str,
+        messages: Sequence[ModelChatMessage],
+        images: Sequence[ModelImageInput],
+        cancel_requested: Callable[[], bool],
+        max_output_tokens: int | None = None,
+        reasoning_mode: str | None = None,
+        temperature: float | None = None,
+    ) -> Iterator[str]:
+        """Stream multimodal chat while retaining transport cancellation."""
+        if not images:
+            raise ValueError("Vision chat requires at least one image.")
+        if not callable(cancel_requested):
+            raise TypeError("cancel_requested must be callable.")
+        return self._stream_chat(
+            model_id=model_id,
+            messages=messages,
+            max_output_tokens=max_output_tokens,
+            reasoning_mode=reasoning_mode,
+            temperature=temperature,
+            cancel_requested=cancel_requested,
+            images=images,
         )
 
     def _stream_chat(
@@ -174,6 +232,7 @@ class LMStudioProvider:
         reasoning_mode: str | None,
         temperature: float | None,
         cancel_requested: Callable[[], bool] | None,
+        images: Sequence[ModelImageInput],
     ) -> Iterator[str]:
         self._require_canonical_model_id(model_id)
         if not messages:
@@ -185,12 +244,35 @@ class LMStudioProvider:
         if temperature is not None and not 0.0 <= temperature <= 2.0:
             raise ValueError("temperature must be between 0.0 and 2.0 when provided.")
 
+        if images and messages[-1].role != "user":
+            raise ValueError("Vision images must attach to the final user message.")
+
+        message_payloads: list[dict[str, Any]] = [
+            {"role": message.role, "content": message.content}
+            for message in messages
+        ]
+        if images:
+            final_content: list[dict[str, Any]] = [
+                {"type": "text", "text": messages[-1].content}
+            ]
+            for image in images:
+                encoded = base64.b64encode(image.data).decode("ascii")
+                final_content.append(
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:{image.media_type};base64,{encoded}"
+                        },
+                    }
+                )
+            message_payloads[-1] = {
+                "role": "user",
+                "content": final_content,
+            }
+
         request_payload: dict[str, Any] = {
             "model": model_id,
-            "messages": [
-                {"role": message.role, "content": message.content}
-                for message in messages
-            ],
+            "messages": message_payloads,
             "stream": True,
         }
         if max_output_tokens is not None:
