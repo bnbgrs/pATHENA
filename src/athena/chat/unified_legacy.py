@@ -19,6 +19,7 @@ from athena.chat.generation import (
     GROUNDING_RETRY_POLICY,
     ChatGenerationResult,
     ChatGenerationService,
+    GenerationCancelledError,
 )
 from athena.chat.grounding import (
     GroundingContract,
@@ -509,7 +510,10 @@ class UnifiedLocalChatService:
         reasoning_mode: str | None = "off",
         allow_model_prior: bool = True,
         on_delta: Callable[[str], None] | None = None,
+        cancel_requested: Callable[[], bool] | None = None,
     ) -> UnifiedLocalChatResult:
+        if cancel_requested is not None and cancel_requested():
+            raise GenerationCancelledError("Chat generation was cancelled.")
         self._validate_request(
             max_memory_context_tokens=max_memory_context_tokens,
             max_memory_context_items=max_memory_context_items,
@@ -862,6 +866,9 @@ class UnifiedLocalChatService:
             context_configuration=context_configuration,
         )
 
+        if cancel_requested is not None and cancel_requested():
+            raise GenerationCancelledError("Chat generation was cancelled.")
+
         # Persist the current user input only after retrieval so it cannot
         # retrieve itself. Exactly one new commit is allowed.
         user_message = self.chat_generation.chat.add_user_message(
@@ -985,7 +992,14 @@ class UnifiedLocalChatService:
                 on_delta=on_delta,
                 grounding_contract=grounding_contract,
                 on_before_provider_call=before_provider,
+                cancel_requested=cancel_requested,
             )
+        except GenerationCancelledError:
+            self.model_runs.finish_run(
+                processing_run.processing_run_id,
+                status="cancelled",
+            )
+            raise
         except KeyboardInterrupt:
             self.model_runs.finish_run(
                 processing_run.processing_run_id,
