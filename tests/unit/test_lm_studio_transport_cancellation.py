@@ -172,11 +172,40 @@ def test_cancel_generation_interrupts_wait_for_response_headers() -> None:
         server_thread.join(2.0)
 
 
+def test_preexisting_cancel_token_wins_before_transport_open() -> None:
+    provider = LMStudioProvider(
+        "http://127.0.0.1:9",
+        timeout_seconds=1.0,
+        generation_timeout_seconds=5.0,
+    )
+
+    with pytest.raises(
+        ProviderGenerationCancelledError,
+        match="before transport open",
+    ):
+        list(
+            provider.stream_chat_cancellable(
+                request_id=_REQUEST_ID,
+                model_id="primary",
+                messages=(
+                    ModelChatMessage(
+                        role="user",
+                        content="already cancelled",
+                    ),
+                ),
+                cancel_requested=lambda: True,
+            )
+        )
+
+    assert provider._active_generation_transports == {}
+
+
 def test_cancel_generation_rejects_noncanonical_request_identity() -> None:
     provider = LMStudioProvider("http://127.0.0.1:1234")
 
     with pytest.raises(ValueError, match="canonical UUID"):
         provider.cancel_generation("not-a-uuid")
 
+    canonical = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee"
     with pytest.raises(ValueError, match="canonical UUID text"):
-        provider.cancel_generation(str(uuid.UUID(_REQUEST_ID)).upper())
+        provider.cancel_generation(str(uuid.UUID(canonical)).upper())
