@@ -849,3 +849,138 @@ def test_controller_search_busy_state_spans_multiple_inflight_requests() -> None
         True,
         False,
     ]
+
+
+class _EditForkGateway(_Gateway):
+    def __init__(self) -> None:
+        super().__init__()
+        self.edit_calls: list[tuple[str, str, str, str]] = []
+        self.fork_calls: list[tuple[str, str, str]] = []
+
+    @staticmethod
+    def _thread(
+        *,
+        chat_id: str,
+        message_id: str,
+        revision_id: str,
+        content: str,
+    ) -> ChatThreadResponse:
+        return ChatThreadResponse(
+            chat_id=chat_id,
+            started_at_us=1,
+            ended_at_us=None,
+            archive_mode="standard",
+            lifecycle_state="active",
+            messages=(
+                ChatMessageResponse(
+                    message_id=message_id,
+                    chat_id=chat_id,
+                    sequence_no=1,
+                    message_type="user",
+                    actor_id=str(uuid.uuid4()),
+                    created_at_us=1,
+                    revision_id=revision_id,
+                    content=content,
+                    content_format="text/plain",
+                ),
+            ),
+        )
+
+    def edit_chat_message(
+        self,
+        chat_id: str,
+        message_id: str,
+        *,
+        expected_revision_id: str,
+        content: str,
+    ) -> ChatThreadResponse:
+        self._record()
+        self.edit_calls.append(
+            (chat_id, message_id, expected_revision_id, content)
+        )
+        return self._thread(
+            chat_id=chat_id,
+            message_id=message_id,
+            revision_id=str(uuid.uuid4()),
+            content=content,
+        )
+
+    def fork_chat_from_message(
+        self,
+        chat_id: str,
+        message_id: str,
+        *,
+        revision_id: str,
+    ) -> ChatThreadResponse:
+        self._record()
+        self.fork_calls.append((chat_id, message_id, revision_id))
+        return self._thread(
+            chat_id=str(uuid.uuid4()),
+            message_id=message_id,
+            revision_id=revision_id,
+            content="source",
+        )
+
+
+def test_controller_edit_message_runs_off_ui_thread_and_returns_canonical_thread() -> None:
+    app = _app()
+    gateway = _EditForkGateway()
+    pool = _pool()
+    controller = DesktopApiController(gateway, thread_pool=pool)
+    loaded = QSignalSpy(controller.chat_loaded)
+    main_thread = threading.get_ident()
+    chat_id = str(uuid.uuid4())
+    message_id = str(uuid.uuid4())
+    revision_id = str(uuid.uuid4())
+
+    controller.edit_message(
+        chat_id=chat_id,
+        message_id=message_id,
+        revision_id=revision_id,
+        content="revised",
+    )
+
+    assert pool.waitForDone(2_000)
+    app.processEvents()
+
+    assert gateway.edit_calls == [
+        (chat_id, message_id, revision_id, "revised")
+    ]
+    assert gateway.thread_ids
+    assert all(thread_id != main_thread for thread_id in gateway.thread_ids)
+    assert loaded.count() == 1
+    thread = loaded.at(0)[0]
+    assert isinstance(thread, ChatThreadResponse)
+    assert thread.chat_id == chat_id
+    assert thread.messages[0].content == "revised"
+    assert controller.chat_busy is False
+
+
+def test_controller_fork_chat_runs_off_ui_thread_and_switches_to_returned_thread() -> None:
+    app = _app()
+    gateway = _EditForkGateway()
+    pool = _pool()
+    controller = DesktopApiController(gateway, thread_pool=pool)
+    loaded = QSignalSpy(controller.chat_loaded)
+    main_thread = threading.get_ident()
+    chat_id = str(uuid.uuid4())
+    message_id = str(uuid.uuid4())
+    revision_id = str(uuid.uuid4())
+
+    controller.fork_chat_from_message(
+        chat_id=chat_id,
+        message_id=message_id,
+        revision_id=revision_id,
+    )
+
+    assert pool.waitForDone(2_000)
+    app.processEvents()
+
+    assert gateway.fork_calls == [(chat_id, message_id, revision_id)]
+    assert gateway.thread_ids
+    assert all(thread_id != main_thread for thread_id in gateway.thread_ids)
+    assert loaded.count() == 1
+    thread = loaded.at(0)[0]
+    assert isinstance(thread, ChatThreadResponse)
+    assert thread.chat_id != chat_id
+    assert controller.chat_busy is False
