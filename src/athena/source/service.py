@@ -182,6 +182,21 @@ class SourceCaptureService:
                 max_bytes=max_bytes,
             )
 
+    def read_image_payload(
+        self,
+        source_id: uuid.UUID,
+        *,
+        max_bytes: int,
+    ) -> tuple[str, bytes]:
+        """Return verified image media type and bytes from one Raw Archive Source."""
+        source, blob = self.repository.get(source_id)
+        if source.source_type is not SourceType.IMAGE:
+            raise ValueError("Requested Source is not an image.")
+        media_type = blob.media_type or source.mime_type
+        if media_type not in {"image/png", "image/jpeg", "image/gif"}:
+            raise ValueError("Image Source has no supported canonical media type.")
+        return media_type, self.read_image_bytes(source_id, max_bytes=max_bytes)
+
     def capture_protected_file(
         self,
         path: Path,
