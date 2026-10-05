@@ -15,6 +15,7 @@ from athena.api.contracts import (
     CanonicalMergeReviewResponse,
     CapabilitiesResponse,
     ChatMessageResponse,
+    ChatOperationRecoveryResponse,
     ChatSummaryResponse,
     ChatThreadResponse,
     ClaimProposalResponse,
@@ -52,6 +53,7 @@ from athena.chat.cancellation import (
     ChatCancellationRegistry,
     ChatCancellationReservation,
 )
+from athena.chat.grounded_recovery import GroundedRecoveryState, GroundedRecoveryStatus
 from athena.chat.models import ChatMessage, ChatSummary, ChatThread
 from athena.chat.provenance import strip_durable_provenance_manifest
 from athena.chat.send_identity import (
@@ -201,6 +203,21 @@ class KnowledgeReviewConflictError(RuntimeError):
 
 class UnifiedLocalChatSender(Protocol):
     """Minimal Unified Local orchestration boundary used by the API."""
+
+    def inspect_operation_recovery(
+        self,
+        *,
+        chat_id: uuid.UUID,
+        operation_id: uuid.UUID,
+    ) -> GroundedRecoveryStatus: ...
+
+    def continue_operation(
+        self,
+        *,
+        chat_id: uuid.UUID,
+        operation_id: uuid.UUID,
+        cancel_requested: Callable[[], bool] | None = None,
+    ) -> UnifiedLocalChatResult: ...
 
     def send_message(
         self,
@@ -754,6 +771,74 @@ class CoreApiFacade:
             self._chat.load_chat(
                 parsed_chat_id
             )
+        )
+
+    def chat_operation_recovery(
+        self,
+        chat_id: str,
+        operation_id: str,
+    ) -> ChatOperationRecoveryResponse:
+        sender = self._unified_local_chat
+        parsed_chat_id = uuid.UUID(chat_id)
+        parsed_operation_id = uuid.UUID(operation_id)
+        if sender is None:
+            return ChatOperationRecoveryResponse(
+                operation_id=str(parsed_operation_id),
+                chat_id=str(parsed_chat_id),
+                mode="grounded",
+                state=GroundedRecoveryState.ABSENT.value,
+                can_continue=False,
+                processing_run_id=None,
+            )
+
+        status = sender.inspect_operation_recovery(
+            chat_id=parsed_chat_id,
+            operation_id=parsed_operation_id,
+        )
+        return ChatOperationRecoveryResponse(
+            operation_id=str(status.operation_id),
+            chat_id=str(status.chat_id),
+            mode="grounded",
+            state=status.state.value,
+            can_continue=status.state in {
+                GroundedRecoveryState.RESUMABLE,
+                GroundedRecoveryState.RESULT_AVAILABLE,
+                GroundedRecoveryState.FINALIZATION_REQUIRED,
+            },
+            processing_run_id=(
+                None
+                if status.processing_run_id is None
+                else str(status.processing_run_id)
+            ),
+        )
+
+    def continue_unified_local_chat_operation(
+        self,
+        chat_id: str,
+        operation_id: str,
+    ) -> GroundedChatResponse:
+        sender = self._unified_local_chat
+        if sender is None:
+            raise RuntimeError(
+                "Unified Local chat is unavailable in this Core process."
+            )
+        parsed_chat_id = uuid.UUID(chat_id)
+        parsed_operation_id = uuid.UUID(operation_id)
+        cancellation_reservation = self._chat_cancellations.get_or_reserve(
+            parsed_operation_id
+        )
+        try:
+            result = sender.continue_operation(
+                chat_id=parsed_chat_id,
+                operation_id=parsed_operation_id,
+                cancel_requested=cancellation_reservation.cancel_requested,
+            )
+        finally:
+            self._chat_cancellations.release(cancellation_reservation)
+
+        return _grounded_chat_response(
+            result,
+            self._chat.load_chat(parsed_chat_id),
         )
 
     def send_unified_local_chat_message(
