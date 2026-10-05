@@ -147,6 +147,7 @@ class JobsWorkspace(QWidget):
         layout.addWidget(self.progress)
 
         splitter = QSplitter(Qt.Orientation.Horizontal)
+        splitter.setProperty("pathenaSplitterPersistenceKey", "jobs-main")
         splitter.addWidget(self.jobs)
         splitter.addWidget(self.details)
         splitter.setStretchFactor(0, 1)
