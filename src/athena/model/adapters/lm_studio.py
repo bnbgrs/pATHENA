@@ -306,6 +306,10 @@ class LMStudioProvider:
                         yield chunk
 
                 if not saw_done:
+                    if transport is not None and transport.aborted:
+                        raise ProviderGenerationCancelledError(
+                            "LM Studio generation transport was cancelled."
+                        )
                     raise ProviderProtocolError(
                         "LM Studio chat stream ended without a [DONE] marker."
                     )
@@ -323,6 +327,10 @@ class LMStudioProvider:
                 f"LM Studio returned HTTP {exc.code} during chat generation."
             ) from exc
         except (URLError, TimeoutError, OSError) as exc:
+            if transport is not None and transport.aborted:
+                raise ProviderGenerationCancelledError(
+                    "LM Studio generation transport was cancelled."
+                ) from exc
             raise ProviderUnavailableError(
                 f"LM Studio chat generation failed at {self.base_url}."
             ) from exc
