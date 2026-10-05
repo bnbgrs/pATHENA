@@ -630,6 +630,88 @@ def _context_configuration(package: ContextPackage) -> dict[str, Any]:
 class UnifiedLocalChatService(_LegacyUnifiedLocalChatService):
     """Run the mature Unified retrieval algorithm behind a durable send boundary."""
 
+    def inspect_operation_recovery(
+        self,
+        *,
+        chat_id: uuid.UUID,
+        operation_id: uuid.UUID,
+    ) -> GroundedRecoveryStatus:
+        """Inspect one durable Unified operation without replaying provider work."""
+        plan = UnifiedSendPlanRepository(self.model_runs.database).load(operation_id)
+        if plan is None:
+            return GroundedRecoveryStatus(
+                operation_id=operation_id,
+                chat_id=chat_id,
+                state=GroundedRecoveryState.ABSENT,
+                receipt=None,
+            )
+        if plan.chat_id != chat_id:
+            raise UnifiedReplayProjectionError(
+                "Unified recovery operation belongs to another chat."
+            )
+        return GroundedSendCoordinator(self.model_runs.database).recover(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            fingerprint=plan.fingerprint,
+        )
+
+    def continue_operation(
+        self,
+        *,
+        chat_id: uuid.UUID,
+        operation_id: uuid.UUID,
+        cancel_requested: Callable[[], bool] | None = None,
+    ) -> UnifiedLocalChatResult:
+        """Continue only from durable recovery state; never recreate request input."""
+        plan = UnifiedSendPlanRepository(self.model_runs.database).load(operation_id)
+        if plan is None:
+            raise UnifiedGroundedRecoveryRequiredError(
+                GroundedRecoveryStatus(
+                    operation_id=operation_id,
+                    chat_id=chat_id,
+                    state=GroundedRecoveryState.ABSENT,
+                    receipt=None,
+                )
+            )
+        if plan.chat_id != chat_id:
+            raise UnifiedReplayProjectionError(
+                "Unified recovery operation belongs to another chat."
+            )
+
+        coordinator = GroundedSendCoordinator(self.model_runs.database)
+        recovery = coordinator.recover(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            fingerprint=plan.fingerprint,
+        )
+        if recovery.state in {
+            GroundedRecoveryState.RESULT_AVAILABLE,
+            GroundedRecoveryState.FINALIZATION_REQUIRED,
+        }:
+            coordinator.finalize_recorded_result(
+                operation_id=operation_id,
+                chat_id=chat_id,
+                fingerprint=plan.fingerprint,
+            )
+            recovery = coordinator.recover(
+                operation_id=operation_id,
+                chat_id=chat_id,
+                fingerprint=plan.fingerprint,
+            )
+
+        if recovery.state is GroundedRecoveryState.COMPLETE:
+            return self._replay_complete(status=recovery)
+        if recovery.state is GroundedRecoveryState.RESUMABLE:
+            return self._resume_from_checkpoint(
+                coordinator=coordinator,
+                status=recovery,
+                fingerprint=plan.fingerprint,
+                retrieval_query_override=plan.retrieval_query_override,
+                on_delta=None,
+                cancel_requested=cancel_requested,
+            )
+        raise UnifiedGroundedRecoveryRequiredError(recovery)
+
     def _replay_complete(
         self,
         *,
