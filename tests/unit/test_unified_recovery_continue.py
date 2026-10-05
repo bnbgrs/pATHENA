@@ -7,7 +7,10 @@ from typing import Any
 import pytest
 
 from athena.chat import unified as unified_module
-from athena.chat.grounded_recovery import GroundedRecoveryState, GroundedRecoveryStatus
+from athena.chat.grounded_recovery import (
+    GroundedRecoveryState,
+    GroundedRecoveryStatus,
+)
 from athena.chat.request_fingerprint import ChatRequestFingerprint
 from athena.chat.unified import (
     UnifiedGroundedRecoveryRequiredError,
