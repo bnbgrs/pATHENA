@@ -12,6 +12,7 @@ from PySide6.QtCore import QMetaObject, QObject, QRunnable, Qt, QThreadPool, Sig
 from athena.api.client import CoreApiClientError
 from athena.api.contracts import (
     ChatOperationRecoveryResponse,
+    ChatPreferencesResponse,
     ChatSummaryResponse,
     ChatThreadResponse,
     DeletionPreviewResponse,
@@ -76,6 +77,14 @@ class CoreApiGateway(Protocol):
         self,
         chat_id: str | None = None,
     ) -> ChatThreadResponse: ...
+
+    def set_chat_preferences(
+        self,
+        chat_id: str,
+        *,
+        pinned: bool | None = None,
+        favorited: bool | None = None,
+    ) -> ChatPreferencesResponse: ...
 
     def load_chat(self, chat_id: str) -> ChatThreadResponse: ...
 
@@ -253,6 +262,7 @@ class _ChatOperationOutcome:
     thread: ChatThreadResponse | None = None
     grounded: GroundedChatResponse | None = None
     recovery: ChatOperationRecoveryResponse | None = None
+    preferences: ChatPreferencesResponse | None = None
     deletion_preview: DeletionPreviewResponse | None = None
     deleted_chat_id: str | None = None
     remembered: RememberedChatMessageResponse | None = None
@@ -270,6 +280,7 @@ class _ChatOperationOutcome:
                 self.thread,
                 self.grounded,
                 self.recovery,
+                self.preferences,
                 self.deletion_preview,
                 self.deleted_chat_id,
                 self.remembered,
@@ -414,6 +425,8 @@ class _ChatTask(QRunnable):
         processing_run_id: str | None = None,
         review_id: str | None = None,
         review_decision: str | None = None,
+        pinned: bool | None = None,
+        favorited: bool | None = None,
         outcomes: SimpleQueue[_ChatOperationOutcome],
         receiver: QObject,
     ) -> None:
@@ -434,6 +447,8 @@ class _ChatTask(QRunnable):
         self.processing_run_id = processing_run_id
         self.review_id = review_id
         self.review_decision = review_decision
+        self.pinned = pinned
+        self.favorited = favorited
         self.outcomes = outcomes
         self.receiver = receiver
         self.setAutoDelete(False)
@@ -519,6 +534,28 @@ class _ChatTask(QRunnable):
                 outcome = _ChatOperationOutcome(
                     operation=self.operation,
                     thread=thread,
+                )
+            elif self.operation == "preferences":
+                if resolved_chat_id is None:
+                    raise ValueError(
+                        "Chat preference update requires a chat ID."
+                    )
+                if self.pinned is None and self.favorited is None:
+                    raise ValueError(
+                        "Chat preference update requires at least one flag."
+                    )
+                preferences = self.gateway.set_chat_preferences(
+                    resolved_chat_id,
+                    pinned=self.pinned,
+                    favorited=self.favorited,
+                )
+                if preferences.chat_id != resolved_chat_id:
+                    raise RuntimeError(
+                        "Chat preferences belong to another chat."
+                    )
+                outcome = _ChatOperationOutcome(
+                    operation=self.operation,
+                    preferences=preferences,
                 )
             elif self.operation == "inspect_recovery":
                 operation_id = self.operation_id
@@ -1395,6 +1432,7 @@ class DesktopApiController(QObject):
     chat_sent = Signal(object)
     grounded_chat_sent = Signal(object)
     chat_recovery_ready = Signal(object)
+    chat_preferences_changed = Signal(object)
     chat_deletion_preview_ready = Signal(object)
     chat_deleted = Signal(str)
     message_remembered = Signal(object)
@@ -1593,6 +1631,26 @@ class DesktopApiController(QObject):
             revision_id=revision_id,
         )
 
+    def set_chat_preferences(
+        self,
+        *,
+        chat_id: str,
+        pinned: bool | None = None,
+        favorited: bool | None = None,
+    ) -> None:
+        if (
+            self._chat_busy
+            or not chat_id
+            or (pinned is None and favorited is None)
+        ):
+            return
+        self._start_chat_task(
+            operation="preferences",
+            chat_id=chat_id,
+            pinned=pinned,
+            favorited=favorited,
+        )
+
     def inspect_chat_recovery(
         self,
         *,
@@ -1781,6 +1839,8 @@ class DesktopApiController(QObject):
         processing_run_id: str | None = None,
         review_id: str | None = None,
         review_decision: str | None = None,
+        pinned: bool | None = None,
+        favorited: bool | None = None,
     ) -> None:
         task = _ChatTask(
             gateway=self.gateway,
@@ -1799,6 +1859,8 @@ class DesktopApiController(QObject):
             processing_run_id=processing_run_id,
             review_id=review_id,
             review_decision=review_decision,
+            pinned=pinned,
+            favorited=favorited,
             outcomes=self._chat_outcomes,
             receiver=self,
         )
@@ -2016,6 +2078,8 @@ class DesktopApiController(QObject):
 
             if outcome.recovery is not None:
                 self.chat_recovery_ready.emit(outcome.recovery)
+            elif outcome.preferences is not None:
+                self.chat_preferences_changed.emit(outcome.preferences)
             elif outcome.grounded is not None:
                 if self.chat_cancel_pending:
                     self._set_chat_cancel_state(
