@@ -19,6 +19,12 @@ from athena.storage.job_dependency_graph_schema import (
 from athena.storage.job_dependency_graph_schema import (
     verify_schema_v42 as _verify_schema_v42,
 )
+from athena.storage.chat_preferences_schema import (
+    migrate_schema_v42_to_v43 as _migrate_schema_v42_to_v43,
+)
+from athena.storage.chat_preferences_schema import (
+    verify_schema_v43 as _verify_schema_v43,
+)
 from athena.storage.schema_contract import (
     ARCHIVE_REPLICATION_MIGRATION_ID as ARCHIVE_REPLICATION_MIGRATION_ID,
 )
@@ -36,6 +42,12 @@ from athena.storage.schema_contract import (
 )
 from athena.storage.schema_contract import (
     BLOB_FORMAT_VERSION as BLOB_FORMAT_VERSION,
+)
+from athena.storage.schema_contract import (
+    CHAT_PREFERENCES_MIGRATION_ID as CHAT_PREFERENCES_MIGRATION_ID,
+)
+from athena.storage.schema_contract import (
+    CHAT_PREFERENCES_SCHEMA_VERSION as CHAT_PREFERENCES_SCHEMA_VERSION,
 )
 from athena.storage.schema_contract import (
     CONSOLIDATED_OPERATIONS_MIGRATION_ID as CONSOLIDATED_OPERATIONS_MIGRATION_ID,
@@ -585,6 +597,7 @@ def initialize_schema(connection: sqlite3.Connection, *, created_at_us: int) -> 
         PROTECTED_SOURCE_SEMANTIC_SCHEMA_VERSION,
         GROUNDED_RESPONSE_RECEIPT_SCHEMA_VERSION,
         STRUCTURED_REPLICATION_SCHEMA_VERSION,
+        JOB_DEPENDENCY_GRAPH_SCHEMA_VERSION,
         SCHEMA_VERSION,
     }
     if existing_user_version not in supported_versions:
@@ -792,8 +805,13 @@ def initialize_schema(connection: sqlite3.Connection, *, created_at_us: int) -> 
         _migrate_schema_v41_to_v42(connection)
         existing_user_version = JOB_DEPENDENCY_GRAPH_SCHEMA_VERSION
 
+    if existing_user_version == JOB_DEPENDENCY_GRAPH_SCHEMA_VERSION:
+        _verify_schema_v42(connection)
+        _migrate_schema_v42_to_v43(connection)
+        existing_user_version = CHAT_PREFERENCES_SCHEMA_VERSION
+
     _configure_connection(connection)
-    _verify_schema_v42(connection)
+    _verify_schema_v43(connection)
 
 
 
