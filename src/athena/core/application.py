@@ -344,6 +344,7 @@ class AthenaApplication:
             model_provider=self.model_provider,
             direct_chat=self.direct_chat,
             lifecycle_deletion=self.lifecycle_deletion,
+            image_sources=self.sources,
         )
         self.knowledge_read = attach_knowledge_read_api(
             facade=self.api,
