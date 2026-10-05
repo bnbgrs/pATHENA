@@ -11,6 +11,7 @@ from PySide6.QtWidgets import QApplication
 from athena.api.client import CoreApiClientError
 from athena.api.contracts import (
     ChatMessageResponse,
+    ChatOperationRecoveryResponse,
     ChatSummaryResponse,
     ChatThreadResponse,
     GroundedChatResponse,
@@ -984,3 +985,165 @@ def test_controller_fork_chat_runs_off_ui_thread_and_switches_to_returned_thread
     assert isinstance(thread, ChatThreadResponse)
     assert thread.chat_id != chat_id
     assert controller.chat_busy is False
+
+
+class _RecoveryGateway(_GroundedGateway):
+    def __init__(self) -> None:
+        super().__init__()
+        self.recovery_calls: list[tuple[str, str]] = []
+        self.continue_calls: list[tuple[str, str]] = []
+
+    def chat_operation_recovery(
+        self,
+        chat_id: str,
+        operation_id: str,
+    ) -> ChatOperationRecoveryResponse:
+        self._record()
+        self.recovery_calls.append((chat_id, operation_id))
+        return ChatOperationRecoveryResponse(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            mode="grounded",
+            state="resumable",
+            can_continue=True,
+            processing_run_id=str(uuid.uuid4()),
+        )
+
+    def continue_unified_local_chat_operation(
+        self,
+        chat_id: str,
+        operation_id: str,
+    ) -> GroundedChatResponse:
+        self._record()
+        self.continue_calls.append((chat_id, operation_id))
+        return self.send_unified_local_chat_message(
+            chat_id,
+            content="persisted recovery input",
+            operation_id=operation_id,
+        )
+
+
+def test_controller_inspects_recovery_off_ui_thread() -> None:
+    app = _app()
+    gateway = _RecoveryGateway()
+    pool = _pool()
+    controller = DesktopApiController(gateway, thread_pool=pool)
+    ready = QSignalSpy(controller.chat_recovery_ready)
+    main_thread = threading.get_ident()
+    chat_id = str(uuid.uuid4())
+    operation_id = str(uuid.uuid4())
+
+    controller.inspect_chat_recovery(
+        chat_id=chat_id,
+        operation_id=operation_id,
+    )
+
+    assert pool.waitForDone(2_000)
+    app.processEvents()
+
+    assert gateway.recovery_calls == [(chat_id, operation_id)]
+    assert gateway.thread_ids
+    assert all(thread_id != main_thread for thread_id in gateway.thread_ids)
+    assert ready.count() == 1
+    recovery = ready.at(0)[0]
+    assert isinstance(recovery, ChatOperationRecoveryResponse)
+    assert recovery.chat_id == chat_id
+    assert recovery.operation_id == operation_id
+    assert recovery.can_continue is True
+    assert controller.chat_busy is False
+
+
+def test_controller_continues_recovery_off_ui_thread_and_emits_grounded() -> None:
+    app = _app()
+    gateway = _RecoveryGateway()
+    pool = _pool()
+    controller = DesktopApiController(gateway, thread_pool=pool)
+    grounded_spy = QSignalSpy(controller.grounded_chat_sent)
+    main_thread = threading.get_ident()
+    chat_id = str(uuid.uuid4())
+    operation_id = str(uuid.uuid4())
+
+    controller.continue_chat_operation(
+        chat_id=chat_id,
+        operation_id=operation_id,
+    )
+
+    assert pool.waitForDone(2_000)
+    app.processEvents()
+
+    assert gateway.continue_calls == [(chat_id, operation_id)]
+    assert gateway.thread_ids
+    assert all(thread_id != main_thread for thread_id in gateway.thread_ids)
+    assert grounded_spy.count() == 1
+    response = grounded_spy.at(0)[0]
+    assert isinstance(response, GroundedChatResponse)
+    assert response.thread.chat_id == chat_id
+    assert response.thread.messages[0].message_id == operation_id
+    assert controller.chat_busy is False
+    assert controller.can_cancel_active_chat is False
+
+
+class _BlockingRecoveryGateway(_RecoveryGateway):
+    def __init__(self) -> None:
+        super().__init__()
+        self.continue_entered = threading.Event()
+        self.cancel_called = threading.Event()
+        self.active_operation_id: str | None = None
+
+    def continue_unified_local_chat_operation(
+        self,
+        chat_id: str,
+        operation_id: str,
+    ) -> GroundedChatResponse:
+        del chat_id
+        self._record()
+        self.active_operation_id = operation_id
+        self.continue_entered.set()
+        assert self.cancel_called.wait(2.0)
+        raise CoreApiClientError(
+            "Chat generation was cancelled.",
+            status=409,
+            code="generation_cancelled",
+            retryable=False,
+        )
+
+    def cancel_chat_operation(self, operation_id: str) -> bool:
+        self._record()
+        assert operation_id == self.active_operation_id
+        self.cancel_called.set()
+        return True
+
+
+def test_controller_continue_recovery_keeps_stop_available() -> None:
+    app = _app()
+    gateway = _BlockingRecoveryGateway()
+    send_pool = _pool()
+    control_pool = _pool()
+    controller = DesktopApiController(
+        gateway,
+        thread_pool=send_pool,
+        control_thread_pool=control_pool,
+    )
+    cancelled = QSignalSpy(controller.chat_cancelled)
+    chat_id = str(uuid.uuid4())
+    operation_id = str(uuid.uuid4())
+
+    controller.continue_chat_operation(
+        chat_id=chat_id,
+        operation_id=operation_id,
+    )
+
+    assert gateway.continue_entered.wait(1.0)
+    assert controller.chat_busy is True
+    assert controller.can_cancel_active_chat is True
+    assert controller.cancel_active_chat_operation() is True
+
+    assert control_pool.waitForDone(2_000)
+    assert send_pool.waitForDone(2_000)
+    app.processEvents()
+    app.processEvents()
+
+    assert cancelled.count() == 1
+    assert cancelled.at(0)[0] == operation_id
+    assert controller.chat_busy is False
+    assert controller.can_cancel_active_chat is False
