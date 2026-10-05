@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from PySide6.QtCore import QBuffer, QIODevice, QPoint, QSize, Qt, QTimer, Signal, Slot
+from PySide6.QtCore import QBuffer, QIODevice, QMimeData, QPoint, QSize, Qt, QTimer, Signal, Slot
 from PySide6.QtGui import (
     QColor,
     QImage,
@@ -291,7 +291,7 @@ class PromptInput(QPlainTextEdit):
     def setText(self, text: str) -> None:  # noqa: N802 - compatibility with QLineEdit
         self.setPlainText(text)
 
-    def insertFromMimeData(self, source: object) -> None:  # noqa: N802
+    def insertFromMimeData(self, source: QMimeData) -> None:  # noqa: N802
         has_image = getattr(source, "hasImage", None)
         image_data = getattr(source, "imageData", None)
         if callable(has_image) and has_image() and callable(image_data):
@@ -1916,10 +1916,10 @@ class AthenaMainWindow(QMainWindow):
             self.connection_detail.setText("Could not encode pasted image.")
             return
         try:
-            if not image.save(buffer, "PNG"):
+            if not image.save(buffer, b"PNG"):
                 self.connection_detail.setText("Could not encode pasted image.")
                 return
-            payload = bytes(buffer.data())
+            payload = buffer.data().data()
         finally:
             buffer.close()
 

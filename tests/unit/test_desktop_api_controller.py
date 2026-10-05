@@ -400,6 +400,7 @@ class _BlockingCancelableGateway(_Gateway):
         max_output_tokens: int | None = None,
         temperature: float | None = None,
         thinking_enabled: bool | None = None,
+        image_source_ids: tuple[str, ...] = (),
     ) -> ChatThreadResponse:
         del (
             model_id,
@@ -666,6 +667,7 @@ class _LateCancelGateway(_BlockingCancelableGateway):
         max_output_tokens: int | None = None,
         temperature: float | None = None,
         thinking_enabled: bool | None = None,
+        image_source_ids: tuple[str, ...] = (),
     ) -> ChatThreadResponse:
         del (
             model_id,

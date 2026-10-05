@@ -20,7 +20,7 @@ from athena.storage.database import SQLiteDatabase
 from athena.storage.schema import (
     BACKUP_RETENTION_MIGRATION_ID,
     BACKUP_RETENTION_SCHEMA_VERSION,
-    JOB_DEPENDENCY_GRAPH_MIGRATION_ID,
+    CHAT_PREFERENCES_MIGRATION_ID,
     SCHEMA_VERSION,
 )
 
@@ -602,7 +602,7 @@ def test_v35_database_migrates_additively_to_v36(
             metadata
         ) == (
             SCHEMA_VERSION,
-            JOB_DEPENDENCY_GRAPH_MIGRATION_ID,
+            CHAT_PREFERENCES_MIGRATION_ID,
             SCHEMA_VERSION,
         )
 

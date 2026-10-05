@@ -119,6 +119,8 @@ class _Direct:
         temperature: float | None = None,
         reasoning_mode: str | None = "off",
         cancel_requested=None,
+        image_inputs: tuple[object, ...] = (),
+        image_source_ids: tuple[uuid.UUID, ...] = (),
     ) -> object:
         del (
             requested_model_id,

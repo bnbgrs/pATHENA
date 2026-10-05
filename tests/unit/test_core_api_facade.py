@@ -148,6 +148,8 @@ def test_capabilities_are_explicit_and_stable() -> None:
         "chat.edit.user_message",
         "chat.fork",
         "chat.pin",
+        "chat.vision",
+        "source.image.capture",
         "chat.recovery.read",
         "chat.recovery.continue",
         "models.read",
@@ -159,6 +161,9 @@ def test_capabilities_are_explicit_and_stable() -> None:
         "chat.create",
         "chat.edit.user_message",
         "chat.fork",
+        "chat.pin",
+        "chat.vision",
+        "source.image.capture",
         "chat.recovery.read",
         "chat.recovery.continue",
         "models.read",
@@ -215,6 +220,7 @@ def test_create_chat_returns_complete_client_thread() -> None:
             "revision_id": "33333333-3333-3333-3333-333333333333",
             "content": "hello",
             "content_format": "text/plain",
+            "source_ids": [],
         }
     ]
 
