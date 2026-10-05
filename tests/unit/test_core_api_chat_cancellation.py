@@ -354,6 +354,7 @@ class _ProviderCancelProbe:
         max_output_tokens: int | None = None,
         reasoning_mode: str | None = None,
         temperature: float | None = None,
+        cancel_requested: Callable[[], bool] | None = None,
     ) -> Iterator[str]:
         del (
             request_id,
@@ -362,6 +363,7 @@ class _ProviderCancelProbe:
             max_output_tokens,
             reasoning_mode,
             temperature,
+            cancel_requested,
         )
         if False:
             yield ""
