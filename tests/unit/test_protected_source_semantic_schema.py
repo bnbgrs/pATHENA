@@ -5,8 +5,8 @@ from pathlib import Path
 
 from athena.storage.schema import (
     GROUNDED_RESPONSE_RECEIPT_SCHEMA_VERSION,
-    JOB_DEPENDENCY_GRAPH_MIGRATION_ID,
-    JOB_DEPENDENCY_GRAPH_SCHEMA_VERSION,
+    CHAT_PREFERENCES_MIGRATION_ID,
+    CHAT_PREFERENCES_SCHEMA_VERSION,
     OPERATIONAL_ERROR_PHYSICAL_CLEANUP_MIGRATION_ID,
     OPERATIONAL_ERROR_PHYSICAL_CLEANUP_SCHEMA_VERSION,
     PROTECTED_SOURCE_SEMANTIC_SCHEMA_VERSION,
@@ -74,7 +74,7 @@ def test_fresh_database_reaches_protected_source_semantic_schema(
 
         assert GROUNDED_RESPONSE_RECEIPT_SCHEMA_VERSION == 40
         assert STRUCTURED_REPLICATION_SCHEMA_VERSION == 41
-        assert SCHEMA_VERSION == JOB_DEPENDENCY_GRAPH_SCHEMA_VERSION == 42
+        assert SCHEMA_VERSION == CHAT_PREFERENCES_SCHEMA_VERSION == 43
 
         assert int(
             connection.execute(
@@ -98,7 +98,7 @@ def test_fresh_database_reaches_protected_source_semantic_schema(
                     "last_migration_id"
                 ]
             )
-            == JOB_DEPENDENCY_GRAPH_MIGRATION_ID
+            == CHAT_PREFERENCES_MIGRATION_ID
         )
 
         assert int(
@@ -239,7 +239,7 @@ def test_realistic_v38_database_migrates_additively_to_v39(
                     "last_migration_id"
                 ]
             )
-            == JOB_DEPENDENCY_GRAPH_MIGRATION_ID
+            == CHAT_PREFERENCES_MIGRATION_ID
         )
 
         assert (
