@@ -89,6 +89,7 @@ class ChatSummaryResponse(ApiContract):
     archive_mode: str
     lifecycle_state: str
     message_count: int
+    pinned: bool = False
 
 
 @dataclass(frozen=True, slots=True)
