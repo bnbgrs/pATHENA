@@ -6,7 +6,9 @@ import uuid
 from collections.abc import Callable
 from dataclasses import replace
 
-from athena.chat.generation import ChatGenerationResult
+import pytest
+
+from athena.chat.generation import ChatGenerationResult, GenerationCancelledError
 from athena.chat.grounding import GroundingContract
 from athena.chat.models import ChatMessage, ChatThread, MessageType
 from athena.chat.unified_legacy import UnifiedLocalChatService
