@@ -15,10 +15,13 @@ from athena.api.contracts import (
 )
 from athena.api.runtime import LocalApiRuntime
 from athena.api.service import CoreApiFacade
-from athena.chat.grounded_recovery import GroundedRecoveryState, GroundedRecoveryStatus
+from athena.chat.grounded_recovery import (
+    GroundedRecoveryState,
+    GroundedRecoveryStatus,
+)
 from athena.chat.models import ChatMessage, ChatSummary, ChatThread, MessageType
-from athena.chat.unified import UnifiedGroundedRecoveryRequiredError
 from athena.chat.repository import ChatRevisionConflictError, UnsupportedChatForkError
+from athena.chat.unified import UnifiedGroundedRecoveryRequiredError
 from athena.model.domain import ModelInfo, ProviderHealth, ProviderHealthStatus
 from athena.observability.health import HealthService
 from athena.retrieval.universal import (
