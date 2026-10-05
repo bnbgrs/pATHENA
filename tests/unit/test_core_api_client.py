@@ -50,6 +50,36 @@ def _bootstrap(runtime_root: Path, *, port: int = 32123, token: str = "token-one
 def _request_header(request: Any, name: str) -> str | None:
     return request.get_header(name)
 
+def _chat_thread_payload(
+    *,
+    chat_id: str,
+    message_id: str = "22222222-2222-2222-2222-222222222222",
+    revision_id: str = "33333333-3333-3333-3333-333333333333",
+    content: str = "hello",
+) -> dict[str, Any]:
+    return {
+        "chat_id": chat_id,
+        "started_at_us": 10,
+        "ended_at_us": None,
+        "archive_mode": "standard",
+        "lifecycle_state": "active",
+        "messages": [
+            {
+                "message_id": message_id,
+                "chat_id": chat_id,
+                "sequence_no": 1,
+                "message_type": "user",
+                "actor_id": "44444444-4444-4444-4444-444444444444",
+                "created_at_us": 11,
+                "revision_id": revision_id,
+                "content": content,
+                "content_format": "text/plain",
+            }
+        ],
+    }
+
+
+
 
 def test_client_health_reads_discovery_and_authenticates(
     tmp_path: Path,
@@ -141,6 +171,125 @@ def test_client_universal_search_encodes_filters_and_parses_missing_revision(
             ),
         )
     ]
+
+
+def test_client_edits_chat_message_with_exact_revision(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runtime_root = tmp_path / "api"
+    _bootstrap(runtime_root)
+    chat_id = "11111111-1111-1111-1111-111111111111"
+    message_id = "22222222-2222-2222-2222-222222222222"
+    revision_id = "33333333-3333-3333-3333-333333333333"
+    seen: list[tuple[str, str, dict[str, Any]]] = []
+
+    def fake_urlopen(request: Any, timeout: float) -> _Response:
+        del timeout
+        body = json.loads(request.data.decode("utf-8"))
+        seen.append((request.get_method(), request.full_url, body))
+        return _Response(
+            _chat_thread_payload(
+                chat_id=chat_id,
+                message_id=message_id,
+                revision_id="55555555-5555-5555-5555-555555555555",
+                content="revised",
+            )
+        )
+
+    monkeypatch.setattr(client_module, "urlopen", fake_urlopen)
+
+    thread = CoreApiClient(runtime_root).edit_chat_message(
+        chat_id,
+        message_id,
+        expected_revision_id=revision_id,
+        content="revised",
+    )
+
+    assert thread.messages[0].content == "revised"
+    assert seen == [
+        (
+            "PATCH",
+            (
+                "http://127.0.0.1:32123/api/v1/chats/"
+                + chat_id
+                + "/messages/"
+                + message_id
+                + "/edit"
+            ),
+            {
+                "expected_revision_id": revision_id,
+                "content": "revised",
+            },
+        )
+    ]
+
+
+def test_client_forks_chat_from_exact_message_revision(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runtime_root = tmp_path / "api"
+    _bootstrap(runtime_root)
+    chat_id = "11111111-1111-1111-1111-111111111111"
+    message_id = "22222222-2222-2222-2222-222222222222"
+    revision_id = "33333333-3333-3333-3333-333333333333"
+    fork_chat_id = "66666666-6666-6666-6666-666666666666"
+    seen: list[tuple[str, str, dict[str, Any]]] = []
+
+    def fake_urlopen(request: Any, timeout: float) -> _Response:
+        del timeout
+        body = json.loads(request.data.decode("utf-8"))
+        seen.append((request.get_method(), request.full_url, body))
+        return _Response(_chat_thread_payload(chat_id=fork_chat_id))
+
+    monkeypatch.setattr(client_module, "urlopen", fake_urlopen)
+
+    thread = CoreApiClient(runtime_root).fork_chat_from_message(
+        chat_id,
+        message_id,
+        revision_id=revision_id,
+    )
+
+    assert thread.chat_id == fork_chat_id
+    assert seen == [
+        (
+            "POST",
+            (
+                "http://127.0.0.1:32123/api/v1/chats/"
+                + chat_id
+                + "/messages/"
+                + message_id
+                + "/fork"
+            ),
+            {"revision_id": revision_id},
+        )
+    ]
+
+
+def test_client_chat_edit_and_fork_reject_invalid_revision_ids(
+    tmp_path: Path,
+) -> None:
+    runtime_root = tmp_path / "api"
+    _bootstrap(runtime_root)
+    client = CoreApiClient(runtime_root)
+    chat_id = "11111111-1111-1111-1111-111111111111"
+    message_id = "22222222-2222-2222-2222-222222222222"
+
+    with pytest.raises(ValueError, match="Expected message revision"):
+        client.edit_chat_message(
+            chat_id,
+            message_id,
+            expected_revision_id="not-a-uuid",
+            content="revised",
+        )
+
+    with pytest.raises(ValueError, match="Fork message revision"):
+        client.fork_chat_from_message(
+            chat_id,
+            message_id,
+            revision_id="not-a-uuid",
+        )
 
 
 def test_client_posts_chat_cancellation_with_canonical_operation_id(
