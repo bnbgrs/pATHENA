@@ -3,17 +3,24 @@ from __future__ import annotations
 import threading
 import time
 import uuid
-from collections.abc import Callable
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from typing import Any
 
 from athena.api.client import CoreApiClient, CoreApiClientError
 from athena.api.executor import SerializedCoreApiSurface
 from athena.api.server import CoreApiServer
+from athena.api.service import CoreApiFacade
 from athena.chat.cancellation import (
     ChatCancellationRegistry,
     ChatCancellationReservation,
 )
 from athena.chat.generation import GenerationCancelledError
+from athena.model.domain import (
+    ModelChatMessage,
+    ModelInfo,
+    ProviderHealth,
+    ProviderHealthStatus,
+)
 
 _OPERATION_ID = "11111111-2222-4333-8444-555555555555"
 _CHAT_ID = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee"
@@ -305,3 +312,93 @@ def test_threaded_local_http_server_accepts_cancel_while_send_is_blocked(
         assert surface.registry.is_active(uuid.UUID(_OPERATION_ID)) is False
     finally:
         server.stop()
+
+
+class _ProviderCancelProbe:
+    provider_id = "probe"
+
+    def __init__(self) -> None:
+        self.cancelled: list[str] = []
+
+    def health(self) -> ProviderHealth:
+        return ProviderHealth(ProviderHealthStatus.READY)
+
+    def discover_models(self) -> tuple[ModelInfo, ...]:
+        return ()
+
+    def stream_chat(
+        self,
+        *,
+        model_id: str,
+        messages: Sequence[ModelChatMessage],
+        max_output_tokens: int | None = None,
+        reasoning_mode: str | None = None,
+        temperature: float | None = None,
+    ) -> Iterator[str]:
+        del (
+            model_id,
+            messages,
+            max_output_tokens,
+            reasoning_mode,
+            temperature,
+        )
+        if False:
+            yield ""
+
+    def stream_chat_cancellable(
+        self,
+        *,
+        request_id: str,
+        model_id: str,
+        messages: Sequence[ModelChatMessage],
+        max_output_tokens: int | None = None,
+        reasoning_mode: str | None = None,
+        temperature: float | None = None,
+        cancel_requested: Callable[[], bool] | None = None,
+    ) -> Iterator[str]:
+        del (
+            request_id,
+            model_id,
+            messages,
+            max_output_tokens,
+            reasoning_mode,
+            temperature,
+            cancel_requested,
+        )
+        if False:
+            yield ""
+
+    def generate_structured(
+        self,
+        *,
+        model_id: str,
+        messages: Sequence[ModelChatMessage],
+        schema_id: str,
+        json_schema: Mapping[str, Any],
+        max_output_tokens: int | None = None,
+    ) -> Mapping[str, Any]:
+        del model_id, messages, schema_id, json_schema, max_output_tokens
+        return {}
+
+    def cancel_generation(self, request_id: str) -> None:
+        self.cancelled.append(request_id)
+
+
+def test_core_cancel_aborts_provider_only_for_reserved_operation() -> None:
+    provider = _ProviderCancelProbe()
+    facade = CoreApiFacade(
+        health=object(),  # type: ignore[arg-type]
+        chat=object(),  # type: ignore[arg-type]
+        model_provider=provider,
+    )
+
+    reservation = facade.reserve_chat_operation(_OPERATION_ID)
+    assert reservation is not None
+
+    assert facade.cancel_chat_operation(_OPERATION_ID) is True
+    assert provider.cancelled == [_OPERATION_ID]
+
+    facade.release_chat_operation(reservation)
+
+    assert facade.cancel_chat_operation(_OPERATION_ID) is False
+    assert provider.cancelled == [_OPERATION_ID]
