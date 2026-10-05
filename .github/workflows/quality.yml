@@ -418,6 +418,11 @@ jobs:
         continue-on-error: true
         run: uv run --locked --extra dev pytest -q tests/unit/test_chat_context_reserve_contract.py
 
+      - name: Run Windows LM Studio cancellation transport regression
+        id: windows_lmstudio_cancel
+        continue-on-error: true
+        run: uv run --locked --extra dev pytest -q tests/unit/test_lm_studio_transport_cancellation.py
+
       - name: Run Windows Core/API restart smoke
         id: windows_restart_smoke
         continue-on-error: true
@@ -440,6 +445,7 @@ jobs:
           OWNERSHIP_OUTCOME: ${{ steps.windows_ownership.outcome }}
           PACKAGED_RUNTIME_OUTCOME: ${{ steps.windows_packaged_runtime.outcome }}
           CHAT_RESERVE_OUTCOME: ${{ steps.windows_chat_reserve.outcome }}
+          LMSTUDIO_CANCEL_OUTCOME: ${{ steps.windows_lmstudio_cancel.outcome }}
           RESTART_SMOKE_OUTCOME: ${{ steps.windows_restart_smoke.outcome }}
           PYPDF_PACKAGING_OUTCOME: ${{ steps.windows_pypdf_packaging.outcome }}
         run: |
@@ -452,6 +458,7 @@ jobs:
             "Core/API ownership" = $env:OWNERSHIP_OUTCOME
             "Packaged runtime" = $env:PACKAGED_RUNTIME_OUTCOME
             "Adaptive chat reserve" = $env:CHAT_RESERVE_OUTCOME
+            "LM Studio cancellation transport" = $env:LMSTUDIO_CANCEL_OUTCOME
             "Core/API restart smoke" = $env:RESTART_SMOKE_OUTCOME
             "pypdf packaging" = $env:PYPDF_PACKAGING_OUTCOME
           }
