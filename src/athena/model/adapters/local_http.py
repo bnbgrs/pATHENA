@@ -11,7 +11,7 @@ from io import BytesIO
 from numbers import Real
 from threading import Event, Thread
 from time import monotonic
-from typing import Any, Callable, Iterator, TypeVar, cast
+from typing import Any, Callable, Iterator, TypeVar
 from urllib.error import HTTPError
 from urllib.parse import urlsplit
 from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
@@ -396,13 +396,14 @@ def _run_cancellable_io(
     continue consuming a provider stream once the OS releases it.
     """
     completed = Event()
-    state: dict[str, object] = {}
+    values: list[_T] = []
+    errors: list[BaseException] = []
 
     def run() -> None:
         try:
-            state["value"] = operation()
+            values.append(operation())
         except BaseException as exc:
-            state["error"] = exc
+            errors.append(exc)
         finally:
             completed.set()
 
@@ -426,12 +427,11 @@ def _run_cancellable_io(
             "Local model request was cancelled during transport I/O."
         )
 
-    error = state.get("error")
-    if error is not None:
-        raise cast(BaseException, error)
-    if "value" not in state:
+    if errors:
+        raise errors[0]
+    if not values:
         raise OSError("Local model transport operation completed without a result.")
-    return cast(_T, state["value"])
+    return values[0]
 
 
 class _CancellableBoundedLocalResponse(_BoundedLocalResponse):
