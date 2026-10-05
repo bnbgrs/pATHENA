@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import json
 import math
 import uuid
@@ -31,6 +32,7 @@ from athena.api.contracts import (
     GroundedMemoryResponse,
     GroundingResponse,
     HealthResponse,
+    ImageSourceResponse,
     JsonValue,
     KnowledgeMergeReviewResponse,
     KnowledgeReviewResponse,
@@ -371,6 +373,33 @@ class CoreApiClient:
             )
         return thread
 
+    def capture_image_source(
+        self,
+        data: bytes,
+        *,
+        original_name: str,
+        source_uri: str,
+    ) -> ImageSourceResponse:
+        if type(data) is not bytes or not data:
+            raise ValueError("Image capture data must be non-empty immutable bytes.")
+        if len(data) > 12 * 1024 * 1024:
+            raise ValueError("Image capture exceeds the 12 MiB limit.")
+        if not isinstance(original_name, str) or not original_name.strip():
+            raise ValueError("Image capture original_name must be non-empty text.")
+        if not isinstance(source_uri, str) or not source_uri.strip():
+            raise ValueError("Image capture source_uri must be non-empty text.")
+        payload = self._request(
+            "POST",
+            "/api/v1/sources/images",
+            expected_status=201,
+            json_body={
+                "data_base64": base64.b64encode(data).decode("ascii"),
+                "original_name": original_name.strip(),
+                "source_uri": source_uri.strip(),
+            },
+        )
+        return _image_source(payload)
+
     def send_chat_message(
         self,
         chat_id: str,
@@ -382,6 +411,7 @@ class CoreApiClient:
         max_output_tokens: int | None = None,
         temperature: float | None = None,
         thinking_enabled: bool | None = None,
+        image_source_ids: tuple[str, ...] = (),
     ) -> ChatThreadResponse:
         if not chat_id or "/" in chat_id:
             raise ValueError(
@@ -401,6 +431,19 @@ class CoreApiClient:
             raise ValueError(
                 "Chat model_id must be non-empty when provided."
             )
+
+        if len(image_source_ids) > 4:
+            raise ValueError("Chat accepts at most four image Sources.")
+        canonical_image_source_ids: list[str] = []
+        for source_id in image_source_ids:
+            if not isinstance(source_id, str):
+                raise TypeError("Chat image Source IDs must be strings.")
+            try:
+                canonical_image_source_ids.append(str(uuid.UUID(source_id)))
+            except ValueError as exc:
+                raise ValueError("Chat image Source IDs must be valid UUIDs.") from exc
+        if len(set(canonical_image_source_ids)) != len(canonical_image_source_ids):
+            raise ValueError("Chat image Source IDs must be unique.")
 
         canonical_operation_id: str | None = None
 
@@ -464,6 +507,9 @@ class CoreApiClient:
 
         if model_id is not None:
             payload["model_id"] = model_id
+
+        if canonical_image_source_ids:
+            payload["image_source_ids"] = canonical_image_source_ids
 
         if canonical_operation_id is not None:
             payload[
@@ -1914,6 +1960,28 @@ def _deletion_result(payload: dict[str, JsonValue]) -> DeletionResultResponse:
     return result
 
 
+def _image_source(payload: dict[str, JsonValue]) -> ImageSourceResponse:
+    result = ImageSourceResponse(
+        source_id=_required_str(payload, "source_id"),
+        media_type=_required_str(payload, "media_type"),
+        original_name=_required_str(payload, "original_name"),
+        byte_length=_required_int(payload, "byte_length"),
+    )
+    try:
+        uuid.UUID(result.source_id)
+    except ValueError as exc:
+        raise CoreApiClientError(
+            "ATHENA Core returned an invalid image Source ID.",
+            code="invalid_response",
+        ) from exc
+    if result.media_type not in {"image/png", "image/jpeg", "image/gif"}:
+        raise CoreApiClientError(
+            "ATHENA Core returned an unsupported image media type.",
+            code="invalid_response",
+        )
+    return result
+
+
 def _chat_message(payload: dict[str, JsonValue]) -> ChatMessageResponse:
     return ChatMessageResponse(
         message_id=_required_str(payload, "message_id"),
@@ -1925,6 +1993,7 @@ def _chat_message(payload: dict[str, JsonValue]) -> ChatMessageResponse:
         revision_id=_required_str(payload, "revision_id"),
         content=_optional_str(payload, "content"),
         content_format=_optional_str(payload, "content_format"),
+        source_ids=_optional_str_tuple(payload, "source_ids"),
     )
 
 
