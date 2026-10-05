@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import uuid
-from collections.abc import Iterator, Sequence
+from collections.abc import Iterator, Mapping, Sequence
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -22,6 +23,7 @@ from athena.model.domain import (
     ProviderHealth,
     ProviderHealthStatus,
 )
+from athena.model.ports import ProviderGenerationCancelledError
 from athena.model.provenance import ModelRunRepository
 from athena.retrieval.context_package import ContextPackageService
 from athena.storage.database import SQLiteDatabase
@@ -82,6 +84,47 @@ class _Provider:
         self.stream_calls += 1
 
         yield "direct answer"
+
+
+class _TransportCancelledProvider(_Provider):
+    def __init__(self) -> None:
+        super().__init__()
+        self.request_ids: list[str] = []
+
+    def stream_chat_cancellable(
+        self,
+        *,
+        request_id: str,
+        model_id: str,
+        messages: Sequence[ModelChatMessage],
+        max_output_tokens: int | None = None,
+        reasoning_mode: str | None = None,
+        temperature: float | None = None,
+    ) -> Iterator[str]:
+        del messages
+        assert model_id == "primary"
+        assert max_output_tokens == 1000
+        assert reasoning_mode == "off"
+        assert temperature is None
+        self.stream_calls += 1
+        self.request_ids.append(request_id)
+        raise ProviderGenerationCancelledError("transport cancelled")
+        yield ""  # pragma: no cover
+
+    def cancel_generation(self, request_id: str) -> None:
+        del request_id
+
+    def generate_structured(
+        self,
+        *,
+        model_id: str,
+        messages: Sequence[ModelChatMessage],
+        schema_id: str,
+        json_schema: Mapping[str, Any],
+        max_output_tokens: int | None = None,
+    ) -> Mapping[str, Any]:
+        del model_id, messages, schema_id, json_schema, max_output_tokens
+        return {}
 
 
 def _runtime(
@@ -210,6 +253,57 @@ def test_direct_send_operation_persists_stable_turn_ids_and_blocks_reexecution(
             ),
         ]
 
+    finally:
+        database.stop()
+
+
+def test_provider_transport_abort_marks_run_cancelled_and_keeps_user_only(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    database, chat, _provider, service = _runtime(tmp_path)
+    provider = _TransportCancelledProvider()
+    service.chat_generation.provider = provider
+
+    try:
+        chat_id = chat.create_chat()
+        finished_statuses: list[str] = []
+        original_finish = service.model_runs.finish_run
+
+        def finish_run(
+            processing_run_id: uuid.UUID,
+            *,
+            status: str,
+            error_detail: str | None = None,
+        ):
+            finished_statuses.append(status)
+            return original_finish(
+                processing_run_id,
+                status=status,
+                error_detail=error_detail,
+            )
+
+        monkeypatch.setattr(service.model_runs, "finish_run", finish_run)
+
+        with pytest.raises(GenerationCancelledError):
+            service.send_message(
+                chat_id=chat_id,
+                content="cancel while provider transport is blocked",
+                requested_model_id="primary",
+                operation_id=_OPERATION_ID,
+                output_reserve=1000,
+                safety_margin=100,
+                cancel_requested=lambda: False,
+            )
+
+        assert provider.request_ids == [str(_OPERATION_ID)]
+        assert provider.stream_calls == 1
+        assert finished_statuses == ["cancelled"]
+        persisted = chat.load_chat(chat_id).messages
+        assert [message.message_type for message in persisted] == [
+            MessageType.USER,
+        ]
+        assert persisted[0].content == "cancel while provider transport is blocked"
     finally:
         database.stop()
 
