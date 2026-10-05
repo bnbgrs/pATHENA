@@ -110,6 +110,18 @@ def _print_json_field(label: str, raw: str | None) -> None:
     print(f"{label} {json.dumps(value, ensure_ascii=False, sort_keys=True, indent=2)}")
 
 
+def _compact_progress_summary(raw: str | None) -> str:
+    """Render persisted checkpoint progress without inventing percentages."""
+    if not raw:
+        return "-"
+    try:
+        value: Any = json.loads(raw)
+    except json.JSONDecodeError:
+        value = raw
+    rendered = json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")) if not isinstance(value, str) else value
+    return rendered.replace("\t", " ").replace("\n", " ").strip()[:240] or "-"
+
+
 def _print_show(app: AthenaApplication, job_id: uuid.UUID) -> None:
     job = app.jobs.get(job_id)
     print(f"JOB {job.job_id}")
@@ -136,6 +148,8 @@ def _print_show(app: AthenaApplication, job_id: uuid.UUID) -> None:
 
     checkpoints = app.jobs.checkpoints(job_id)
     print(f"CHECKPOINTS {len(checkpoints)}")
+    latest_progress = checkpoints[-1].progress_state_json if checkpoints else None
+    print(f"CURRENT_PROGRESS {_compact_progress_summary(latest_progress)}")
     for checkpoint in checkpoints[-10:]:
         print(
             "CHECKPOINT "
