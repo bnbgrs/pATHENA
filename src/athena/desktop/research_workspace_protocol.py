@@ -64,7 +64,11 @@ class ResearchComparisonReceipt:
 _COMPARISON_MODE = "exact_persisted_text_and_provenance"
 
 
-def _canonical_uuid(value: str, *, field: str) -> str:
+def _canonical_uuid(value: object, *, field: str) -> str:
+    if not isinstance(value, str):
+        raise ResearchWorkspaceProtocolError(
+            f"The Research response has an invalid {field}."
+        )
     try:
         return str(uuid.UUID(value))
     except (ValueError, AttributeError) as exc:
@@ -246,7 +250,7 @@ def parse_research_comparison_receipt(
 
     if not available:
         current_job_id = _canonical_uuid(
-            payload.get("current_job_id"),  # type: ignore[arg-type]
+            payload.get("current_job_id"),
             field="current job ID",
         )
         if current_job_id != expected:
@@ -287,11 +291,11 @@ def parse_research_comparison_receipt(
         )
 
     baseline_job_id = _canonical_uuid(
-        baseline.get("job_id"),  # type: ignore[arg-type]
+        baseline.get("job_id"),
         field="baseline job ID",
     )
     current_job_id = _canonical_uuid(
-        current.get("job_id"),  # type: ignore[arg-type]
+        current.get("job_id"),
         field="current job ID",
     )
     if current_job_id != expected:
@@ -301,7 +305,7 @@ def parse_research_comparison_receipt(
 
     for container, label in ((baseline, "baseline"), (current, "current")):
         _canonical_uuid(
-            container.get("result_id"),  # type: ignore[arg-type]
+            container.get("result_id"),
             field=f"{label} result ID",
         )
         snapshot = container.get("snapshot_commit_seq")
@@ -312,7 +316,7 @@ def parse_research_comparison_receipt(
         model_signature = container.get("model_signature_id")
         if model_signature is not None:
             _canonical_uuid(
-                model_signature,  # type: ignore[arg-type]
+                model_signature,
                 field=f"{label} model signature ID",
             )
         if not isinstance(container.get("summary"), str) or not isinstance(
