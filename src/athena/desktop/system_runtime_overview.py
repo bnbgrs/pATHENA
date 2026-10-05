@@ -91,7 +91,7 @@ def project_system_runtime(snapshot: DesktopApiSnapshot) -> SystemRuntimeOvervie
             "Storage telemetry: "
             + (
                 snapshot.storage_error
-                or "unavailable — the Core storage probe returned no current value."
+                or "unavailable — the desktop API snapshot exposes no storage probe."
             )
         )
     elif snapshot.storage.detail:
