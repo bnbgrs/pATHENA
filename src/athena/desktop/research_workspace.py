@@ -37,7 +37,13 @@ class ResearchWorkspace(QWidget):
 
     def __init__(self, *, settings: QSettings | None = None) -> None:
         super().__init__()
-        self._settings = settings or QSettings("ATHENA", "pATHENA")
+        self._settings = (
+            settings if settings is not None else QSettings("ATHENA", "pATHENA")
+        )
+        self._splitter_persist_timer = QTimer(self)
+        self._splitter_persist_timer.setSingleShot(True)
+        self._splitter_persist_timer.setInterval(180)
+        self._splitter_persist_timer.timeout.connect(self._persist_splitter_state)
         self.setObjectName("researchWorkspace")
         self._operation = ""
         self._operation_job_id: str | None = None
@@ -139,7 +145,7 @@ class ResearchWorkspace(QWidget):
         layout.addWidget(self.splitter, 1)
 
         self._restore_splitter_state()
-        self.splitter.splitterMoved.connect(self._persist_splitter_state)
+        self.splitter.splitterMoved.connect(self._schedule_splitter_persist)
         QTimer.singleShot(0, self.refresh)
 
     def _restore_splitter_state(self) -> None:
@@ -147,7 +153,10 @@ class ResearchWorkspace(QWidget):
         if isinstance(state, QByteArray) and not state.isEmpty():
             self.splitter.restoreState(state)
 
-    def _persist_splitter_state(self, *_args: object) -> None:
+    def _schedule_splitter_persist(self, *_args: object) -> None:
+        self._splitter_persist_timer.start()
+
+    def _persist_splitter_state(self) -> None:
         self._settings.setValue(
             _SPLITTER_SETTINGS_KEY,
             self.splitter.saveState(),
