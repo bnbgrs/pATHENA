@@ -124,7 +124,9 @@ _APPLICATION_INSTANCE: QApplication | None = None
 
 
 def _apply_application_presentation(app: QApplication) -> None:
-    """Apply the canonical V3 identity even when Qt reuses an application."""
+    """Apply the canonical V3 identity and retain the Qt application owner."""
+    global _APPLICATION_INSTANCE
+    _APPLICATION_INSTANCE = app
     app.setApplicationName("ATHENA")
     app.setOrganizationName("ATHENA")
     app.setApplicationDisplayName("pATHENA")
@@ -138,7 +140,6 @@ def create_application(argv: Sequence[str] | None = None) -> QApplication:
 
     existing = QApplication.instance()
     if isinstance(existing, QApplication):
-        _APPLICATION_INSTANCE = existing
         _apply_application_presentation(existing)
         return existing
     if existing is not None:
@@ -146,7 +147,6 @@ def create_application(argv: Sequence[str] | None = None) -> QApplication:
 
     arguments = list(argv) if argv is not None else list(sys.argv)
     app = QApplication(arguments)
-    _APPLICATION_INSTANCE = app
     _apply_application_presentation(app)
     return app
 
