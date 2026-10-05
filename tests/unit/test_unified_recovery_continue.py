@@ -14,7 +14,6 @@ from athena.chat.unified import (
     UnifiedLocalChatService,
 )
 
-
 unified_module = importlib.import_module("athena.chat.unified")
 
 _CHAT_ID = uuid.UUID("11111111-1111-4111-8111-111111111111")
