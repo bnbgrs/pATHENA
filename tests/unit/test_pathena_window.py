@@ -14,7 +14,6 @@ from athena.api.contracts import (
     GroundedEvidenceResponse,
     GroundingResponse,
 )
-
 from athena.desktop import window as window_module
 from athena.desktop.app import create_application
 from athena.desktop.pathena_design_tokens import PALETTE, SHELL

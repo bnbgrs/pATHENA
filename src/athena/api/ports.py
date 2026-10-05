@@ -51,6 +51,13 @@ class CoreDomainSurface(Protocol):
         offset: int = 0,
     ) -> tuple[ChatSummaryResponse, ...]: ...
 
+    def set_chat_pinned(
+        self,
+        chat_id: str,
+        *,
+        pinned: bool,
+    ) -> ChatSummaryResponse: ...
+
     def create_chat(
         self,
         chat_id: str | None = None,

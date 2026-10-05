@@ -248,6 +248,19 @@ class SerializedCoreApiSurface:
             lambda: self._surface.list_chats(limit=limit, offset=offset)
         )
 
+    def set_chat_pinned(
+        self,
+        chat_id: str,
+        *,
+        pinned: bool,
+    ) -> ChatSummaryResponse:
+        return self._executor.call(
+            lambda: self._surface.set_chat_pinned(
+                chat_id,
+                pinned=pinned,
+            )
+        )
+
     def create_chat(self, chat_id: str | None = None) -> ChatThreadResponse:
         if chat_id is None:
             return self._executor.call(self._surface.create_chat)

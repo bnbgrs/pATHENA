@@ -481,7 +481,7 @@ def open_cancellable_local_request(
     *,
     timeout: float,
     cancel_requested: Callable[[], bool],
-    poll_seconds: float = 0.05,
+    poll_seconds: float | int = 0.05,
 ) -> Iterator[_BoundedLocalResponse]:
     """Open a loopback request whose blocking socket I/O can be interrupted."""
     if not isinstance(request, Request):
@@ -490,7 +490,6 @@ def open_cancellable_local_request(
         raise TypeError("Local model cancellation predicate must be callable.")
     if (
         isinstance(poll_seconds, bool)
-        or not isinstance(poll_seconds, Real)
         or not math.isfinite(float(poll_seconds))
         or float(poll_seconds) <= 0
     ):

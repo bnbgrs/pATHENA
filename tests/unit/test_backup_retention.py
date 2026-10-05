@@ -23,7 +23,7 @@ from athena.config.settings import AthenaSettings
 from athena.core.application import AthenaApplication
 from athena.storage.database import SQLiteDatabase
 from athena.storage.schema import (
-    JOB_DEPENDENCY_GRAPH_MIGRATION_ID,
+    CHAT_PREFERENCES_MIGRATION_ID,
     SCHEMA_VERSION,
     SOURCE_PROTECTION_TRANSITION_MIGRATION_ID,
     SOURCE_PROTECTION_TRANSITION_SCHEMA_VERSION,
@@ -174,7 +174,7 @@ def test_v34_to_v35_adds_backup_retention_schema(
             SCHEMA_VERSION
         )
         assert str(metadata[1]) == (
-            JOB_DEPENDENCY_GRAPH_MIGRATION_ID
+            CHAT_PREFERENCES_MIGRATION_ID
         )
         assert int(metadata[2]) == (
             SCHEMA_VERSION

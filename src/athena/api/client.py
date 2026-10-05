@@ -271,6 +271,30 @@ class CoreApiClient:
             )
         )
 
+    def set_chat_pinned(
+        self,
+        chat_id: str,
+        *,
+        pinned: bool,
+    ) -> ChatSummaryResponse:
+        _require_path_segment(chat_id, label="Chat ID")
+        if not isinstance(pinned, bool):
+            raise TypeError("Chat pinned state must be bool.")
+        response = _chat_summary(
+            self._request(
+                "PUT",
+                f"/api/v1/chats/{chat_id}/pin",
+                expected_status=200,
+                json_body={"pinned": pinned},
+            )
+        )
+        if response.chat_id != chat_id or response.pinned is not pinned:
+            raise CoreApiClientError(
+                "ATHENA Core returned inconsistent chat favorite state.",
+                code="invalid_response",
+            )
+        return response
+
     def load_chat(self, chat_id: str) -> ChatThreadResponse:
         if not chat_id or "/" in chat_id:
             raise ValueError("Chat ID must be a single non-empty path segment.")
@@ -1380,6 +1404,11 @@ def _chat_summary(payload: dict[str, JsonValue]) -> ChatSummaryResponse:
         archive_mode=_required_str(payload, "archive_mode"),
         lifecycle_state=_required_str(payload, "lifecycle_state"),
         message_count=_required_int(payload, "message_count"),
+        pinned=(
+            _required_bool(payload, "pinned")
+            if "pinned" in payload
+            else False
+        ),
     )
 
 

@@ -23,8 +23,9 @@ from athena.jobs.models import JobPriority, JobRecord, JobState, WaitingReason
 from athena.jobs.repository import JobNotFoundError
 from athena.storage.database import SQLiteDatabase
 from athena.storage.schema_contract import (
-    JOB_DEPENDENCY_GRAPH_MIGRATION_ID,
-    JOB_DEPENDENCY_GRAPH_SCHEMA_VERSION,
+    CHAT_PREFERENCES_MIGRATION_ID,
+    CHAT_PREFERENCES_SCHEMA_VERSION,
+    SCHEMA_VERSION,
     STRUCTURED_REPLICATION_MIGRATION_ID,
     STRUCTURED_REPLICATION_SCHEMA_VERSION,
     DatabaseCompatibilityError,
@@ -80,7 +81,7 @@ def test_schema_v42_contains_durable_job_graph_tables(tmp_path: Path) -> None:
     connection = app.database.connection
 
     assert int(connection.execute("PRAGMA user_version").fetchone()[0]) == (
-        JOB_DEPENDENCY_GRAPH_SCHEMA_VERSION
+        SCHEMA_VERSION
     )
     tables = {
         str(row[0])
@@ -130,9 +131,9 @@ def test_v42_migration_restarts_from_compatible_existing_graph_tables(
         ).fetchone()
         assert metadata is not None
         assert tuple(metadata) == (
-            JOB_DEPENDENCY_GRAPH_SCHEMA_VERSION,
-            JOB_DEPENDENCY_GRAPH_MIGRATION_ID,
-            JOB_DEPENDENCY_GRAPH_SCHEMA_VERSION,
+            CHAT_PREFERENCES_SCHEMA_VERSION,
+            CHAT_PREFERENCES_MIGRATION_ID,
+            CHAT_PREFERENCES_SCHEMA_VERSION,
         )
     finally:
         restarted.stop()

@@ -980,6 +980,40 @@ class ChatRepository:
             state=state,
         )
 
+    def set_chat_pinned(
+        self,
+        *,
+        chat_id: uuid.UUID,
+        actor_id: uuid.UUID,
+        pinned: bool,
+    ) -> None:
+        """Persist one local-user conversation favorite without touching Knowledge."""
+        if not isinstance(pinned, bool):
+            raise TypeError("Chat pinned state must be bool.")
+
+        with self.database.write_transaction() as connection:
+            self._require_standard_chat(connection, chat_id)
+            connection.execute(
+                """
+                INSERT INTO chat_preferences (
+                    chat_id,
+                    pinned,
+                    updated_at_us,
+                    updated_by_actor_id
+                ) VALUES (?, ?, ?, ?)
+                ON CONFLICT(chat_id) DO UPDATE SET
+                    pinned = excluded.pinned,
+                    updated_at_us = excluded.updated_at_us,
+                    updated_by_actor_id = excluded.updated_by_actor_id
+                """,
+                (
+                    uuid_to_blob(chat_id),
+                    1 if pinned else 0,
+                    utc_now_us(),
+                    uuid_to_blob(actor_id),
+                ),
+            )
+
     def list_chats(
         self,
         *,
@@ -999,18 +1033,24 @@ class ChatRepository:
                 c.ended_at_us,
                 c.archive_mode,
                 c.lifecycle_state,
+                COALESCE(p.pinned, 0) AS pinned,
                 COUNT(m.message_id) AS message_count
             FROM chats AS c
             LEFT JOIN chat_messages AS m
               ON m.chat_id = c.chat_id
+            LEFT JOIN chat_preferences AS p
+              ON p.chat_id = c.chat_id
             WHERE c.lifecycle_state != 'deleted'
             GROUP BY
                 c.chat_id,
                 c.started_at_us,
                 c.ended_at_us,
                 c.archive_mode,
-                c.lifecycle_state
-            ORDER BY c.started_at_us DESC, c.chat_id DESC
+                c.lifecycle_state,
+                p.pinned
+            ORDER BY COALESCE(p.pinned, 0) DESC,
+                     c.started_at_us DESC,
+                     c.chat_id DESC
             LIMIT ? OFFSET ?
             """,
             (limit, offset),
@@ -1026,6 +1066,7 @@ class ChatRepository:
                 archive_mode=str(row["archive_mode"]),
                 lifecycle_state=str(row["lifecycle_state"]),
                 message_count=int(row["message_count"]),
+                pinned=bool(int(row["pinned"])),
             )
             for row in rows
         )

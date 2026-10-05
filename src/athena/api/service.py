@@ -275,6 +275,7 @@ class CoreApiFacade:
         "chat.create",
         "chat.edit.user_message",
         "chat.fork",
+        "chat.pin",
         "chat.recovery.read",
         "chat.recovery.continue",
         "models.read",
@@ -564,6 +565,29 @@ class CoreApiFacade:
                 offset=offset,
             )
         )
+
+    def set_chat_pinned(
+        self,
+        chat_id: str,
+        *,
+        pinned: bool,
+    ) -> ChatSummaryResponse:
+        parsed_chat_id = uuid.UUID(chat_id)
+        self._chat.set_chat_pinned(
+            chat_id=parsed_chat_id,
+            pinned=pinned,
+        )
+        summary = next(
+            (
+                item
+                for item in self._chat.list_chats(limit=500)
+                if item.chat_id == parsed_chat_id
+            ),
+            None,
+        )
+        if summary is None:
+            raise RuntimeError("Pinned chat disappeared from the canonical chat list.")
+        return _chat_summary(summary)
 
     def create_chat(
         self,
@@ -1479,6 +1503,7 @@ def _chat_summary(summary: ChatSummary) -> ChatSummaryResponse:
         archive_mode=summary.archive_mode,
         lifecycle_state=summary.lifecycle_state,
         message_count=summary.message_count,
+        pinned=summary.pinned,
     )
 
 

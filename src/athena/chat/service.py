@@ -183,6 +183,19 @@ class ChatService:
     def load_chat(self, chat_id: uuid.UUID) -> ChatThread:
         return self.repository.load_chat(chat_id)
 
+    def set_chat_pinned(
+        self,
+        *,
+        chat_id: uuid.UUID,
+        pinned: bool,
+    ) -> None:
+        """Persist a local-user favorite flag for one canonical chat."""
+        self.repository.set_chat_pinned(
+            chat_id=chat_id,
+            actor_id=self.ensure_local_user(),
+            pinned=pinned,
+        )
+
     def list_chats(
         self,
         *,

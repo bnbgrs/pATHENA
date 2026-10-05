@@ -23,6 +23,7 @@ class _Cursor:
                 "archive_mode": "standard",
                 "lifecycle_state": "active",
                 "message_count": 4,
+                "pinned": 1,
             }
         ]
 
@@ -69,6 +70,7 @@ def test_repository_list_chats_applies_limit_and_offset() -> None:
     assert len(result) == 1
     assert result[0].chat_id == CHAT_ID
     assert result[0].message_count == 4
+    assert result[0].pinned is True
 
     assert database.connection.sql is not None
 
@@ -77,6 +79,8 @@ def test_repository_list_chats_applies_limit_and_offset() -> None:
     )
 
     assert "LIMIT ? OFFSET ?" in normalized_sql
+    assert "chat_preferences" in normalized_sql
+    assert "COALESCE(p.pinned, 0) DESC" in normalized_sql
 
     assert database.connection.parameters == (
         25,
