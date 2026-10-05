@@ -23,6 +23,7 @@ from PySide6.QtWidgets import (
     QDoubleSpinBox,
     QFrame,
     QHBoxLayout,
+    QInputDialog,
     QLabel,
     QListWidget,
     QListWidgetItem,
@@ -1964,6 +1965,10 @@ class AthenaMainWindow(QMainWindow):
             if operation in {"preview_delete", "delete"}
             else "Remember"
             if operation == "remember"
+            else "Message edit"
+            if operation == "edit"
+            else "Chat fork"
+            if operation == "fork"
             else "Chat loading"
             if operation == "load"
             else "Knowledge extraction"
@@ -1979,10 +1984,13 @@ class AthenaMainWindow(QMainWindow):
         retry_note = (
             " ATHENA did not retry the mutation DELETE automatically."
             if operation == "delete"
+            else " ATHENA did not retry the mutation PATCH automatically."
+            if operation == "edit"
             else " ATHENA did not retry the mutation POST automatically."
             if operation in {
                 "send",
                 "send_grounded",
+                "fork",
                 "remember",
                 "extract_knowledge",
                 "prepare_knowledge_review",
@@ -2304,6 +2312,20 @@ class AthenaMainWindow(QMainWindow):
             "addKnowledgeButton",
         ):
             button.setEnabled(controls_available and self._core_ready)
+        for button in self.chat_messages_widget.findChildren(
+            QPushButton,
+            "editMessageButton",
+        ):
+            button.setEnabled(
+                controls_available
+                and self._core_ready
+                and button.property("messageRole") == "user"
+            )
+        for button in self.chat_messages_widget.findChildren(
+            QPushButton,
+            "forkMessageButton",
+        ):
+            button.setEnabled(controls_available and self._core_ready)
         for button in self.knowledge_review_panel.findChildren(
             QPushButton,
             "knowledgeMergeButton",
@@ -2495,8 +2517,47 @@ class AthenaMainWindow(QMainWindow):
             )
         )
 
+        edit_button: QPushButton | None = None
+        if role == "user":
+            edit_button = QPushButton("EDIT")
+            edit_button.setObjectName("editMessageButton")
+            edit_button.setProperty("messageId", message_id)
+            edit_button.setProperty("messageRevisionId", revision_id)
+            edit_button.setProperty("messageSequence", sequence_no)
+            edit_button.setProperty("messageRole", role)
+            edit_button.setAccessibleName("Edit message")
+            edit_button.setToolTip(
+                "Create a new immutable revision of this persisted user message"
+            )
+            edit_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+            edit_button.clicked.connect(
+                lambda _checked=False, mid=message_id, rid=revision_id, text=copy_text: (
+                    self._edit_message(mid, rid, text)
+                )
+            )
+
+        fork_button = QPushButton("NEW CHAT FROM HERE")
+        fork_button.setObjectName("forkMessageButton")
+        fork_button.setProperty("messageId", message_id)
+        fork_button.setProperty("messageRevisionId", revision_id)
+        fork_button.setProperty("messageSequence", sequence_no)
+        fork_button.setProperty("messageRole", role)
+        fork_button.setAccessibleName("New chat from here")
+        fork_button.setToolTip(
+            "Create a durable fork from this exact persisted message revision"
+        )
+        fork_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        fork_button.clicked.connect(
+            lambda _checked=False, mid=message_id, rid=revision_id: (
+                self._fork_chat_from_message(mid, rid)
+            )
+        )
+
         header.addWidget(meta)
         header.addStretch(1)
+        if edit_button is not None:
+            header.addWidget(edit_button)
+        header.addWidget(fork_button)
         header.addWidget(remember_button)
         header.addWidget(knowledge_button)
         header.addWidget(copy_button)
@@ -2513,6 +2574,63 @@ class AthenaMainWindow(QMainWindow):
         layout.addWidget(body)
         layout.addWidget(_rule())
         return container
+
+    def _edit_message(
+        self,
+        message_id: str,
+        revision_id: str,
+        current_content: str,
+    ) -> None:
+        controller = self.api_controller
+        chat_id = self.current_chat_id
+        if (
+            controller is None
+            or chat_id is None
+            or self._chat_busy
+            or self.pending_chat_id is not None
+            or not self._core_ready
+        ):
+            return
+
+        replacement, accepted = QInputDialog.getMultiLineText(
+            self,
+            "Edit message",
+            "Create a new revision of this user message:",
+            current_content,
+        )
+        if not accepted:
+            return
+        if not replacement.strip() or replacement == current_content:
+            return
+
+        controller.edit_message(
+            chat_id=chat_id,
+            message_id=message_id,
+            revision_id=revision_id,
+            content=replacement,
+        )
+
+    def _fork_chat_from_message(
+        self,
+        message_id: str,
+        revision_id: str,
+    ) -> None:
+        controller = self.api_controller
+        chat_id = self.current_chat_id
+        if (
+            controller is None
+            or chat_id is None
+            or self._chat_busy
+            or self.pending_chat_id is not None
+            or not self._core_ready
+        ):
+            return
+
+        controller.fork_chat_from_message(
+            chat_id=chat_id,
+            message_id=message_id,
+            revision_id=revision_id,
+        )
 
     def _remember_message(self, message_id: str, revision_id: str) -> None:
         controller = self.api_controller

@@ -120,10 +120,13 @@ from athena.desktop.universal_switcher import install_universal_search_switcher
 
 _INITIAL_CORE_REFRESH_DELAYS_MS = (250, 750, 1_500, 3_000, 5_000, 10_000, 20_000)
 _CORE_REFRESH_HEARTBEAT_MS = 30_000
+_APPLICATION_INSTANCE: QApplication | None = None
 
 
 def _apply_application_presentation(app: QApplication) -> None:
-    """Apply the canonical V3 identity even when Qt reuses an application."""
+    """Apply the canonical V3 identity and retain the Qt application owner."""
+    global _APPLICATION_INSTANCE
+    _APPLICATION_INSTANCE = app
     app.setApplicationName("ATHENA")
     app.setOrganizationName("ATHENA")
     app.setApplicationDisplayName("pATHENA")
@@ -132,7 +135,9 @@ def _apply_application_presentation(app: QApplication) -> None:
 
 
 def create_application(argv: Sequence[str] | None = None) -> QApplication:
-    """Create or reuse the Qt application and apply pATHENA's visual system."""
+    """Create or reuse the Qt application and keep its Python owner alive."""
+    global _APPLICATION_INSTANCE
+
     existing = QApplication.instance()
     if isinstance(existing, QApplication):
         _apply_application_presentation(existing)

@@ -38,6 +38,16 @@ _ACTIONS: tuple[MessageActionSpec, ...] = (
         "Add message to Knowledge",
         "Extract Knowledge proposals from this exact persisted message for review.",
     ),
+    MessageActionSpec(
+        "editMessageButton",
+        "Edit message",
+        "Create a new immutable revision of this persisted user message.",
+    ),
+    MessageActionSpec(
+        "forkMessageButton",
+        "New chat from here",
+        "Create a durable fork from this exact persisted message revision.",
+    ),
 )
 
 _FOCUS_STYLE = """

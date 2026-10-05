@@ -6,16 +6,15 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtWidgets import QApplication, QFrame, QLabel, QPushButton, QWidget
 
+from athena.desktop import window as window_module
+from athena.desktop.app import create_application
 from athena.desktop.pathena_design_tokens import PALETTE, SHELL
 from athena.desktop.pathena_v3_theme import V3_COMPOSER_ACTION_SIZE
 from athena.desktop.pathena_window import PathenaMainWindow
 
 
 def _app() -> QApplication:
-    app = QApplication.instance()
-    if isinstance(app, QApplication):
-        return app
-    return QApplication([])
+    return create_application(["pathena-window-test"])
 
 
 def _assert_inspector_width(inspector: QFrame) -> None:
@@ -241,5 +240,108 @@ def test_reference_composer_exposes_stop_only_for_real_direct_send() -> None:
 
         assert window.send_button.text() == "→"
         assert window.send_button.accessibleName() == "Send message"
+    finally:
+        window.close()
+
+
+class _EditForkControllerStub:
+    def __init__(self) -> None:
+        self.edit_calls: list[tuple[str, str, str, str]] = []
+        self.fork_calls: list[tuple[str, str, str]] = []
+
+    def edit_message(
+        self,
+        *,
+        chat_id: str,
+        message_id: str,
+        revision_id: str,
+        content: str,
+    ) -> None:
+        self.edit_calls.append((chat_id, message_id, revision_id, content))
+
+    def fork_chat_from_message(
+        self,
+        *,
+        chat_id: str,
+        message_id: str,
+        revision_id: str,
+    ) -> None:
+        self.fork_calls.append((chat_id, message_id, revision_id))
+
+
+def test_message_actions_expose_real_edit_and_fork_controls(
+    monkeypatch,
+) -> None:
+    app = _app()
+    window = PathenaMainWindow()
+    controller = _EditForkControllerStub()
+    chat_id = "11111111-1111-1111-1111-111111111111"
+    message_id = "22222222-2222-2222-2222-222222222222"
+    revision_id = "33333333-3333-3333-3333-333333333333"
+
+    try:
+        window.api_controller = controller  # type: ignore[assignment]
+        window.current_chat_id = chat_id
+        window.pending_chat_id = None
+        window._chat_busy = False
+        window._core_ready = True
+        monkeypatch.setattr(
+            window_module.QInputDialog,
+            "getMultiLineText",
+            staticmethod(
+                lambda *args, **kwargs: ("revised persisted text", True)
+            ),
+        )
+
+        user_message = window._message_widget(
+            role="user",
+            content="original persisted text",
+            created_at_us=1,
+            sequence_no=1,
+            message_id=message_id,
+            revision_id=revision_id,
+        )
+        edit_button = user_message.findChild(QPushButton, "editMessageButton")
+        fork_button = user_message.findChild(QPushButton, "forkMessageButton")
+
+        assert edit_button is not None
+        assert edit_button.text() == "Edit"
+        assert edit_button.accessibleName() == "Edit message"
+        assert fork_button is not None
+        assert fork_button.text() == "New chat"
+        assert fork_button.accessibleName() == "New chat from here"
+
+        edit_button.click()
+        fork_button.click()
+        app.processEvents()
+
+        assert controller.edit_calls == [
+            (
+                chat_id,
+                message_id,
+                revision_id,
+                "revised persisted text",
+            )
+        ]
+        assert controller.fork_calls == [
+            (chat_id, message_id, revision_id)
+        ]
+
+        assistant_message = window._message_widget(
+            role="assistant",
+            content="answer",
+            created_at_us=2,
+            sequence_no=2,
+            message_id="44444444-4444-4444-4444-444444444444",
+            revision_id="55555555-5555-5555-5555-555555555555",
+        )
+        assert (
+            assistant_message.findChild(QPushButton, "editMessageButton")
+            is None
+        )
+        assert (
+            assistant_message.findChild(QPushButton, "forkMessageButton")
+            is not None
+        )
     finally:
         window.close()

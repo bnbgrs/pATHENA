@@ -626,6 +626,12 @@ class PathenaMainWindow(AthenaMainWindow):
         knowledge_button = container.findChild(QPushButton, "addKnowledgeButton")
         if knowledge_button is not None:
             knowledge_button.setText("Add to knowledge")
+        edit_button = container.findChild(QPushButton, "editMessageButton")
+        if edit_button is not None:
+            edit_button.setText("Edit")
+        fork_button = container.findChild(QPushButton, "forkMessageButton")
+        if fork_button is not None:
+            fork_button.setText("New chat")
         return container
 
     def _sync_message_action_buttons(self) -> None:
@@ -634,6 +640,10 @@ class PathenaMainWindow(AthenaMainWindow):
             button.setText("Remembered" if button.text() == "REMEMBERED" else "Remember")
         for button in self.chat_messages_widget.findChildren(QPushButton, "addKnowledgeButton"):
             button.setText("Add to knowledge")
+        for button in self.chat_messages_widget.findChildren(QPushButton, "editMessageButton"):
+            button.setText("Edit")
+        for button in self.chat_messages_widget.findChildren(QPushButton, "forkMessageButton"):
+            button.setText("New chat")
         self._humanize_knowledge_review_panel()
 
     def _update_ready_state(self) -> None:
