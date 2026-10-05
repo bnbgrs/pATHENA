@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import math
 import uuid
 from dataclasses import dataclass
@@ -38,6 +39,29 @@ class ResearchJobListEntry:
 class ResearchCancelReceipt:
     job_id: str
     state: str
+
+
+@dataclass(frozen=True, slots=True)
+class ResearchComparisonReceipt:
+    available: bool
+    comparison_mode: str
+    current_job_id: str
+    baseline_job_id: str | None
+    query: str
+    baseline_coverage: float | None
+    current_coverage: float | None
+    summary_changed: bool
+    uncertainty_changed: bool
+    model_signature_changed: bool
+    added_findings: tuple[str, ...]
+    removed_findings: tuple[str, ...]
+    added_contradictions: tuple[str, ...]
+    removed_contradictions: tuple[str, ...]
+    added_source_ids: tuple[str, ...]
+    removed_source_ids: tuple[str, ...]
+
+
+_COMPARISON_MODE = "exact_persisted_text_and_provenance"
 
 
 def _canonical_uuid(value: str, *, field: str) -> str:
@@ -150,3 +174,210 @@ def parse_research_cancel_receipt(
             "The Research cancellation response returned an unexpected state."
         )
     return ResearchCancelReceipt(job_id=job_id, state=state)
+
+def _comparison_string_list(
+    value: object,
+    *,
+    field: str,
+    uuid_items: bool = False,
+) -> tuple[str, ...]:
+    if not isinstance(value, list):
+        raise ResearchWorkspaceProtocolError(
+            f"The Research comparison response has invalid {field}."
+        )
+    items: list[str] = []
+    for item in value:
+        if not isinstance(item, str):
+            raise ResearchWorkspaceProtocolError(
+                f"The Research comparison response has invalid {field}."
+            )
+        if uuid_items:
+            item = _canonical_uuid(item, field=field)
+        items.append(item)
+    return tuple(items)
+
+
+def _comparison_coverage(value: object, *, field: str) -> float:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ResearchWorkspaceProtocolError(
+            f"The Research comparison response has invalid {field}."
+        )
+    coverage = float(value)
+    if not math.isfinite(coverage) or not 0.0 <= coverage <= 1.0:
+        raise ResearchWorkspaceProtocolError(
+            f"The Research comparison response has invalid {field}."
+        )
+    return coverage
+
+
+def parse_research_comparison_receipt(
+    output: str,
+    *,
+    expected_job_id: str,
+) -> ResearchComparisonReceipt:
+    """Validate one exact persisted Research comparison response."""
+    lines = [line.strip() for line in output.splitlines() if line.strip()]
+    if len(lines) != 1 or not lines[0].startswith("RESEARCH_COMPARE "):
+        raise ResearchWorkspaceProtocolError(
+            "The Research comparison response could not be verified."
+        )
+    try:
+        payload = json.loads(lines[0][len("RESEARCH_COMPARE ") :])
+    except json.JSONDecodeError as exc:
+        raise ResearchWorkspaceProtocolError(
+            "The Research comparison response is not valid JSON."
+        ) from exc
+    if not isinstance(payload, dict):
+        raise ResearchWorkspaceProtocolError(
+            "The Research comparison response must be an object."
+        )
+
+    available = payload.get("available")
+    if not isinstance(available, bool):
+        raise ResearchWorkspaceProtocolError(
+            "The Research comparison response has invalid availability."
+        )
+    mode = payload.get("comparison_mode")
+    if mode != _COMPARISON_MODE:
+        raise ResearchWorkspaceProtocolError(
+            "The Research comparison response has an unexpected comparison mode."
+        )
+    expected = _canonical_uuid(expected_job_id, field="requested job ID")
+
+    if not available:
+        current_job_id = _canonical_uuid(
+            payload.get("current_job_id"),  # type: ignore[arg-type]
+            field="current job ID",
+        )
+        if current_job_id != expected:
+            raise ResearchWorkspaceProtocolError(
+                "The Research comparison response belongs to another run."
+            )
+        return ResearchComparisonReceipt(
+            available=False,
+            comparison_mode=mode,
+            current_job_id=current_job_id,
+            baseline_job_id=None,
+            query="",
+            baseline_coverage=None,
+            current_coverage=None,
+            summary_changed=False,
+            uncertainty_changed=False,
+            model_signature_changed=False,
+            added_findings=(),
+            removed_findings=(),
+            added_contradictions=(),
+            removed_contradictions=(),
+            added_source_ids=(),
+            removed_source_ids=(),
+        )
+
+    baseline = payload.get("baseline")
+    current = payload.get("current")
+    changes = payload.get("changes")
+    query = payload.get("query")
+    if (
+        not isinstance(baseline, dict)
+        or not isinstance(current, dict)
+        or not isinstance(changes, dict)
+        or not isinstance(query, str)
+    ):
+        raise ResearchWorkspaceProtocolError(
+            "The Research comparison response is missing persisted comparison fields."
+        )
+
+    baseline_job_id = _canonical_uuid(
+        baseline.get("job_id"),  # type: ignore[arg-type]
+        field="baseline job ID",
+    )
+    current_job_id = _canonical_uuid(
+        current.get("job_id"),  # type: ignore[arg-type]
+        field="current job ID",
+    )
+    if current_job_id != expected:
+        raise ResearchWorkspaceProtocolError(
+            "The Research comparison response belongs to another run."
+        )
+
+    for container, label in ((baseline, "baseline"), (current, "current")):
+        _canonical_uuid(
+            container.get("result_id"),  # type: ignore[arg-type]
+            field=f"{label} result ID",
+        )
+        snapshot = container.get("snapshot_commit_seq")
+        if isinstance(snapshot, bool) or not isinstance(snapshot, int) or snapshot < 0:
+            raise ResearchWorkspaceProtocolError(
+                f"The Research comparison response has invalid {label} snapshot."
+            )
+        model_signature = container.get("model_signature_id")
+        if model_signature is not None:
+            _canonical_uuid(
+                model_signature,  # type: ignore[arg-type]
+                field=f"{label} model signature ID",
+            )
+        if not isinstance(container.get("summary"), str) or not isinstance(
+            container.get("uncertainty"),
+            str,
+        ):
+            raise ResearchWorkspaceProtocolError(
+                f"The Research comparison response has invalid {label} text."
+            )
+
+    flags: dict[str, bool] = {}
+    for field in (
+        "summary_changed",
+        "uncertainty_changed",
+        "model_signature_changed",
+    ):
+        value = changes.get(field)
+        if not isinstance(value, bool):
+            raise ResearchWorkspaceProtocolError(
+                f"The Research comparison response has invalid {field}."
+            )
+        flags[field] = value
+
+    return ResearchComparisonReceipt(
+        available=True,
+        comparison_mode=mode,
+        current_job_id=current_job_id,
+        baseline_job_id=baseline_job_id,
+        query=query,
+        baseline_coverage=_comparison_coverage(
+            baseline.get("coverage_ratio"),
+            field="baseline coverage",
+        ),
+        current_coverage=_comparison_coverage(
+            current.get("coverage_ratio"),
+            field="current coverage",
+        ),
+        summary_changed=flags["summary_changed"],
+        uncertainty_changed=flags["uncertainty_changed"],
+        model_signature_changed=flags["model_signature_changed"],
+        added_findings=_comparison_string_list(
+            changes.get("added_findings"),
+            field="added findings",
+        ),
+        removed_findings=_comparison_string_list(
+            changes.get("removed_findings"),
+            field="removed findings",
+        ),
+        added_contradictions=_comparison_string_list(
+            changes.get("added_contradictions"),
+            field="added contradictions",
+        ),
+        removed_contradictions=_comparison_string_list(
+            changes.get("removed_contradictions"),
+            field="removed contradictions",
+        ),
+        added_source_ids=_comparison_string_list(
+            changes.get("added_source_ids"),
+            field="added source IDs",
+            uuid_items=True,
+        ),
+        removed_source_ids=_comparison_string_list(
+            changes.get("removed_source_ids"),
+            field="removed source IDs",
+            uuid_items=True,
+        ),
+    )
+
