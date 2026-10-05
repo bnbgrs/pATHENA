@@ -9,6 +9,7 @@ from athena.api.asgi import CoreApiAsgiApp
 from athena.api.runtime import LocalApiRuntime
 from athena.api.service import CoreApiFacade
 from athena.chat.models import ChatMessage, ChatSummary, ChatThread, MessageType
+from athena.chat.repository import ChatRevisionConflictError, UnsupportedChatForkError
 from athena.model.domain import ModelInfo, ProviderHealth, ProviderHealthStatus
 from athena.observability.health import HealthService
 from athena.retrieval.universal import (
@@ -108,6 +109,31 @@ class _Chat:
         assert source_message_id == self.message_id
         assert source_revision_id == self.revision_id
         return self.fork_chat_id
+
+
+class _StaleEditChat(_Chat):
+    def edit_user_message(
+        self,
+        *,
+        chat_id: uuid.UUID,
+        message_id: uuid.UUID,
+        expected_revision_id: uuid.UUID,
+        content: str,
+    ) -> ChatMessage:
+        del chat_id, message_id, expected_revision_id, content
+        raise ChatRevisionConflictError("stale")
+
+
+class _UnsupportedForkChat(_Chat):
+    def fork_chat_from_message(
+        self,
+        *,
+        chat_id: uuid.UUID,
+        source_message_id: uuid.UUID,
+        source_revision_id: uuid.UUID,
+    ) -> uuid.UUID:
+        del chat_id, source_message_id, source_revision_id
+        raise UnsupportedChatForkError("protected")
 
 
 class _News:
@@ -399,6 +425,71 @@ def test_asgi_chat_edit_and_fork_validate_revision_payloads(tmp_path) -> None:
     )
     assert fork_status == 400
     assert fork_problem["code"] == "invalid_request"
+
+
+def test_asgi_chat_mutation_conflicts_are_safe_409(tmp_path) -> None:
+    health = HealthService()
+    health.mark_ok()
+    chat_id = "11111111-1111-1111-1111-111111111111"
+    message_id = "22222222-2222-2222-2222-222222222222"
+    revision_id = "33333333-3333-3333-3333-333333333333"
+
+    stale_runtime = LocalApiRuntime(tmp_path / "stale-api")
+    stale_runtime.publish(port=32127)
+    stale_token = stale_runtime.token_path.read_text(encoding="utf-8").strip()
+    stale_app = CoreApiAsgiApp(
+        facade=CoreApiFacade(
+            health=health,
+            chat=_StaleEditChat(),  # type: ignore[arg-type]
+            model_provider=_Provider(),
+        ),
+        runtime=stale_runtime,
+    )
+    stale_status, _, stale = asyncio.run(
+        _request(
+            stale_app,
+            stale_runtime,
+            method="PATCH",
+            path=f"/api/v1/chats/{chat_id}/messages/{message_id}/edit",
+            token=stale_token,
+            body=json.dumps(
+                {
+                    "expected_revision_id": revision_id,
+                    "content": "revised",
+                }
+            ).encode("utf-8"),
+        )
+    )
+    assert stale_status == 409
+    assert stale["code"] == "chat_revision_conflict"
+    assert stale["retryable"] is False
+
+    protected_runtime = LocalApiRuntime(tmp_path / "protected-api")
+    protected_runtime.publish(port=32128)
+    protected_token = protected_runtime.token_path.read_text(
+        encoding="utf-8"
+    ).strip()
+    protected_app = CoreApiAsgiApp(
+        facade=CoreApiFacade(
+            health=health,
+            chat=_UnsupportedForkChat(),  # type: ignore[arg-type]
+            model_provider=_Provider(),
+        ),
+        runtime=protected_runtime,
+    )
+    protected_status, _, protected = asyncio.run(
+        _request(
+            protected_app,
+            protected_runtime,
+            method="POST",
+            path=f"/api/v1/chats/{chat_id}/messages/{message_id}/fork",
+            token=protected_token,
+            body=json.dumps({"revision_id": revision_id}).encode("utf-8"),
+        )
+    )
+    assert protected_status == 409
+    assert protected["code"] == "chat_fork_unsupported"
+    assert protected["retryable"] is False
 
 
 def test_asgi_universal_search_parses_filters_and_returns_core_results(
