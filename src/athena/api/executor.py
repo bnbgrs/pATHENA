@@ -16,6 +16,7 @@ from athena.api.contracts import (
     DeletionResultResponse,
     GroundedChatResponse,
     HealthResponse,
+    ImageSourceResponse,
     KnowledgeMergeReviewResponse,
     KnowledgeReviewResponse,
     MessageKnowledgeExtractionResponse,
@@ -266,6 +267,21 @@ class SerializedCoreApiSurface:
             return self._executor.call(self._surface.create_chat)
         return self._executor.call(lambda: self._surface.create_chat(chat_id))
 
+    def capture_image_source(
+        self,
+        *,
+        data: bytes,
+        original_name: str,
+        source_uri: str,
+    ) -> ImageSourceResponse:
+        return self._executor.call(
+            lambda: self._surface.capture_image_source(
+                data=data,
+                original_name=original_name,
+                source_uri=source_uri,
+            )
+        )
+
     def load_chat(self, chat_id: str) -> ChatThreadResponse:
         return self._executor.call(lambda: self._surface.load_chat(chat_id))
 
@@ -429,6 +445,7 @@ class SerializedCoreApiSurface:
         max_output_tokens: int | None = None,
         temperature: float | None = None,
         thinking_enabled: bool | None = None,
+        image_source_ids: tuple[str, ...] = (),
     ) -> ChatThreadResponse:
         if operation_id is None:
             if (
@@ -442,6 +459,7 @@ class SerializedCoreApiSurface:
                         chat_id,
                         content=content,
                         requested_model_id=requested_model_id,
+                        image_source_ids=image_source_ids,
                     )
                 )
             if (
@@ -454,6 +472,7 @@ class SerializedCoreApiSurface:
                         chat_id,
                         content=content,
                         requested_model_id=requested_model_id,
+                        image_source_ids=image_source_ids,
                         effective_context_limit=effective_context_limit,
                     )
                 )
@@ -487,6 +506,7 @@ class SerializedCoreApiSurface:
                         chat_id,
                         content=content,
                         requested_model_id=requested_model_id,
+                        image_source_ids=image_source_ids,
                         operation_id=operation_id,
                     )
                 )
@@ -500,6 +520,7 @@ class SerializedCoreApiSurface:
                         chat_id,
                         content=content,
                         requested_model_id=requested_model_id,
+                        image_source_ids=image_source_ids,
                         operation_id=operation_id,
                         effective_context_limit=effective_context_limit,
                     )
@@ -576,6 +597,7 @@ class SerializedCoreApiSurface:
                         chat_id,
                         content=content,
                         requested_model_id=requested_model_id,
+                        image_source_ids=image_source_ids,
                         requested_embedding_model_id=requested_embedding_model_id,
                     )
                 )
@@ -589,6 +611,7 @@ class SerializedCoreApiSurface:
                         chat_id,
                         content=content,
                         requested_model_id=requested_model_id,
+                        image_source_ids=image_source_ids,
                         requested_embedding_model_id=requested_embedding_model_id,
                         effective_context_limit=effective_context_limit,
                     )
@@ -624,6 +647,7 @@ class SerializedCoreApiSurface:
                         chat_id,
                         content=content,
                         requested_model_id=requested_model_id,
+                        image_source_ids=image_source_ids,
                         requested_embedding_model_id=requested_embedding_model_id,
                         operation_id=operation_id,
                     )
@@ -638,6 +662,7 @@ class SerializedCoreApiSurface:
                         chat_id,
                         content=content,
                         requested_model_id=requested_model_id,
+                        image_source_ids=image_source_ids,
                         requested_embedding_model_id=requested_embedding_model_id,
                         operation_id=operation_id,
                         effective_context_limit=effective_context_limit,
