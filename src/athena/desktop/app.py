@@ -97,6 +97,9 @@ from athena.desktop.pathena_selection_disappearance_handoff import (
 from athena.desktop.pathena_settings_runtime import install_settings_runtime
 from athena.desktop.pathena_shell_density import apply_shell_density
 from athena.desktop.pathena_startup_experience_2900 import install_startup_experience
+from athena.desktop.pathena_splitter_persistence import (
+    install_splitter_persistence,
+)
 from athena.desktop.pathena_transient_dialog_shortcuts import (
     install_transient_dialog_shortcut_continuity,
 )
@@ -327,12 +330,15 @@ def main(argv: Sequence[str] | None = None) -> int:
     v3_jobs = install_v3_jobs_workspace(jobs_workspace)
     v3_sources = install_v3_sources_workspace(files_workspace)
     v3_system = install_v3_system_workspace(system_workspace)
+    splitter_persistence = install_splitter_persistence(window)
     v3_shell.finalize()
     _schedule_initial_core_refreshes(controller, supervisor, scheduler_supervisor)
     heartbeat = _start_core_refresh_heartbeat(controller, supervisor, scheduler_supervisor)
     window.show()
     exit_code = app.exec()
     heartbeat.stop()
+    splitter_persistence.dispose()
+    splitter_persistence.deleteLater()
     selection_disappearance_handoff.deleteLater()
     background_completion_accessibility.deleteLater()
     research_knowledge_transition.deleteLater()
