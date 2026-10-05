@@ -715,6 +715,8 @@ class CoreApiFacade:
 
         parsed_chat_id = uuid.UUID(chat_id)
 
+        if len(image_source_ids) > 4:
+            raise ValueError("Vision chat accepts at most four image Sources.")
         if len(set(image_source_ids)) != len(image_source_ids):
             raise ValueError("Vision image Source IDs must be unique.")
         parsed_image_source_ids = tuple(
@@ -728,18 +730,23 @@ class CoreApiFacade:
                 raise RuntimeError(
                     "Vision chat is unavailable because image Sources are not attached."
                 )
+            loaded_images = tuple(
+                source_service.read_image_payload(
+                    source_id,
+                    max_bytes=12 * 1024 * 1024,
+                )
+                for source_id in parsed_image_source_ids
+            )
+            if sum(len(data) for _media_type, data in loaded_images) > 20 * 1024 * 1024:
+                raise ValueError(
+                    "Vision chat image payload exceeds the 20 MiB total in-memory limit."
+                )
             image_inputs = tuple(
                 ModelImageInput(
                     media_type=media_type,
                     data=data,
                 )
-                for media_type, data in (
-                    source_service.read_image_payload(
-                        source_id,
-                        max_bytes=12 * 1024 * 1024,
-                    )
-                    for source_id in parsed_image_source_ids
-                )
+                for media_type, data in loaded_images
             )
 
         parsed_operation_id = (
