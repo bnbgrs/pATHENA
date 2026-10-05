@@ -21,9 +21,11 @@ from PySide6.QtWidgets import (
 
 from athena.desktop.pathena_ui_refinement_600 import set_pathena_ui_state
 from athena.desktop.research_workspace_protocol import (
+    ResearchComparisonReceipt,
     ResearchJobListEntry,
     ResearchWorkspaceProtocolError,
     parse_research_cancel_receipt,
+    parse_research_comparison_receipt,
     parse_research_enqueue_receipt,
     parse_research_job_list,
 )
@@ -61,6 +63,14 @@ class ResearchWorkspace(QWidget):
         self.cancel_button.setObjectName("newChatButton")
         self.cancel_button.setEnabled(False)
         self.cancel_button.clicked.connect(self.cancel_selected)
+
+        self.compare_button = QPushButton("WHAT CHANGED")
+        self.compare_button.setObjectName("newChatButton")
+        self.compare_button.setEnabled(False)
+        self.compare_button.setAccessibleName(
+            "Compare with previous matching research run"
+        )
+        self.compare_button.clicked.connect(self.compare_selected)
 
         self.status = QLabel("Ready.")
         self.status.setObjectName("researchStatus")
@@ -110,6 +120,7 @@ class ResearchWorkspace(QWidget):
         header.addWidget(title)
         header.addStretch(1)
         header.addWidget(self.refresh_button)
+        header.addWidget(self.compare_button)
         header.addWidget(self.cancel_button)
         layout.addLayout(header)
 
@@ -161,6 +172,19 @@ class ResearchWorkspace(QWidget):
             job_id=self._selected_job_id,
         )
 
+    def compare_selected(self) -> None:
+        if self._busy() or not self._comparison_available():
+            return
+        assert self._selected_job_id is not None
+        self.details.setProperty("pathenaBackgroundOperationOwner", "")
+        set_pathena_ui_state(self.details, "busy")
+        self._start(
+            "compare",
+            ["compare-previous", self._selected_job_id],
+            "Comparing with previous matching research",
+            job_id=self._selected_job_id,
+        )
+
     def _selection_changed(
         self,
         current: QListWidgetItem | None,
@@ -171,6 +195,7 @@ class ResearchWorkspace(QWidget):
         self._selected_job_id = str(job_id) if job_id else None
         self._selected_job_state = str(state) if state else None
         self._sync_cancel_button()
+        self._sync_compare_button()
 
         if self._busy():
             if current is not None and not self._operation_owns_details():
@@ -245,7 +270,7 @@ class ResearchWorkspace(QWidget):
         owns_details: bool,
     ) -> None:
         if (
-            operation not in {"show", "cancel", "enqueue"}
+            operation not in {"show", "cancel", "enqueue", "compare"}
             or owns_details
             or not self._selected_job_id
         ):
@@ -295,6 +320,40 @@ class ResearchWorkspace(QWidget):
         self.cancel_button.setProperty("pathenaResearchJobState", state)
         self.cancel_button.setProperty("pathenaResearchCancelAvailable", enabled)
 
+    def _comparison_available(self) -> bool:
+        return (
+            bool(self._selected_job_id)
+            and self._selected_job_state == "completed"
+        )
+
+    def _sync_compare_button(self) -> None:
+        enabled = not self._busy() and self._comparison_available()
+        self.compare_button.setEnabled(enabled)
+        job_label = (
+            self._selected_job_id[:8].upper()
+            if self._selected_job_id is not None
+            else "none"
+        )
+        state = self._selected_job_state or "none"
+        if enabled:
+            reason = (
+                f"Compare completed research run {job_label} with the newest "
+                "earlier run having the same persisted scope."
+            )
+        elif self._selected_job_id is None:
+            reason = "Select a completed research run before comparing."
+        else:
+            reason = (
+                f"Research run {job_label} cannot be compared while its state "
+                f"is {state}."
+            )
+        self.compare_button.setToolTip(reason)
+        self.compare_button.setAccessibleDescription(reason)
+        self.compare_button.setProperty(
+            "pathenaResearchComparisonAvailable",
+            enabled,
+        )
+
     def _start(
         self,
         operation: str,
@@ -321,8 +380,10 @@ class ResearchWorkspace(QWidget):
         self.refresh_button.setEnabled(enabled)
         if enabled:
             self._sync_cancel_button()
+            self._sync_compare_button()
         else:
             self.cancel_button.setEnabled(False)
+            self.compare_button.setEnabled(False)
 
     def _drain_output(self) -> None:
         chunk = bytes(self._process.readAllStandardOutput().data()).decode(
