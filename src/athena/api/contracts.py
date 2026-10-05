@@ -89,6 +89,15 @@ class ChatSummaryResponse(ApiContract):
     archive_mode: str
     lifecycle_state: str
     message_count: int
+    pinned: bool = False
+    favorited: bool = False
+
+
+@dataclass(frozen=True, slots=True)
+class ChatPreferencesResponse(ApiContract):
+    chat_id: str
+    pinned: bool
+    favorited: bool
 
 
 @dataclass(frozen=True, slots=True)
