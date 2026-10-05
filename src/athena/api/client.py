@@ -509,7 +509,7 @@ class CoreApiClient:
             payload["model_id"] = model_id
 
         if canonical_image_source_ids:
-            payload["image_source_ids"] = canonical_image_source_ids
+            payload["image_source_ids"] = cast(JsonValue, canonical_image_source_ids)
 
         if canonical_operation_id is not None:
             payload[
@@ -1274,6 +1274,23 @@ def _optional_str(payload: dict[str, JsonValue], key: str) -> str | None:
     if not isinstance(value, str):
         raise CoreApiClientError(f"ATHENA Core response field {key!r} is invalid.", code="invalid_response")
     return value
+
+
+def _optional_str_tuple(
+    payload: dict[str, JsonValue],
+    key: str,
+) -> tuple[str, ...]:
+    value = payload.get(key)
+    if value is None:
+        return ()
+    if not isinstance(value, list) or not all(
+        isinstance(item, str) for item in value
+    ):
+        raise CoreApiClientError(
+            f"ATHENA Core response field {key!r} is invalid.",
+            code="invalid_response",
+        )
+    return tuple(value)
 
 
 def _required_bool(payload: dict[str, JsonValue], key: str) -> bool:
