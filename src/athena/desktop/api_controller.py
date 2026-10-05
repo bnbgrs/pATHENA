@@ -72,6 +72,13 @@ class CoreApiGateway(Protocol):
         offset: int = 0,
     ) -> tuple[ChatSummaryResponse, ...]: ...
 
+    def set_chat_pinned(
+        self,
+        chat_id: str,
+        *,
+        pinned: bool,
+    ) -> ChatSummaryResponse: ...
+
     def create_chat(
         self,
         chat_id: str | None = None,
@@ -259,6 +266,8 @@ class _ChatOperationOutcome:
     knowledge_extraction: MessageKnowledgeExtractionResponse | None = None
     knowledge_review: KnowledgeReviewResponse | None = None
     merge_review: KnowledgeMergeReviewResponse | None = None
+    pinned_chat_id: str | None = None
+    pinned_state: bool | None = None
     error: str | None = None
     operation_id: str | None = None
     cancelled: bool = False
@@ -276,6 +285,7 @@ class _ChatOperationOutcome:
                 self.knowledge_extraction,
                 self.knowledge_review,
                 self.merge_review,
+                self.pinned_chat_id,
             )
         )
         if result_count > 1:
@@ -414,6 +424,7 @@ class _ChatTask(QRunnable):
         processing_run_id: str | None = None,
         review_id: str | None = None,
         review_decision: str | None = None,
+        pinned_state: bool | None = None,
         outcomes: SimpleQueue[_ChatOperationOutcome],
         receiver: QObject,
     ) -> None:
@@ -434,6 +445,7 @@ class _ChatTask(QRunnable):
         self.processing_run_id = processing_run_id
         self.review_id = review_id
         self.review_decision = review_decision
+        self.pinned_state = pinned_state
         self.outcomes = outcomes
         self.receiver = receiver
         self.setAutoDelete(False)
@@ -866,6 +878,23 @@ class _ChatTask(QRunnable):
                         review_id,
                         decision=review_decision,
                     ),
+                )
+            elif self.operation == "pin":
+                if resolved_chat_id is None or self.pinned_state is None:
+                    raise ValueError("Chat pin mutation requires a chat ID and state.")
+                summary = self.gateway.set_chat_pinned(
+                    resolved_chat_id,
+                    pinned=self.pinned_state,
+                )
+                if (
+                    summary.chat_id != resolved_chat_id
+                    or summary.pinned is not self.pinned_state
+                ):
+                    raise RuntimeError("Chat pin result is inconsistent.")
+                outcome = _ChatOperationOutcome(
+                    operation=self.operation,
+                    pinned_chat_id=resolved_chat_id,
+                    pinned_state=self.pinned_state,
                 )
             elif self.operation == "preview_delete":
                 if resolved_chat_id is None:
@@ -1397,6 +1426,7 @@ class DesktopApiController(QObject):
     chat_recovery_ready = Signal(object)
     chat_deletion_preview_ready = Signal(object)
     chat_deleted = Signal(str)
+    chat_pin_changed = Signal(str, bool)
     message_remembered = Signal(object)
     knowledge_extraction_ready = Signal(object)
     knowledge_review_ready = Signal(object)
@@ -1749,6 +1779,15 @@ class DesktopApiController(QObject):
             review_decision=decision,
         )
 
+    def set_chat_pinned(self, chat_id: str, *, pinned: bool) -> None:
+        if not chat_id or self._chat_busy or not isinstance(pinned, bool):
+            return
+        self._start_chat_task(
+            operation="pin",
+            chat_id=chat_id,
+            pinned_state=pinned,
+        )
+
     def preview_chat_deletion(self, chat_id: str) -> None:
         if not chat_id or self._chat_busy:
             return
@@ -1781,6 +1820,7 @@ class DesktopApiController(QObject):
         processing_run_id: str | None = None,
         review_id: str | None = None,
         review_decision: str | None = None,
+        pinned_state: bool | None = None,
     ) -> None:
         task = _ChatTask(
             gateway=self.gateway,
@@ -1799,6 +1839,7 @@ class DesktopApiController(QObject):
             processing_run_id=processing_run_id,
             review_id=review_id,
             review_decision=review_decision,
+            pinned_state=pinned_state,
             outcomes=self._chat_outcomes,
             receiver=self,
         )
@@ -2027,6 +2068,13 @@ class DesktopApiController(QObject):
                 self.chat_deletion_preview_ready.emit(outcome.deletion_preview)
             elif outcome.deleted_chat_id is not None:
                 self.chat_deleted.emit(outcome.deleted_chat_id)
+            elif outcome.pinned_chat_id is not None:
+                assert outcome.pinned_state is not None
+                self.chat_pin_changed.emit(
+                    outcome.pinned_chat_id,
+                    outcome.pinned_state,
+                )
+                self.refresh()
             elif outcome.remembered is not None:
                 self.message_remembered.emit(outcome.remembered)
             elif outcome.knowledge_extraction is not None:
