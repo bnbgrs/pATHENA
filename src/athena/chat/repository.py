@@ -336,6 +336,7 @@ class ChatRepository:
                     m.message_type,
                     m.actor_id,
                     r.revision_id,
+                    r.provenance_id,
                     r.payload_hash,
                     mr.content,
                     mr.content_format,
@@ -464,6 +465,24 @@ class ChatRepository:
                     input_role="fork_source",
                     ordinal=0,
                 )
+                source_provenance_id = uuid_from_blob(
+                    bytes(row["provenance_id"])
+                )
+                for attachment_ordinal, attachment_source_id in enumerate(
+                    self._attachment_source_ids(
+                        connection,
+                        source_provenance_id,
+                    ),
+                    start=1,
+                ):
+                    self._insert_provenance_input(
+                        connection,
+                        provenance_id=message_provenance_id,
+                        input_entity_id=attachment_source_id,
+                        input_revision_id=None,
+                        input_role="attachment",
+                        ordinal=attachment_ordinal,
+                    )
                 connection.execute(
                     """
                     INSERT INTO revisions (
@@ -1162,6 +1181,7 @@ class ChatRepository:
                 m.actor_id,
                 r.created_at_us,
                 r.revision_id,
+                r.provenance_id,
                 mr.content,
                 mr.content_format
             FROM chat_messages AS m
