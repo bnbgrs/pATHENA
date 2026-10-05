@@ -1290,7 +1290,7 @@ def _optional_str_tuple(
             f"ATHENA Core response field {key!r} is invalid.",
             code="invalid_response",
         )
-    return tuple(value)
+    return tuple(cast(list[str], value))
 
 
 def _required_bool(payload: dict[str, JsonValue], key: str) -> bool:
