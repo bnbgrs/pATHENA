@@ -314,6 +314,7 @@ class AthenaMainWindow(QMainWindow):
         self.context_slider = QSlider(Qt.Orientation.Horizontal)
         self.context_value_label = QLabel("—")
         self.delete_chat_button = QPushButton("DELETE")
+        self.pin_chat_button = QPushButton("PIN")
         self.new_chat_button = QPushButton("NEW CHAT")
         self.recovery_bar = QFrame()
         self.recovery_state_label = QLabel("")
@@ -333,6 +334,7 @@ class AthenaMainWindow(QMainWindow):
         self._temperature_by_model: dict[str, float] = {}
         self._thinking_by_model: dict[str, bool] = {}
         self._remembered_message_revisions: set[tuple[str, str]] = set()
+        self._pinned_chat_ids: set[str] = set()
         self._knowledge_extraction: MessageKnowledgeExtractionResponse | None = None
         self._knowledge_review: KnowledgeReviewResponse | None = None
         self._knowledge_review_chat_id: str | None = None
@@ -588,6 +590,7 @@ class AthenaMainWindow(QMainWindow):
         layout.addWidget(chat_label)
         layout.addWidget(self.chat_selector, 1)
         layout.addWidget(self.new_chat_button)
+        layout.addWidget(self.pin_chat_button)
         layout.addWidget(self.delete_chat_button)
         layout.addSpacing(10)
 
@@ -715,6 +718,12 @@ class AthenaMainWindow(QMainWindow):
             else committed_chat_id
         )
 
+        self._pinned_chat_ids = {
+            chat.chat_id
+            for chat in snapshot.chats
+            if chat.pinned
+        }
+
         self.chat_selector.blockSignals(True)
         try:
             self.chat_selector.clear()
@@ -722,8 +731,9 @@ class AthenaMainWindow(QMainWindow):
 
             for chat in snapshot.chats:
                 suffix = "MSG" if chat.message_count == 1 else "MSGS"
+                pin_prefix = "PIN · " if chat.pinned else ""
                 self.chat_selector.addItem(
-                    f"{chat.chat_id[:8].upper()} · {chat.message_count} {suffix}",
+                    f"{pin_prefix}{chat.chat_id[:8].upper()} · {chat.message_count} {suffix}",
                     chat.chat_id,
                 )
 
@@ -1288,6 +1298,37 @@ class AthenaMainWindow(QMainWindow):
         self._sync_composer_enabled()
         controller.load_chat(value)
 
+    def _toggle_chat_pin(self) -> None:
+        controller = self.api_controller
+        chat_id = self.current_chat_id
+        if (
+            controller is None
+            or chat_id is None
+            or self._chat_busy
+            or self.pending_chat_id is not None
+        ):
+            return
+        controller.set_chat_pinned(
+            chat_id,
+            pinned=chat_id not in self._pinned_chat_ids,
+        )
+
+    @Slot(str, bool)
+    def apply_chat_pin_changed(self, chat_id: str, pinned: bool) -> None:
+        if pinned:
+            self._pinned_chat_ids.add(chat_id)
+        else:
+            self._pinned_chat_ids.discard(chat_id)
+        if chat_id == self.current_chat_id:
+            self.pin_chat_button.setText("UNPIN" if pinned else "PIN")
+            self.pin_chat_button.setAccessibleName(
+                "Unpin conversation" if pinned else "Pin conversation"
+            )
+        self.connection_detail.setText(
+            "Conversation pinned." if pinned else "Conversation unpinned."
+        )
+        self._sync_composer_enabled()
+
     def _request_chat_deletion(self) -> None:
         controller = self.api_controller
         if (
@@ -1484,6 +1525,12 @@ class AthenaMainWindow(QMainWindow):
         self.context_slider.setObjectName("contextSlider")
         self.context_slider.setMinimumWidth(130)
         self.context_slider.valueChanged.connect(self._on_context_changed)
+        self.pin_chat_button.setObjectName("pinChatButton")
+        self.pin_chat_button.setAccessibleName("Pin conversation")
+        self.pin_chat_button.setToolTip(
+            "Keep this persistent conversation at the top of the chat list"
+        )
+        self.pin_chat_button.clicked.connect(self._toggle_chat_pin)
         self.delete_chat_button.setObjectName("deleteChatButton")
         self.delete_chat_button.setToolTip(
             "Preview and logically delete the selected persistent chat"
@@ -1644,6 +1691,7 @@ class AthenaMainWindow(QMainWindow):
             self.apply_chat_deletion_preview
         )
         controller.chat_deleted.connect(self.apply_chat_deleted)
+        controller.chat_pin_changed.connect(self.apply_chat_pin_changed)
         controller.message_remembered.connect(self.apply_message_remembered)
         controller.knowledge_extraction_ready.connect(
             self.apply_knowledge_extraction_ready
@@ -2471,8 +2519,21 @@ class AthenaMainWindow(QMainWindow):
             and self.pending_chat_id is None
         )
         self.chat_selector.setEnabled(controls_available)
+        has_chat = self.current_chat_id is not None
         self.delete_chat_button.setEnabled(
-            controls_available and self.current_chat_id is not None
+            controls_available and has_chat
+        )
+        self.pin_chat_button.setEnabled(
+            controls_available and has_chat
+        )
+        pinned = (
+            self.current_chat_id in self._pinned_chat_ids
+            if self.current_chat_id is not None
+            else False
+        )
+        self.pin_chat_button.setText("UNPIN" if pinned else "PIN")
+        self.pin_chat_button.setAccessibleName(
+            "Unpin conversation" if pinned else "Pin conversation"
         )
         model_available = controls_available and self._selected_model() is not None
         model_selectors_enabled = controls_available and bool(self._models_by_id)
