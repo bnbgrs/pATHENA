@@ -40,6 +40,7 @@ from athena.api.contracts import (
     ProviderHealthResponse,
     RelationProposalResponse,
     RememberedChatMessageResponse,
+    StorageHealthResponse,
 )
 from athena.api.search_contracts import (
     SearchProtectionResponse,
@@ -164,6 +165,10 @@ class CoreApiClient:
 
     def health(self) -> HealthResponse:
         return _health(self._get("/api/v1/health"))
+
+    def storage_health(self) -> StorageHealthResponse:
+        """Read validated storage telemetry from the authenticated local Core."""
+        return _storage_health(self._get("/api/v1/storage/health"))
 
     def capabilities(self) -> CapabilitiesResponse:
         return _capabilities(self._get("/api/v1/capabilities"))
@@ -1162,6 +1167,65 @@ def _health(payload: dict[str, JsonValue]) -> HealthResponse:
         core_status=_required_str(payload, "core_status"),
         detail=_optional_str(payload, "detail"),
     )
+
+
+def _storage_health(payload: dict[str, JsonValue]) -> StorageHealthResponse:
+    response = StorageHealthResponse(
+        api_version=_required_str(payload, "api_version"),
+        status=_required_str(payload, "status"),
+        database_open=_required_bool(payload, "database_open"),
+        database_path=_optional_str(payload, "database_path"),
+        database_size_bytes=_optional_int(payload, "database_size_bytes"),
+        wal_size_bytes=_optional_int(payload, "wal_size_bytes"),
+        observed_at_us=_required_int(payload, "observed_at_us"),
+        detail=_optional_str(payload, "detail"),
+    )
+    if response.status not in {"available", "unavailable", "error"}:
+        raise CoreApiClientError(
+            "ATHENA Core returned an invalid storage-health status.",
+            code="invalid_response",
+        )
+    if response.observed_at_us <= 0:
+        raise CoreApiClientError(
+            "ATHENA Core returned an invalid storage observation time.",
+            code="invalid_response",
+        )
+    for label, value in (
+        ("database", response.database_size_bytes),
+        ("WAL", response.wal_size_bytes),
+    ):
+        if value is not None and value < 0:
+            raise CoreApiClientError(
+                f"ATHENA Core returned an invalid {label} size.",
+                code="invalid_response",
+            )
+    if response.status == "available" and not response.database_open:
+        raise CoreApiClientError(
+            "ATHENA Core returned available storage without an open database.",
+            code="invalid_response",
+        )
+    if response.status == "unavailable" and response.database_open:
+        raise CoreApiClientError(
+            "ATHENA Core returned unavailable storage for an open database.",
+            code="invalid_response",
+        )
+    if response.status == "error" and not response.database_open:
+        raise CoreApiClientError(
+            "ATHENA Core returned a storage probe error without a live database.",
+            code="invalid_response",
+        )
+    measured = (response.database_size_bytes, response.wal_size_bytes)
+    if response.status == "available" and any(value is None for value in measured):
+        raise CoreApiClientError(
+            "ATHENA Core returned incomplete available storage measurements.",
+            code="invalid_response",
+        )
+    if response.status != "available" and any(value is not None for value in measured):
+        raise CoreApiClientError(
+            "ATHENA Core returned measured storage sizes for a non-available state.",
+            code="invalid_response",
+        )
+    return response
 
 
 def _capabilities(payload: dict[str, JsonValue]) -> CapabilitiesResponse:
