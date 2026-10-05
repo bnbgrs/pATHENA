@@ -16,6 +16,7 @@ from athena.api.contracts import (
     CapabilitiesResponse,
     ChatMessageResponse,
     ChatOperationRecoveryResponse,
+    ChatPreferencesResponse,
     ChatSummaryResponse,
     ChatThreadResponse,
     ClaimProposalResponse,
@@ -54,7 +55,7 @@ from athena.chat.cancellation import (
     ChatCancellationReservation,
 )
 from athena.chat.grounded_recovery import GroundedRecoveryState, GroundedRecoveryStatus
-from athena.chat.models import ChatMessage, ChatSummary, ChatThread
+from athena.chat.models import ChatMessage, ChatPreferences, ChatSummary, ChatThread
 from athena.chat.provenance import strip_durable_provenance_manifest
 from athena.chat.send_identity import (
     SendOperationState,
@@ -277,6 +278,7 @@ class CoreApiFacade:
         "chat.fork",
         "chat.recovery.read",
         "chat.recovery.continue",
+        "chat.preferences",
         "models.read",
     )
 
@@ -562,6 +564,31 @@ class CoreApiFacade:
             for summary in self._chat.list_chats(
                 limit=limit,
                 offset=offset,
+            )
+        )
+
+    def chat_preferences(
+        self,
+        chat_id: str,
+    ) -> ChatPreferencesResponse:
+        return _chat_preferences(
+            self._chat.get_chat_preferences(
+                uuid.UUID(chat_id)
+            )
+        )
+
+    def set_chat_preferences(
+        self,
+        chat_id: str,
+        *,
+        pinned: bool | None = None,
+        favorited: bool | None = None,
+    ) -> ChatPreferencesResponse:
+        return _chat_preferences(
+            self._chat.set_chat_preferences(
+                chat_id=uuid.UUID(chat_id),
+                pinned=pinned,
+                favorited=favorited,
             )
         )
 
@@ -1479,6 +1506,18 @@ def _chat_summary(summary: ChatSummary) -> ChatSummaryResponse:
         archive_mode=summary.archive_mode,
         lifecycle_state=summary.lifecycle_state,
         message_count=summary.message_count,
+        pinned=summary.pinned,
+        favorited=summary.favorited,
+    )
+
+
+def _chat_preferences(
+    preferences: ChatPreferences,
+) -> ChatPreferencesResponse:
+    return ChatPreferencesResponse(
+        chat_id=str(preferences.chat_id),
+        pinned=preferences.pinned,
+        favorited=preferences.favorited,
     )
 
 
