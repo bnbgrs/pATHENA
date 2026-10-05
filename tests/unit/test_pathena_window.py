@@ -6,6 +6,12 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtWidgets import QApplication, QFrame, QLabel, QPushButton, QWidget
 
+from athena.api.contracts import (
+    ChatMessageResponse,
+    ChatOperationRecoveryResponse,
+    ChatThreadResponse,
+)
+
 from athena.desktop import window as window_module
 from athena.desktop.app import create_application
 from athena.desktop.pathena_design_tokens import PALETTE, SHELL
