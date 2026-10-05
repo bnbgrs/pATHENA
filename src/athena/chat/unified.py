@@ -500,8 +500,6 @@ class _UnifiedDurableGenerationAdapter(ChatGenerationService):
         on_before_provider_call: Callable[[], None] | None = None,
         cancel_requested: Callable[[], bool] | None = None,
     ) -> ChatGenerationResult:
-        if cancel_requested is not None and cancel_requested():
-            raise GenerationCancelledError("Chat generation was cancelled.")
         if chat_id != self._state.chat_id:
             raise RuntimeError("Unified generation escaped its durable chat identity.")
         if operation_id is not None and operation_id != self._state.operation_id:
