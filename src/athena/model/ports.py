@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unicodedata
 from collections.abc import Iterator, Mapping, Sequence
-from typing import Any, Protocol
+from typing import Any, Protocol, runtime_checkable
 
 from athena.model.domain import ModelChatMessage, ModelInfo, ProviderHealth
 
@@ -13,6 +13,10 @@ CONTROLLED_STRUCTURED_CONTRACT_VERSION = "athena.controlled_structured_json/1"
 
 class ProviderOperationUnsupportedError(RuntimeError):
     """Raised when a provider explicitly cannot perform a Core operation."""
+
+
+class ProviderGenerationCancelledError(RuntimeError):
+    """Raised when provider transport stops because the user cancelled generation."""
 
 
 def _forbidden_schema_id_character(character: str) -> bool:
@@ -112,6 +116,28 @@ class ChatModelProvider(ModelDiscoveryProvider, Protocol):
         max_output_tokens: int | None = None,
     ) -> Mapping[str, Any]:
         """Return one JSON object constrained by the supplied schema and output cap."""
+        ...
+
+
+@runtime_checkable
+class CancellableChatModelProvider(ChatModelProvider, Protocol):
+    """Provider that can bind one stream to a stable request ID and abort it."""
+
+    def stream_chat_cancellable(
+        self,
+        *,
+        request_id: str,
+        model_id: str,
+        messages: Sequence[ModelChatMessage],
+        max_output_tokens: int | None = None,
+        reasoning_mode: str | None = None,
+        temperature: float | None = None,
+    ) -> Iterator[str]:
+        """Yield one stream whose blocking transport is bound to request_id."""
+        ...
+
+    def cancel_generation(self, request_id: str) -> None:
+        """Abort the active transport for request_id when one is present."""
         ...
 
 
