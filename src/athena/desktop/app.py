@@ -120,6 +120,7 @@ from athena.desktop.universal_switcher import install_universal_search_switcher
 
 _INITIAL_CORE_REFRESH_DELAYS_MS = (250, 750, 1_500, 3_000, 5_000, 10_000, 20_000)
 _CORE_REFRESH_HEARTBEAT_MS = 30_000
+_APPLICATION_INSTANCE: QApplication | None = None
 
 
 def _apply_application_presentation(app: QApplication) -> None:
@@ -132,9 +133,12 @@ def _apply_application_presentation(app: QApplication) -> None:
 
 
 def create_application(argv: Sequence[str] | None = None) -> QApplication:
-    """Create or reuse the Qt application and apply pATHENA's visual system."""
+    """Create or reuse the Qt application and keep its Python owner alive."""
+    global _APPLICATION_INSTANCE
+
     existing = QApplication.instance()
     if isinstance(existing, QApplication):
+        _APPLICATION_INSTANCE = existing
         _apply_application_presentation(existing)
         return existing
     if existing is not None:
@@ -142,6 +146,7 @@ def create_application(argv: Sequence[str] | None = None) -> QApplication:
 
     arguments = list(argv) if argv is not None else list(sys.argv)
     app = QApplication(arguments)
+    _APPLICATION_INSTANCE = app
     _apply_application_presentation(app)
     return app
 
