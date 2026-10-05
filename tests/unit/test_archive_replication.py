@@ -11,7 +11,7 @@ from athena.jobs.models import JobPriority, JobState, WaitingReason
 from athena.source.models import BlobStorageArea
 from athena.storage.database import SQLiteDatabase
 from athena.storage.schema import (
-    JOB_DEPENDENCY_GRAPH_MIGRATION_ID,
+    CHAT_PREFERENCES_MIGRATION_ID,
     NEWS_EVENT_ELIGIBILITY_MIGRATION_ID,
     NEWS_EVENT_ELIGIBILITY_SCHEMA_VERSION,
     SCHEMA_VERSION,
@@ -816,7 +816,7 @@ def test_v30_to_v31_migration_creates_replication_schema(
 
         assert tuple(metadata) == (
             SCHEMA_VERSION,
-            JOB_DEPENDENCY_GRAPH_MIGRATION_ID,
+            CHAT_PREFERENCES_MIGRATION_ID,
             SCHEMA_VERSION,
         )
 
