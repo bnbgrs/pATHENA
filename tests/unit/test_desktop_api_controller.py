@@ -620,7 +620,6 @@ def test_controller_rejected_stop_keeps_send_running_and_allows_retry() -> None:
     states = QSignalSpy(controller.chat_cancel_state_changed)
     sent = QSignalSpy(controller.chat_sent)
     cancelled = QSignalSpy(controller.chat_cancelled)
-    loaded = QSignalSpy(controller.chat_loaded)
     chat_id = str(uuid.uuid4())
 
     controller.send_message(chat_id=chat_id, content="finish normally")
@@ -1152,6 +1151,7 @@ def test_controller_continue_recovery_keeps_stop_available() -> None:
         control_thread_pool=control_pool,
     )
     cancelled = QSignalSpy(controller.chat_cancelled)
+    loaded = QSignalSpy(controller.chat_loaded)
     chat_id = str(uuid.uuid4())
     operation_id = str(uuid.uuid4())
 
