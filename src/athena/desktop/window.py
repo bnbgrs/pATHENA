@@ -45,6 +45,7 @@ from athena.api.contracts import (
     ChatThreadResponse,
     DeletionPreviewResponse,
     GroundedChatResponse,
+    GroundedEvidenceResponse,
     KnowledgeMergeReviewResponse,
     KnowledgeReviewResponse,
     MessageKnowledgeExtractionResponse,
@@ -356,6 +357,8 @@ class AthenaMainWindow(QMainWindow):
         self.chat_messages_layout = QVBoxLayout(self.chat_messages_widget)
         self.evidence_rail = EvidenceRail()
         self.evidence_chain = QFrame()
+        self.evidence_preview_host = QWidget()
+        self.evidence_preview_layout = QHBoxLayout(self.evidence_preview_host)
         self.knowledge_review_panel = QFrame()
         self.knowledge_review_state = QLabel("IDLE")
         self.knowledge_review_close_button = QPushButton("CLOSE")
@@ -1371,10 +1374,15 @@ class AthenaMainWindow(QMainWindow):
         title = QLabel("EVIDENCE CHAIN")
         title.setObjectName("chainTitle")
         self.evidence_chain_state.setObjectName("chainState")
+        self.evidence_preview_host.setObjectName("evidencePreviewHost")
+        self.evidence_preview_host.setAccessibleName("Grounded evidence previews")
+        self.evidence_preview_layout.setContentsMargins(0, 0, 0, 0)
+        self.evidence_preview_layout.setSpacing(6)
+        self.evidence_preview_host.hide()
 
         layout.addWidget(title)
         layout.addWidget(self.evidence_chain_state)
-        layout.addStretch(1)
+        layout.addWidget(self.evidence_preview_host, 1)
         return chain
 
     def _build_command_input(self) -> QWidget:
@@ -1813,6 +1821,7 @@ class AthenaMainWindow(QMainWindow):
         self.evidence_chain_state.setText(
             _grounded_chain_summary(response)
         )
+        self._render_evidence_previews(response)
 
         # The old rail is a static illustration. Keep it hidden rather than
         # presenting decorative topology as real provenance.
@@ -2332,6 +2341,7 @@ class AthenaMainWindow(QMainWindow):
         ):
             button.setEnabled(controls_available)
     def _render_empty_chat(self, message: str) -> None:
+        self._clear_evidence_previews()
         self._clear_chat_messages()
         label = QLabel(message)
         label.setObjectName("emptyChatState")
@@ -2346,6 +2356,7 @@ class AthenaMainWindow(QMainWindow):
         *,
         assistant_display_override: str | None = None,
     ) -> None:
+        self._clear_evidence_previews()
         self._clear_chat_messages()
         if self._knowledge_review_chat_id != thread.chat_id:
             self._clear_knowledge_review()
@@ -2631,6 +2642,53 @@ class AthenaMainWindow(QMainWindow):
             message_id=message_id,
             revision_id=revision_id,
         )
+
+    def _clear_evidence_previews(self) -> None:
+        while self.evidence_preview_layout.count():
+            item = self.evidence_preview_layout.takeAt(0)
+            if item is None:
+                break
+            widget = item.widget()
+            if widget is not None:
+                widget.deleteLater()
+        self.evidence_preview_host.hide()
+        self.evidence_chain_state.setToolTip("")
+
+    def _render_evidence_previews(
+        self,
+        response: GroundedChatResponse,
+    ) -> None:
+        self._clear_evidence_previews()
+        preview_texts: list[str] = []
+        for index, evidence in enumerate(response.evidence, start=1):
+            label_text = (
+                evidence.source_name
+                or evidence.title
+                or evidence.evidence_class.replace("_", " ").title()
+            )
+            compact_label = _clip_inspector_text(label_text, limit=28)
+            chip = QLabel(f"{index} · {compact_label}")
+            chip.setObjectName("evidencePreviewChip")
+            chip.setProperty("contextId", evidence.context_id)
+            chip.setProperty("evidenceClass", evidence.evidence_class)
+            chip.setProperty("entityId", evidence.entity_id)
+            chip.setProperty("revisionId", evidence.revision_id)
+            chip.setProperty("sourceId", evidence.source_id)
+            chip.setProperty("cited", evidence.cited)
+            chip.setAccessibleName(
+                f"Evidence {index}: {label_text}"
+            )
+            preview = _grounded_evidence_preview_text(evidence)
+            chip.setAccessibleDescription(preview)
+            chip.setToolTip(preview)
+            self.evidence_preview_layout.addWidget(chip)
+            preview_texts.append(preview)
+
+        if preview_texts:
+            self.evidence_preview_host.show()
+            self.evidence_chain_state.setToolTip(
+                "\n\n".join(preview_texts)
+            )
 
     def _remember_message(self, message_id: str, revision_id: str) -> None:
         controller = self.api_controller
@@ -2957,6 +3015,7 @@ class AthenaMainWindow(QMainWindow):
         self.evidence_chain_state.setText(
             "DIRECT / PROVENANCE NOT ATTACHED"
         )
+        self._clear_evidence_previews()
 
     def _select_page(self, index: int) -> None:
         if not 0 <= index < self.pages.count():
@@ -2976,6 +3035,41 @@ def _clip_inspector_text(
     if len(normalized) <= limit:
         return normalized
     return normalized[: limit - 1].rstrip() + "…"
+
+
+def _grounded_evidence_preview_text(
+    evidence: GroundedEvidenceResponse,
+) -> str:
+    state = "Cited" if evidence.cited else "Context"
+    lines = [
+        f"{state} · {evidence.evidence_class.replace('_', ' ').title()}",
+    ]
+    heading = evidence.source_name or evidence.title
+    if heading:
+        lines.append(heading)
+    if evidence.source_uri:
+        lines.append(evidence.source_uri)
+
+    location_parts: list[str] = []
+    if evidence.page_start is not None:
+        if evidence.page_end is not None and evidence.page_end != evidence.page_start:
+            location_parts.append(f"pages {evidence.page_start}–{evidence.page_end}")
+        else:
+            location_parts.append(f"page {evidence.page_start}")
+    if evidence.start_offset is not None and evidence.end_offset is not None:
+        location_parts.append(
+            f"offsets {evidence.start_offset}–{evidence.end_offset}"
+        )
+    if location_parts:
+        lines.append(" · ".join(location_parts))
+
+    if evidence.epistemic_status:
+        lines.append(
+            "Status: " + evidence.epistemic_status.replace("_", " ")
+        )
+
+    lines.append(_clip_inspector_text(evidence.text, limit=360))
+    return "\n".join(lines)
 
 
 def _grounded_chain_summary(
