@@ -43,6 +43,7 @@ from PySide6.QtWidgets import (
 from athena.api.contracts import (
     CanonicalMergeReviewResponse,
     ChatOperationRecoveryResponse,
+    ChatPreferencesResponse,
     ChatThreadResponse,
     DeletionPreviewResponse,
     GroundedChatResponse,
@@ -315,6 +316,9 @@ class AthenaMainWindow(QMainWindow):
         self.context_value_label = QLabel("—")
         self.delete_chat_button = QPushButton("DELETE")
         self.new_chat_button = QPushButton("NEW CHAT")
+        self.pin_chat_button = QPushButton("PIN")
+        self.favorite_chat_button = QPushButton("FAVORITE")
+        self._chat_preferences_by_id: dict[str, tuple[bool, bool]] = {}
         self.recovery_bar = QFrame()
         self.recovery_state_label = QLabel("")
         self.recovery_continue_button = QPushButton("CONTINUE")
@@ -588,6 +592,8 @@ class AthenaMainWindow(QMainWindow):
         layout.addWidget(chat_label)
         layout.addWidget(self.chat_selector, 1)
         layout.addWidget(self.new_chat_button)
+        layout.addWidget(self.pin_chat_button)
+        layout.addWidget(self.favorite_chat_button)
         layout.addWidget(self.delete_chat_button)
         layout.addSpacing(10)
 
@@ -715,6 +721,11 @@ class AthenaMainWindow(QMainWindow):
             else committed_chat_id
         )
 
+        self._chat_preferences_by_id = {
+            chat.chat_id: (chat.pinned, chat.favorited)
+            for chat in snapshot.chats
+        }
+
         self.chat_selector.blockSignals(True)
         try:
             self.chat_selector.clear()
@@ -722,8 +733,20 @@ class AthenaMainWindow(QMainWindow):
 
             for chat in snapshot.chats:
                 suffix = "MSG" if chat.message_count == 1 else "MSGS"
+                markers = " · ".join(
+                    marker
+                    for marker, active in (
+                        ("PINNED", chat.pinned),
+                        ("FAVORITE", chat.favorited),
+                    )
+                    if active
+                )
+                prefix = f"{markers} · " if markers else ""
                 self.chat_selector.addItem(
-                    f"{chat.chat_id[:8].upper()} · {chat.message_count} {suffix}",
+                    (
+                        f"{prefix}{chat.chat_id[:8].upper()} · "
+                        f"{chat.message_count} {suffix}"
+                    ),
                     chat.chat_id,
                 )
 
@@ -750,6 +773,7 @@ class AthenaMainWindow(QMainWindow):
         finally:
             self.chat_selector.blockSignals(False)
 
+        self._sync_chat_preference_buttons()
         self._configure_context_for_selected_model()
         selected = self._selected_model()
         selector_style = (
@@ -1213,6 +1237,7 @@ class AthenaMainWindow(QMainWindow):
             chat_id,
             fallback_state="CURRENT",
         )
+        self._sync_chat_preference_buttons()
         self._sync_composer_enabled()
 
     def _rollback_pending_chat_selection(self) -> None:
@@ -1245,6 +1270,7 @@ class AthenaMainWindow(QMainWindow):
         self._render_empty_chat(message)
         self._append_new_chat_transient_failures()
         self._update_inspector_for_empty_chat()
+        self._sync_chat_preference_buttons()
         self._sync_composer_enabled()
 
     def _start_new_chat(self) -> None:
@@ -1275,6 +1301,7 @@ class AthenaMainWindow(QMainWindow):
         if value == committed_chat_id:
             self.pending_chat_id = None
             self.selected_chat_id = value
+            self._sync_chat_preference_buttons()
             self._sync_composer_enabled()
             return
 
@@ -1287,6 +1314,56 @@ class AthenaMainWindow(QMainWindow):
         self.pending_chat_id = value
         self._sync_composer_enabled()
         controller.load_chat(value)
+
+    def _sync_chat_preference_buttons(self) -> None:
+        chat_id = self._committed_chat_id()
+        pinned, favorited = self._chat_preferences_by_id.get(
+            chat_id or "",
+            (False, False),
+        )
+        self.pin_chat_button.setText("UNPIN" if pinned else "PIN")
+        self.favorite_chat_button.setText(
+            "UNFAVORITE" if favorited else "FAVORITE"
+        )
+
+    def _toggle_chat_pin(self) -> None:
+        controller = self.api_controller
+        chat_id = self._committed_chat_id()
+        if controller is None or chat_id is None or self._chat_busy:
+            return
+        pinned, _favorited = self._chat_preferences_by_id.get(
+            chat_id,
+            (False, False),
+        )
+        controller.set_chat_preferences(
+            chat_id=chat_id,
+            pinned=not pinned,
+        )
+
+    def _toggle_chat_favorite(self) -> None:
+        controller = self.api_controller
+        chat_id = self._committed_chat_id()
+        if controller is None or chat_id is None or self._chat_busy:
+            return
+        _pinned, favorited = self._chat_preferences_by_id.get(
+            chat_id,
+            (False, False),
+        )
+        controller.set_chat_preferences(
+            chat_id=chat_id,
+            favorited=not favorited,
+        )
+
+    @Slot(object)
+    def apply_chat_preferences(self, response: object) -> None:
+        if not isinstance(response, ChatPreferencesResponse):
+            return
+        self._chat_preferences_by_id[response.chat_id] = (
+            response.pinned,
+            response.favorited,
+        )
+        self._sync_chat_preference_buttons()
+        QTimer.singleShot(0, self.refresh_core_status)
 
     def _request_chat_deletion(self) -> None:
         controller = self.api_controller
@@ -1492,6 +1569,16 @@ class AthenaMainWindow(QMainWindow):
         self.new_chat_button.setObjectName("newChatButton")
         self.new_chat_button.setToolTip("Start a new empty chat session")
         self.new_chat_button.clicked.connect(self._start_new_chat)
+        self.pin_chat_button.setObjectName("pinChatButton")
+        self.pin_chat_button.setToolTip(
+            "Pin or unpin this chat using durable Core metadata"
+        )
+        self.pin_chat_button.clicked.connect(self._toggle_chat_pin)
+        self.favorite_chat_button.setObjectName("favoriteChatButton")
+        self.favorite_chat_button.setToolTip(
+            "Favorite or unfavorite this chat using durable Core metadata"
+        )
+        self.favorite_chat_button.clicked.connect(self._toggle_chat_favorite)
         self.context_spin.setObjectName("contextSpin")
         self.context_spin.setMinimumWidth(138)
         self.context_spin.setAccelerated(True)
@@ -1639,6 +1726,9 @@ class AthenaMainWindow(QMainWindow):
         )
         controller.chat_recovery_ready.connect(
             self.apply_chat_recovery
+        )
+        controller.chat_preferences_changed.connect(
+            self.apply_chat_preferences
         )
         controller.chat_deletion_preview_ready.connect(
             self.apply_chat_deletion_preview
@@ -2474,6 +2564,11 @@ class AthenaMainWindow(QMainWindow):
         self.delete_chat_button.setEnabled(
             controls_available and self.current_chat_id is not None
         )
+        preferences_available = (
+            controls_available and self._committed_chat_id() is not None
+        )
+        self.pin_chat_button.setEnabled(preferences_available)
+        self.favorite_chat_button.setEnabled(preferences_available)
         model_available = controls_available and self._selected_model() is not None
         model_selectors_enabled = controls_available and bool(self._models_by_id)
         self.model_selector.setEnabled(model_selectors_enabled)
