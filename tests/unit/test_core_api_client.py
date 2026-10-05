@@ -613,6 +613,8 @@ def test_client_parses_chat_and_model_lists(
                             "archive_mode": "default",
                             "lifecycle_state": "active",
                             "message_count": 3,
+                            "pinned": True,
+                            "favorited": False,
                         }
                     ]
                 }
@@ -649,6 +651,8 @@ def test_client_parses_chat_and_model_lists(
 
     assert chats[0].chat_id == "chat-1"
     assert chats[0].message_count == 3
+    assert chats[0].pinned is True
+    assert chats[0].favorited is False
     assert models[0].backend_model_id == "model-1"
     assert models[0].loaded_context_length == 48000
 
