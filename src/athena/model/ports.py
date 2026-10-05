@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import unicodedata
-from collections.abc import Iterator, Mapping, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from typing import Any, Protocol
 
 from athena.model.domain import ModelChatMessage, ModelInfo, ProviderHealth
@@ -112,6 +112,23 @@ class ChatModelProvider(ModelDiscoveryProvider, Protocol):
         max_output_tokens: int | None = None,
     ) -> Mapping[str, Any]:
         """Return one JSON object constrained by the supplied schema and output cap."""
+        ...
+
+
+class CancellableChatModelProvider(ChatModelProvider, Protocol):
+    """Chat provider with transport-aware explicit cancellation."""
+
+    def stream_chat_cancellable(
+        self,
+        *,
+        model_id: str,
+        messages: Sequence[ModelChatMessage],
+        cancel_requested: Callable[[], bool],
+        max_output_tokens: int | None = None,
+        reasoning_mode: str | None = None,
+        temperature: float | None = None,
+    ) -> Iterator[str]:
+        """Yield chat deltas while allowing blocked transport I/O to be interrupted."""
         ...
 
 
