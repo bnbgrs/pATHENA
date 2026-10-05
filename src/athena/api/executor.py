@@ -255,6 +255,38 @@ class SerializedCoreApiSurface:
     def load_chat(self, chat_id: str) -> ChatThreadResponse:
         return self._executor.call(lambda: self._surface.load_chat(chat_id))
 
+    def edit_chat_message(
+        self,
+        chat_id: str,
+        message_id: str,
+        *,
+        expected_revision_id: str,
+        content: str,
+    ) -> ChatThreadResponse:
+        return self._executor.call(
+            lambda: self._surface.edit_chat_message(
+                chat_id,
+                message_id,
+                expected_revision_id=expected_revision_id,
+                content=content,
+            )
+        )
+
+    def fork_chat_from_message(
+        self,
+        chat_id: str,
+        message_id: str,
+        *,
+        revision_id: str,
+    ) -> ChatThreadResponse:
+        return self._executor.call(
+            lambda: self._surface.fork_chat_from_message(
+                chat_id,
+                message_id,
+                revision_id=revision_id,
+            )
+        )
+
     def provider_health(self) -> ProviderHealthResponse:
         return self._executor.call(self._surface.provider_health)
 
