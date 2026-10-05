@@ -56,8 +56,7 @@ from athena.chat.unified_send_plan import UnifiedSendPlanRepository
 from athena.common.ids import new_uuid7
 from athena.memory.models import MemoryScopeKind
 from athena.model.adapters.lm_studio_embeddings import LMStudioEmbeddingProvider
-from athena.model.domain import ModelInfo
-from athena.model.ports import ModelImageInput
+from athena.model.domain import ModelImageInput, ModelInfo
 from athena.model.provenance import (
     ModelRunRepository,
     ModelSignature,
