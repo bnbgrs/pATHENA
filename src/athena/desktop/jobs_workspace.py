@@ -22,8 +22,8 @@ from athena.desktop.jobs_lifecycle import (
     JobLifecycleError,
     JobListEntry,
     action_availability,
-    parse_job_list,
     parse_current_progress,
+    parse_job_list,
     parse_transition_receipt,
 )
 from athena.desktop.pathena_ui_refinement_600 import set_pathena_ui_state
