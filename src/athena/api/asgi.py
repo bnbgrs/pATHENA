@@ -19,7 +19,13 @@ from athena.api.service import (
 )
 from athena.chat.cancellation import ChatOperationActiveError
 from athena.chat.generation import GenerationCancelledError
-from athena.chat.repository import ChatNotFoundError
+from athena.chat.repository import (
+    ChatMessageNotFoundError as ChatBranchMessageNotFoundError,
+    ChatNotFoundError,
+    ChatRevisionConflictError,
+    UnsupportedChatForkError,
+    UnsupportedMessageEditError,
+)
 from athena.chat.send_identity import (
     SendOperationState,
     SendOperationStateError,
@@ -228,6 +234,78 @@ class CoreApiAsgiApp:
                     send,
                     self._facade.create_chat(
                         chat_id
+                    ),
+                    status=201,
+                    request_id=request_id,
+                )
+                return
+
+            edit_resource = _message_action_resource(path, action="edit")
+            if method == "PATCH" and edit_resource is not None:
+                chat_id, message_id = edit_resource
+                payload = await _read_json_object(receive)
+                unknown = set(payload) - {"expected_revision_id", "content"}
+                if unknown:
+                    raise ValueError(
+                        "Chat edit request contains unsupported fields."
+                    )
+                expected_revision_id = payload.get("expected_revision_id")
+                if (
+                    not isinstance(expected_revision_id, str)
+                    or not expected_revision_id.strip()
+                ):
+                    raise ValueError(
+                        "Chat edit expected_revision_id must be a non-empty UUID string."
+                    )
+                try:
+                    expected_revision_id = str(uuid.UUID(expected_revision_id))
+                except ValueError as exc:
+                    raise ValueError(
+                        "Chat edit expected_revision_id must be a valid UUID."
+                    ) from exc
+                content = payload.get("content")
+                if not isinstance(content, str) or not content.strip():
+                    raise ValueError(
+                        "Edited chat content must contain non-whitespace text."
+                    )
+                await _send_contract(
+                    send,
+                    self._facade.edit_chat_message(
+                        chat_id,
+                        message_id,
+                        expected_revision_id=expected_revision_id,
+                        content=content,
+                    ),
+                    request_id=request_id,
+                )
+                return
+
+            fork_resource = _message_action_resource(path, action="fork")
+            if method == "POST" and fork_resource is not None:
+                chat_id, message_id = fork_resource
+                payload = await _read_json_object(receive)
+                unknown = set(payload) - {"revision_id"}
+                if unknown:
+                    raise ValueError(
+                        "Chat fork request contains unsupported fields."
+                    )
+                revision_id = payload.get("revision_id")
+                if not isinstance(revision_id, str) or not revision_id.strip():
+                    raise ValueError(
+                        "Chat fork revision_id must be a non-empty UUID string."
+                    )
+                try:
+                    revision_id = str(uuid.UUID(revision_id))
+                except ValueError as exc:
+                    raise ValueError(
+                        "Chat fork revision_id must be a valid UUID."
+                    ) from exc
+                await _send_contract(
+                    send,
+                    self._facade.fork_chat_from_message(
+                        chat_id,
+                        message_id,
+                        revision_id=revision_id,
                     ),
                     status=201,
                     request_id=request_id,
@@ -773,6 +851,45 @@ class CoreApiAsgiApp:
                 retryable=False,
             )
             return
+        except ChatBranchMessageNotFoundError:
+            await _send_problem(
+                send,
+                status=404,
+                code="chat_message_not_found",
+                message="The requested chat message does not exist in this chat.",
+                request_id=request_id,
+            )
+            return
+        except ChatRevisionConflictError:
+            await _send_problem(
+                send,
+                status=409,
+                code="chat_revision_conflict",
+                message="The requested chat message revision is stale.",
+                request_id=request_id,
+                retryable=False,
+            )
+            return
+        except UnsupportedMessageEditError:
+            await _send_problem(
+                send,
+                status=409,
+                code="chat_message_edit_unsupported",
+                message="This chat message cannot be edited through the current path.",
+                request_id=request_id,
+                retryable=False,
+            )
+            return
+        except UnsupportedChatForkError:
+            await _send_problem(
+                send,
+                status=409,
+                code="chat_fork_unsupported",
+                message="This chat cannot be forked through the current path.",
+                request_id=request_id,
+                retryable=False,
+            )
+            return
         except KnowledgeReviewNotFoundError:
             await _send_problem(
                 send,
@@ -978,6 +1095,10 @@ def _known_path(path: str) -> bool:
             "/messages/unified-local"
         )
         return bool(chat_id) and "/" not in chat_id
+    if _message_action_resource(path, action="edit") is not None:
+        return True
+    if _message_action_resource(path, action="fork") is not None:
+        return True
     if _message_action_resource(path, action="remember") is not None:
         return True
     if _message_action_resource(path, action="knowledge-extraction") is not None:
