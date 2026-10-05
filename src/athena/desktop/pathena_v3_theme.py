@@ -1533,7 +1533,7 @@ PATHENA_V3_STYLESHEET += f"""
 QFrame#v3JobsCommand,
 QFrame#v3SourcesCommand {{
     background: transparent;
-    border: none;
+    border: 1px solid transparent;
     border-bottom: 1px solid {PALETTE.border};
     border-radius: 0;
 }}
