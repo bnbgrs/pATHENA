@@ -563,6 +563,7 @@ class ChatGenerationService:
                     max_output_tokens=max_output_tokens,
                     reasoning_mode=reasoning_mode,
                     temperature=temperature,
+                    cancel_requested=cancel_requested,
                 )
             elif temperature is not None:
                 stream = self.provider.stream_chat(
