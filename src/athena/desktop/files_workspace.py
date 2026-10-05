@@ -141,6 +141,7 @@ class FilesWorkspace(QWidget):
         layout.addWidget(self.status)
 
         splitter = QSplitter(Qt.Orientation.Horizontal)
+        splitter.setProperty("pathenaSplitterPersistenceKey", "sources-main")
         splitter.addWidget(self.sources)
         splitter.addWidget(self.details)
         splitter.setStretchFactor(0, 1)
