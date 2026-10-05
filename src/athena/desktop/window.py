@@ -2525,7 +2525,7 @@ class AthenaMainWindow(QMainWindow):
             edit_button.setProperty("messageRevisionId", revision_id)
             edit_button.setProperty("messageSequence", sequence_no)
             edit_button.setProperty("messageRole", role)
-            edit_button.setAccessibleName("Edit this persisted user message")
+            edit_button.setAccessibleName("Edit message")
             edit_button.setToolTip(
                 "Create a new immutable revision of this persisted user message"
             )
@@ -2542,7 +2542,7 @@ class AthenaMainWindow(QMainWindow):
         fork_button.setProperty("messageRevisionId", revision_id)
         fork_button.setProperty("messageSequence", sequence_no)
         fork_button.setProperty("messageRole", role)
-        fork_button.setAccessibleName("Start a new chat from this message")
+        fork_button.setAccessibleName("New chat from here")
         fork_button.setToolTip(
             "Create a durable fork from this exact persisted message revision"
         )
