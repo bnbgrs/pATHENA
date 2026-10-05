@@ -581,11 +581,6 @@ class ChatRepository:
         commit_id = new_uuid7()
         created_at_us = utc_now_us()
         payload_hash = _message_payload_hash(content, content_format)
-        if any(not isinstance(source_id, uuid.UUID) for source_id in source_ids):
-            raise TypeError("Chat message source IDs must be UUIDs.")
-        if len(set(source_ids)) != len(source_ids):
-            raise ValueError("Chat message source IDs must be unique.")
-
         with self.database.write_transaction() as connection:
             self._require_active_actor(connection, actor_id)
             self._require_standard_chat(connection, chat_id)
@@ -778,6 +773,10 @@ class ChatRepository:
         commit_id = new_uuid7()
         created_at_us = utc_now_us()
         payload_hash = _message_payload_hash(content, content_format)
+        if any(not isinstance(source_id, uuid.UUID) for source_id in source_ids):
+            raise TypeError("Chat message source IDs must be UUIDs.")
+        if len(set(source_ids)) != len(source_ids):
+            raise ValueError("Chat message source IDs must be unique.")
 
         with self.database.write_transaction() as connection:
             self._require_active_actor(connection, actor_id)
