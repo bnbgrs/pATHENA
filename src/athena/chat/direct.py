@@ -11,6 +11,7 @@ from athena.chat.generation import (
     ChatGenerationResult,
     ChatGenerationService,
     GenerationCancelledError,
+    ModelSelectionError,
 )
 from athena.chat.models import ChatMessage, MessageType
 from athena.chat.provenance import (
@@ -18,7 +19,11 @@ from athena.chat.provenance import (
     strip_turn_local_grounding_markers,
 )
 from athena.chat.send_identity import SendOperationState, SendOperationStateError
-from athena.model.domain import ModelInfo
+from athena.model.domain import (
+    ModelCapabilitySupport,
+    ModelImageInput,
+    ModelInfo,
+)
 from athena.model.provenance import ModelRunRepository, ProcessingRun
 from athena.retrieval.context import ContextBuilderError, estimate_tokens
 from athena.retrieval.context_package import (
@@ -155,6 +160,8 @@ class DirectChatService:
         reasoning_mode: str | None = "off",
         on_delta: Callable[[str], None] | None = None,
         cancel_requested: Callable[[], bool] | None = None,
+        image_inputs: tuple[ModelImageInput, ...] = (),
+        image_source_ids: tuple[uuid.UUID, ...] = (),
     ) -> DirectChatGenerationResult:
         validated_turns = _bounded_positive_int(
             max_recent_conversation_turns,
@@ -190,7 +197,23 @@ class DirectChatService:
         if cancel_requested is not None and cancel_requested():
             raise GenerationCancelledError("Chat generation was cancelled.")
 
+        if bool(image_inputs) != bool(image_source_ids) or (
+            len(image_inputs) != len(image_source_ids)
+        ):
+            raise ValueError(
+                "Vision chat requires one durable Source ID per image input."
+            )
+        if len(set(image_source_ids)) != len(image_source_ids):
+            raise ValueError("Vision image Source IDs must be unique.")
+
         model = self.chat_generation.select_model(requested_model_id)
+        if (
+            image_inputs
+            and model.capabilities.vision is not ModelCapabilitySupport.SUPPORTED
+        ):
+            raise ModelSelectionError(
+                "Selected model does not truthfully advertise vision support."
+            )
         context_limit = _resolve_context_limit(
             model=model,
             requested_limit=effective_context_limit,
@@ -229,6 +252,8 @@ class DirectChatService:
             effective_output_reserve=effective_output_reserve,
             safety_margin=validated_safety_margin,
         )
+        if image_inputs:
+            context_configuration["vision_input_count"] = len(image_inputs)
         generation_parameters: dict[str, object] = {
             "max_output_tokens": effective_output_reserve,
             "reasoning_mode": reasoning_mode,
@@ -245,6 +270,7 @@ class DirectChatService:
             chat_id=chat_id,
             content=content,
             operation_id=operation_id,
+            source_ids=image_source_ids,
         )
         package_snapshot_commit_seq = self.context_packages.assert_user_commit_follows(
             retrieval_snapshot_commit_seq,
@@ -326,6 +352,7 @@ class DirectChatService:
                     phase="immediately-before-primary-model-call",
                 ),
                 cancel_requested=cancel_requested,
+                image_inputs=image_inputs,
             )
         except GenerationCancelledError:
             self.model_runs.finish_run(
