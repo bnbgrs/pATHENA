@@ -25,6 +25,7 @@ class ChatMessage:
     revision_id: uuid.UUID
     content: str | None
     content_format: str | None
+    source_ids: tuple[uuid.UUID, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
