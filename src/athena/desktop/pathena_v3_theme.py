@@ -1,4 +1,4 @@
-"""V3 visual system: ink canvas, porcelain type and sea-glass accents."""
+"""Runtime desktop visual system bridged onto the pATHENA V4 token family."""
 
 from __future__ import annotations
 
@@ -1525,3 +1525,21 @@ QFrame#helpCapabilityRow:hover {{
 }}
 """
 
+
+
+# V4 post-merge structural cleanup: Jobs and Sources are command/list workspaces,
+# not dashboard cards. Keep their real controls and state while reducing chrome.
+PATHENA_V3_STYLESHEET += f"""
+QFrame#v3JobsCommand,
+QFrame#v3SourcesCommand {{
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid {PALETTE.border};
+    border-radius: 0;
+}}
+
+QFrame#v3JobsCommand:focus-within,
+QFrame#v3SourcesCommand:focus-within {{
+    border-bottom-color: {PALETTE.border_strong};
+}}
+"""
