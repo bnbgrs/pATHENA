@@ -1767,6 +1767,11 @@ class DesktopApiController(QObject):
                 return
 
             if outcome.grounded is not None:
+                if self.chat_cancel_pending:
+                    self._set_chat_cancel_state(
+                        "expired",
+                        "Generation completed before cancellation could take effect.",
+                    )
                 self.grounded_chat_sent.emit(outcome.grounded)
             elif outcome.deletion_preview is not None:
                 self.chat_deletion_preview_ready.emit(outcome.deletion_preview)
