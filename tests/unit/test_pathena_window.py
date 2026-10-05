@@ -10,6 +10,9 @@ from athena.api.contracts import (
     ChatMessageResponse,
     ChatOperationRecoveryResponse,
     ChatThreadResponse,
+    GroundedChatResponse,
+    GroundedEvidenceResponse,
+    GroundingResponse,
 )
 
 from athena.desktop import window as window_module
@@ -522,5 +525,124 @@ def test_completed_chat_does_not_probe_recovery() -> None:
         assert controller.inspect_calls == []
         assert window.recovery_bar.isHidden()
         assert window._recovery_operation_id is None
+    finally:
+        window.close()
+
+
+
+def test_grounded_evidence_hover_previews_use_persisted_evidence() -> None:
+    app = _app()
+    window = PathenaMainWindow()
+    response = GroundedChatResponse(
+        thread=ChatThreadResponse(
+            chat_id="11111111-1111-1111-1111-111111111111",
+            started_at_us=1,
+            ended_at_us=None,
+            archive_mode="standard",
+            lifecycle_state="active",
+            messages=(),
+        ),
+        assistant_text="grounded answer",
+        evidence=(
+            GroundedEvidenceResponse(
+                context_id="ctx-source-1",
+                evidence_class="source",
+                entity_type="source_representation",
+                entity_id="22222222-2222-2222-2222-222222222222",
+                revision_id="33333333-3333-3333-3333-333333333333",
+                title="Source excerpt",
+                text=(
+                    "This persisted excerpt is the exact evidence behind "
+                    "the grounded answer."
+                ),
+                cited=True,
+                epistemic_status="supported",
+                source_id="44444444-4444-4444-4444-444444444444",
+                representation_id="55555555-5555-5555-5555-555555555555",
+                source_name="Local report.pdf",
+                source_uri="file:///archive/local-report.pdf",
+                start_offset=120,
+                end_offset=260,
+                page_start=4,
+                page_end=5,
+                quoted_sha256="a" * 64,
+                truncated=False,
+            ),
+            GroundedEvidenceResponse(
+                context_id="ctx-claim-1",
+                evidence_class="canonical",
+                entity_type="claim",
+                entity_id="66666666-6666-6666-6666-666666666666",
+                revision_id="77777777-7777-7777-7777-777777777777",
+                title="Persisted supported claim",
+                text="Canonical claim evidence from the local knowledge graph.",
+                cited=False,
+                epistemic_status="supported",
+                source_id=None,
+                representation_id=None,
+                source_name=None,
+                source_uri=None,
+                start_offset=None,
+                end_offset=None,
+                page_start=None,
+                page_end=None,
+                quoted_sha256=None,
+                truncated=False,
+            ),
+        ),
+        personal_memory=(),
+        grounding=GroundingResponse(
+            cited_context_ids=("ctx-source-1",),
+            canonical_context_ids=("ctx-claim-1",),
+            user_statement_context_ids=(),
+            conversation_context_ids=(),
+            source_context_ids=("ctx-source-1",),
+            research_context_ids=(),
+            news_context_ids=(),
+            invalid_context_ids=(),
+            uses_inference=False,
+            uses_model_prior=False,
+            uses_unknown=False,
+            has_provenance_marker=True,
+        ),
+        processing_run_id="88888888-8888-8888-8888-888888888888",
+        model_id="local-model",
+        embedding_model_id=None,
+    )
+
+    try:
+        window._render_evidence_previews(response)
+        app.processEvents()
+
+        chips = window.evidence_preview_host.findChildren(
+            QLabel,
+            "evidencePreviewChip",
+        )
+        assert len(chips) == 2
+
+        source_chip = chips[0]
+        assert source_chip.property("contextId") == "ctx-source-1"
+        assert source_chip.property("cited") is True
+        assert "Local report.pdf" in source_chip.text()
+        assert "file:///archive/local-report.pdf" in source_chip.toolTip()
+        assert "pages 4–5" in source_chip.toolTip()
+        assert "offsets 120–260" in source_chip.toolTip()
+        assert "exact evidence" in source_chip.toolTip()
+        assert source_chip.accessibleDescription() == source_chip.toolTip()
+
+        claim_chip = chips[1]
+        assert claim_chip.property("contextId") == "ctx-claim-1"
+        assert claim_chip.property("cited") is False
+        assert "Persisted supported claim" in claim_chip.text()
+        assert "Canonical claim evidence" in claim_chip.toolTip()
+
+        assert not window.evidence_preview_host.isHidden()
+        assert "Local report.pdf" in window.evidence_chain_state.toolTip()
+
+        window._clear_evidence_previews()
+        app.processEvents()
+        assert window.evidence_preview_layout.count() == 0
+        assert window.evidence_preview_host.isHidden()
+        assert window.evidence_chain_state.toolTip() == ""
     finally:
         window.close()
