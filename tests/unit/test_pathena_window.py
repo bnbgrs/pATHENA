@@ -345,3 +345,176 @@ def test_message_actions_expose_real_edit_and_fork_controls(
         )
     finally:
         window.close()
+
+
+class _RecoveryControllerStub:
+    def __init__(self) -> None:
+        self.inspect_calls: list[tuple[str, str]] = []
+        self.continue_calls: list[tuple[str, str]] = []
+        self.can_cancel_active_chat = False
+        self.chat_cancel_pending = False
+
+    def inspect_chat_recovery(
+        self,
+        *,
+        chat_id: str,
+        operation_id: str,
+    ) -> None:
+        self.inspect_calls.append((chat_id, operation_id))
+
+    def continue_chat_operation(
+        self,
+        *,
+        chat_id: str,
+        operation_id: str,
+    ) -> None:
+        self.continue_calls.append((chat_id, operation_id))
+
+
+def _recovery_thread(
+    *,
+    chat_id: str,
+    operation_id: str,
+    include_assistant: bool = False,
+) -> ChatThreadResponse:
+    messages = [
+        ChatMessageResponse(
+            message_id=operation_id,
+            chat_id=chat_id,
+            sequence_no=1,
+            message_type="user",
+            actor_id="33333333-3333-4333-8333-333333333333",
+            created_at_us=1,
+            revision_id="44444444-4444-4444-8444-444444444444",
+            content="persisted interrupted request",
+            content_format="text/plain",
+        )
+    ]
+    if include_assistant:
+        messages.append(
+            ChatMessageResponse(
+                message_id="55555555-5555-4555-8555-555555555555",
+                chat_id=chat_id,
+                sequence_no=2,
+                message_type="assistant",
+                actor_id="66666666-6666-4666-8666-666666666666",
+                created_at_us=2,
+                revision_id="77777777-7777-4777-8777-777777777777",
+                content="complete answer",
+                content_format="text/plain",
+            )
+        )
+    return ChatThreadResponse(
+        chat_id=chat_id,
+        started_at_us=1,
+        ended_at_us=None,
+        archive_mode="standard",
+        lifecycle_state="active",
+        messages=tuple(messages),
+    )
+
+
+def test_recovery_continue_is_exposed_only_after_core_confirmation() -> None:
+    app = _app()
+    window = PathenaMainWindow()
+    controller = _RecoveryControllerStub()
+    chat_id = "11111111-1111-4111-8111-111111111111"
+    operation_id = "22222222-2222-4222-8222-222222222222"
+
+    try:
+        window.api_controller = controller  # type: ignore[assignment]
+        window.apply_chat_loaded(
+            _recovery_thread(
+                chat_id=chat_id,
+                operation_id=operation_id,
+            )
+        )
+        app.processEvents()
+
+        assert controller.inspect_calls == [(chat_id, operation_id)]
+        assert window.recovery_bar.isHidden()
+
+        window.apply_chat_recovery(
+            ChatOperationRecoveryResponse(
+                operation_id=operation_id,
+                chat_id=chat_id,
+                mode="grounded",
+                state="resumable",
+                can_continue=True,
+                processing_run_id=(
+                    "88888888-8888-4888-8888-888888888888"
+                ),
+            )
+        )
+
+        assert not window.recovery_bar.isHidden()
+        assert not window.recovery_continue_button.isHidden()
+        assert window.recovery_continue_button.isEnabled()
+        assert "persisted checkpoint" in window.recovery_state_label.text()
+
+        window.recovery_continue_button.click()
+
+        assert controller.continue_calls == [(chat_id, operation_id)]
+        assert not window.recovery_continue_button.isEnabled()
+        assert "Continuing" in window.recovery_state_label.text()
+    finally:
+        window.close()
+
+
+def test_ambiguous_recovery_never_exposes_continue_button() -> None:
+    _app()
+    window = PathenaMainWindow()
+    controller = _RecoveryControllerStub()
+    chat_id = "11111111-1111-4111-8111-111111111111"
+    operation_id = "22222222-2222-4222-8222-222222222222"
+
+    try:
+        window.api_controller = controller  # type: ignore[assignment]
+        window.current_chat_id = chat_id
+        window._recovery_chat_id = chat_id
+        window._recovery_operation_id = operation_id
+
+        window.apply_chat_recovery(
+            ChatOperationRecoveryResponse(
+                operation_id=operation_id,
+                chat_id=chat_id,
+                mode="grounded",
+                state="ambiguous",
+                can_continue=False,
+                processing_run_id=(
+                    "88888888-8888-4888-8888-888888888888"
+                ),
+            )
+        )
+
+        assert not window.recovery_bar.isHidden()
+        assert window.recovery_continue_button.isHidden()
+        assert "will not repeat" in window.recovery_state_label.text()
+        assert controller.continue_calls == []
+    finally:
+        window.close()
+
+
+def test_completed_chat_does_not_probe_recovery() -> None:
+    app = _app()
+    window = PathenaMainWindow()
+    controller = _RecoveryControllerStub()
+    chat_id = "11111111-1111-4111-8111-111111111111"
+    operation_id = "22222222-2222-4222-8222-222222222222"
+
+    try:
+        window.api_controller = controller  # type: ignore[assignment]
+        window.apply_chat_loaded(
+            _recovery_thread(
+                chat_id=chat_id,
+                operation_id=operation_id,
+                include_assistant=True,
+            )
+        )
+        app.processEvents()
+
+        assert controller.inspect_calls == []
+        assert window.recovery_bar.isHidden()
+        assert window._recovery_operation_id is None
+    finally:
+        window.close()
