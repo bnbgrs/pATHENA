@@ -491,7 +491,6 @@ class CoreApiAsgiApp:
                     "max_output_tokens",
                     "temperature",
                     "thinking_enabled",
-                    "image_source_ids",
                 }
                 if unknown:
                     raise ValueError(
@@ -583,24 +582,6 @@ class CoreApiAsgiApp:
                     raise ValueError(
                         "Chat thinking_enabled must be boolean or null."
                     )
-                raw_image_source_ids = payload.get("image_source_ids", [])
-                if not isinstance(raw_image_source_ids, list):
-                    raise ValueError("Chat image_source_ids must be a list.")
-                if len(raw_image_source_ids) > 4:
-                    raise ValueError("Chat accepts at most four image Sources.")
-                image_source_ids: list[str] = []
-                for raw_source_id in raw_image_source_ids:
-                    if not isinstance(raw_source_id, str):
-                        raise ValueError("Chat image Source IDs must be UUID strings.")
-                    try:
-                        canonical_source_id = str(uuid.UUID(raw_source_id))
-                    except ValueError as exc:
-                        raise ValueError(
-                            "Chat image Source IDs must be valid UUID strings."
-                        ) from exc
-                    image_source_ids.append(canonical_source_id)
-                if len(set(image_source_ids)) != len(image_source_ids):
-                    raise ValueError("Chat image Source IDs must be unique.")
                 await _send_contract(
                     send,
                     self._facade.send_unified_local_chat_message(
@@ -701,6 +682,7 @@ class CoreApiAsgiApp:
                     "max_output_tokens",
                     "temperature",
                     "thinking_enabled",
+                    "image_source_ids",
                 }
                 if unknown:
                     raise ValueError(
@@ -775,6 +757,24 @@ class CoreApiAsgiApp:
                     raise ValueError(
                         "Chat thinking_enabled must be boolean or null."
                     )
+                raw_image_source_ids = payload.get("image_source_ids", [])
+                if not isinstance(raw_image_source_ids, list):
+                    raise ValueError("Chat image_source_ids must be a list.")
+                if len(raw_image_source_ids) > 4:
+                    raise ValueError("Chat accepts at most four image Sources.")
+                image_source_ids: list[str] = []
+                for raw_source_id in raw_image_source_ids:
+                    if not isinstance(raw_source_id, str):
+                        raise ValueError("Chat image Source IDs must be UUID strings.")
+                    try:
+                        canonical_source_id = str(uuid.UUID(raw_source_id))
+                    except ValueError as exc:
+                        raise ValueError(
+                            "Chat image Source IDs must be valid UUID strings."
+                        ) from exc
+                    image_source_ids.append(canonical_source_id)
+                if len(set(image_source_ids)) != len(image_source_ids):
+                    raise ValueError("Chat image Source IDs must be unique.")
                 await _send_contract(
                     send,
                     self._facade.send_chat_message(
