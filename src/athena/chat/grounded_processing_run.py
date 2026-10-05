@@ -329,5 +329,5 @@ def cancel_grounded_processing_run(
         repository,
         run,
         status="cancelled",
-        error_detail="KeyboardInterrupt",
+        error_detail=error_detail,
     )
