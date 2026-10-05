@@ -2103,6 +2103,26 @@ class AthenaMainWindow(QMainWindow):
             )
             return
 
+        if operation == "continue_recovery":
+            self._recovery_status = None
+            self.recovery_state_label.setText(
+                "Recovery could not continue safely · " + message
+            )
+            self.recovery_continue_button.hide()
+            self.recovery_bar.show()
+            if (
+                self._recovery_chat_id == self.current_chat_id
+                and self._recovery_operation_id is not None
+            ):
+                QTimer.singleShot(
+                    0,
+                    lambda: self._inspect_recovery_candidate(
+                        self._recovery_chat_id or "",
+                        self._recovery_operation_id or "",
+                    ),
+                )
+            return
+
         if operation == "load":
             self._rollback_pending_chat_selection()
 
