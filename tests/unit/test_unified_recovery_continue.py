@@ -6,13 +6,13 @@ from typing import Any
 
 import pytest
 
+from athena.chat import unified as unified_module
 from athena.chat.grounded_recovery import GroundedRecoveryState, GroundedRecoveryStatus
 from athena.chat.request_fingerprint import ChatRequestFingerprint
 from athena.chat.unified import (
     UnifiedGroundedRecoveryRequiredError,
     UnifiedLocalChatService,
 )
-from athena.chat import unified as unified_module
 
 
 _CHAT_ID = uuid.UUID("11111111-1111-4111-8111-111111111111")
