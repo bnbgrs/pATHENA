@@ -42,6 +42,7 @@ from PySide6.QtWidgets import (
 
 from athena.api.contracts import (
     CanonicalMergeReviewResponse,
+    ChatOperationRecoveryResponse,
     ChatThreadResponse,
     DeletionPreviewResponse,
     GroundedChatResponse,
@@ -313,6 +314,12 @@ class AthenaMainWindow(QMainWindow):
         self.context_value_label = QLabel("—")
         self.delete_chat_button = QPushButton("DELETE")
         self.new_chat_button = QPushButton("NEW CHAT")
+        self.recovery_bar = QFrame()
+        self.recovery_state_label = QLabel("")
+        self.recovery_continue_button = QPushButton("CONTINUE")
+        self._recovery_status: ChatOperationRecoveryResponse | None = None
+        self._recovery_chat_id: str | None = None
+        self._recovery_operation_id: str | None = None
         self.context_spin = QSpinBox()
         self.max_output_slider = QSlider(Qt.Orientation.Horizontal)
         self.max_output_spin = QSpinBox()
@@ -513,6 +520,8 @@ class AthenaMainWindow(QMainWindow):
         conversation_row = QHBoxLayout()
         controls = self._build_chat_controls()
         layout.addWidget(controls)
+        layout.addSpacing(10)
+        layout.addWidget(self._build_recovery_bar())
         layout.addSpacing(12)
 
         conversation_row.setSpacing(18)
@@ -584,6 +593,33 @@ class AthenaMainWindow(QMainWindow):
         layout.addWidget(model_label)
         layout.addWidget(self.model_selector, 1)
         return controls
+
+    def _build_recovery_bar(self) -> QFrame:
+        bar = self.recovery_bar
+        bar.setObjectName("chatRecoveryBar")
+        bar.setAccessibleName("Generation recovery")
+        layout = QHBoxLayout(bar)
+        layout.setContentsMargins(10, 6, 10, 6)
+        layout.setSpacing(10)
+
+        self.recovery_state_label.setObjectName("chatRecoveryState")
+        self.recovery_state_label.setWordWrap(True)
+        self.recovery_continue_button.setObjectName("chatRecoveryContinueButton")
+        self.recovery_continue_button.setAccessibleName(
+            "Continue interrupted grounded response"
+        )
+        self.recovery_continue_button.setToolTip(
+            "Continue only from the persisted recovery checkpoint"
+        )
+        self.recovery_continue_button.clicked.connect(
+            self._continue_recovery
+        )
+
+        layout.addWidget(self.recovery_state_label, 1)
+        layout.addWidget(self.recovery_continue_button)
+        bar.hide()
+        return bar
+
     def _apply_control_snapshot(self, snapshot: DesktopApiSnapshot) -> None:
         llms = tuple(model for model in snapshot.models if model.model_type == "llm")
         previous_model = self._selected_model_id()
@@ -1196,6 +1232,7 @@ class AthenaMainWindow(QMainWindow):
         self.pending_chat_id = None
         self._last_rendered_sequence = 0
         self._clear_knowledge_review()
+        self._clear_recovery_state()
         if clear_transient:
             self._transient_failures.pop("__NEW_CHAT__", None)
         self._set_chat_selector_identity(
@@ -1592,6 +1629,9 @@ class AthenaMainWindow(QMainWindow):
         controller.grounded_chat_sent.connect(
             self.apply_grounded_chat_sent
         )
+        controller.chat_recovery_ready.connect(
+            self.apply_chat_recovery
+        )
         controller.chat_deletion_preview_ready.connect(
             self.apply_chat_deletion_preview
         )
@@ -1771,6 +1811,7 @@ class AthenaMainWindow(QMainWindow):
             thread.chat_id
         )
         self._render_chat_thread(thread)
+        self._schedule_recovery_inspection(thread)
 
     @Slot(object)
     def apply_chat_sent(self, thread: object) -> None:
@@ -1781,6 +1822,7 @@ class AthenaMainWindow(QMainWindow):
         )
         self.prompt_input.clear()
         self._render_chat_thread(thread)
+        self._clear_recovery_state()
         QTimer.singleShot(0, self.refresh_core_status)
 
     @Slot(object)
@@ -1796,6 +1838,7 @@ class AthenaMainWindow(QMainWindow):
             response.thread,
             assistant_display_override=response.assistant_text,
         )
+        self._clear_recovery_state()
 
         self.inspector_object_id.setText(
             f"RUN / {response.processing_run_id[:8].upper()}"
@@ -1827,6 +1870,116 @@ class AthenaMainWindow(QMainWindow):
             f"{cited_count} cited evidence item{suffix}."
         )
         QTimer.singleShot(0, self.refresh_core_status)
+
+    @Slot(object)
+    def apply_chat_recovery(self, response: object) -> None:
+        if not isinstance(response, ChatOperationRecoveryResponse):
+            return
+        if (
+            response.chat_id != self.current_chat_id
+            or response.chat_id != self._recovery_chat_id
+            or response.operation_id != self._recovery_operation_id
+        ):
+            return
+
+        self._recovery_status = response
+        if response.can_continue:
+            self.recovery_state_label.setText(
+                "Interrupted grounded response · persisted checkpoint available."
+            )
+            self.recovery_continue_button.show()
+            self.recovery_bar.show()
+        elif response.state in {"ambiguous", "conflict"}:
+            self.recovery_state_label.setText(
+                "Recovery requires review · ATHENA will not repeat the "
+                "provider call automatically."
+            )
+            self.recovery_continue_button.hide()
+            self.recovery_bar.show()
+        else:
+            self.recovery_bar.hide()
+            self.recovery_continue_button.hide()
+        self._sync_recovery_controls()
+
+    @Slot()
+    def _continue_recovery(self) -> None:
+        controller = self.api_controller
+        status = self._recovery_status
+        if (
+            controller is None
+            or status is None
+            or not status.can_continue
+            or self._chat_busy
+            or self.pending_chat_id is not None
+            or status.chat_id != self.current_chat_id
+        ):
+            return
+        self.recovery_state_label.setText(
+            "Continuing from persisted recovery checkpoint…"
+        )
+        self.recovery_continue_button.setEnabled(False)
+        controller.continue_chat_operation(
+            chat_id=status.chat_id,
+            operation_id=status.operation_id,
+        )
+
+    def _clear_recovery_state(self) -> None:
+        self._recovery_status = None
+        self._recovery_chat_id = None
+        self._recovery_operation_id = None
+        self.recovery_state_label.setText("")
+        self.recovery_continue_button.hide()
+        self.recovery_bar.hide()
+
+    def _schedule_recovery_inspection(
+        self,
+        thread: ChatThreadResponse,
+    ) -> None:
+        self._clear_recovery_state()
+        if not thread.messages:
+            return
+        last = thread.messages[-1]
+        if last.message_type != "user":
+            return
+
+        self._recovery_chat_id = thread.chat_id
+        self._recovery_operation_id = last.message_id
+        QTimer.singleShot(
+            0,
+            lambda chat_id=thread.chat_id, operation_id=last.message_id: (
+                self._inspect_recovery_candidate(chat_id, operation_id)
+            ),
+        )
+
+    def _inspect_recovery_candidate(
+        self,
+        chat_id: str,
+        operation_id: str,
+    ) -> None:
+        controller = self.api_controller
+        if (
+            controller is None
+            or self._chat_busy
+            or self.pending_chat_id is not None
+            or self.current_chat_id != chat_id
+            or self._recovery_chat_id != chat_id
+            or self._recovery_operation_id != operation_id
+        ):
+            return
+        controller.inspect_chat_recovery(
+            chat_id=chat_id,
+            operation_id=operation_id,
+        )
+
+    def _sync_recovery_controls(self) -> None:
+        status = self._recovery_status
+        self.recovery_continue_button.setEnabled(
+            status is not None
+            and status.can_continue
+            and not self._chat_busy
+            and self.pending_chat_id is None
+            and status.chat_id == self.current_chat_id
+        )
 
     @Slot(object)
     def apply_message_remembered(self, response: object) -> None:
@@ -1941,6 +2094,15 @@ class AthenaMainWindow(QMainWindow):
         operation: str,
         message: str,
     ) -> None:
+        if operation == "inspect_recovery":
+            self._recovery_status = None
+            self.recovery_continue_button.hide()
+            self.recovery_bar.hide()
+            self.connection_detail.setText(
+                "Recovery status is unavailable · " + message
+            )
+            return
+
         if operation == "load":
             self._rollback_pending_chat_selection()
 
@@ -1969,6 +2131,8 @@ class AthenaMainWindow(QMainWindow):
             if operation == "edit"
             else "Chat fork"
             if operation == "fork"
+            else "Recovery"
+            if operation == "continue_recovery"
             else "Chat loading"
             if operation == "load"
             else "Knowledge extraction"
@@ -1990,6 +2154,7 @@ class AthenaMainWindow(QMainWindow):
             if operation in {
                 "send",
                 "send_grounded",
+                "continue_recovery",
                 "fork",
                 "remember",
                 "extract_knowledge",
@@ -2025,6 +2190,7 @@ class AthenaMainWindow(QMainWindow):
     def apply_chat_busy(self, busy: bool) -> None:
         self._chat_busy = busy
         self._sync_composer_enabled()
+        self._sync_recovery_controls()
 
     @Slot(str, str)
     def apply_chat_cancel_state(self, state: str, detail: str) -> None:
@@ -2034,11 +2200,21 @@ class AthenaMainWindow(QMainWindow):
 
     @Slot(str)
     def apply_chat_cancelled(self, operation_id: str) -> None:
-        del operation_id
         self.connection_detail.setText(
             "Generation stopped. The incomplete assistant response was not saved."
         )
         self._sync_composer_enabled()
+        if (
+            operation_id == self._recovery_operation_id
+            and self._recovery_chat_id == self.current_chat_id
+        ):
+            QTimer.singleShot(
+                0,
+                lambda: self._inspect_recovery_candidate(
+                    self._recovery_chat_id or "",
+                    self._recovery_operation_id or "",
+                ),
+            )
         QTimer.singleShot(0, self.refresh_core_status)
 
     def _sync_send_action_presentation(self) -> None:
@@ -2286,6 +2462,7 @@ class AthenaMainWindow(QMainWindow):
         self.temperature_spin.setEnabled(model_available)
         self.thinking_checkbox.setEnabled(model_available)
         self._sync_message_action_buttons()
+        self._sync_recovery_controls()
 
     def _sync_message_action_buttons(self) -> None:
         controls_available = (
