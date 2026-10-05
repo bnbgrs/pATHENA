@@ -429,6 +429,11 @@ class ResearchWorkspace(QWidget):
                 )
             elif operation == "cancel" and job_label:
                 message = f"Research run {job_label} cancellation failed (exit {exit_code})."
+            elif operation == "compare" and job_label:
+                message = (
+                    f"Research run {job_label} comparison failed "
+                    f"(exit {exit_code})."
+                )
             elif operation == "enqueue":
                 message = f"Research could not be queued (exit {exit_code})."
             else:
@@ -563,6 +568,51 @@ class ResearchWorkspace(QWidget):
             QTimer.singleShot(120, self.refresh)
             return
 
+        if operation == "compare":
+            if operation_job_id is None:
+                self._set_status(
+                    "Research comparison response could not be verified.",
+                    "error",
+                    diagnostic="The comparison request lost its Research run identity.",
+                )
+                self._recover_background_selection(
+                    operation,
+                    owns_details=owns_details,
+                )
+                return
+            try:
+                comparison = parse_research_comparison_receipt(
+                    output,
+                    expected_job_id=operation_job_id,
+                )
+            except ResearchWorkspaceProtocolError as exc:
+                self._set_status(
+                    f"Research run {job_label} comparison could not be verified.",
+                    "error",
+                    diagnostic=str(exc),
+                )
+                if owns_details:
+                    set_pathena_ui_state(self.details, "error")
+                self._recover_background_selection(
+                    operation,
+                    owns_details=owns_details,
+                )
+                return
+
+            if owns_details:
+                self._render_comparison(comparison)
+            status_text = (
+                f"Research run {job_label} compared with previous matching run."
+                if comparison.available
+                else f"Research run {job_label} has no earlier comparable run."
+            )
+            self._set_status(status_text, "success")
+            self._recover_background_selection(
+                operation,
+                owns_details=owns_details,
+            )
+            return
+
         if operation == "show":
             self._set_status(f"Research run {job_label} details loaded.", "success")
             if owns_details:
@@ -571,6 +621,97 @@ class ResearchWorkspace(QWidget):
                 operation,
                 owns_details=owns_details,
             )
+
+    def _render_comparison(
+        self,
+        comparison: ResearchComparisonReceipt,
+    ) -> None:
+        if not comparison.available:
+            message = (
+                "WHAT CHANGED · NO EARLIER COMPARABLE RUN\n\n"
+                "This completed Research run has no earlier completed result "
+                "with the same query, mode, stable scope filters, coverage target "
+                "and synthesis pipeline."
+            )
+            self.details.setPlainText(message)
+            self.details.setAccessibleDescription(message)
+            set_pathena_ui_state(self.details, "empty")
+            return
+
+        assert comparison.baseline_job_id is not None
+        assert comparison.baseline_result_id is not None
+        assert comparison.current_result_id is not None
+        assert comparison.baseline_snapshot_commit_seq is not None
+        assert comparison.current_snapshot_commit_seq is not None
+        assert comparison.baseline_coverage is not None
+        assert comparison.current_coverage is not None
+
+        def yes_no(value: bool) -> str:
+            return "yes" if value else "no"
+
+        lines = [
+            "WHAT CHANGED · EXACT PERSISTED TEXT + PROVENANCE",
+            "",
+            f"QUERY {comparison.query}",
+            (
+                "RUNS "
+                f"{comparison.baseline_job_id} → {comparison.current_job_id}"
+            ),
+            (
+                "RESULTS "
+                f"{comparison.baseline_result_id} → {comparison.current_result_id}"
+            ),
+            (
+                "SNAPSHOTS "
+                f"{comparison.baseline_snapshot_commit_seq} → "
+                f"{comparison.current_snapshot_commit_seq}"
+            ),
+            (
+                "COVERAGE "
+                f"{comparison.baseline_coverage:.1%} → "
+                f"{comparison.current_coverage:.1%}"
+            ),
+            (
+                "MODEL SIGNATURE "
+                f"{comparison.baseline_model_signature_id or '-'} → "
+                f"{comparison.current_model_signature_id or '-'}"
+            ),
+            "",
+            f"SUMMARY CHANGED {yes_no(comparison.summary_changed)}",
+            f"BASELINE SUMMARY {comparison.baseline_summary or '-'}",
+            f"CURRENT SUMMARY {comparison.current_summary or '-'}",
+            "",
+            f"UNCERTAINTY CHANGED {yes_no(comparison.uncertainty_changed)}",
+            f"BASELINE UNCERTAINTY {comparison.baseline_uncertainty or '-'}",
+            f"CURRENT UNCERTAINTY {comparison.current_uncertainty or '-'}",
+            "",
+            (
+                "MODEL SIGNATURE CHANGED "
+                f"{yes_no(comparison.model_signature_changed)}"
+            ),
+        ]
+
+        sections = (
+            ("ADDED FINDINGS", comparison.added_findings),
+            ("REMOVED FINDINGS", comparison.removed_findings),
+            ("ADDED CONTRADICTIONS", comparison.added_contradictions),
+            ("REMOVED CONTRADICTIONS", comparison.removed_contradictions),
+            ("ADDED SOURCES", comparison.added_source_ids),
+            ("REMOVED SOURCES", comparison.removed_source_ids),
+        )
+        for heading, items in sections:
+            lines.extend(("", f"{heading} {len(items)}"))
+            lines.extend(f"+ {item}" for item in items)
+            if not items:
+                lines.append("—")
+
+        message = "\n".join(lines)
+        self.details.setPlainText(message)
+        self.details.setAccessibleDescription(
+            "Deterministic comparison of persisted Research results. "
+            + message
+        )
+        set_pathena_ui_state(self.details, "success")
 
     def _render_job_list(self, rows: tuple[ResearchJobListEntry, ...]) -> None:
         selected = self._selected_job_id
