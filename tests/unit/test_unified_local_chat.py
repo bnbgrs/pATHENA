@@ -474,9 +474,12 @@ class FakeChatGeneration:
         on_delta: Callable[[str], None] | None = None,
         grounding_contract: GroundingContract | None = None,
         on_before_provider_call: Callable[[], None] | None = None,
+        cancel_requested: Callable[[], bool] | None = None,
     ) -> ChatGenerationResult:
         del on_delta
 
+        if cancel_requested is not None and cancel_requested():
+            raise GenerationCancelledError("cancelled by test")
         if on_before_provider_call is not None:
             on_before_provider_call()
 
@@ -622,6 +625,53 @@ def test_unified_local_chat_composes_memory_and_source_evidence_once() -> None:
         "post-unified-local-context-build",
         "immediately-before-primary-model-call",
     ]
+
+
+def test_unified_user_cancellation_finishes_processing_run_cancelled() -> None:
+    source = archive_result()
+    generation = FakeChatGeneration()
+    embedding = FakeEmbeddingProvider()
+    memory_hybrid = FakeMemoryHybrid()
+    archive = FakeArchiveRetrieval(source)
+    anchors = FakeAnchors(source)
+    packages = FakeContextPackages()
+    runs = FakeModelRuns()
+    service = UnifiedLocalChatService(
+        chat_generation=generation,  # type: ignore[arg-type]
+        embedding_provider=embedding,  # type: ignore[arg-type]
+        hybrid_retrieval=memory_hybrid,  # type: ignore[arg-type]
+        memory_context_builder=ContextBuilderService(),
+        evidence_policy=FakeEvidencePolicy(),  # type: ignore[arg-type]
+        personal_memory=FakePersonalMemory(),  # type: ignore[arg-type]
+        archive_retrieval=archive,  # type: ignore[arg-type]
+        source_context_builder=SourceContextBuilderService(anchors),  # type: ignore[arg-type]
+        context_packages=packages,  # type: ignore[arg-type]
+        model_runs=runs,  # type: ignore[arg-type]
+    )
+    polls = 0
+
+    def cancel_requested() -> bool:
+        nonlocal polls
+        polls += 1
+        return polls >= 3
+
+    with pytest.raises(GenerationCancelledError):
+        service.send_message(
+            chat_id=uuid.uuid4(),
+            content="cancel grounded generation",
+            requested_model_id="primary",
+            requested_embedding_model_id="embed-model",
+            max_memory_context_tokens=500,
+            max_source_context_tokens=500,
+            output_reserve=1000,
+            safety_margin=100,
+            cancel_requested=cancel_requested,
+        )
+
+    assert runs.runs
+    run = next(reversed(runs.runs.values()))
+    assert run.status == "cancelled"
+    assert run.finished_at_us is not None
 
 
 def test_unified_retrieval_override_preserves_current_user_semantics() -> None:
