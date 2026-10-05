@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sys
 
-from PySide6.QtCore import QProcess, Qt, QTimer
+from PySide6.QtCore import QByteArray, QProcess, QSettings, Qt, QTimer
 from PySide6.QtGui import QTextCursor
 from PySide6.QtWidgets import (
     QHBoxLayout,
@@ -29,13 +29,15 @@ from athena.desktop.research_workspace_protocol import (
 )
 
 _TERMINAL_STATES = frozenset({"cancelled", "failed", "completed"})
+_SPLITTER_SETTINGS_KEY = "ui/research/splitter-state-v1"
 
 
 class ResearchWorkspace(QWidget):
     """Queue, inspect and cancel durable exhaustive research without blocking Qt."""
 
-    def __init__(self) -> None:
+    def __init__(self, *, settings: QSettings | None = None) -> None:
         super().__init__()
+        self._settings = settings or QSettings("ATHENA", "pATHENA")
         self.setObjectName("researchWorkspace")
         self._operation = ""
         self._operation_job_id: str | None = None
@@ -128,14 +130,29 @@ class ResearchWorkspace(QWidget):
         layout.addLayout(composer)
         layout.addWidget(self.status)
 
-        splitter = QSplitter(Qt.Orientation.Horizontal)
-        splitter.addWidget(self.jobs)
-        splitter.addWidget(self.details)
-        splitter.setStretchFactor(0, 1)
-        splitter.setStretchFactor(1, 2)
-        layout.addWidget(splitter, 1)
+        self.splitter = QSplitter(Qt.Orientation.Horizontal)
+        self.splitter.setObjectName("researchWorkspaceSplitter")
+        self.splitter.addWidget(self.jobs)
+        self.splitter.addWidget(self.details)
+        self.splitter.setStretchFactor(0, 1)
+        self.splitter.setStretchFactor(1, 2)
+        layout.addWidget(self.splitter, 1)
 
+        self._restore_splitter_state()
+        self.splitter.splitterMoved.connect(self._persist_splitter_state)
         QTimer.singleShot(0, self.refresh)
+
+    def _restore_splitter_state(self) -> None:
+        state = self._settings.value(_SPLITTER_SETTINGS_KEY)
+        if isinstance(state, QByteArray) and not state.isEmpty():
+            self.splitter.restoreState(state)
+
+    def _persist_splitter_state(self, *_args: object) -> None:
+        self._settings.setValue(
+            _SPLITTER_SETTINGS_KEY,
+            self.splitter.saveState(),
+        )
+        self._settings.sync()
 
     def enqueue(self) -> None:
         query = self.query_input.text().strip()
