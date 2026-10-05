@@ -57,6 +57,23 @@ class CoreDomainSurface(Protocol):
 
     def load_chat(self, chat_id: str) -> ChatThreadResponse: ...
 
+    def edit_chat_message(
+        self,
+        chat_id: str,
+        message_id: str,
+        *,
+        expected_revision_id: str,
+        content: str,
+    ) -> ChatThreadResponse: ...
+
+    def fork_chat_from_message(
+        self,
+        chat_id: str,
+        message_id: str,
+        *,
+        revision_id: str,
+    ) -> ChatThreadResponse: ...
+
     def remember_chat_message(
         self,
         chat_id: str,
