@@ -91,13 +91,13 @@ from athena.memory.models import PersonalMemoryRevision
 from athena.model.domain import ModelImageInput, ModelInfo
 from athena.model.ports import ModelDiscoveryProvider
 from athena.observability.health import HealthService
-from athena.source.models import SourceCaptureResult
 from athena.retrieval.hybrid import HybridSearchResult
 from athena.retrieval.search import SearchEntityType
 from athena.retrieval.universal import (
     UniversalSearchEntityType,
     UniversalSearchResult,
 )
+from athena.source.models import SourceCaptureResult
 
 
 class DirectChatSender(Protocol):
@@ -777,6 +777,8 @@ class CoreApiFacade:
                         chat_id=parsed_chat_id,
                         content=content,
                         requested_model_id=requested_model_id,
+                        image_inputs=image_inputs,
+                        image_source_ids=parsed_image_source_ids,
                     )
                 elif (
                     max_output_tokens is None
@@ -787,6 +789,8 @@ class CoreApiFacade:
                         chat_id=parsed_chat_id,
                         content=content,
                         requested_model_id=requested_model_id,
+                        image_inputs=image_inputs,
+                        image_source_ids=parsed_image_source_ids,
                         effective_context_limit=effective_context_limit,
                     )
                 else:
@@ -794,6 +798,8 @@ class CoreApiFacade:
                         chat_id=parsed_chat_id,
                         content=content,
                         requested_model_id=requested_model_id,
+                        image_inputs=image_inputs,
+                        image_source_ids=parsed_image_source_ids,
                         effective_context_limit=effective_context_limit,
                         output_reserve=(
                             2048
@@ -817,6 +823,8 @@ class CoreApiFacade:
                     chat_id=parsed_chat_id,
                     content=content,
                     requested_model_id=requested_model_id,
+                    image_inputs=image_inputs,
+                    image_source_ids=parsed_image_source_ids,
                     operation_id=parsed_operation_id,
                     cancel_requested=cancel_requested,
                 )
@@ -829,6 +837,8 @@ class CoreApiFacade:
                     chat_id=parsed_chat_id,
                     content=content,
                     requested_model_id=requested_model_id,
+                    image_inputs=image_inputs,
+                    image_source_ids=parsed_image_source_ids,
                     operation_id=parsed_operation_id,
                     effective_context_limit=effective_context_limit,
                     cancel_requested=cancel_requested,
@@ -838,6 +848,8 @@ class CoreApiFacade:
                     chat_id=parsed_chat_id,
                     content=content,
                     requested_model_id=requested_model_id,
+                    image_inputs=image_inputs,
+                    image_source_ids=parsed_image_source_ids,
                     operation_id=parsed_operation_id,
                     effective_context_limit=effective_context_limit,
                     output_reserve=(
