@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 
 import pytest
@@ -15,6 +16,7 @@ from athena.desktop.research_workspace import ResearchWorkspace
 from athena.desktop.research_workspace_protocol import (
     ResearchWorkspaceProtocolError,
     parse_research_cancel_receipt,
+    parse_research_comparison_receipt,
     parse_research_enqueue_receipt,
     parse_research_job_list,
 )
@@ -40,6 +42,64 @@ def _list_line(
 ) -> str:
     return "\t".join((job_id, state, stage, coverage, query))
 
+
+
+
+def _comparison_output(
+    *,
+    current_job_id: str = JOB_ID,
+    available: bool = True,
+) -> str:
+    if not available:
+        payload = {
+            "available": False,
+            "comparison_mode": "exact_persisted_text_and_provenance",
+            "current_job_id": current_job_id,
+        }
+    else:
+        payload = {
+            "available": True,
+            "comparison_mode": "exact_persisted_text_and_provenance",
+            "query": "What changed?",
+            "baseline": {
+                "result_id": "31111111-1111-1111-1111-111111111111",
+                "job_id": OTHER_JOB_ID,
+                "snapshot_commit_seq": 10,
+                "model_signature_id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "coverage_ratio": 0.5,
+                "summary": "Old summary",
+                "uncertainty": "Old uncertainty",
+            },
+            "current": {
+                "result_id": "41111111-1111-1111-1111-111111111111",
+                "job_id": current_job_id,
+                "snapshot_commit_seq": 20,
+                "model_signature_id": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+                "coverage_ratio": 1.0,
+                "summary": "Current summary",
+                "uncertainty": "Current uncertainty",
+            },
+            "changes": {
+                "summary_changed": True,
+                "uncertainty_changed": True,
+                "model_signature_changed": True,
+                "added_findings": ["Added finding"],
+                "removed_findings": ["Removed finding"],
+                "added_contradictions": ["New contradiction"],
+                "removed_contradictions": ["Old contradiction"],
+                "added_source_ids": [
+                    "cccccccc-cccc-cccc-cccc-cccccccccccc"
+                ],
+                "removed_source_ids": [
+                    "dddddddd-dddd-dddd-dddd-dddddddddddd"
+                ],
+            },
+        }
+    return "RESEARCH_COMPARE " + json.dumps(
+        payload,
+        sort_keys=True,
+        separators=(",", ":"),
+    ) + "\n"
 
 def _workspace(monkeypatch: pytest.MonkeyPatch) -> ResearchWorkspace:
     monkeypatch.setattr(ResearchWorkspace, "refresh", lambda _self: None)
@@ -329,3 +389,126 @@ def test_background_show_completion_loads_current_research_selection(
         workspace.close()
         app.processEvents()
 
+
+def test_comparison_receipt_binds_exact_run_and_persisted_delta() -> None:
+    receipt = parse_research_comparison_receipt(
+        _comparison_output(),
+        expected_job_id=JOB_ID,
+    )
+
+    assert receipt.available is True
+    assert receipt.current_job_id == JOB_ID
+    assert receipt.baseline_job_id == OTHER_JOB_ID
+    assert receipt.baseline_snapshot_commit_seq == 10
+    assert receipt.current_snapshot_commit_seq == 20
+    assert receipt.baseline_coverage == pytest.approx(0.5)
+    assert receipt.current_coverage == pytest.approx(1.0)
+    assert receipt.baseline_summary == "Old summary"
+    assert receipt.current_summary == "Current summary"
+    assert receipt.added_findings == ("Added finding",)
+    assert receipt.removed_findings == ("Removed finding",)
+    assert receipt.added_source_ids == (
+        "cccccccc-cccc-cccc-cccc-cccccccccccc",
+    )
+
+    with pytest.raises(
+        ResearchWorkspaceProtocolError,
+        match="another run",
+    ):
+        parse_research_comparison_receipt(
+            _comparison_output(current_job_id=OTHER_JOB_ID),
+            expected_job_id=JOB_ID,
+        )
+
+
+def test_comparison_receipt_represents_no_previous_match_without_fake_delta() -> None:
+    receipt = parse_research_comparison_receipt(
+        _comparison_output(available=False),
+        expected_job_id=JOB_ID,
+    )
+
+    assert receipt.available is False
+    assert receipt.current_job_id == JOB_ID
+    assert receipt.baseline_job_id is None
+    assert receipt.added_findings == ()
+    assert receipt.removed_findings == ()
+    assert receipt.baseline_summary == ""
+
+
+def test_comparison_action_requires_completed_selected_run(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = _app()
+    workspace = _workspace(monkeypatch)
+    item = _install_selected_job(workspace, state="running")
+
+    try:
+        workspace._sync_compare_button()
+        assert workspace.compare_button.isEnabled() is False
+        assert "cannot be compared" in workspace.compare_button.toolTip()
+
+        item.setData(Qt.ItemDataRole.UserRole + 1, "completed")
+        workspace._selected_job_state = "completed"
+        workspace._sync_compare_button()
+
+        assert workspace.compare_button.isEnabled() is True
+        assert (
+            workspace.compare_button.property(
+                "pathenaResearchComparisonAvailable"
+            )
+            is True
+        )
+    finally:
+        workspace.close()
+        app.processEvents()
+
+
+def test_verified_comparison_renders_exact_persisted_changes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = _app()
+    workspace = _workspace(monkeypatch)
+    _install_selected_job(workspace, state="completed")
+    workspace._operation = "compare"
+    workspace._operation_job_id = JOB_ID
+    workspace._buffer = _comparison_output()
+
+    try:
+        workspace._process_finished(0, QProcess.ExitStatus.NormalExit)
+
+        details = workspace.details.toPlainText()
+        assert "EXACT PERSISTED TEXT + PROVENANCE" in details
+        assert f"RUNS {OTHER_JOB_ID} → {JOB_ID}" in details
+        assert "COVERAGE 50.0% → 100.0%" in details
+        assert "BASELINE SUMMARY Old summary" in details
+        assert "CURRENT SUMMARY Current summary" in details
+        assert "ADDED FINDINGS 1" in details
+        assert "+ Added finding" in details
+        assert "REMOVED FINDINGS 1" in details
+        assert "+ Removed finding" in details
+        assert workspace.details.property("pathenaUiState") == "success"
+        assert "compared with previous" in workspace.status.text().casefold()
+    finally:
+        workspace.close()
+        app.processEvents()
+
+
+def test_no_previous_comparable_run_renders_explicit_empty_state(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = _app()
+    workspace = _workspace(monkeypatch)
+    _install_selected_job(workspace, state="completed")
+    workspace._operation = "compare"
+    workspace._operation_job_id = JOB_ID
+    workspace._buffer = _comparison_output(available=False)
+
+    try:
+        workspace._process_finished(0, QProcess.ExitStatus.NormalExit)
+
+        assert "NO EARLIER COMPARABLE RUN" in workspace.details.toPlainText()
+        assert workspace.details.property("pathenaUiState") == "empty"
+        assert "no earlier comparable run" in workspace.status.text().casefold()
+    finally:
+        workspace.close()
+        app.processEvents()
