@@ -79,6 +79,54 @@ def _chat_thread_payload(
     }
 
 
+def _grounded_payload(
+    *,
+    chat_id: str,
+    operation_id: str,
+) -> dict[str, Any]:
+    thread = _chat_thread_payload(
+        chat_id=chat_id,
+        message_id=operation_id,
+        content="continue me",
+    )
+    thread["messages"].append(
+        {
+            "message_id": "99999999-9999-4999-8999-999999999999",
+            "chat_id": chat_id,
+            "sequence_no": 2,
+            "message_type": "assistant",
+            "actor_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            "created_at_us": 12,
+            "revision_id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+            "content": "continued answer",
+            "content_format": "text/plain",
+        }
+    )
+    return {
+        "thread": thread,
+        "assistant_text": "continued answer",
+        "evidence": [],
+        "personal_memory": [],
+        "grounding": {
+            "cited_context_ids": [],
+            "canonical_context_ids": [],
+            "user_statement_context_ids": [],
+            "conversation_context_ids": [],
+            "source_context_ids": [],
+            "research_context_ids": [],
+            "news_context_ids": [],
+            "invalid_context_ids": [],
+            "uses_inference": False,
+            "uses_model_prior": False,
+            "uses_unknown": False,
+            "has_provenance_marker": True,
+        },
+        "processing_run_id": "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+        "model_id": "local-model",
+        "embedding_model_id": None,
+    }
+
+
 def test_client_health_reads_discovery_and_authenticates(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -851,3 +899,96 @@ def test_client_universal_search_normalizes_invalid_nested_contracts(
         CoreApiClient(runtime_root).universal_search("alpha")
 
     assert exc_info.value.code == "invalid_response"
+
+
+def test_client_reads_durable_chat_recovery_state(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runtime_root = tmp_path / "api"
+    _bootstrap(runtime_root)
+    chat_id = "11111111-1111-4111-8111-111111111111"
+    operation_id = "22222222-2222-4222-8222-222222222222"
+    seen: list[tuple[str, str]] = []
+
+    def fake_urlopen(request: Any, timeout: float) -> _Response:
+        del timeout
+        seen.append((request.get_method(), request.full_url))
+        return _Response(
+            {
+                "operation_id": operation_id,
+                "chat_id": chat_id,
+                "mode": "grounded",
+                "state": "resumable",
+                "can_continue": True,
+                "processing_run_id": (
+                    "33333333-3333-4333-8333-333333333333"
+                ),
+            }
+        )
+
+    monkeypatch.setattr(client_module, "urlopen", fake_urlopen)
+
+    recovery = CoreApiClient(runtime_root).chat_operation_recovery(
+        chat_id,
+        operation_id,
+    )
+
+    assert recovery.state == "resumable"
+    assert recovery.can_continue is True
+    assert seen == [
+        (
+            "GET",
+            (
+                "http://127.0.0.1:32123/api/v1/chats/"
+                f"{chat_id}/operations/{operation_id}/recovery"
+            ),
+        )
+    ]
+
+
+def test_client_continues_unified_operation_without_reposting_request_input(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runtime_root = tmp_path / "api"
+    _bootstrap(runtime_root)
+    chat_id = "11111111-1111-4111-8111-111111111111"
+    operation_id = "22222222-2222-4222-8222-222222222222"
+    seen: list[tuple[str, str, bytes | None]] = []
+
+    def fake_urlopen(request: Any, timeout: float) -> _Response:
+        assert timeout == 5.0
+        seen.append(
+            (
+                request.get_method(),
+                request.full_url,
+                request.data,
+            )
+        )
+        return _Response(
+            _grounded_payload(
+                chat_id=chat_id,
+                operation_id=operation_id,
+            )
+        )
+
+    monkeypatch.setattr(client_module, "urlopen", fake_urlopen)
+
+    response = CoreApiClient(runtime_root).continue_unified_local_chat_operation(
+        chat_id,
+        operation_id,
+    )
+
+    assert response.thread.chat_id == chat_id
+    assert response.assistant_text == "continued answer"
+    assert seen == [
+        (
+            "POST",
+            (
+                "http://127.0.0.1:32123/api/v1/chats/"
+                f"{chat_id}/operations/{operation_id}/continue"
+            ),
+            b"",
+        )
+    ]
