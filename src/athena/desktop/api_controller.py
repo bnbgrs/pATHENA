@@ -11,6 +11,7 @@ from PySide6.QtCore import QMetaObject, QObject, QRunnable, Qt, QThreadPool, Sig
 
 from athena.api.client import CoreApiClientError
 from athena.api.contracts import (
+    ChatOperationRecoveryResponse,
     ChatSummaryResponse,
     ChatThreadResponse,
     DeletionPreviewResponse,
@@ -112,6 +113,18 @@ class CoreApiGateway(Protocol):
         """Request cancellation for one active direct-chat send."""
 
         ...
+
+    def chat_operation_recovery(
+        self,
+        chat_id: str,
+        operation_id: str,
+    ) -> ChatOperationRecoveryResponse: ...
+
+    def continue_unified_local_chat_operation(
+        self,
+        chat_id: str,
+        operation_id: str,
+    ) -> GroundedChatResponse: ...
 
     def send_unified_local_chat_message(
         self,
@@ -239,6 +252,7 @@ class _ChatOperationOutcome:
     operation: str
     thread: ChatThreadResponse | None = None
     grounded: GroundedChatResponse | None = None
+    recovery: ChatOperationRecoveryResponse | None = None
     deletion_preview: DeletionPreviewResponse | None = None
     deleted_chat_id: str | None = None
     remembered: RememberedChatMessageResponse | None = None
@@ -255,6 +269,7 @@ class _ChatOperationOutcome:
             for item in (
                 self.thread,
                 self.grounded,
+                self.recovery,
                 self.deletion_preview,
                 self.deleted_chat_id,
                 self.remembered,
@@ -267,7 +282,7 @@ class _ChatOperationOutcome:
             raise ValueError("Chat outcome cannot contain multiple result kinds.")
         if self.cancelled:
             if (
-                self.operation not in {"send", "send_grounded"}
+                self.operation not in {"send", "send_grounded", "continue_recovery"}
                 or self.operation_id is None
                 or self.error is not None
                 or result_count > 1
@@ -504,6 +519,45 @@ class _ChatTask(QRunnable):
                 outcome = _ChatOperationOutcome(
                     operation=self.operation,
                     thread=thread,
+                )
+            elif self.operation == "inspect_recovery":
+                operation_id = self.operation_id
+                if resolved_chat_id is None or operation_id is None:
+                    raise ValueError(
+                        "Recovery inspection requires stable chat and operation identity."
+                    )
+                recovery = self.gateway.chat_operation_recovery(
+                    resolved_chat_id,
+                    operation_id,
+                )
+                if (
+                    recovery.chat_id != resolved_chat_id
+                    or recovery.operation_id != operation_id
+                ):
+                    raise RuntimeError(
+                        "Recovery state belongs to another chat operation."
+                    )
+                outcome = _ChatOperationOutcome(
+                    operation=self.operation,
+                    recovery=recovery,
+                )
+            elif self.operation == "continue_recovery":
+                operation_id = self.operation_id
+                if resolved_chat_id is None or operation_id is None:
+                    raise ValueError(
+                        "Recovery continuation requires stable chat and operation identity."
+                    )
+                grounded = self.gateway.continue_unified_local_chat_operation(
+                    resolved_chat_id,
+                    operation_id,
+                )
+                if grounded.thread.chat_id != resolved_chat_id:
+                    raise RuntimeError(
+                        "Continued Grounded response belongs to another chat."
+                    )
+                outcome = _ChatOperationOutcome(
+                    operation=self.operation,
+                    grounded=grounded,
                 )
             elif self.operation == "send":
                 content = self.content
@@ -1000,6 +1054,23 @@ class _ChatTask(QRunnable):
                         )
 
             elif (
+                self.operation == "continue_recovery"
+                and self.operation_id is not None
+                and exc.code == "generation_cancelled"
+            ):
+                thread = (
+                    self.gateway.load_chat(self.chat_id)
+                    if self.chat_id is not None
+                    else None
+                )
+                outcome = _ChatOperationOutcome(
+                    operation=self.operation,
+                    thread=thread,
+                    operation_id=self.operation_id,
+                    cancelled=True,
+                )
+
+            elif (
                 self.operation == "delete"
                 and resolved_chat_id is not None
                 and exc.status is None
@@ -1323,6 +1394,7 @@ class DesktopApiController(QObject):
     chat_loaded = Signal(object)
     chat_sent = Signal(object)
     grounded_chat_sent = Signal(object)
+    chat_recovery_ready = Signal(object)
     chat_deletion_preview_ready = Signal(object)
     chat_deleted = Signal(str)
     message_remembered = Signal(object)
@@ -1425,7 +1497,8 @@ class DesktopApiController(QObject):
     def can_cancel_active_chat(self) -> bool:
         return (
             self._chat_busy
-            and self._active_chat_operation_kind in {"send", "send_grounded"}
+            and self._active_chat_operation_kind
+            in {"send", "send_grounded", "continue_recovery"}
             and self._active_chat_operation_id is not None
         )
 
@@ -1518,6 +1591,34 @@ class DesktopApiController(QObject):
             chat_id=chat_id,
             message_id=message_id,
             revision_id=revision_id,
+        )
+
+    def inspect_chat_recovery(
+        self,
+        *,
+        chat_id: str,
+        operation_id: str,
+    ) -> None:
+        if self._chat_busy or not chat_id or not operation_id:
+            return
+        self._start_chat_task(
+            operation="inspect_recovery",
+            chat_id=chat_id,
+            operation_id=operation_id,
+        )
+
+    def continue_chat_operation(
+        self,
+        *,
+        chat_id: str,
+        operation_id: str,
+    ) -> None:
+        if self._chat_busy or not chat_id or not operation_id:
+            return
+        self._start_chat_task(
+            operation="continue_recovery",
+            chat_id=chat_id,
+            operation_id=operation_id,
         )
 
     def send_message(
@@ -1705,7 +1806,7 @@ class DesktopApiController(QObject):
         self._active_chat_operation_kind = operation
         self._active_chat_operation_id = (
             operation_id
-            if operation in {"send", "send_grounded"}
+            if operation in {"send", "send_grounded", "continue_recovery"}
             else None
         )
         self._chat_cancel_state = "idle"
@@ -1913,7 +2014,9 @@ class DesktopApiController(QObject):
                 )
                 return
 
-            if outcome.grounded is not None:
+            if outcome.recovery is not None:
+                self.chat_recovery_ready.emit(outcome.recovery)
+            elif outcome.grounded is not None:
                 if self.chat_cancel_pending:
                     self._set_chat_cancel_state(
                         "expired",
