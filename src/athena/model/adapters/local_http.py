@@ -7,6 +7,7 @@ import math
 import socket
 from contextlib import contextmanager
 from http.client import HTTPConnection, HTTPSConnection
+from io import BytesIO
 from numbers import Real
 from threading import Event, Thread
 from time import monotonic
@@ -455,12 +456,13 @@ def open_cancellable_local_request(
             total_timeout_seconds=validated_timeout,
         )
         if response.status >= 300:
+            error_body = bounded.read()
             raise HTTPError(
                 request.full_url,
                 response.status,
                 response.reason,
                 response.headers,
-                bounded,
+                BytesIO(error_body),
             )
 
         try:
