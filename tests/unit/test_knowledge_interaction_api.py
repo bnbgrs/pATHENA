@@ -19,6 +19,8 @@ from athena.api.contracts import (
     KnowledgeUnitProposalResponse,
     MessageKnowledgeExtractionResponse,
     RememberedChatMessageResponse,
+    SelectedMessageRevisionResponse,
+    SelectedMessagesKnowledgeExtractionResponse,
 )
 from athena.api.executor import SerializedCoreApiSurface
 from athena.api.runtime import LocalApiRuntime
@@ -47,6 +49,8 @@ from athena.observability.health import HealthService
 CHAT_ID = uuid.UUID("11111111-1111-1111-1111-111111111111")
 MESSAGE_ID = uuid.UUID("22222222-2222-2222-2222-222222222222")
 REVISION_ID = uuid.UUID("33333333-3333-3333-3333-333333333333")
+SECOND_MESSAGE_ID = uuid.UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+SECOND_REVISION_ID = uuid.UUID("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")
 ACTOR_ID = uuid.UUID("44444444-4444-4444-4444-444444444444")
 MEMORY_ID = uuid.UUID("55555555-5555-5555-5555-555555555555")
 MEMORY_REVISION_ID = uuid.UUID("66666666-6666-6666-6666-666666666666")
@@ -80,6 +84,17 @@ class _Chat:
                     created_at_us=2,
                     revision_id=REVISION_ID,
                     content="Remember SQLite as a local preference.",
+                    content_format="text/plain",
+                ),
+                ChatMessage(
+                    message_id=SECOND_MESSAGE_ID,
+                    chat_id=CHAT_ID,
+                    sequence_no=2,
+                    message_type=MessageType.USER,
+                    actor_id=ACTOR_ID,
+                    created_at_us=3,
+                    revision_id=SECOND_REVISION_ID,
+                    content="The second selected message is persisted too.",
                     content_format="text/plain",
                 ),
             ),
@@ -121,6 +136,9 @@ class _Memory:
 class _Extraction:
     def __init__(self) -> None:
         self.calls: list[tuple[uuid.UUID, uuid.UUID, uuid.UUID]] = []
+        self.selected_calls: list[
+            tuple[uuid.UUID, tuple[tuple[uuid.UUID, uuid.UUID], ...]]
+        ] = []
 
     def extract_message(
         self,
@@ -200,6 +218,29 @@ class _Extraction:
             ),
             proposals=proposals,
         )
+
+    def extract_messages(
+        self,
+        *,
+        chat_id: uuid.UUID,
+        message_revisions: tuple[tuple[uuid.UUID, uuid.UUID], ...],
+        requested_model_id: str | None = None,
+        context_limit: int | None = None,
+        output_reserve: int | None = None,
+    ) -> ChatExtractionResult:
+        if len(message_revisions) < 2:
+            raise AssertionError("batch fixture requires multiple messages")
+        result = self.extract_message(
+            chat_id=chat_id,
+            message_id=message_revisions[0][0],
+            revision_id=message_revisions[0][1],
+            requested_model_id=requested_model_id,
+            context_limit=context_limit,
+            output_reserve=output_reserve,
+        )
+        self.calls.pop()
+        self.selected_calls.append((chat_id, message_revisions))
+        return result
 
 
 def _facade() -> tuple[CoreApiFacade, _Memory, _Extraction]:
@@ -285,6 +326,37 @@ def test_facade_uses_exact_message_revision_for_memory_and_extraction() -> None:
     assert result.extractor_merge_candidates[0].proposal_index == 0
     assert "memory.remember.chat_message" in facade.capabilities().features
     assert "knowledge.extract.chat_message" in facade.capabilities().features
+
+
+def test_facade_extracts_exact_selected_message_revisions() -> None:
+    facade, _memory, extraction = _facade()
+    selection = (
+        (str(MESSAGE_ID), str(REVISION_ID)),
+        (str(SECOND_MESSAGE_ID), str(SECOND_REVISION_ID)),
+    )
+
+    result = facade.extract_selected_chat_messages_knowledge(
+        str(CHAT_ID),
+        message_revisions=selection,
+        requested_model_id="model-1",
+        effective_context_limit=4096,
+        max_output_tokens=1024,
+    )
+
+    assert tuple(
+        (item.message_id, item.message_revision_id)
+        for item in result.messages
+    ) == selection
+    assert extraction.selected_calls == [
+        (
+            CHAT_ID,
+            (
+                (MESSAGE_ID, REVISION_ID),
+                (SECOND_MESSAGE_ID, SECOND_REVISION_ID),
+            ),
+        )
+    ]
+    assert result.processing_run_id == str(RUN_ID)
 
 
 def test_facade_rejects_stale_revision_before_memory_write() -> None:
@@ -384,6 +456,29 @@ def test_asgi_exposes_message_actions_and_stale_revision_is_409(tmp_path: Path) 
             },
         )
     )
+    selected_status, selected_payload = asyncio.run(
+        _request(
+            app,
+            runtime,
+            path=f"/api/v1/chats/{CHAT_ID}/messages/knowledge-extraction",
+            token=token,
+            body={
+                "messages": [
+                    {
+                        "message_id": str(MESSAGE_ID),
+                        "revision_id": str(REVISION_ID),
+                    },
+                    {
+                        "message_id": str(SECOND_MESSAGE_ID),
+                        "revision_id": str(SECOND_REVISION_ID),
+                    },
+                ],
+                "model_id": "model-1",
+                "effective_context_limit": 4096,
+                "max_output_tokens": 1024,
+            },
+        )
+    )
     stale_status, stale = asyncio.run(
         _request(
             app,
@@ -399,6 +494,17 @@ def test_asgi_exposes_message_actions_and_stale_revision_is_409(tmp_path: Path) 
     assert extraction_status == 201
     assert extraction_payload["processing_run_id"] == str(RUN_ID)
     assert extraction_payload["knowledge_units"][0]["proposal_index"] == 0
+    assert selected_status == 201
+    assert selected_payload["messages"] == [
+        {
+            "message_id": str(MESSAGE_ID),
+            "message_revision_id": str(REVISION_ID),
+        },
+        {
+            "message_id": str(SECOND_MESSAGE_ID),
+            "message_revision_id": str(SECOND_REVISION_ID),
+        },
+    ]
     assert stale_status == 409
     assert stale["code"] == "chat_message_revision_stale"
 
@@ -463,6 +569,24 @@ def _extraction_payload() -> dict[str, Any]:
     }
 
 
+
+def _selected_extraction_payload() -> dict[str, Any]:
+    payload = _extraction_payload()
+    payload.pop("message_id")
+    payload.pop("message_revision_id")
+    payload["messages"] = [
+        {
+            "message_id": str(MESSAGE_ID),
+            "message_revision_id": str(REVISION_ID),
+        },
+        {
+            "message_id": str(SECOND_MESSAGE_ID),
+            "message_revision_id": str(SECOND_REVISION_ID),
+        },
+    ]
+    return payload
+
+
 def test_client_parses_message_actions_without_retrying_posts(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -485,6 +609,8 @@ def test_client_parses_message_actions_without_retrying_posts(
                     "content": "Remember SQLite as a local preference.",
                 }
             )
+        if request.full_url.endswith("/messages/knowledge-extraction"):
+            return _Response(_selected_extraction_payload())
         return _Response(_extraction_payload())
 
     monkeypatch.setattr(client_module, "urlopen", fake_urlopen)
@@ -500,10 +626,18 @@ def test_client_parses_message_actions_without_retrying_posts(
         str(MESSAGE_ID),
         revision_id=str(REVISION_ID),
     )
+    selected = client.extract_selected_chat_messages_knowledge(
+        str(CHAT_ID),
+        message_revisions=(
+            (str(MESSAGE_ID), str(REVISION_ID)),
+            (str(SECOND_MESSAGE_ID), str(SECOND_REVISION_ID)),
+        ),
+    )
 
     assert remembered.memory_id == str(MEMORY_ID)
     assert extracted.knowledge_units[0].proposal_index == 0
-    assert len(calls) == 2
+    assert len(selected.messages) == 2
+    assert len(calls) == 3
 
 
 def test_client_does_not_retry_remember_transport_failure(
@@ -585,6 +719,40 @@ class _ControllerGateway:
         )
 
 
+    def extract_selected_chat_messages_knowledge(
+        self,
+        chat_id: str,
+        *,
+        message_revisions: tuple[tuple[str, str], ...],
+        model_id: str | None = None,
+        effective_context_limit: int | None = None,
+        max_output_tokens: int | None = None,
+    ) -> SelectedMessagesKnowledgeExtractionResponse:
+        del model_id, effective_context_limit, max_output_tokens
+        common = self.extract_chat_message_knowledge(
+            chat_id,
+            message_revisions[0][0],
+            revision_id=message_revisions[0][1],
+        )
+        return SelectedMessagesKnowledgeExtractionResponse(
+            chat_id=chat_id,
+            messages=tuple(
+                SelectedMessageRevisionResponse(
+                    message_id=message_id,
+                    message_revision_id=revision_id,
+                )
+                for message_id, revision_id in message_revisions
+            ),
+            processing_run_id=common.processing_run_id,
+            model_id=common.model_id,
+            model_signature_id=common.model_signature_id,
+            knowledge_units=common.knowledge_units,
+            claims=common.claims,
+            relations=common.relations,
+            extractor_merge_candidates=common.extractor_merge_candidates,
+        )
+
+
 def test_controller_dispatches_message_actions_off_ui_thread() -> None:
     app = create_application(["athena-knowledge-controller-test"])
     pool = QThreadPool()
@@ -595,6 +763,7 @@ def test_controller_dispatches_message_actions_off_ui_thread() -> None:
     )
     remembered = QSignalSpy(controller.message_remembered)
     extracted = QSignalSpy(controller.knowledge_extraction_ready)
+    selected = QSignalSpy(controller.selected_knowledge_extraction_ready)
 
     controller.remember_message(
         chat_id=str(CHAT_ID),
@@ -613,3 +782,14 @@ def test_controller_dispatches_message_actions_off_ui_thread() -> None:
     assert pool.waitForDone(2_000)
     app.processEvents()
     assert extracted.count() == 1
+
+    controller.extract_selected_messages_knowledge(
+        chat_id=str(CHAT_ID),
+        message_revisions=(
+            (str(MESSAGE_ID), str(REVISION_ID)),
+            (str(SECOND_MESSAGE_ID), str(SECOND_REVISION_ID)),
+        ),
+    )
+    assert pool.waitForDone(2_000)
+    app.processEvents()
+    assert selected.count() == 1
