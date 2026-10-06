@@ -224,3 +224,15 @@ class ChatService:
             limit=limit,
             offset=offset,
         )
+
+    def list_trashed_chats(
+        self,
+        *,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> tuple[ChatSummary, ...]:
+        """Return chats in the reversible trash, never in the normal chat list."""
+        return self.repository.list_trashed_chats(
+            limit=limit,
+            offset=offset,
+        )
