@@ -56,7 +56,7 @@ from athena.chat.unified_send_plan import UnifiedSendPlanRepository
 from athena.common.ids import new_uuid7
 from athena.memory.models import MemoryScopeKind
 from athena.model.adapters.lm_studio_embeddings import LMStudioEmbeddingProvider
-from athena.model.domain import ModelInfo
+from athena.model.domain import ModelImageInput, ModelInfo
 from athena.model.provenance import (
     ModelRunRepository,
     ModelSignature,
@@ -278,7 +278,12 @@ class _DurableUnifiedUserChatService(ChatService):
         chat_id: uuid.UUID,
         content: str,
         operation_id: uuid.UUID | None = None,
+        source_ids: tuple[uuid.UUID, ...] = (),
     ) -> ChatMessage:
+        if source_ids:
+            raise RuntimeError(
+                "Unified durable chat does not support image attachments."
+            )
         if chat_id != self._state.chat_id:
             raise RuntimeError("Unified durable user persistence escaped its chat identity.")
         if operation_id is not None and operation_id != self._state.operation_id:
@@ -499,7 +504,12 @@ class _UnifiedDurableGenerationAdapter(ChatGenerationService):
         grounding_contract: GroundingContract | None = None,
         on_before_provider_call: Callable[[], None] | None = None,
         cancel_requested: Callable[[], bool] | None = None,
+        image_inputs: tuple[ModelImageInput, ...] = (),
     ) -> ChatGenerationResult:
+        if image_inputs:
+            raise RuntimeError(
+                "Unified durable chat does not support vision image inputs."
+            )
         if chat_id != self._state.chat_id:
             raise RuntimeError("Unified generation escaped its durable chat identity.")
         if operation_id is not None and operation_id != self._state.operation_id:

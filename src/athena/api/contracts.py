@@ -82,6 +82,14 @@ class NewsProfileResponse(ApiContract):
 
 
 @dataclass(frozen=True, slots=True)
+class ImageSourceResponse(ApiContract):
+    source_id: str
+    media_type: str
+    original_name: str
+    byte_length: int
+
+
+@dataclass(frozen=True, slots=True)
 class ChatSummaryResponse(ApiContract):
     chat_id: str
     started_at_us: int
@@ -103,6 +111,7 @@ class ChatMessageResponse(ApiContract):
     revision_id: str
     content: str | None
     content_format: str | None
+    source_ids: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)

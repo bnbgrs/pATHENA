@@ -6,7 +6,7 @@ import unicodedata
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from typing import Any, Protocol
 
-from athena.model.domain import ModelChatMessage, ModelInfo, ProviderHealth
+from athena.model.domain import ModelChatMessage, ModelImageInput, ModelInfo, ProviderHealth
 
 CONTROLLED_STRUCTURED_CONTRACT_VERSION = "athena.controlled_structured_json/1"
 
@@ -112,6 +112,41 @@ class ChatModelProvider(ModelDiscoveryProvider, Protocol):
         max_output_tokens: int | None = None,
     ) -> Mapping[str, Any]:
         """Return one JSON object constrained by the supplied schema and output cap."""
+        ...
+
+
+class VisionChatModelProvider(ChatModelProvider, Protocol):
+    """Provider capable of explicit multimodal image chat."""
+
+    def stream_chat_vision(
+        self,
+        *,
+        model_id: str,
+        messages: Sequence[ModelChatMessage],
+        images: Sequence[ModelImageInput],
+        max_output_tokens: int | None = None,
+        reasoning_mode: str | None = None,
+        temperature: float | None = None,
+    ) -> Iterator[str]:
+        """Yield assistant deltas with images attached to the final user turn."""
+        ...
+
+
+class CancellableVisionChatModelProvider(VisionChatModelProvider, Protocol):
+    """Vision provider whose blocking transport can be cancelled."""
+
+    def stream_chat_vision_cancellable(
+        self,
+        *,
+        model_id: str,
+        messages: Sequence[ModelChatMessage],
+        images: Sequence[ModelImageInput],
+        cancel_requested: Callable[[], bool],
+        max_output_tokens: int | None = None,
+        reasoning_mode: str | None = None,
+        temperature: float | None = None,
+    ) -> Iterator[str]:
+        """Yield multimodal chat deltas with explicit transport cancellation."""
         ...
 
 

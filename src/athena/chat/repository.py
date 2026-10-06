@@ -336,6 +336,7 @@ class ChatRepository:
                     m.message_type,
                     m.actor_id,
                     r.revision_id,
+                    r.provenance_id,
                     r.payload_hash,
                     mr.content,
                     mr.content_format,
@@ -464,6 +465,24 @@ class ChatRepository:
                     input_role="fork_source",
                     ordinal=0,
                 )
+                source_provenance_id = uuid_from_blob(
+                    bytes(row["provenance_id"])
+                )
+                for attachment_ordinal, attachment_source_id in enumerate(
+                    self._attachment_source_ids(
+                        connection,
+                        source_provenance_id,
+                    ),
+                    start=1,
+                ):
+                    self._insert_provenance_input(
+                        connection,
+                        provenance_id=message_provenance_id,
+                        input_entity_id=attachment_source_id,
+                        input_revision_id=None,
+                        input_role="attachment",
+                        ordinal=attachment_ordinal,
+                    )
                 connection.execute(
                     """
                     INSERT INTO revisions (
@@ -562,7 +581,6 @@ class ChatRepository:
         commit_id = new_uuid7()
         created_at_us = utc_now_us()
         payload_hash = _message_payload_hash(content, content_format)
-
         with self.database.write_transaction() as connection:
             self._require_active_actor(connection, actor_id)
             self._require_standard_chat(connection, chat_id)
@@ -743,6 +761,7 @@ class ChatRepository:
         content: str,
         content_format: str = "text/plain",
         message_id: uuid.UUID | None = None,
+        source_ids: tuple[uuid.UUID, ...] = (),
     ) -> ChatMessage:
         resolved_message_id = (
             message_id
@@ -754,6 +773,10 @@ class ChatRepository:
         commit_id = new_uuid7()
         created_at_us = utc_now_us()
         payload_hash = _message_payload_hash(content, content_format)
+        if any(not isinstance(source_id, uuid.UUID) for source_id in source_ids):
+            raise TypeError("Chat message source IDs must be UUIDs.")
+        if len(set(source_ids)) != len(source_ids):
+            raise ValueError("Chat message source IDs must be unique.")
 
         with self.database.write_transaction() as connection:
             self._require_active_actor(connection, actor_id)
@@ -794,6 +817,31 @@ class ChatRepository:
                 actor_id=actor_id,
                 created_at_us=created_at_us,
             )
+            for ordinal, source_id in enumerate(source_ids):
+                source_row = connection.execute(
+                    """
+                    SELECT entity_type, lifecycle_state
+                    FROM entity_registry
+                    WHERE entity_id = ?
+                    """,
+                    (uuid_to_blob(source_id),),
+                ).fetchone()
+                if (
+                    source_row is None
+                    or str(source_row["entity_type"]) != "source"
+                    or str(source_row["lifecycle_state"]) != "active"
+                ):
+                    raise ValueError(
+                        "Chat image attachment must reference an active Source entity."
+                    )
+                self._insert_provenance_input(
+                    connection,
+                    provenance_id=provenance_id,
+                    input_entity_id=source_id,
+                    input_revision_id=None,
+                    input_role="attachment",
+                    ordinal=ordinal,
+                )
             connection.execute(
                 """
                 INSERT INTO revisions (
@@ -869,6 +917,7 @@ class ChatRepository:
             revision_id=revision_id,
             content=content,
             content_format=content_format,
+            source_ids=source_ids,
         )
 
     def inspect_send_operation(
@@ -906,6 +955,7 @@ class ChatRepository:
                 m.actor_id,
                 r.created_at_us,
                 r.revision_id,
+                r.provenance_id,
                 mr.content,
                 mr.content_format
             FROM chat_messages AS m
@@ -1130,6 +1180,7 @@ class ChatRepository:
                 m.actor_id,
                 r.created_at_us,
                 r.revision_id,
+                r.provenance_id,
                 mr.content,
                 mr.content_format
             FROM chat_messages AS m
@@ -1145,7 +1196,16 @@ class ChatRepository:
             (uuid_to_blob(chat_id),),
         ).fetchall()
 
-        messages = tuple(self._message_from_row(row) for row in message_rows)
+        messages = tuple(
+            self._message_from_row(
+                row,
+                source_ids=self._attachment_source_ids(
+                    connection,
+                    uuid_from_blob(bytes(row["provenance_id"])),
+                ),
+            )
+            for row in message_rows
+        )
         return ChatThread(
             chat_id=uuid_from_blob(bytes(chat_row["chat_id"])),
             started_at_us=int(chat_row["started_at_us"]),
@@ -1160,7 +1220,11 @@ class ChatRepository:
         )
 
     @staticmethod
-    def _message_from_row(row: sqlite3.Row) -> ChatMessage:
+    def _message_from_row(
+        row: sqlite3.Row,
+        *,
+        source_ids: tuple[uuid.UUID, ...] = (),
+    ) -> ChatMessage:
         actor_blob = row["actor_id"]
         return ChatMessage(
             message_id=uuid_from_blob(bytes(row["message_id"])),
@@ -1176,6 +1240,31 @@ class ChatRepository:
                 if row["content_format"] is not None
                 else None
             ),
+            source_ids=source_ids,
+        )
+
+    @staticmethod
+    def _attachment_source_ids(
+        connection: sqlite3.Connection,
+        provenance_id: uuid.UUID,
+    ) -> tuple[uuid.UUID, ...]:
+        rows = connection.execute(
+            """
+            SELECT i.input_entity_id
+            FROM provenance_inputs AS i
+            JOIN entity_registry AS e
+              ON e.entity_id = i.input_entity_id
+            WHERE i.provenance_id = ?
+              AND i.input_role = 'attachment'
+              AND i.input_revision_id IS NULL
+              AND e.entity_type = 'source'
+            ORDER BY i.ordinal ASC, i.input_entity_id ASC
+            """,
+            (uuid_to_blob(provenance_id),),
+        ).fetchall()
+        return tuple(
+            uuid_from_blob(bytes(row["input_entity_id"]))
+            for row in rows
         )
 
     @staticmethod

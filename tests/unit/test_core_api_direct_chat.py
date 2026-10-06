@@ -77,6 +77,8 @@ class _DirectChat:
         chat_id: uuid.UUID,
         content: str,
         requested_model_id: str | None = None,
+        image_inputs: tuple[object, ...] = (),
+        image_source_ids: tuple[uuid.UUID, ...] = (),
     ) -> object:
         self.calls.append((chat_id, content, requested_model_id))
         self.chat.generated = True

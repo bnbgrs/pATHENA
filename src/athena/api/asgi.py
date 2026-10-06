@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import base64
+import binascii
 import json
 import uuid
 from collections.abc import Awaitable, Callable
@@ -42,6 +44,8 @@ AsgiSend = Callable[[AsgiMessage], Awaitable[None]]
 
 _JSON_HEADERS = ((b"content-type", b"application/json; charset=utf-8"),)
 _MAX_JSON_BODY_BYTES = 64 * 1024
+_MAX_IMAGE_CAPTURE_JSON_BYTES = 17 * 1024 * 1024
+_MAX_IMAGE_BYTES = 12 * 1024 * 1024
 
 
 class CoreApiAsgiApp:
@@ -107,6 +111,49 @@ class CoreApiAsgiApp:
         try:
             if method == "GET" and path == "/api/v1/health":
                 await _send_contract(send, self._facade.health(), request_id=request_id)
+                return
+
+            if method == "POST" and path == "/api/v1/sources/images":
+                payload = await _read_json_object(
+                    receive,
+                    max_bytes=_MAX_IMAGE_CAPTURE_JSON_BYTES,
+                )
+                unknown = set(payload) - {
+                    "data_base64",
+                    "original_name",
+                    "source_uri",
+                }
+                if unknown:
+                    raise ValueError(
+                        "Image capture request contains unsupported fields."
+                    )
+                encoded = payload.get("data_base64")
+                original_name = payload.get("original_name")
+                source_uri = payload.get("source_uri")
+                if not isinstance(encoded, str) or not encoded:
+                    raise ValueError("Image capture data_base64 must be non-empty text.")
+                if not isinstance(original_name, str) or not original_name.strip():
+                    raise ValueError("Image capture original_name must be non-empty text.")
+                if not isinstance(source_uri, str) or not source_uri.strip():
+                    raise ValueError("Image capture source_uri must be non-empty text.")
+                try:
+                    image_bytes = base64.b64decode(encoded, validate=True)
+                except (binascii.Error, ValueError) as exc:
+                    raise ValueError("Image capture data_base64 is invalid.") from exc
+                if not image_bytes:
+                    raise ValueError("Image capture data must not be empty.")
+                if len(image_bytes) > _MAX_IMAGE_BYTES:
+                    raise ValueError("Image capture exceeds the 12 MiB limit.")
+                await _send_contract(
+                    send,
+                    self._facade.capture_image_source(
+                        data=image_bytes,
+                        original_name=original_name.strip(),
+                        source_uri=source_uri.strip(),
+                    ),
+                    status=201,
+                    request_id=request_id,
+                )
                 return
 
             if method == "GET" and path == "/api/v1/storage/health":
@@ -635,6 +682,7 @@ class CoreApiAsgiApp:
                     "max_output_tokens",
                     "temperature",
                     "thinking_enabled",
+                    "image_source_ids",
                 }
                 if unknown:
                     raise ValueError(
@@ -709,6 +757,24 @@ class CoreApiAsgiApp:
                     raise ValueError(
                         "Chat thinking_enabled must be boolean or null."
                     )
+                raw_image_source_ids = payload.get("image_source_ids", [])
+                if not isinstance(raw_image_source_ids, list):
+                    raise ValueError("Chat image_source_ids must be a list.")
+                if len(raw_image_source_ids) > 4:
+                    raise ValueError("Chat accepts at most four image Sources.")
+                image_source_ids: list[str] = []
+                for raw_source_id in raw_image_source_ids:
+                    if not isinstance(raw_source_id, str):
+                        raise ValueError("Chat image Source IDs must be UUID strings.")
+                    try:
+                        canonical_source_id = str(uuid.UUID(raw_source_id))
+                    except ValueError as exc:
+                        raise ValueError(
+                            "Chat image Source IDs must be valid UUID strings."
+                        ) from exc
+                    image_source_ids.append(canonical_source_id)
+                if len(set(image_source_ids)) != len(image_source_ids):
+                    raise ValueError("Chat image Source IDs must be unique.")
                 await _send_contract(
                     send,
                     self._facade.send_chat_message(
@@ -720,6 +786,7 @@ class CoreApiAsgiApp:
                         max_output_tokens=max_output_tokens,
                         temperature=temperature,
                         thinking_enabled=thinking_enabled,
+                        image_source_ids=tuple(image_source_ids),
                     ),
                     request_id=request_id,
                 )
@@ -1413,6 +1480,8 @@ def _nonnegative_offset(
 
 async def _read_json_object(
     receive: AsgiReceive,
+    *,
+    max_bytes: int = _MAX_JSON_BODY_BYTES,
 ) -> dict[str, JsonValue]:
     raw = bytearray()
     while True:
@@ -1420,7 +1489,13 @@ async def _read_json_object(
         if message.get("type") != "http.request":
             raise ValueError("Invalid HTTP request body event.")
         chunk = cast(bytes, message.get("body", b""))
-        if len(raw) + len(chunk) > _MAX_JSON_BODY_BYTES:
+        if (
+            isinstance(max_bytes, bool)
+            or not isinstance(max_bytes, int)
+            or max_bytes < 1
+        ):
+            raise ValueError("JSON request size limit must be a positive integer.")
+        if len(raw) + len(chunk) > max_bytes:
             raise ValueError("JSON request body is too large.")
         raw.extend(chunk)
         if not bool(message.get("more_body", False)):

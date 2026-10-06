@@ -212,6 +212,23 @@ class ModelInfo:
 
 
 @dataclass(frozen=True, slots=True)
+class ModelImageInput:
+    """One verified in-memory image passed to a vision-capable model provider."""
+
+    media_type: str
+    data: bytes
+
+    def __post_init__(self) -> None:
+        _require_canonical_text(self.media_type, "ModelImageInput media_type")
+        if self.media_type not in {"image/png", "image/jpeg", "image/gif"}:
+            raise ValueError("ModelImageInput media_type must be PNG, JPEG, or GIF.")
+        if type(self.data) is not bytes:
+            raise TypeError("ModelImageInput data must be immutable bytes.")
+        if not self.data:
+            raise ValueError("ModelImageInput data must not be empty.")
+
+
+@dataclass(frozen=True, slots=True)
 class ModelChatMessage:
     """One stateless chat-history item passed to a model provider."""
 

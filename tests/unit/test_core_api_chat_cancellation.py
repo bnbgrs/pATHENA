@@ -64,6 +64,7 @@ class _CancellationSurface:
         max_output_tokens: int | None = None,
         temperature: float | None = None,
         thinking_enabled: bool | None = None,
+        image_source_ids: tuple[str, ...] = (),
     ) -> object:
         del (
             chat_id,
@@ -285,6 +286,7 @@ class _BlockingHttpSurface:
         max_output_tokens: int | None = None,
         temperature: float | None = None,
         thinking_enabled: bool | None = None,
+        image_source_ids: tuple[str, ...] = (),
     ) -> object:
         del (
             chat_id,

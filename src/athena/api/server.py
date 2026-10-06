@@ -19,7 +19,7 @@ from athena.api.runtime import ApiDiscovery, LocalApiRuntime
 logger = logging.getLogger(__name__)
 
 _LOOPBACK_HOST = "127.0.0.1"
-_MAX_REQUEST_BODY_BYTES = 1024 * 1024
+_MAX_REQUEST_BODY_BYTES = 17 * 1024 * 1024
 _THREAD_JOIN_TIMEOUT_SECONDS = 5.0
 
 

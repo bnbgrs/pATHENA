@@ -109,7 +109,7 @@ def test_pathena_secondary_context_is_grounded_only_and_user_controlled() -> Non
         app.processEvents()
 
 
-def test_pathena_hides_unwired_attach_placeholder_and_humanizes_context_copy() -> None:
+def test_pathena_exposes_vision_attachment_control_and_humanizes_context_copy() -> None:
     app = _app()
     window = PathenaMainWindow(api_controller=None)
     try:
@@ -118,13 +118,14 @@ def test_pathena_hides_unwired_attach_placeholder_and_humanizes_context_copy() -
             for label in window.findChildren(QLabel)
             if label.text()
             in {
-                "ATTACH",
                 "BACKGROUND WORK",
                 "Open Jobs for background work status and controls.",
             }
         }
-        assert "ATTACH" in hidden_labels
         assert all(label.isHidden() for label in hidden_labels.values())
+        assert window.attachment_button.text() == "ATTACH"
+        assert window.attachment_button.isHidden() is False
+        assert window.attachment_button.isEnabled() is False
 
         visible_copy = {label.text() for label in window.findChildren(QLabel)}
         assert "KNOWLEDGE FROM THIS CHAT" in visible_copy

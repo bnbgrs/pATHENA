@@ -18,6 +18,7 @@ from athena.api.contracts import (
     DeletionResultResponse,
     GroundedChatResponse,
     HealthResponse,
+    ImageSourceResponse,
     KnowledgeMergeReviewResponse,
     KnowledgeReviewResponse,
     MessageKnowledgeExtractionResponse,
@@ -103,6 +104,14 @@ class CoreApiGateway(Protocol):
         revision_id: str,
     ) -> ChatThreadResponse: ...
 
+    def capture_image_source(
+        self,
+        data: bytes,
+        *,
+        original_name: str,
+        source_uri: str,
+    ) -> ImageSourceResponse: ...
+
     def send_chat_message(
         self,
         chat_id: str,
@@ -114,6 +123,7 @@ class CoreApiGateway(Protocol):
         max_output_tokens: int | None = None,
         temperature: float | None = None,
         thinking_enabled: bool | None = None,
+        image_source_ids: tuple[str, ...] = (),
     ) -> ChatThreadResponse: ...
 
     def cancel_chat_operation(self, operation_id: str) -> bool:
@@ -260,6 +270,7 @@ class _ChatOperationOutcome:
     thread: ChatThreadResponse | None = None
     grounded: GroundedChatResponse | None = None
     recovery: ChatOperationRecoveryResponse | None = None
+    image_source: ImageSourceResponse | None = None
     deletion_preview: DeletionPreviewResponse | None = None
     deleted_chat_id: str | None = None
     remembered: RememberedChatMessageResponse | None = None
@@ -279,6 +290,7 @@ class _ChatOperationOutcome:
                 self.thread,
                 self.grounded,
                 self.recovery,
+                self.image_source,
                 self.deletion_preview,
                 self.deleted_chat_id,
                 self.remembered,
@@ -425,6 +437,10 @@ class _ChatTask(QRunnable):
         review_id: str | None = None,
         review_decision: str | None = None,
         pinned_state: bool | None = None,
+        image_data: bytes | None = None,
+        image_name: str | None = None,
+        image_uri: str | None = None,
+        image_source_ids: tuple[str, ...] = (),
         outcomes: SimpleQueue[_ChatOperationOutcome],
         receiver: QObject,
     ) -> None:
@@ -446,6 +462,10 @@ class _ChatTask(QRunnable):
         self.review_id = review_id
         self.review_decision = review_decision
         self.pinned_state = pinned_state
+        self.image_data = image_data
+        self.image_name = image_name
+        self.image_uri = image_uri
+        self.image_source_ids = image_source_ids
         self.outcomes = outcomes
         self.receiver = receiver
         self.setAutoDelete(False)
@@ -454,7 +474,25 @@ class _ChatTask(QRunnable):
     def run(self) -> None:
         resolved_chat_id = self.chat_id
         try:
-            if self.operation == "load":
+            if self.operation == "capture_image":
+                if (
+                    self.image_data is None
+                    or self.image_name is None
+                    or self.image_uri is None
+                ):
+                    raise ValueError(
+                        "Image capture requires immutable bytes and source metadata."
+                    )
+                image_source = self.gateway.capture_image_source(
+                    self.image_data,
+                    original_name=self.image_name,
+                    source_uri=self.image_uri,
+                )
+                outcome = _ChatOperationOutcome(
+                    operation=self.operation,
+                    image_source=image_source,
+                )
+            elif self.operation == "load":
                 if resolved_chat_id is None:
                     raise ValueError("Chat load requires a chat ID.")
                 thread = self.gateway.load_chat(
@@ -628,6 +666,7 @@ class _ChatTask(QRunnable):
                         content=content,
                         model_id=self.model_id,
                         operation_id=operation_id,
+                        image_source_ids=self.image_source_ids,
                     )
                 elif (
                     self.max_output_tokens is None
@@ -639,6 +678,7 @@ class _ChatTask(QRunnable):
                         content=content,
                         model_id=self.model_id,
                         operation_id=operation_id,
+                        image_source_ids=self.image_source_ids,
                         effective_context_limit=(
                             self.effective_context_limit
                         ),
@@ -649,6 +689,7 @@ class _ChatTask(QRunnable):
                         content=content,
                         model_id=self.model_id,
                         operation_id=operation_id,
+                        image_source_ids=self.image_source_ids,
                         effective_context_limit=(
                             self.effective_context_limit
                         ),
@@ -1424,6 +1465,7 @@ class DesktopApiController(QObject):
     chat_sent = Signal(object)
     grounded_chat_sent = Signal(object)
     chat_recovery_ready = Signal(object)
+    image_source_captured = Signal(object)
     chat_deletion_preview_ready = Signal(object)
     chat_deleted = Signal(str)
     chat_pin_changed = Signal(str, bool)
@@ -1661,6 +1703,7 @@ class DesktopApiController(QObject):
         max_output_tokens: int | None = None,
         temperature: float | None = None,
         thinking_enabled: bool | None = None,
+        image_source_ids: tuple[str, ...] = (),
     ) -> None:
         if self._chat_busy or not content.strip():
             return
@@ -1674,6 +1717,24 @@ class DesktopApiController(QObject):
             max_output_tokens=max_output_tokens,
             temperature=temperature,
             thinking_enabled=thinking_enabled,
+            image_source_ids=image_source_ids,
+        )
+
+    def capture_image(
+        self,
+        data: bytes,
+        *,
+        original_name: str,
+        source_uri: str,
+    ) -> None:
+        if self._chat_busy or type(data) is not bytes or not data:
+            return
+        self._start_chat_task(
+            operation="capture_image",
+            chat_id=None,
+            image_data=data,
+            image_name=original_name,
+            image_uri=source_uri,
         )
 
     def send_grounded_message(
@@ -1821,6 +1882,10 @@ class DesktopApiController(QObject):
         review_id: str | None = None,
         review_decision: str | None = None,
         pinned_state: bool | None = None,
+        image_data: bytes | None = None,
+        image_name: str | None = None,
+        image_uri: str | None = None,
+        image_source_ids: tuple[str, ...] = (),
     ) -> None:
         task = _ChatTask(
             gateway=self.gateway,
@@ -1840,6 +1905,10 @@ class DesktopApiController(QObject):
             review_id=review_id,
             review_decision=review_decision,
             pinned_state=pinned_state,
+            image_data=image_data,
+            image_name=image_name,
+            image_uri=image_uri,
+            image_source_ids=image_source_ids,
             outcomes=self._chat_outcomes,
             receiver=self,
         )
@@ -2057,6 +2126,8 @@ class DesktopApiController(QObject):
 
             if outcome.recovery is not None:
                 self.chat_recovery_ready.emit(outcome.recovery)
+            elif outcome.image_source is not None:
+                self.image_source_captured.emit(outcome.image_source)
             elif outcome.grounded is not None:
                 if self.chat_cancel_pending:
                     self._set_chat_cancel_state(

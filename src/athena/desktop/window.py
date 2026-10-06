@@ -6,9 +6,10 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from PySide6.QtCore import QPoint, QSize, Qt, QTimer, Slot
+from PySide6.QtCore import QBuffer, QIODevice, QMimeData, QPoint, QSize, Qt, QTimer, Signal, Slot
 from PySide6.QtGui import (
     QColor,
+    QImage,
     QKeySequence,
     QPainter,
     QPaintEvent,
@@ -47,6 +48,7 @@ from athena.api.contracts import (
     DeletionPreviewResponse,
     GroundedChatResponse,
     GroundedEvidenceResponse,
+    ImageSourceResponse,
     KnowledgeMergeReviewResponse,
     KnowledgeReviewResponse,
     MessageKnowledgeExtractionResponse,
@@ -275,7 +277,9 @@ class _AutoHeightMessageLabel(QLabel):
 
 
 class PromptInput(QPlainTextEdit):
-    """Multiline composer input with the legacy text access contract."""
+    """Multiline composer input with truthful clipboard-image handoff."""
+
+    image_pasted = Signal(object)
 
     def __init__(self) -> None:
         super().__init__()
@@ -286,6 +290,16 @@ class PromptInput(QPlainTextEdit):
 
     def setText(self, text: str) -> None:  # noqa: N802 - compatibility with QLineEdit
         self.setPlainText(text)
+
+    def insertFromMimeData(self, source: QMimeData) -> None:  # noqa: N802
+        has_image = getattr(source, "hasImage", None)
+        image_data = getattr(source, "imageData", None)
+        if callable(has_image) and has_image() and callable(image_data):
+            image = image_data()
+            if isinstance(image, QImage) and not image.isNull():
+                self.image_pasted.emit(image)
+                return
+        super().insertFromMimeData(source)
 
 
 class AthenaMainWindow(QMainWindow):
@@ -306,6 +320,11 @@ class AthenaMainWindow(QMainWindow):
         self.page_title = QLabel("CHAT")
         self.status_text = QLabel("LOCAL / CORE DISCONNECTED")
         self.prompt_input = PromptInput()
+        self.prompt_input.image_pasted.connect(self._capture_pasted_image)
+        self.attachment_button = QPushButton("ATTACH")
+        self.attachment_button.setObjectName("attachmentButton")
+        self.attachment_button.setEnabled(False)
+        self.attachment_button.clicked.connect(self._clear_pending_images)
         self.ground_button = QPushButton("GROUND")
         self.send_button = QPushButton("CTRL+ENTER")
         self.chat_selector = QComboBox()
@@ -335,6 +354,8 @@ class AthenaMainWindow(QMainWindow):
         self._thinking_by_model: dict[str, bool] = {}
         self._remembered_message_revisions: set[tuple[str, str]] = set()
         self._pinned_chat_ids: set[str] = set()
+        self._pending_image_source_ids: list[str] = []
+        self._pending_image_names: list[str] = []
         self._knowledge_extraction: MessageKnowledgeExtractionResponse | None = None
         self._knowledge_review: KnowledgeReviewResponse | None = None
         self._knowledge_review_chat_id: str | None = None
@@ -1053,6 +1074,7 @@ class AthenaMainWindow(QMainWindow):
             for selector in (self.model_selector, self.settings_model_selector):
                 selector.setStyleSheet("")
         self._update_ready_state()
+        self._sync_attachment_state()
         self._sync_composer_enabled()
 
     def _on_context_changed(self, value: int) -> None:
@@ -1497,8 +1519,9 @@ class AthenaMainWindow(QMainWindow):
             self._submit_prompt
         )
 
-        attach = QLabel("ATTACH")
-        attach.setObjectName("commandMeta")
+        self.attachment_button.setToolTip(
+            "Paste an image or screenshot with Ctrl+V. Click here to clear captured images."
+        )
 
         self.ground_button.setObjectName("groundButton")
         self.ground_button.setCheckable(True)
@@ -1576,7 +1599,7 @@ class AthenaMainWindow(QMainWindow):
 
         layout.addWidget(prompt)
         layout.addWidget(self.prompt_input, 1)
-        layout.addWidget(attach)
+        layout.addWidget(self.attachment_button)
         layout.addWidget(self.ground_button)
         layout.addWidget(self.send_button)
         return composer
@@ -1686,6 +1709,9 @@ class AthenaMainWindow(QMainWindow):
         )
         controller.chat_recovery_ready.connect(
             self.apply_chat_recovery
+        )
+        controller.image_source_captured.connect(
+            self.apply_image_source_captured
         )
         controller.chat_deletion_preview_ready.connect(
             self.apply_chat_deletion_preview
@@ -1870,6 +1896,86 @@ class AthenaMainWindow(QMainWindow):
         self._schedule_recovery_inspection(thread)
 
     @Slot(object)
+    def _capture_pasted_image(self, image: object) -> None:
+        controller = self.api_controller
+        if (
+            controller is None
+            or self._chat_busy
+            or len(self._pending_image_source_ids) >= 4
+            or not isinstance(image, QImage)
+            or image.isNull()
+        ):
+            if len(self._pending_image_source_ids) >= 4:
+                self.connection_detail.setText(
+                    "Vision attachment limit reached · maximum 4 images."
+                )
+            return
+
+        buffer = QBuffer(self)
+        if not buffer.open(QIODevice.OpenModeFlag.WriteOnly):
+            self.connection_detail.setText("Could not encode pasted image.")
+            return
+        try:
+            if not image.save(buffer, b"PNG"):
+                self.connection_detail.setText("Could not encode pasted image.")
+                return
+            payload = bytes(buffer.data().data())
+        finally:
+            buffer.close()
+
+        timestamp = datetime.now().astimezone().strftime("%Y%m%d-%H%M%S-%f")
+        original_name = f"clipboard-{timestamp}.png"
+        self.connection_detail.setText("Capturing pasted image into Raw Archive…")
+        controller.capture_image(
+            payload,
+            original_name=original_name,
+            source_uri=f"clipboard://{timestamp}",
+        )
+
+    @Slot(object)
+    def apply_image_source_captured(self, response: object) -> None:
+        if not isinstance(response, ImageSourceResponse):
+            return
+        if response.source_id not in self._pending_image_source_ids:
+            self._pending_image_source_ids.append(response.source_id)
+            self._pending_image_names.append(response.original_name)
+        self._sync_attachment_state()
+        self.connection_detail.setText(
+            f"Captured {response.original_name} · {response.byte_length} bytes."
+        )
+
+    @Slot()
+    def _clear_pending_images(self) -> None:
+        self._pending_image_source_ids.clear()
+        self._pending_image_names.clear()
+        self._sync_attachment_state()
+
+    def _sync_attachment_state(self) -> None:
+        count = len(self._pending_image_source_ids)
+        model = self._selected_model()
+        if count == 0:
+            self.attachment_button.setText("ATTACH")
+            self.attachment_button.setEnabled(False)
+            self.attachment_button.setToolTip(
+                "Paste an image or screenshot with Ctrl+V."
+            )
+            return
+
+        self.attachment_button.setEnabled(not self._chat_busy)
+        self.attachment_button.setText(
+            f"IMG {count} · CLEAR"
+        )
+        if model is None or model.vision is None:
+            state = "VISION UNKNOWN"
+        elif model.vision is False:
+            state = "VISION UNSUPPORTED"
+        else:
+            state = "VISION READY"
+        self.attachment_button.setToolTip(
+            f"{count} captured image(s) · {state}. Click to remove from this send."
+        )
+
+    @Slot(object)
     def apply_chat_sent(self, thread: object) -> None:
         if not isinstance(thread, ChatThreadResponse):
             return
@@ -1877,6 +1983,7 @@ class AthenaMainWindow(QMainWindow):
             thread.chat_id
         )
         self.prompt_input.clear()
+        self._clear_pending_images()
         self._render_chat_thread(thread)
         self._clear_recovery_state()
         QTimer.singleShot(0, self.refresh_core_status)
@@ -2347,6 +2454,24 @@ class AthenaMainWindow(QMainWindow):
         if not content:
             return
 
+        image_source_ids = tuple(self._pending_image_source_ids)
+        if image_source_ids:
+            model = self._selected_model()
+            if model is None or model.vision is not True:
+                state = "unknown" if model is None or model.vision is None else "unsupported"
+                self.connection_detail.setText(
+                    f"Vision is {state} for the selected model · choose a model "
+                    "that explicitly advertises image support."
+                )
+                self._sync_composer_enabled()
+                return
+            if self.ground_button.isChecked():
+                self.connection_detail.setText(
+                    "Image attachments currently use Direct chat only · "
+                    "Grounded/Unified replay does not yet include image identity."
+                )
+                return
+
         if self.ground_button.isChecked():
             controller.send_grounded_message(
                 chat_id=self.current_chat_id,
@@ -2366,6 +2491,7 @@ class AthenaMainWindow(QMainWindow):
                 max_output_tokens=self._max_output_tokens(),
                 temperature=self._temperature(),
                 thinking_enabled=self._thinking_enabled(),
+                image_source_ids=image_source_ids,
             )
 
     @Slot(int, int)
@@ -2511,7 +2637,13 @@ class AthenaMainWindow(QMainWindow):
         )
         self.prompt_input.setEnabled(enabled)
         self.ground_button.setEnabled(enabled)
-        self.send_button.setEnabled(enabled or cancellable)
+        model = self._selected_model()
+        vision_send_ready = (
+            not self._pending_image_source_ids
+            or (model is not None and model.vision is True and not self.ground_button.isChecked())
+        )
+        self.send_button.setEnabled((enabled and vision_send_ready) or cancellable)
+        self._sync_attachment_state()
         self._sync_send_action_presentation()
         controls_available = (
             self.api_controller is not None
