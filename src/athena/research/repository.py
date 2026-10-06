@@ -6,10 +6,10 @@ import hashlib
 import hmac
 import json
 import sqlite3
+import urllib.parse
 import uuid
 from collections.abc import Mapping, Sequence
 from typing import Any
-from urllib.parse import urlsplit
 
 from athena.common.ids import new_uuid7, uuid_from_blob, uuid_to_blob
 from athena.common.time import utc_now_us
@@ -144,7 +144,7 @@ def _source_hostname(source_uri: object) -> str | None:
         return None
     candidate = source_uri.strip()
     try:
-        parsed = urlsplit(candidate if "://" in candidate else "//" + candidate)
+        parsed = urllib.parse.urlsplit(candidate if "://" in candidate else "//" + candidate)
     except ValueError:
         return None
     hostname = parsed.hostname
