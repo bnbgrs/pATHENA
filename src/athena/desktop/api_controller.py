@@ -23,6 +23,8 @@ from athena.api.contracts import (
     KnowledgeMergeReviewResponse,
     KnowledgeReviewResponse,
     MessageKnowledgeExtractionResponse,
+    MessageSelectionKnowledgeExtractionResponse,
+    MessageSelectionSummaryResponse,
     ModelResponse,
     NewsProfileResponse,
     ProviderHealthResponse,
@@ -198,6 +200,66 @@ class CoreApiGateway(Protocol):
         max_output_tokens: int | None = None,
     ) -> MessageKnowledgeExtractionResponse: ...
 
+    def extract_chat_message_selection_knowledge(
+        self,
+        chat_id: str,
+        *,
+        message_revisions: tuple[tuple[str, str], ...],
+        model_id: str | None = None,
+        effective_context_limit: int | None = None,
+        max_output_tokens: int | None = None,
+    ) -> MessageSelectionKnowledgeExtractionResponse: ...
+
+    def summarize_chat_message_selection(
+        self,
+        chat_id: str,
+        *,
+        message_revisions: tuple[tuple[str, str], ...],
+        model_id: str | None = None,
+        effective_context_limit: int | None = None,
+        max_output_tokens: int | None = None,
+    ) -> MessageSelectionSummaryResponse: ...
+
+    def extract_message_selection_knowledge(
+        self,
+        *,
+        chat_id: str,
+        message_revisions: tuple[tuple[str, str], ...],
+        model_id: str | None = None,
+        effective_context_limit: int | None = None,
+        max_output_tokens: int | None = None,
+    ) -> None:
+        if self._chat_busy or not chat_id or len(message_revisions) < 2:
+            return
+        self._start_chat_task(
+            operation="extract_selection_knowledge",
+            chat_id=chat_id,
+            message_revisions=message_revisions,
+            model_id=model_id,
+            effective_context_limit=effective_context_limit,
+            max_output_tokens=max_output_tokens,
+        )
+
+    def summarize_message_selection(
+        self,
+        *,
+        chat_id: str,
+        message_revisions: tuple[tuple[str, str], ...],
+        model_id: str | None = None,
+        effective_context_limit: int | None = None,
+        max_output_tokens: int | None = None,
+    ) -> None:
+        if self._chat_busy or not chat_id or len(message_revisions) < 2:
+            return
+        self._start_chat_task(
+            operation="summarize_selection",
+            chat_id=chat_id,
+            message_revisions=message_revisions,
+            model_id=model_id,
+            effective_context_limit=effective_context_limit,
+            max_output_tokens=max_output_tokens,
+        )
+
     def prepare_knowledge_review(
         self,
         processing_run_id: str,
@@ -303,7 +365,12 @@ class _ChatOperationOutcome:
     deleted_chat_id: str | None = None
     lifecycle_transition: ChatLifecycleTransitionResponse | None = None
     remembered: RememberedChatMessageResponse | None = None
-    knowledge_extraction: MessageKnowledgeExtractionResponse | None = None
+    knowledge_extraction: (
+        MessageKnowledgeExtractionResponse
+        | MessageSelectionKnowledgeExtractionResponse
+        | None
+    ) = None
+    selection_summary: MessageSelectionSummaryResponse | None = None
     knowledge_review: KnowledgeReviewResponse | None = None
     merge_review: KnowledgeMergeReviewResponse | None = None
     pinned_chat_id: str | None = None
@@ -325,6 +392,7 @@ class _ChatOperationOutcome:
                 self.lifecycle_transition,
                 self.remembered,
                 self.knowledge_extraction,
+                self.selection_summary,
                 self.knowledge_review,
                 self.merge_review,
                 self.pinned_chat_id,
@@ -463,6 +531,7 @@ class _ChatTask(QRunnable):
         preview_digest: str | None,
         message_id: str | None,
         revision_id: str | None,
+        message_revisions: tuple[tuple[str, str], ...] = (),
         processing_run_id: str | None = None,
         review_id: str | None = None,
         review_decision: str | None = None,
@@ -488,6 +557,7 @@ class _ChatTask(QRunnable):
         self.preview_digest = preview_digest
         self.message_id = message_id
         self.revision_id = revision_id
+        self.message_revisions = message_revisions
         self.processing_run_id = processing_run_id
         self.review_id = review_id
         self.review_decision = review_decision
@@ -945,6 +1015,63 @@ class _ChatTask(QRunnable):
                 outcome = _ChatOperationOutcome(
                     operation=self.operation,
                     knowledge_extraction=extraction,
+                )
+            elif self.operation == "extract_selection_knowledge":
+                if resolved_chat_id is None or len(self.message_revisions) < 2:
+                    raise ValueError(
+                        "Selection extraction requires a chat and at least two revisions."
+                    )
+                extraction = self.gateway.extract_chat_message_selection_knowledge(
+                    resolved_chat_id,
+                    message_revisions=self.message_revisions,
+                    model_id=self.model_id,
+                    effective_context_limit=self.effective_context_limit,
+                    max_output_tokens=self.max_output_tokens,
+                )
+                expected_refs = set(self.message_revisions)
+                returned_refs = {
+                    (item.message_id, item.revision_id)
+                    for item in extraction.selected_messages
+                }
+                if (
+                    extraction.chat_id != resolved_chat_id
+                    or returned_refs != expected_refs
+                ):
+                    raise RuntimeError(
+                        "Selection extraction result belongs to another persisted selection."
+                    )
+                outcome = _ChatOperationOutcome(
+                    operation=self.operation,
+                    knowledge_extraction=extraction,
+                )
+            elif self.operation == "summarize_selection":
+                if resolved_chat_id is None or len(self.message_revisions) < 2:
+                    raise ValueError(
+                        "Selection summary requires a chat and at least two revisions."
+                    )
+                summary = self.gateway.summarize_chat_message_selection(
+                    resolved_chat_id,
+                    message_revisions=self.message_revisions,
+                    model_id=self.model_id,
+                    effective_context_limit=self.effective_context_limit,
+                    max_output_tokens=self.max_output_tokens,
+                )
+                expected_refs = set(self.message_revisions)
+                returned_refs = {
+                    (item.message_id, item.revision_id)
+                    for item in summary.selected_messages
+                }
+                if (
+                    summary.chat_id != resolved_chat_id
+                    or summary.summary_message.chat_id != resolved_chat_id
+                    or returned_refs != expected_refs
+                ):
+                    raise RuntimeError(
+                        "Selection summary result belongs to another persisted selection."
+                    )
+                outcome = _ChatOperationOutcome(
+                    operation=self.operation,
+                    selection_summary=summary,
                 )
             elif self.operation == "prepare_knowledge_review":
                 processing_run_id = self.processing_run_id
@@ -1588,6 +1715,7 @@ class DesktopApiController(QObject):
     chat_pin_changed = Signal(str, bool)
     message_remembered = Signal(object)
     knowledge_extraction_ready = Signal(object)
+    message_selection_summary_ready = Signal(object)
     knowledge_review_ready = Signal(object)
     knowledge_merge_review_ready = Signal(object)
     chat_operation_failed = Signal(str, str)
@@ -2037,6 +2165,7 @@ class DesktopApiController(QObject):
         preview_digest: str | None = None,
         message_id: str | None = None,
         revision_id: str | None = None,
+        message_revisions: tuple[tuple[str, str], ...] = (),
         processing_run_id: str | None = None,
         review_id: str | None = None,
         review_decision: str | None = None,
@@ -2060,6 +2189,7 @@ class DesktopApiController(QObject):
             preview_digest=preview_digest,
             message_id=message_id,
             revision_id=revision_id,
+            message_revisions=message_revisions,
             processing_run_id=processing_run_id,
             review_id=review_id,
             review_decision=review_decision,
@@ -2320,6 +2450,8 @@ class DesktopApiController(QObject):
                 self.message_remembered.emit(outcome.remembered)
             elif outcome.knowledge_extraction is not None:
                 self.knowledge_extraction_ready.emit(outcome.knowledge_extraction)
+            elif outcome.selection_summary is not None:
+                self.message_selection_summary_ready.emit(outcome.selection_summary)
             elif outcome.knowledge_review is not None:
                 self.knowledge_review_ready.emit(outcome.knowledge_review)
             elif outcome.merge_review is not None:
