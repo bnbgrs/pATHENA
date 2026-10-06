@@ -414,6 +414,15 @@ class DeletionResultResponse(ApiContract):
 
 
 @dataclass(frozen=True, slots=True)
+class LifecycleTransitionResponse(ApiContract):
+    entity_id: str
+    entity_type: str
+    lifecycle_state: str
+    commit_id: str
+    affected_entity_ids: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
 class ProviderHealthResponse(ApiContract):
     provider: str
     status: str
