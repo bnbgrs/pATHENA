@@ -859,6 +859,7 @@ class _EditForkGateway(_Gateway):
         super().__init__()
         self.edit_calls: list[tuple[str, str, str, str]] = []
         self.fork_calls: list[tuple[str, str, str]] = []
+        self.regenerate_calls: list[dict[str, object]] = []
 
     @staticmethod
     def _thread(
@@ -906,6 +907,40 @@ class _EditForkGateway(_Gateway):
             message_id=message_id,
             revision_id=str(uuid.uuid4()),
             content=content,
+        )
+
+    def regenerate_chat_message(
+        self,
+        chat_id: str,
+        message_id: str,
+        *,
+        revision_id: str,
+        model_id: str | None = None,
+        operation_id: str | None = None,
+        effective_context_limit: int | None = None,
+        max_output_tokens: int | None = None,
+        temperature: float | None = None,
+        thinking_enabled: bool | None = None,
+    ) -> ChatThreadResponse:
+        self._record()
+        self.regenerate_calls.append(
+            {
+                "chat_id": chat_id,
+                "message_id": message_id,
+                "revision_id": revision_id,
+                "model_id": model_id,
+                "operation_id": operation_id,
+                "effective_context_limit": effective_context_limit,
+                "max_output_tokens": max_output_tokens,
+                "temperature": temperature,
+                "thinking_enabled": thinking_enabled,
+            }
+        )
+        return self._thread(
+            chat_id=str(uuid.uuid4()),
+            message_id=str(uuid.uuid4()),
+            revision_id=str(uuid.uuid4()),
+            content="regenerated",
         )
 
     def fork_chat_from_message(
@@ -986,6 +1021,53 @@ def test_controller_fork_chat_runs_off_ui_thread_and_switches_to_returned_thread
     thread = loaded.at(0)[0]
     assert isinstance(thread, ChatThreadResponse)
     assert thread.chat_id != chat_id
+    assert controller.chat_busy is False
+
+
+def test_controller_regenerate_runs_off_ui_thread_and_switches_branch() -> None:
+    app = _app()
+    gateway = _EditForkGateway()
+    pool = _pool()
+    controller = DesktopApiController(gateway, thread_pool=pool)
+    loaded = QSignalSpy(controller.chat_loaded)
+    main_thread = threading.get_ident()
+    chat_id = str(uuid.uuid4())
+    message_id = str(uuid.uuid4())
+    revision_id = str(uuid.uuid4())
+
+    controller.regenerate_message(
+        chat_id=chat_id,
+        message_id=message_id,
+        revision_id=revision_id,
+        model_id="local-model",
+        effective_context_limit=8192,
+        max_output_tokens=512,
+        temperature=0.4,
+        thinking_enabled=True,
+    )
+
+    assert pool.waitForDone(2_000)
+    app.processEvents()
+
+    assert len(gateway.regenerate_calls) == 1
+    call = gateway.regenerate_calls[0]
+    assert call["chat_id"] == chat_id
+    assert call["message_id"] == message_id
+    assert call["revision_id"] == revision_id
+    assert call["model_id"] == "local-model"
+    assert call["effective_context_limit"] == 8192
+    assert call["max_output_tokens"] == 512
+    assert call["temperature"] == 0.4
+    assert call["thinking_enabled"] is True
+    assert isinstance(call["operation_id"], str)
+    uuid.UUID(call["operation_id"])
+    assert gateway.thread_ids
+    assert all(thread_id != main_thread for thread_id in gateway.thread_ids)
+    assert loaded.count() == 1
+    thread = loaded.at(0)[0]
+    assert isinstance(thread, ChatThreadResponse)
+    assert thread.chat_id != chat_id
+    assert thread.messages[0].content == "regenerated"
     assert controller.chat_busy is False
 
 
