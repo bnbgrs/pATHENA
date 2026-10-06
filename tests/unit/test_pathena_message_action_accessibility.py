@@ -71,6 +71,22 @@ def test_copy_action_gets_explicit_clipboard_purpose() -> None:
     assert button.property("pathenaMessageActionPurpose") == "copy message"
 
 
+def test_regenerate_action_is_keyboard_accessible_with_explicit_purpose() -> None:
+    _app()
+    window = _Window()
+    button = QPushButton("REGENERATE", window.chat_messages_widget)
+    button.setObjectName("regenerateMessageButton")
+    button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+
+    controller = MessageActionAccessibilityController(window)
+    controller.sync()
+
+    assert button.focusPolicy() == Qt.FocusPolicy.StrongFocus
+    assert button.accessibleName() == "Regenerate response"
+    assert "durable branch" in button.accessibleDescription()
+    assert button.property("pathenaMessageActionPurpose") == "regenerate response"
+
+
 def test_unknown_button_is_left_untouched() -> None:
     _app()
     window = _Window()

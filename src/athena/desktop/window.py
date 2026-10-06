@@ -2313,6 +2313,8 @@ class AthenaMainWindow(QMainWindow):
             if operation == "remember"
             else "Message edit"
             if operation == "edit"
+            else "Response regeneration"
+            if operation == "regenerate"
             else "Chat fork"
             if operation == "fork"
             else "Recovery"
@@ -2339,6 +2341,7 @@ class AthenaMainWindow(QMainWindow):
                 "send",
                 "send_grounded",
                 "continue_recovery",
+                "regenerate",
                 "fork",
                 "remember",
                 "extract_knowledge",
@@ -2722,6 +2725,16 @@ class AthenaMainWindow(QMainWindow):
             )
         for button in self.chat_messages_widget.findChildren(
             QPushButton,
+            "regenerateMessageButton",
+        ):
+            button.setEnabled(
+                controls_available
+                and self._core_ready
+                and self._selected_model() is not None
+                and button.property("messageRole") == "assistant"
+            )
+        for button in self.chat_messages_widget.findChildren(
+            QPushButton,
             "forkMessageButton",
         ):
             button.setEnabled(controls_available and self._core_ready)
@@ -2937,6 +2950,25 @@ class AthenaMainWindow(QMainWindow):
                 )
             )
 
+        regenerate_button: QPushButton | None = None
+        if role == "assistant":
+            regenerate_button = QPushButton("REGENERATE")
+            regenerate_button.setObjectName("regenerateMessageButton")
+            regenerate_button.setProperty("messageId", message_id)
+            regenerate_button.setProperty("messageRevisionId", revision_id)
+            regenerate_button.setProperty("messageSequence", sequence_no)
+            regenerate_button.setProperty("messageRole", role)
+            regenerate_button.setAccessibleName("Regenerate response")
+            regenerate_button.setToolTip(
+                "Generate a fresh response from the exact preceding prompt on a new durable branch"
+            )
+            regenerate_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+            regenerate_button.clicked.connect(
+                lambda _checked=False, mid=message_id, rid=revision_id: (
+                    self._regenerate_message(mid, rid)
+                )
+            )
+
         fork_button = QPushButton("NEW CHAT FROM HERE")
         fork_button.setObjectName("forkMessageButton")
         fork_button.setProperty("messageId", message_id)
@@ -2958,6 +2990,8 @@ class AthenaMainWindow(QMainWindow):
         header.addStretch(1)
         if edit_button is not None:
             header.addWidget(edit_button)
+        if regenerate_button is not None:
+            header.addWidget(regenerate_button)
         header.addWidget(fork_button)
         header.addWidget(remember_button)
         header.addWidget(knowledge_button)
@@ -3009,6 +3043,34 @@ class AthenaMainWindow(QMainWindow):
             message_id=message_id,
             revision_id=revision_id,
             content=replacement,
+        )
+
+    def _regenerate_message(
+        self,
+        message_id: str,
+        revision_id: str,
+    ) -> None:
+        controller = self.api_controller
+        chat_id = self.current_chat_id
+        if (
+            controller is None
+            or chat_id is None
+            or self._chat_busy
+            or self.pending_chat_id is not None
+            or not self._core_ready
+            or self._selected_model() is None
+        ):
+            return
+
+        controller.regenerate_message(
+            chat_id=chat_id,
+            message_id=message_id,
+            revision_id=revision_id,
+            model_id=self._selected_model_id(),
+            effective_context_limit=self._effective_context_limit(),
+            max_output_tokens=self._max_output_tokens(),
+            temperature=self._temperature(),
+            thinking_enabled=self._thinking_enabled(),
         )
 
     def _fork_chat_from_message(

@@ -9,6 +9,9 @@ _ACTION_ORDER = {
     "copyMessageButton": 0,
     "rememberMessageButton": 1,
     "addKnowledgeButton": 2,
+    "editMessageButton": 3,
+    "regenerateMessageButton": 4,
+    "forkMessageButton": 5,
 }
 _CONTAINER_NAMES = {"chatMessage", "chatOperationFailure"}
 

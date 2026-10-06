@@ -104,6 +104,20 @@ class CoreApiGateway(Protocol):
         revision_id: str,
     ) -> ChatThreadResponse: ...
 
+    def regenerate_chat_message(
+        self,
+        chat_id: str,
+        message_id: str,
+        *,
+        revision_id: str,
+        model_id: str | None = None,
+        operation_id: str | None = None,
+        effective_context_limit: int | None = None,
+        max_output_tokens: int | None = None,
+        temperature: float | None = None,
+        thinking_enabled: bool | None = None,
+    ) -> ChatThreadResponse: ...
+
     def capture_image_source(
         self,
         data: bytes,
@@ -565,6 +579,38 @@ class _ChatTask(QRunnable):
                 if thread.chat_id == resolved_chat_id:
                     raise RuntimeError(
                         "Forked chat reused the source chat identity."
+                    )
+                outcome = _ChatOperationOutcome(
+                    operation=self.operation,
+                    thread=thread,
+                )
+            elif self.operation == "regenerate":
+                message_id = self.message_id
+                revision_id = self.revision_id
+                operation_id = self.operation_id
+                if (
+                    resolved_chat_id is None
+                    or message_id is None
+                    or revision_id is None
+                    or operation_id is None
+                ):
+                    raise ValueError(
+                        "Chat regenerate requires stable message, revision, and operation identity."
+                    )
+                thread = self.gateway.regenerate_chat_message(
+                    resolved_chat_id,
+                    message_id,
+                    revision_id=revision_id,
+                    model_id=self.model_id,
+                    operation_id=operation_id,
+                    effective_context_limit=self.effective_context_limit,
+                    max_output_tokens=self.max_output_tokens,
+                    temperature=self.temperature,
+                    thinking_enabled=self.thinking_enabled,
+                )
+                if thread.chat_id == resolved_chat_id:
+                    raise RuntimeError(
+                        "Regenerated response reused the source chat identity."
                     )
                 outcome = _ChatOperationOutcome(
                     operation=self.operation,
@@ -1570,7 +1616,7 @@ class DesktopApiController(QObject):
         return (
             self._chat_busy
             and self._active_chat_operation_kind
-            in {"send", "send_grounded", "continue_recovery"}
+            in {"send", "send_grounded", "continue_recovery", "regenerate"}
             and self._active_chat_operation_id is not None
         )
 
@@ -1663,6 +1709,38 @@ class DesktopApiController(QObject):
             chat_id=chat_id,
             message_id=message_id,
             revision_id=revision_id,
+        )
+
+    def regenerate_message(
+        self,
+        *,
+        chat_id: str,
+        message_id: str,
+        revision_id: str,
+        model_id: str | None = None,
+        effective_context_limit: int | None = None,
+        max_output_tokens: int | None = None,
+        temperature: float | None = None,
+        thinking_enabled: bool | None = None,
+    ) -> None:
+        if (
+            self._chat_busy
+            or not chat_id
+            or not message_id
+            or not revision_id
+        ):
+            return
+        self._start_chat_task(
+            operation="regenerate",
+            chat_id=chat_id,
+            message_id=message_id,
+            revision_id=revision_id,
+            model_id=model_id,
+            operation_id=str(new_uuid7()),
+            effective_context_limit=effective_context_limit,
+            max_output_tokens=max_output_tokens,
+            temperature=temperature,
+            thinking_enabled=thinking_enabled,
         )
 
     def inspect_chat_recovery(
@@ -1916,7 +1994,7 @@ class DesktopApiController(QObject):
         self._active_chat_operation_kind = operation
         self._active_chat_operation_id = (
             operation_id
-            if operation in {"send", "send_grounded", "continue_recovery"}
+            if operation in {"send", "send_grounded", "continue_recovery", "regenerate"}
             else None
         )
         self._chat_cancel_state = "idle"
@@ -2155,12 +2233,12 @@ class DesktopApiController(QObject):
             elif outcome.merge_review is not None:
                 self.knowledge_merge_review_ready.emit(outcome.merge_review)
             elif outcome.thread is not None:
+                if outcome.operation in {"send", "regenerate"} and self.chat_cancel_pending:
+                    self._set_chat_cancel_state(
+                        "expired",
+                        "Generation completed before cancellation could take effect.",
+                    )
                 if outcome.operation == "send":
-                    if self.chat_cancel_pending:
-                        self._set_chat_cancel_state(
-                            "expired",
-                            "Generation completed before cancellation could take effect.",
-                        )
                     self.chat_sent.emit(outcome.thread)
                 else:
                     self.chat_loaded.emit(outcome.thread)

@@ -7,6 +7,7 @@ import uuid
 from athena.chat.models import (
     ChatForkOrigin,
     ChatMessage,
+    ChatRegenerationPlan,
     ChatSummary,
     ChatThread,
     MessageType,
@@ -63,6 +64,21 @@ class ChatService:
             source_message_id=source_message_id,
             source_revision_id=source_revision_id,
             actor_id=user_id,
+        )
+
+    def prepare_assistant_regeneration(
+        self,
+        *,
+        chat_id: uuid.UUID,
+        source_assistant_message_id: uuid.UUID,
+        source_assistant_revision_id: uuid.UUID,
+    ) -> ChatRegenerationPlan:
+        """Create a new durable branch ready to replay one exact user prompt."""
+        return self.repository.prepare_assistant_regeneration(
+            chat_id=chat_id,
+            source_assistant_message_id=source_assistant_message_id,
+            source_assistant_revision_id=source_assistant_revision_id,
+            actor_id=self.ensure_local_user(),
         )
 
     def edit_user_message(

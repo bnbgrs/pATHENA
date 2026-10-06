@@ -133,6 +133,59 @@ class _RecoveryFacade:
         )
 
 
+class _RegenerateFacade:
+    def __init__(self) -> None:
+        self.calls: list[dict[str, object]] = []
+
+    def regenerate_chat_message(
+        self,
+        chat_id: str,
+        message_id: str,
+        *,
+        revision_id: str,
+        requested_model_id: str | None = None,
+        operation_id: str | None = None,
+        effective_context_limit: int | None = None,
+        max_output_tokens: int | None = None,
+        temperature: float | None = None,
+        thinking_enabled: bool | None = None,
+    ) -> ChatThreadResponse:
+        self.calls.append(
+            {
+                "chat_id": chat_id,
+                "message_id": message_id,
+                "revision_id": revision_id,
+                "requested_model_id": requested_model_id,
+                "operation_id": operation_id,
+                "effective_context_limit": effective_context_limit,
+                "max_output_tokens": max_output_tokens,
+                "temperature": temperature,
+                "thinking_enabled": thinking_enabled,
+            }
+        )
+        branch_chat_id = "66666666-6666-4666-8666-666666666666"
+        return ChatThreadResponse(
+            chat_id=branch_chat_id,
+            started_at_us=1,
+            ended_at_us=None,
+            archive_mode="standard",
+            lifecycle_state="active",
+            messages=(
+                ChatMessageResponse(
+                    message_id="77777777-7777-4777-8777-777777777777",
+                    chat_id=branch_chat_id,
+                    sequence_no=1,
+                    message_type="user",
+                    actor_id="88888888-8888-4888-8888-888888888888",
+                    created_at_us=1,
+                    revision_id="99999999-9999-4999-8999-999999999999",
+                    content="try again",
+                    content_format="text/plain",
+                ),
+            ),
+        )
+
+
 class _Chat:
     def __init__(self) -> None:
         self.chat_id = uuid.UUID("11111111-1111-1111-1111-111111111111")
@@ -458,6 +511,60 @@ def test_asgi_chat_cancel_reports_known_and_unknown_operation_truthfully(
         "accepted": False,
         "operation_id": operation_id,
     }
+
+
+def test_asgi_chat_regenerate_forwards_exact_revision_and_generation_controls(
+    tmp_path,
+) -> None:
+    runtime = LocalApiRuntime(tmp_path / "regenerate-api")
+    runtime.publish(port=32129)
+    token = runtime.token_path.read_text(encoding="utf-8").strip()
+    facade = _RegenerateFacade()
+    app = CoreApiAsgiApp(
+        facade=facade,  # type: ignore[arg-type]
+        runtime=runtime,
+    )
+    chat_id = "11111111-1111-4111-8111-111111111111"
+    message_id = "22222222-2222-4222-8222-222222222222"
+    revision_id = "33333333-3333-4333-8333-333333333333"
+    operation_id = "55555555-5555-4555-8555-555555555555"
+
+    status, _, payload = asyncio.run(
+        _request(
+            app,
+            runtime,
+            method="POST",
+            path=f"/api/v1/chats/{chat_id}/messages/{message_id}/regenerate",
+            token=token,
+            body=json.dumps(
+                {
+                    "revision_id": revision_id,
+                    "model_id": "local-model",
+                    "operation_id": operation_id,
+                    "effective_context_limit": 8192,
+                    "max_output_tokens": 512,
+                    "temperature": 0.4,
+                    "thinking_enabled": True,
+                }
+            ).encode("utf-8"),
+        )
+    )
+
+    assert status == 201
+    assert payload["chat_id"] == "66666666-6666-4666-8666-666666666666"
+    assert facade.calls == [
+        {
+            "chat_id": chat_id,
+            "message_id": message_id,
+            "revision_id": revision_id,
+            "requested_model_id": "local-model",
+            "operation_id": operation_id,
+            "effective_context_limit": 8192,
+            "max_output_tokens": 512,
+            "temperature": 0.4,
+            "thinking_enabled": True,
+        }
+    ]
 
 
 def test_asgi_chat_edit_and_fork_use_durable_core_contracts(tmp_path) -> None:

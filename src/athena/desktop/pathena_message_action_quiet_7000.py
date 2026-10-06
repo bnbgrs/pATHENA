@@ -21,6 +21,9 @@ _ACTION_NAMES = {
     "copyMessageButton",
     "rememberMessageButton",
     "addKnowledgeButton",
+    "editMessageButton",
+    "regenerateMessageButton",
+    "forkMessageButton",
 }
 
 

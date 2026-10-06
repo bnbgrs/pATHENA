@@ -5,6 +5,7 @@ from athena.chat.repository import (
     ChatRepository,
     ChatRevisionConflictError,
     UnsupportedChatForkError,
+    UnsupportedChatRegenerationError,
     UnsupportedMessageEditError,
 )
 from athena.chat.service import ChatService
@@ -458,4 +459,139 @@ def test_fork_rejects_message_from_another_chat_without_partial_chat(tmp_path) -
 
     after = database.connection.execute("SELECT COUNT(*) FROM chats").fetchone()[0]
     assert int(after) == int(before)
+    database.stop()
+
+
+def test_regeneration_plan_branches_before_prompt_and_records_exact_origin(tmp_path) -> None:
+    database, service = _service(tmp_path)
+    source_chat_id = service.create_chat()
+    first = service.add_user_message(chat_id=source_chat_id, content="first")
+    first_reply = service.add_assistant_message(
+        chat_id=source_chat_id,
+        content="first reply",
+        provider_id="lmstudio",
+        model_id="local-model",
+    )
+    prompt = service.add_user_message(chat_id=source_chat_id, content="try again")
+    answer = service.add_assistant_message(
+        chat_id=source_chat_id,
+        content="old answer",
+        provider_id="lmstudio",
+        model_id="local-model",
+    )
+    service.add_user_message(chat_id=source_chat_id, content="later")
+
+    plan = service.prepare_assistant_regeneration(
+        chat_id=source_chat_id,
+        source_assistant_message_id=answer.message_id,
+        source_assistant_revision_id=answer.revision_id,
+    )
+
+    assert plan.branch_chat_id != source_chat_id
+    assert plan.source_assistant_message_id == answer.message_id
+    assert plan.source_assistant_revision_id == answer.revision_id
+    assert plan.source_prompt.message_id == prompt.message_id
+    assert plan.source_prompt.revision_id == prompt.revision_id
+    assert plan.source_prompt.content == "try again"
+
+    branch = service.load_chat(plan.branch_chat_id)
+    assert [message.content for message in branch.messages] == [
+        "first",
+        "first reply",
+    ]
+    assert [message.content for message in service.load_chat(source_chat_id).messages] == [
+        "first",
+        "first reply",
+        "try again",
+        "old answer",
+        "later",
+    ]
+    assert branch.messages[0].message_id != first.message_id
+    assert branch.messages[1].message_id != first_reply.message_id
+
+    provenance = database.connection.execute(
+        """
+        SELECT provenance_id
+        FROM provenance_records
+        WHERE subject_entity_id = ?
+          AND subject_revision_id IS NULL
+          AND operation = 'chat.regenerate'
+        """,
+        (uuid_to_blob(plan.branch_chat_id),),
+    ).fetchone()
+    assert provenance is not None
+    inputs = database.connection.execute(
+        """
+        SELECT input_entity_id, input_revision_id, input_role, ordinal
+        FROM provenance_inputs
+        WHERE provenance_id = ?
+        ORDER BY ordinal ASC
+        """,
+        (bytes(provenance["provenance_id"]),),
+    ).fetchall()
+    assert len(inputs) == 2
+    assert bytes(inputs[0]["input_entity_id"]) == uuid_to_blob(answer.message_id)
+    assert bytes(inputs[0]["input_revision_id"]) == uuid_to_blob(answer.revision_id)
+    assert inputs[0]["input_role"] == "regenerated_assistant"
+    assert int(inputs[0]["ordinal"]) == 0
+    assert bytes(inputs[1]["input_entity_id"]) == uuid_to_blob(prompt.message_id)
+    assert bytes(inputs[1]["input_revision_id"]) == uuid_to_blob(prompt.revision_id)
+    assert inputs[1]["input_role"] == "regeneration_prompt"
+    assert int(inputs[1]["ordinal"]) == 1
+    database.stop()
+
+
+def test_regeneration_of_first_reply_creates_empty_branch_ready_for_prompt(tmp_path) -> None:
+    database, service = _service(tmp_path)
+    source_chat_id = service.create_chat()
+    prompt = service.add_user_message(chat_id=source_chat_id, content="hello")
+    answer = service.add_assistant_message(
+        chat_id=source_chat_id,
+        content="world",
+        provider_id="lmstudio",
+        model_id="local-model",
+    )
+
+    plan = service.prepare_assistant_regeneration(
+        chat_id=source_chat_id,
+        source_assistant_message_id=answer.message_id,
+        source_assistant_revision_id=answer.revision_id,
+    )
+
+    assert service.load_chat(plan.branch_chat_id).messages == ()
+    assert plan.source_prompt.message_id == prompt.message_id
+    assert plan.source_prompt.content == "hello"
+    database.stop()
+
+
+def test_regeneration_rejects_non_assistant_or_stale_revision_without_partial_chat(
+    tmp_path,
+) -> None:
+    database, service = _service(tmp_path)
+    chat_id = service.create_chat()
+    prompt = service.add_user_message(chat_id=chat_id, content="hello")
+    answer = service.add_assistant_message(
+        chat_id=chat_id,
+        content="world",
+        provider_id="lmstudio",
+        model_id="local-model",
+    )
+    before = int(database.connection.execute("SELECT COUNT(*) FROM chats").fetchone()[0])
+
+    with pytest.raises(UnsupportedChatRegenerationError):
+        service.prepare_assistant_regeneration(
+            chat_id=chat_id,
+            source_assistant_message_id=prompt.message_id,
+            source_assistant_revision_id=prompt.revision_id,
+        )
+
+    with pytest.raises(ChatRevisionConflictError):
+        service.prepare_assistant_regeneration(
+            chat_id=chat_id,
+            source_assistant_message_id=answer.message_id,
+            source_assistant_revision_id=prompt.revision_id,
+        )
+
+    after = int(database.connection.execute("SELECT COUNT(*) FROM chats").fetchone()[0])
+    assert after == before
     database.stop()

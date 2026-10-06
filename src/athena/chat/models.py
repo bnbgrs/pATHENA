@@ -46,6 +46,14 @@ class ChatForkOrigin:
 
 
 @dataclass(frozen=True, slots=True)
+class ChatRegenerationPlan:
+    branch_chat_id: uuid.UUID
+    source_assistant_message_id: uuid.UUID
+    source_assistant_revision_id: uuid.UUID
+    source_prompt: ChatMessage
+
+
+@dataclass(frozen=True, slots=True)
 class ChatSummary:
     chat_id: uuid.UUID
     started_at_us: int

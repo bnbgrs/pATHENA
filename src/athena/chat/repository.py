@@ -10,6 +10,7 @@ import uuid
 from athena.chat.models import (
     ChatForkOrigin,
     ChatMessage,
+    ChatRegenerationPlan,
     ChatSummary,
     ChatThread,
     MessageType,
@@ -47,6 +48,10 @@ class UnsupportedMessageEditError(ValueError):
 
 class UnsupportedChatForkError(ValueError):
     """Raised when a chat cannot be forked without weakening protection semantics."""
+
+
+class UnsupportedChatRegenerationError(ValueError):
+    """Raised when an assistant response cannot be regenerated truthfully."""
 
 
 class UnsupportedArchiveModeError(ValueError):
@@ -564,6 +569,414 @@ class ChatRepository:
                 )
 
         return fork_chat_id
+
+    def prepare_assistant_regeneration(
+        self,
+        *,
+        chat_id: uuid.UUID,
+        source_assistant_message_id: uuid.UUID,
+        source_assistant_revision_id: uuid.UUID,
+        actor_id: uuid.UUID,
+    ) -> ChatRegenerationPlan:
+        """Create a durable branch immediately before one assistant response.
+
+        Regeneration never mutates or replaces the selected response. The new chat
+        copies the source history strictly before the user prompt that produced the
+        selected assistant response. The caller can then send that exact prompt once
+        on the new branch and persist a fresh assistant response there.
+        """
+        branch_chat_id = new_uuid7()
+        chat_provenance_id = new_uuid7()
+        chat_commit_id = new_uuid7()
+        created_at_us = utc_now_us()
+
+        with self.database.write_transaction() as connection:
+            self._require_active_actor(connection, actor_id)
+            self._require_standard_chat(connection, chat_id)
+
+            selected = connection.execute(
+                """
+                SELECT
+                    m.sequence_no,
+                    m.message_type,
+                    m.actor_id,
+                    h.current_revision_id AS revision_id,
+                    r.provenance_id,
+                    r.created_at_us,
+                    mr.content,
+                    mr.content_format,
+                    mr.protected_payload_id,
+                    c.protection_scope_id AS chat_protection_scope_id,
+                    me.protection_scope_id AS entity_protection_scope_id
+                FROM chat_messages AS m
+                JOIN entity_heads AS h
+                  ON h.entity_id = m.message_id
+                JOIN revisions AS r
+                  ON r.revision_id = h.current_revision_id
+                JOIN chat_message_revisions AS mr
+                  ON mr.revision_id = r.revision_id
+                JOIN chats AS c
+                  ON c.chat_id = m.chat_id
+                JOIN entity_registry AS me
+                  ON me.entity_id = m.message_id
+                WHERE m.chat_id = ?
+                  AND m.message_id = ?
+                """,
+                (
+                    uuid_to_blob(chat_id),
+                    uuid_to_blob(source_assistant_message_id),
+                ),
+            ).fetchone()
+            if selected is None:
+                raise ChatMessageNotFoundError(str(source_assistant_message_id))
+
+            current_revision_id = uuid_from_blob(bytes(selected["revision_id"]))
+            if current_revision_id != source_assistant_revision_id:
+                raise ChatRevisionConflictError(
+                    "The requested assistant revision is no longer current."
+                )
+            if str(selected["message_type"]) != MessageType.ASSISTANT.value:
+                raise UnsupportedChatRegenerationError(
+                    "Regeneration requires a persisted assistant message."
+                )
+            if (
+                selected["chat_protection_scope_id"] is not None
+                or selected["entity_protection_scope_id"] is not None
+                or selected["protected_payload_id"] is not None
+            ):
+                raise UnsupportedChatRegenerationError(
+                    "Protected assistant responses require protection-aware regeneration."
+                )
+
+            assistant_sequence = int(selected["sequence_no"])
+            if assistant_sequence <= 1:
+                raise UnsupportedChatRegenerationError(
+                    "Regeneration requires an immediately preceding user prompt."
+                )
+
+            prompt = connection.execute(
+                """
+                SELECT
+                    m.message_id,
+                    m.sequence_no,
+                    m.message_type,
+                    m.actor_id,
+                    h.current_revision_id AS revision_id,
+                    r.provenance_id,
+                    r.created_at_us,
+                    mr.content,
+                    mr.content_format,
+                    mr.protected_payload_id,
+                    me.protection_scope_id AS entity_protection_scope_id
+                FROM chat_messages AS m
+                JOIN entity_heads AS h
+                  ON h.entity_id = m.message_id
+                JOIN revisions AS r
+                  ON r.revision_id = h.current_revision_id
+                JOIN chat_message_revisions AS mr
+                  ON mr.revision_id = r.revision_id
+                JOIN entity_registry AS me
+                  ON me.entity_id = m.message_id
+                WHERE m.chat_id = ?
+                  AND m.sequence_no = ?
+                """,
+                (
+                    uuid_to_blob(chat_id),
+                    assistant_sequence - 1,
+                ),
+            ).fetchone()
+            if (
+                prompt is None
+                or str(prompt["message_type"]) != MessageType.USER.value
+                or prompt["content"] is None
+            ):
+                raise UnsupportedChatRegenerationError(
+                    "Regeneration requires an immediately preceding persisted user prompt."
+                )
+            if (
+                prompt["entity_protection_scope_id"] is not None
+                or prompt["protected_payload_id"] is not None
+            ):
+                raise UnsupportedChatRegenerationError(
+                    "Protected user prompts require protection-aware regeneration."
+                )
+
+            prompt_message_id = uuid_from_blob(bytes(prompt["message_id"]))
+            prompt_revision_id = uuid_from_blob(bytes(prompt["revision_id"]))
+            prompt_provenance_id = uuid_from_blob(bytes(prompt["provenance_id"]))
+            prompt_actor_blob = prompt["actor_id"]
+            prompt_actor_id = (
+                uuid_from_blob(bytes(prompt_actor_blob))
+                if prompt_actor_blob is not None
+                else None
+            )
+            prompt_source_ids = self._attachment_source_ids(
+                connection,
+                prompt_provenance_id,
+            )
+            source_prompt = ChatMessage(
+                message_id=prompt_message_id,
+                chat_id=chat_id,
+                sequence_no=int(prompt["sequence_no"]),
+                message_type=MessageType.USER,
+                actor_id=prompt_actor_id,
+                created_at_us=int(prompt["created_at_us"]),
+                revision_id=prompt_revision_id,
+                content=str(prompt["content"]),
+                content_format=(
+                    str(prompt["content_format"])
+                    if prompt["content_format"] is not None
+                    else None
+                ),
+                source_ids=prompt_source_ids,
+            )
+
+            prefix_rows = connection.execute(
+                """
+                SELECT
+                    m.message_id,
+                    m.sequence_no,
+                    m.message_type,
+                    m.actor_id,
+                    r.revision_id,
+                    r.provenance_id,
+                    r.payload_hash,
+                    mr.content,
+                    mr.content_format,
+                    mr.protected_payload_id,
+                    me.protection_scope_id AS entity_protection_scope_id
+                FROM chat_messages AS m
+                JOIN entity_heads AS h
+                  ON h.entity_id = m.message_id
+                JOIN revisions AS r
+                  ON r.revision_id = h.current_revision_id
+                JOIN chat_message_revisions AS mr
+                  ON mr.revision_id = r.revision_id
+                JOIN entity_registry AS me
+                  ON me.entity_id = m.message_id
+                WHERE m.chat_id = ?
+                  AND m.sequence_no < ?
+                ORDER BY m.sequence_no ASC
+                """,
+                (
+                    uuid_to_blob(chat_id),
+                    int(prompt["sequence_no"]),
+                ),
+            ).fetchall()
+            if any(
+                row["protected_payload_id"] is not None
+                or row["entity_protection_scope_id"] is not None
+                for row in prefix_rows
+            ):
+                raise UnsupportedChatRegenerationError(
+                    "Protected history requires protection-aware regeneration."
+                )
+
+            chat_commit_seq = self._insert_commit(
+                connection,
+                commit_id=chat_commit_id,
+                actor_id=actor_id,
+                operation_type="chat.regenerate",
+                committed_at_us=created_at_us,
+            )
+            self._insert_entity(
+                connection,
+                entity_id=branch_chat_id,
+                entity_type="chat",
+                actor_id=actor_id,
+                created_at_us=created_at_us,
+                commit_seq=chat_commit_seq,
+            )
+            connection.execute(
+                """
+                INSERT INTO chats (
+                    chat_id,
+                    started_at_us,
+                    ended_at_us,
+                    archive_mode,
+                    lifecycle_state,
+                    protection_scope_id
+                ) VALUES (?, ?, NULL, 'standard', 'active', NULL)
+                """,
+                (uuid_to_blob(branch_chat_id), created_at_us),
+            )
+            self._insert_provenance(
+                connection,
+                provenance_id=chat_provenance_id,
+                entity_id=branch_chat_id,
+                revision_id=None,
+                operation="chat.regenerate",
+                actor_id=actor_id,
+                created_at_us=created_at_us,
+            )
+            self._insert_provenance_input(
+                connection,
+                provenance_id=chat_provenance_id,
+                input_entity_id=source_assistant_message_id,
+                input_revision_id=source_assistant_revision_id,
+                input_role="regenerated_assistant",
+                ordinal=0,
+            )
+            self._insert_provenance_input(
+                connection,
+                provenance_id=chat_provenance_id,
+                input_entity_id=prompt_message_id,
+                input_revision_id=prompt_revision_id,
+                input_role="regeneration_prompt",
+                ordinal=1,
+            )
+            connection.execute(
+                """
+                INSERT INTO commit_changes (
+                    commit_seq, entity_id, revision_id, change_type
+                ) VALUES (?, ?, NULL, 'create')
+                """,
+                (chat_commit_seq, uuid_to_blob(branch_chat_id)),
+            )
+
+            for row in prefix_rows:
+                source_id = uuid_from_blob(bytes(row["message_id"]))
+                source_revision_id = uuid_from_blob(bytes(row["revision_id"]))
+                message_actor_blob = row["actor_id"]
+                message_actor_id = (
+                    uuid_from_blob(bytes(message_actor_blob))
+                    if message_actor_blob is not None
+                    else None
+                )
+                content = str(row["content"]) if row["content"] is not None else None
+                content_format = (
+                    str(row["content_format"])
+                    if row["content_format"] is not None
+                    else None
+                )
+                copied_message_id = new_uuid7()
+                copied_revision_id = new_uuid7()
+                message_provenance_id = new_uuid7()
+
+                self._insert_entity(
+                    connection,
+                    entity_id=copied_message_id,
+                    entity_type="chat_message",
+                    actor_id=actor_id,
+                    created_at_us=created_at_us,
+                    commit_seq=chat_commit_seq,
+                )
+                self._insert_provenance(
+                    connection,
+                    provenance_id=message_provenance_id,
+                    entity_id=copied_message_id,
+                    revision_id=copied_revision_id,
+                    operation="chat_message.regenerate_prefix",
+                    actor_id=actor_id,
+                    created_at_us=created_at_us,
+                )
+                self._insert_provenance_input(
+                    connection,
+                    provenance_id=message_provenance_id,
+                    input_entity_id=source_id,
+                    input_revision_id=source_revision_id,
+                    input_role="regeneration_prefix",
+                    ordinal=0,
+                )
+                source_provenance_id = uuid_from_blob(bytes(row["provenance_id"]))
+                for attachment_ordinal, attachment_source_id in enumerate(
+                    self._attachment_source_ids(connection, source_provenance_id),
+                    start=1,
+                ):
+                    self._insert_provenance_input(
+                        connection,
+                        provenance_id=message_provenance_id,
+                        input_entity_id=attachment_source_id,
+                        input_revision_id=None,
+                        input_role="attachment",
+                        ordinal=attachment_ordinal,
+                    )
+                connection.execute(
+                    """
+                    INSERT INTO revisions (
+                        revision_id,
+                        entity_id,
+                        revision_no,
+                        parent_revision_id,
+                        created_at_us,
+                        created_by_actor_id,
+                        provenance_id,
+                        schema_version,
+                        payload_hash,
+                        change_kind,
+                        commit_id
+                    ) VALUES (?, ?, 1, NULL, ?, ?, ?, 1, ?, 'create', ?)
+                    """,
+                    (
+                        uuid_to_blob(copied_revision_id),
+                        uuid_to_blob(copied_message_id),
+                        created_at_us,
+                        uuid_to_blob(actor_id),
+                        uuid_to_blob(message_provenance_id),
+                        bytes(row["payload_hash"]),
+                        uuid_to_blob(chat_commit_id),
+                    ),
+                )
+                connection.execute(
+                    """
+                    INSERT INTO entity_heads (
+                        entity_id, current_revision_id, current_revision_no
+                    ) VALUES (?, ?, 1)
+                    """,
+                    (
+                        uuid_to_blob(copied_message_id),
+                        uuid_to_blob(copied_revision_id),
+                    ),
+                )
+                connection.execute(
+                    """
+                    INSERT INTO chat_messages (
+                        message_id, chat_id, sequence_no, message_type, actor_id
+                    ) VALUES (?, ?, ?, ?, ?)
+                    """,
+                    (
+                        uuid_to_blob(copied_message_id),
+                        uuid_to_blob(branch_chat_id),
+                        int(row["sequence_no"]),
+                        str(row["message_type"]),
+                        (
+                            uuid_to_blob(message_actor_id)
+                            if message_actor_id is not None
+                            else None
+                        ),
+                    ),
+                )
+                connection.execute(
+                    """
+                    INSERT INTO chat_message_revisions (
+                        revision_id, content, content_format, protected_payload_id
+                    ) VALUES (?, ?, ?, NULL)
+                    """,
+                    (
+                        uuid_to_blob(copied_revision_id),
+                        content,
+                        content_format,
+                    ),
+                )
+                connection.execute(
+                    """
+                    INSERT INTO commit_changes (
+                        commit_seq, entity_id, revision_id, change_type
+                    ) VALUES (?, ?, ?, 'create')
+                    """,
+                    (
+                        chat_commit_seq,
+                        uuid_to_blob(copied_message_id),
+                        uuid_to_blob(copied_revision_id),
+                    ),
+                )
+
+        return ChatRegenerationPlan(
+            branch_chat_id=branch_chat_id,
+            source_assistant_message_id=source_assistant_message_id,
+            source_assistant_revision_id=source_assistant_revision_id,
+            source_prompt=source_prompt,
+        )
 
     def edit_user_message(
         self,

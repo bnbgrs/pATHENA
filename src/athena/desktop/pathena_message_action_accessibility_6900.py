@@ -44,6 +44,11 @@ _ACTIONS: tuple[MessageActionSpec, ...] = (
         "Create a new immutable revision of this persisted user message.",
     ),
     MessageActionSpec(
+        "regenerateMessageButton",
+        "Regenerate response",
+        "Generate a fresh response from the exact preceding prompt on a durable branch.",
+    ),
+    MessageActionSpec(
         "forkMessageButton",
         "New chat from here",
         "Create a durable fork from this exact persisted message revision.",

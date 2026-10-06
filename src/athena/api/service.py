@@ -299,6 +299,7 @@ class CoreApiFacade:
         "chat.create",
         "chat.edit.user_message",
         "chat.fork",
+        "chat.regenerate",
         "chat.pin",
         "chat.vision",
         "source.image.capture",
@@ -668,6 +669,48 @@ class CoreApiFacade:
             source_revision_id=uuid.UUID(revision_id),
         )
         return _chat_thread(self._chat.load_chat(forked_chat_id))
+
+    def regenerate_chat_message(
+        self,
+        chat_id: str,
+        message_id: str,
+        *,
+        revision_id: str,
+        requested_model_id: str | None = None,
+        operation_id: str | None = None,
+        effective_context_limit: int | None = None,
+        max_output_tokens: int | None = None,
+        temperature: float | None = None,
+        thinking_enabled: bool | None = None,
+    ) -> ChatThreadResponse:
+        """Regenerate one exact assistant response on a new durable branch."""
+        if self._direct_chat is None:
+            raise RuntimeError(
+                "Direct chat is unavailable in this Core process."
+            )
+
+        plan = self._chat.prepare_assistant_regeneration(
+            chat_id=uuid.UUID(chat_id),
+            source_assistant_message_id=uuid.UUID(message_id),
+            source_assistant_revision_id=uuid.UUID(revision_id),
+        )
+        prompt = plan.source_prompt
+        if prompt.content is None or not prompt.content.strip():
+            raise RuntimeError(
+                "The persisted regeneration prompt has no available text."
+            )
+
+        return self.send_chat_message(
+            str(plan.branch_chat_id),
+            content=prompt.content,
+            requested_model_id=requested_model_id,
+            operation_id=operation_id,
+            effective_context_limit=effective_context_limit,
+            max_output_tokens=max_output_tokens,
+            temperature=temperature,
+            thinking_enabled=thinking_enabled,
+            image_source_ids=tuple(str(source_id) for source_id in prompt.source_ids),
+        )
 
     def capture_image_source(
         self,
