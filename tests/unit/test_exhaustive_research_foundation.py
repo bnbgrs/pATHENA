@@ -26,6 +26,20 @@ def _capture(app: AthenaApplication, path: Path, text: str):
     return app.sources.capture_file(path).source
 
 
+def _capture_external(
+    app: AthenaApplication,
+    path: Path,
+    text: str,
+    *,
+    source_uri: str,
+):
+    path.write_text(text, encoding="utf-8", newline="")
+    return app.sources.capture_external_snapshot(
+        path,
+        source_uri=source_uri,
+    ).source
+
+
 def test_research_scope_pins_snapshot_and_excludes_later_sources(tmp_path: Path) -> None:
     app = _app(tmp_path / "runtime")
     before = _capture(app, tmp_path / "before.txt", "before snapshot unique")
@@ -162,26 +176,65 @@ def test_irrelevant_is_processed_and_covered_but_unavailable_is_not(
     app.stop()
 
 
-def test_foundation_discovery_fails_closed_on_unimplemented_scope_filters(
+def test_foundation_discovery_applies_domain_preference_and_block_policy(
     tmp_path: Path,
 ) -> None:
     app = _app(tmp_path / "runtime")
-    _capture(app, tmp_path / "source.txt", "domain scoped evidence")
+    preferred = _capture_external(
+        app,
+        tmp_path / "preferred.txt",
+        "preferred domain evidence",
+        source_uri="https://docs.preferred.example/article",
+    )
+    blocked = _capture_external(
+        app,
+        tmp_path / "blocked.txt",
+        "blocked domain evidence",
+        source_uri="https://ads.blocked.example/item",
+    )
+    neutral = _capture(app, tmp_path / "neutral.txt", "neutral local evidence")
     job = app.research.enqueue_local(
-        query="Do not silently broaden scope.",
-        domains=("example-domain",),
+        query="Apply durable domain policy.",
+        domains=("prefer:preferred.example", "block:blocked.example"),
     )
     scope = app.research.initialize(job.job_id)
 
-    with pytest.raises(
-        ResearchScopeUnsupportedError,
-        match="cannot yet apply domain/project filters",
-    ):
-        app.research.freeze_candidates(job.job_id)
+    app.research.freeze_candidates(job.job_id)
+    candidates = app.research_repository.list_candidates(scope.scope_id)
 
-    assert app.research_repository.list_candidates(scope.scope_id) == ()
-    assert app.research_repository.list_work_items(scope.scope_id) == ()
-    assert app.research_repository.get_scope(scope.scope_id).state is ResearchScopeState.DISCOVERING
+    assert [item.source_id for item in candidates] == [
+        preferred.source_id,
+        neutral.source_id,
+    ]
+    assert blocked.source_id not in {item.source_id for item in candidates}
+    app.stop()
+
+
+def test_foundation_discovery_applies_bare_domain_as_include_filter(
+    tmp_path: Path,
+) -> None:
+    app = _app(tmp_path / "runtime")
+    selected = _capture_external(
+        app,
+        tmp_path / "selected-web.txt",
+        "selected web evidence",
+        source_uri="https://sub.example.org/report",
+    )
+    _capture_external(
+        app,
+        tmp_path / "other-web.txt",
+        "other web evidence",
+        source_uri="https://other.example.net/report",
+    )
+    job = app.research.enqueue_local(
+        query="Only one web domain.",
+        domains=("example.org",),
+    )
+    app.research.freeze_candidates(job.job_id)
+    scope = app.research.initialize(job.job_id)
+
+    candidates = app.research_repository.list_candidates(scope.scope_id)
+    assert [item.source_id for item in candidates] == [selected.source_id]
     app.stop()
 
 
