@@ -18,7 +18,8 @@ def test_desktop_reuses_the_existing_qapplication() -> None:
     assert "existing = QApplication.instance()" in app
     assert (
         "if isinstance(existing, QApplication):\n"
-        "        _apply_application_presentation(existing)\n"
+        "        if existing is not _APPLICATION_INSTANCE:\n"
+        "            _apply_application_presentation(existing)\n"
         "        return existing"
     ) in app
     assert 'raise RuntimeError("pATHENA desktop requires QApplication ownership.")' in app
