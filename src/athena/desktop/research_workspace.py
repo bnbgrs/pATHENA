@@ -30,6 +30,13 @@ from athena.desktop.research_workspace_protocol import (
 
 _TERMINAL_STATES = frozenset({"cancelled", "failed", "completed"})
 _SPLITTER_SETTINGS_KEY = "ui/research/splitter-state-v1"
+_PREFERRED_DOMAINS_SETTINGS_KEY = "research/discovery/preferred-domains-v1"
+_BLOCKED_DOMAINS_SETTINGS_KEY = "research/discovery/blocked-domains-v1"
+
+
+def _domain_entries(value: str) -> tuple[str, ...]:
+    normalized = value.replace(",", " ")
+    return tuple(dict.fromkeys(part.strip() for part in normalized.split() if part.strip()))
 
 
 class ResearchWorkspace(QWidget):
@@ -56,6 +63,26 @@ class ResearchWorkspace(QWidget):
         self.query_input = QLineEdit()
         self.query_input.setPlaceholderText("Research question across local Sources…")
         self.query_input.returnPressed.connect(self.enqueue)
+
+        self.preferred_domains_input = QLineEdit()
+        self.preferred_domains_input.setObjectName("researchPreferredDomains")
+        self.preferred_domains_input.setPlaceholderText(
+            "Preferred domains · example.com, docs.example.org"
+        )
+        self.preferred_domains_input.setText(
+            str(self._settings.value(_PREFERRED_DOMAINS_SETTINGS_KEY, "") or "")
+        )
+        self.preferred_domains_input.editingFinished.connect(self._persist_domain_policy)
+
+        self.blocked_domains_input = QLineEdit()
+        self.blocked_domains_input.setObjectName("researchBlockedDomains")
+        self.blocked_domains_input.setPlaceholderText(
+            "Blocked domains · spam.example, tracking.example"
+        )
+        self.blocked_domains_input.setText(
+            str(self._settings.value(_BLOCKED_DOMAINS_SETTINGS_KEY, "") or "")
+        )
+        self.blocked_domains_input.editingFinished.connect(self._persist_domain_policy)
 
         self.start_button = QPushButton("START RESEARCH")
         self.start_button.setObjectName("newChatButton")
@@ -134,6 +161,12 @@ class ResearchWorkspace(QWidget):
         composer.addWidget(self.query_input, 1)
         composer.addWidget(self.start_button)
         layout.addLayout(composer)
+
+        domain_policy = QHBoxLayout()
+        domain_policy.addWidget(self.preferred_domains_input, 1)
+        domain_policy.addWidget(self.blocked_domains_input, 1)
+        layout.addLayout(domain_policy)
+
         layout.addWidget(self.status)
 
         self.splitter = QSplitter(Qt.Orientation.Horizontal)
@@ -163,13 +196,30 @@ class ResearchWorkspace(QWidget):
         )
         self._settings.sync()
 
+    def _persist_domain_policy(self) -> None:
+        self._settings.setValue(
+            _PREFERRED_DOMAINS_SETTINGS_KEY,
+            " ".join(_domain_entries(self.preferred_domains_input.text())),
+        )
+        self._settings.setValue(
+            _BLOCKED_DOMAINS_SETTINGS_KEY,
+            " ".join(_domain_entries(self.blocked_domains_input.text())),
+        )
+        self._settings.sync()
+
     def enqueue(self) -> None:
         query = self.query_input.text().strip()
         if not query or self._busy():
             return
+        self._persist_domain_policy()
+        arguments = ["enqueue", query]
+        for domain in _domain_entries(self.preferred_domains_input.text()):
+            arguments.extend(("--prefer-domain", domain))
+        for domain in _domain_entries(self.blocked_domains_input.text()):
+            arguments.extend(("--block-domain", domain))
         self.details.clear()
         set_pathena_ui_state(self.details, "busy")
-        self._start("enqueue", ["enqueue", query], "Queueing durable research")
+        self._start("enqueue", arguments, "Queueing durable research")
 
     def refresh(self) -> None:
         if self._busy():
