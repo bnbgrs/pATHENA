@@ -18,6 +18,7 @@ from athena.chat.memory import MemoryAugmentedChatService
 from athena.chat.news_grounding import NewsGroundedChatService
 from athena.chat.repository import ChatRepository
 from athena.chat.research_grounding import ResearchGroundedChatService
+from athena.chat.selection_summary import MessageSelectionSummaryService
 from athena.chat.service import ChatService
 from athena.chat.source_grounding import SourceGroundedChatService
 from athena.chat.unified_resumable import UnifiedLocalChatService
@@ -590,6 +591,15 @@ class AthenaApplication:
         self.api.attach_knowledge_interaction(
             personal_memory=self.personal_memory,
             extraction=self.extraction,
+        )
+        self.message_selection_summary = MessageSelectionSummaryService(
+            chat=self.chat,
+            chat_generation=self.chat_generation,
+            provider=self.model_provider,
+            runs=self.model_runs,
+        )
+        self.api.attach_message_selection_summary(
+            self.message_selection_summary
         )
         self.search = LocalSearchService(self.database)
         self.retrieval = RetrievalRankingService(self.search)
