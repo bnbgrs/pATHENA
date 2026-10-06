@@ -317,6 +317,33 @@ class SerializedCoreApiSurface:
             )
         )
 
+    def regenerate_chat_message(
+        self,
+        chat_id: str,
+        message_id: str,
+        *,
+        revision_id: str,
+        requested_model_id: str | None = None,
+        operation_id: str | None = None,
+        effective_context_limit: int | None = None,
+        max_output_tokens: int | None = None,
+        temperature: float | None = None,
+        thinking_enabled: bool | None = None,
+    ) -> ChatThreadResponse:
+        return self._executor.call(
+            lambda: self._surface.regenerate_chat_message(
+                chat_id,
+                message_id,
+                revision_id=revision_id,
+                requested_model_id=requested_model_id,
+                operation_id=operation_id,
+                effective_context_limit=effective_context_limit,
+                max_output_tokens=max_output_tokens,
+                temperature=temperature,
+                thinking_enabled=thinking_enabled,
+            )
+        )
+
     def provider_health(self) -> ProviderHealthResponse:
         return self._executor.call(self._surface.provider_health)
 
