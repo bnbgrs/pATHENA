@@ -199,6 +199,7 @@ class DurableGroundedGenerationService:
                 in {
                     GroundedRecoveryState.RESUMABLE,
                     GroundedRecoveryState.AMBIGUOUS,
+                    GroundedRecoveryState.PARTIAL,
                 }
                 and isinstance(error, (KeyboardInterrupt, GenerationCancelledError))
             ):
@@ -209,7 +210,10 @@ class DurableGroundedGenerationService:
                     trigger_actor_id=trigger_actor_id,
                     error_detail=type(error).__name__,
                 )
-            elif recovery.state is GroundedRecoveryState.AMBIGUOUS:
+            elif recovery.state in {
+                GroundedRecoveryState.AMBIGUOUS,
+                GroundedRecoveryState.PARTIAL,
+            }:
                 fail_grounded_processing_run(
                     self.coordinator.database,
                     processing_run_id=processing_run_id,
