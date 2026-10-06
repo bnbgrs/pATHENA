@@ -14,6 +14,10 @@ from athena.chat.grounded_context_package import (
     GroundedContextPackageRecord,
     GroundedContextPackageRepository,
 )
+from athena.chat.grounded_partial_output import (
+    GroundedPartialOutput,
+    GroundedPartialOutputRepository,
+)
 from athena.chat.grounded_processing_run import (
     GroundedProcessingRunError,
     complete_grounded_processing_run,
@@ -121,6 +125,7 @@ class GroundedSendCoordinator:
         self.context_packages = GroundedContextPackageRepository(database)
         self.recovery = GroundedSendRecovery(database)
         self.provider_attempts = GroundedProviderAttemptRepository(database)
+        self.partial_outputs = GroundedPartialOutputRepository(database)
         self.user_turns = GroundedUserTurnRepository(database)
         self.assistant_turns = GroundedAssistantTurnRepository(database)
         self.completions = GroundedSendCompletionRepository(database)
@@ -237,6 +242,19 @@ class GroundedSendCoordinator:
                 "Grounded provider attempt did not become durably ambiguous."
             )
         return attempt
+
+    def record_provider_partial_delta(
+        self,
+        *,
+        operation_id: uuid.UUID,
+        chat_id: uuid.UUID,
+        delta: str,
+    ) -> GroundedPartialOutput:
+        return self.partial_outputs.append_delta(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            delta=delta,
+        )
 
     def record_provider_result(
         self,
