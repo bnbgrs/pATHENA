@@ -1215,7 +1215,13 @@ class CoreApiAsgiApp:
             return
         except UnifiedGroundedRecoveryRequiredError as exc:
             state = exc.status.state.value
-            if state == "ambiguous":
+            if state == "partial_available":
+                code = "chat_recovery_partial_available"
+                message = (
+                    "Partial provider output is durably preserved, but the original "
+                    "provider stream cannot be resumed safely."
+                )
+            elif state == "ambiguous":
                 code = "chat_recovery_ambiguous"
                 message = (
                     "The persisted operation may already have crossed the provider "
