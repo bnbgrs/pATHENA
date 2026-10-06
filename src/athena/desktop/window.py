@@ -2053,6 +2053,13 @@ class AthenaMainWindow(QMainWindow):
             )
             self.recovery_continue_button.show()
             self.recovery_bar.show()
+        elif response.state == "partial_available":
+            self.recovery_state_label.setText(
+                "Interrupted response recovered · partial provider output is "
+                "durably preserved, but the original stream cannot be resumed safely."
+            )
+            self.recovery_continue_button.hide()
+            self.recovery_bar.show()
         elif response.state in {"ambiguous", "conflict"}:
             self.recovery_state_label.setText(
                 "Recovery requires review · ATHENA will not repeat the "
