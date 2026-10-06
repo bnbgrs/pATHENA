@@ -56,6 +56,7 @@ from athena.api.contracts import (
     MessageKnowledgeExtractionResponse,
     ModelResponse,
     RememberedChatMessageResponse,
+    SelectedMessagesKnowledgeExtractionResponse,
 )
 from athena.desktop.api_controller import DesktopApiController, DesktopApiSnapshot
 from athena.desktop.ascii_panel import AsciiPanel
@@ -339,6 +340,28 @@ class AthenaMainWindow(QMainWindow):
         self.delete_chat_button = QPushButton("DELETE")
         self.pin_chat_button = QPushButton("PIN")
         self.new_chat_button = QPushButton("NEW CHAT")
+        self.message_selection_button = QPushButton("SELECT")
+        self.message_selection_button.setObjectName("messageSelectionButton")
+        self.message_selection_button.setToolTip(
+            "Select multiple persisted messages for summary or Knowledge extraction"
+        )
+        self.message_selection_button.clicked.connect(
+            self._toggle_message_selection_mode
+        )
+        self.message_selection_bar = QFrame()
+        self.message_selection_label = QLabel("0 MESSAGES SELECTED")
+        self.summarize_selected_button = QPushButton("SUMMARIZE")
+        self.summarize_selected_button.clicked.connect(
+            self._summarize_selected_messages
+        )
+        self.extract_selected_button = QPushButton("EXTRACT KNOWLEDGE")
+        self.extract_selected_button.clicked.connect(
+            self._extract_selected_messages_knowledge
+        )
+        self.cancel_message_selection_button = QPushButton("CANCEL")
+        self.cancel_message_selection_button.clicked.connect(
+            self._exit_message_selection_mode
+        )
         self.recovery_bar = QFrame()
         self.recovery_state_label = QLabel("")
         self.recovery_continue_button = QPushButton("CONTINUE")
@@ -365,10 +388,19 @@ class AthenaMainWindow(QMainWindow):
         self._pinned_chat_ids: set[str] = set()
         self._pending_image_source_ids: list[str] = []
         self._pending_image_names: list[str] = []
-        self._knowledge_extraction: MessageKnowledgeExtractionResponse | None = None
+        self._message_selection_mode = False
+        self._selected_message_revisions: dict[
+            str, tuple[str, int, str, str]
+        ] = {}
+        self._knowledge_extraction: (
+            MessageKnowledgeExtractionResponse
+            | SelectedMessagesKnowledgeExtractionResponse
+            | None
+        ) = None
         self._knowledge_review: KnowledgeReviewResponse | None = None
         self._knowledge_review_chat_id: str | None = None
         self._knowledge_review_request: tuple[str, str, str] | None = None
+        self._knowledge_review_selection: tuple[tuple[str, str], ...] | None = None
         self._transient_failures: dict[str, list[tuple[int, str, str]]] = {}
         self._last_rendered_sequence = 0
         self._core_transport_ready = False
@@ -559,6 +591,8 @@ class AthenaMainWindow(QMainWindow):
         layout.addWidget(self._build_recovery_bar())
         layout.addSpacing(6)
         layout.addWidget(self._build_trash_undo_bar())
+        layout.addSpacing(6)
+        layout.addWidget(self._build_message_selection_bar())
         layout.addSpacing(12)
 
         conversation_row.setSpacing(18)
@@ -623,6 +657,7 @@ class AthenaMainWindow(QMainWindow):
         layout.addWidget(self.chat_selector, 1)
         layout.addWidget(self.new_chat_button)
         layout.addWidget(self.pin_chat_button)
+        layout.addWidget(self.message_selection_button)
         layout.addWidget(self.trash_chat_button)
         layout.addWidget(self.restore_chat_button)
         layout.addWidget(self.delete_chat_button)
@@ -633,6 +668,38 @@ class AthenaMainWindow(QMainWindow):
         layout.addWidget(model_label)
         layout.addWidget(self.model_selector, 1)
         return controls
+
+    def _build_message_selection_bar(self) -> QFrame:
+        bar = self.message_selection_bar
+        bar.setObjectName("messageSelectionBar")
+        bar.setAccessibleName("Selected message actions")
+        layout = QHBoxLayout(bar)
+        layout.setContentsMargins(10, 6, 10, 6)
+        layout.setSpacing(10)
+
+        self.message_selection_label.setObjectName("messageSelectionState")
+        self.summarize_selected_button.setObjectName(
+            "summarizeSelectedMessagesButton"
+        )
+        self.extract_selected_button.setObjectName(
+            "extractSelectedMessagesButton"
+        )
+        self.cancel_message_selection_button.setObjectName(
+            "cancelMessageSelectionButton"
+        )
+        self.summarize_selected_button.setToolTip(
+            "Send a real model request that summarizes only the selected persisted messages"
+        )
+        self.extract_selected_button.setToolTip(
+            "Extract one provenance-backed Knowledge proposal set from the exact selection"
+        )
+        layout.addWidget(self.message_selection_label)
+        layout.addStretch(1)
+        layout.addWidget(self.summarize_selected_button)
+        layout.addWidget(self.extract_selected_button)
+        layout.addWidget(self.cancel_message_selection_button)
+        bar.hide()
+        return bar
 
     def _build_recovery_bar(self) -> QFrame:
         bar = self.recovery_bar
@@ -1871,6 +1938,9 @@ class AthenaMainWindow(QMainWindow):
         controller.knowledge_extraction_ready.connect(
             self.apply_knowledge_extraction_ready
         )
+        controller.selected_knowledge_extraction_ready.connect(
+            self.apply_selected_knowledge_extraction_ready
+        )
         controller.knowledge_review_ready.connect(self.apply_knowledge_review_ready)
         controller.knowledge_merge_review_ready.connect(
             self.apply_knowledge_merge_review_ready
@@ -2365,6 +2435,56 @@ class AthenaMainWindow(QMainWindow):
         )
 
     @Slot(object)
+    def apply_selected_knowledge_extraction_ready(
+        self,
+        response: object,
+    ) -> None:
+        if not isinstance(response, SelectedMessagesKnowledgeExtractionResponse):
+            return
+        selection = self._knowledge_review_selection
+        observed = tuple(
+            (item.message_id, item.message_revision_id)
+            for item in response.messages
+        )
+        if selection is None or observed != selection:
+            return
+        if response.chat_id != self.current_chat_id:
+            self._clear_knowledge_review()
+            return
+
+        self._knowledge_review_chat_id = response.chat_id
+        self._knowledge_extraction = response
+        self._knowledge_review = None
+        self._render_knowledge_review_panel()
+        self.knowledge_review_panel.setVisible(True)
+        self.knowledge_review_state.setText(
+            f"EXTRACTED / {len(response.messages)} SELECTED MESSAGES"
+        )
+        self.inspector_object_id.setText(
+            f"RUN / {response.processing_run_id[:8].upper()}"
+        )
+        self.inspector_heading.setText("Selected-message Knowledge extraction review")
+        self.inspector_mode.set_value("KNOWLEDGE REVIEW")
+        self.inspector_provenance.setText(
+            f"Frozen extraction from {len(response.messages)} exact persisted "
+            "message revisions. Canonical Knowledge is unchanged until an "
+            "explicit acceptance step."
+        )
+        self.connection_detail.setText(
+            "Selected-message Knowledge extraction complete · "
+            "canonical deduplication preflight pending."
+        )
+        self._message_selection_mode = False
+        self._selected_message_revisions.clear()
+        self._sync_message_selection_controls()
+
+        run_id = response.processing_run_id
+        QTimer.singleShot(
+            0,
+            lambda: self._prepare_knowledge_review_if_active(run_id),
+        )
+
+    @Slot(object)
     def apply_knowledge_review_ready(self, response: object) -> None:
         if not isinstance(response, KnowledgeReviewResponse):
             return
@@ -2448,6 +2568,7 @@ class AthenaMainWindow(QMainWindow):
 
         knowledge_operations = {
             "extract_knowledge",
+            "extract_selected_knowledge",
             "prepare_knowledge_review",
             "load_merge_review",
             "resolve_merge_review",
@@ -2482,7 +2603,7 @@ class AthenaMainWindow(QMainWindow):
             else "Chat loading"
             if operation == "load"
             else "Knowledge extraction"
-            if operation == "extract_knowledge"
+            if operation in {"extract_knowledge", "extract_selected_knowledge"}
             else "Knowledge review"
             if operation in {
                 "prepare_knowledge_review",
@@ -2507,6 +2628,7 @@ class AthenaMainWindow(QMainWindow):
                 "fork",
                 "remember",
                 "extract_knowledge",
+                "extract_selected_knowledge",
                 "prepare_knowledge_review",
                 "resolve_merge_review",
             }
@@ -2522,6 +2644,7 @@ class AthenaMainWindow(QMainWindow):
         self.inspector_provenance.setText(detail)
         if operation in {
             "extract_knowledge",
+            "extract_selected_knowledge",
             "prepare_knowledge_review",
             "load_merge_review",
             "resolve_merge_review",
@@ -2832,6 +2955,9 @@ class AthenaMainWindow(QMainWindow):
         self.pin_chat_button.setEnabled(
             controls_available and has_chat
         )
+        self.message_selection_button.setEnabled(
+            controls_available and has_chat and self._core_ready
+        )
         pinned = (
             self.current_chat_id in self._pinned_chat_ids
             if self.current_chat_id is not None
@@ -2858,6 +2984,7 @@ class AthenaMainWindow(QMainWindow):
         self.temperature_spin.setEnabled(model_available)
         self.thinking_checkbox.setEnabled(model_available)
         self._sync_message_action_buttons()
+        self._sync_message_selection_controls()
         self._sync_recovery_controls()
 
     def _sync_message_action_buttons(self) -> None:
@@ -2930,6 +3057,7 @@ class AthenaMainWindow(QMainWindow):
         *,
         assistant_display_override: str | None = None,
     ) -> None:
+        self._exit_message_selection_mode()
         self._clear_evidence_previews()
         self._clear_chat_messages()
         if self._knowledge_review_chat_id != thread.chat_id:
@@ -3043,6 +3171,30 @@ class AthenaMainWindow(QMainWindow):
         )
         meta.setObjectName("userMeta" if role == "user" else "speaker")
         _make_label_selectable(meta)
+
+        select_box = QCheckBox()
+        select_box.setObjectName("selectMessageCheckbox")
+        select_box.setProperty("messageId", message_id)
+        select_box.setProperty("messageRevisionId", revision_id)
+        select_box.setProperty("messageSequence", sequence_no)
+        select_box.setAccessibleName(
+            f"Select {display_role.lower()} message {sequence_no}"
+        )
+        select_box.setToolTip(
+            "Include this exact persisted message revision in the current selection"
+        )
+        select_box.setVisible(self._message_selection_mode)
+        select_box.toggled.connect(
+            lambda checked, mid=message_id, rid=revision_id, seq=sequence_no,
+            msg_role=role, text=content or "": self._toggle_selected_message(
+                mid,
+                rid,
+                seq,
+                msg_role,
+                text,
+                checked,
+            )
+        )
 
         copy_button = QPushButton("⧉")
         copy_button.setObjectName("copyMessageButton")
@@ -3159,6 +3311,7 @@ class AthenaMainWindow(QMainWindow):
 
         header.addWidget(meta)
         header.addStretch(1)
+        header.addWidget(select_box)
         if edit_button is not None:
             header.addWidget(edit_button)
         if regenerate_button is not None:
@@ -3180,6 +3333,161 @@ class AthenaMainWindow(QMainWindow):
         layout.addWidget(body)
         layout.addWidget(_rule())
         return container
+
+    def _toggle_message_selection_mode(self) -> None:
+        if self._message_selection_mode:
+            self._exit_message_selection_mode()
+            return
+        if self.current_chat_id is None or self.pending_chat_id is not None:
+            return
+        self._message_selection_mode = True
+        self._selected_message_revisions.clear()
+        self._sync_message_selection_controls()
+
+    def _exit_message_selection_mode(self) -> None:
+        self._message_selection_mode = False
+        self._selected_message_revisions.clear()
+        self._sync_message_selection_controls()
+
+    def _toggle_selected_message(
+        self,
+        message_id: str,
+        revision_id: str,
+        sequence_no: int,
+        role: str,
+        content: str,
+        checked: bool,
+    ) -> None:
+        if not self._message_selection_mode:
+            return
+        if checked:
+            self._selected_message_revisions[message_id] = (
+                revision_id,
+                sequence_no,
+                role,
+                content,
+            )
+        else:
+            self._selected_message_revisions.pop(message_id, None)
+        self._sync_message_selection_controls()
+
+    def _selected_message_pairs(self) -> tuple[tuple[str, str], ...]:
+        ordered = sorted(
+            self._selected_message_revisions.items(),
+            key=lambda item: item[1][1],
+        )
+        return tuple(
+            (message_id, state[0])
+            for message_id, state in ordered
+        )
+
+    def _sync_message_selection_controls(self) -> None:
+        if not hasattr(self, "message_selection_bar"):
+            return
+        count = len(self._selected_message_revisions)
+        self.message_selection_bar.setVisible(self._message_selection_mode)
+        self.message_selection_button.setText(
+            "SELECTING" if self._message_selection_mode else "SELECT"
+        )
+        self.message_selection_label.setText(
+            f"{count} MESSAGE{'S' if count != 1 else ''} SELECTED"
+        )
+        actions_ready = (
+            self._message_selection_mode
+            and count >= 2
+            and not self._chat_busy
+            and self.current_chat_id is not None
+            and self.pending_chat_id is None
+            and self._core_ready
+        )
+        self.extract_selected_button.setEnabled(actions_ready)
+        self.summarize_selected_button.setEnabled(
+            actions_ready and self._selected_model() is not None
+        )
+        for checkbox in self.chat_messages_widget.findChildren(
+            QCheckBox,
+            "selectMessageCheckbox",
+        ):
+            message_id = checkbox.property("messageId")
+            revision_id = checkbox.property("messageRevisionId")
+            checkbox.setVisible(self._message_selection_mode)
+            expected = (
+                isinstance(message_id, str)
+                and isinstance(revision_id, str)
+                and message_id in self._selected_message_revisions
+                and self._selected_message_revisions[message_id][0] == revision_id
+            )
+            checkbox.blockSignals(True)
+            checkbox.setChecked(expected)
+            checkbox.blockSignals(False)
+            checkbox.setEnabled(not self._chat_busy)
+
+    def _summarize_selected_messages(self) -> None:
+        controller = self.api_controller
+        chat_id = self.current_chat_id
+        if (
+            controller is None
+            or chat_id is None
+            or self._chat_busy
+            or self.pending_chat_id is not None
+            or not self._core_ready
+            or self._selected_model() is None
+            or len(self._selected_message_revisions) < 2
+        ):
+            return
+        ordered = sorted(
+            self._selected_message_revisions.items(),
+            key=lambda item: item[1][1],
+        )
+        blocks = [
+            (
+                "Summarize only the explicitly selected persisted messages below. "
+                "Preserve disagreements and uncertainty. Do not introduce facts that "
+                "are not present in the selection. Use the [M####] markers when useful."
+            )
+        ]
+        for message_id, (revision_id, sequence_no, role, content) in ordered:
+            blocks.append(
+                f"[M{sequence_no:04d} role={role} "
+                f"message={message_id} revision={revision_id}]\n{content}"
+            )
+        controller.send_message(
+            chat_id=chat_id,
+            content="\n\n".join(blocks),
+            model_id=self._selected_model_id(),
+            effective_context_limit=self._effective_context_limit(),
+            max_output_tokens=self._max_output_tokens(),
+            temperature=self._temperature(),
+            thinking_enabled=self._thinking_enabled(),
+        )
+
+    def _extract_selected_messages_knowledge(self) -> None:
+        controller = self.api_controller
+        chat_id = self.current_chat_id
+        selection = self._selected_message_pairs()
+        if (
+            controller is None
+            or chat_id is None
+            or self._chat_busy
+            or self.pending_chat_id is not None
+            or not self._core_ready
+            or len(selection) < 2
+        ):
+            return
+        self._knowledge_review_request = None
+        self._knowledge_review_selection = selection
+        self._knowledge_review_chat_id = chat_id
+        self._knowledge_extraction = None
+        self._knowledge_review = None
+        self.knowledge_review_panel.setVisible(True)
+        self.knowledge_review_state.setText("EXTRACTING / SELECTED MESSAGES")
+        controller.extract_selected_messages_knowledge(
+            chat_id=chat_id,
+            message_revisions=selection,
+            model_id=self._selected_model_id(),
+            effective_context_limit=self._effective_context_limit(),
+            max_output_tokens=self._max_output_tokens(),
+        )
 
     def _edit_message(
         self,
@@ -3345,6 +3653,7 @@ class AthenaMainWindow(QMainWindow):
             message_id,
             revision_id,
         )
+        self._knowledge_review_selection = None
         self._knowledge_review_chat_id = chat_id
         self._knowledge_extraction = None
         self._knowledge_review = None
@@ -3368,7 +3677,10 @@ class AthenaMainWindow(QMainWindow):
 
         if (
             controller is None
-            or self._knowledge_review_request is None
+            or (
+                self._knowledge_review_request is None
+                and self._knowledge_review_selection is None
+            )
             or extraction is None
             or extraction.processing_run_id != processing_run_id
         ):
@@ -3393,6 +3705,7 @@ class AthenaMainWindow(QMainWindow):
 
     def _clear_knowledge_review(self) -> None:
         self._knowledge_review_request = None
+        self._knowledge_review_selection = None
         self._knowledge_review_chat_id = None
         self._knowledge_extraction = None
         self._knowledge_review = None
