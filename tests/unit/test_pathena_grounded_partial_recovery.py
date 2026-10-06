@@ -83,4 +83,25 @@ def test_recovery_surfaces_exact_noncanonical_partial_output(tmp_path) -> None:
     assert restarted.partial_output is not None
     assert restarted.partial_output.content == "The first two chunks."
     assert restarted.partial_output.delta_count == 2
+
+    provider = GroundedProviderAttemptRepository(database)
+    result = provider.store_result(
+        operation_id=operation_id,
+        chat_id=chat_id,
+        processing_run_id=uuid.uuid4(),
+        assistant_content="The first two chunks. Final.",
+        receipt_payload_json=(
+            '{"assistant_text":"The first two chunks. Final.","evidence":[]}'
+        ),
+        provider_id="lm_studio",
+        model_id="model",
+    )
+    available = GroundedSendRecovery(database).inspect(
+        operation_id=operation_id,
+        chat_id=chat_id,
+        fingerprint=fingerprint,
+    )
+    assert available.state is GroundedRecoveryState.RESULT_AVAILABLE
+    assert available.provider_result == result
+    assert available.partial_output is None
     database.stop()
