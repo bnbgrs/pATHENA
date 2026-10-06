@@ -9,6 +9,7 @@ from collections.abc import Sequence
 
 from athena.api.service import _dedup_plan_digest
 from athena.core.application import AthenaApplication
+from athena.knowledge.backlinks import KnowledgeBacklinkService
 from athena.knowledge.models import (
     ClaimRevision,
     ClaimSnapshot,
@@ -137,6 +138,21 @@ def _print_show(app: AthenaApplication, knowledge_id: uuid.UUID) -> None:
             f"role={item.input_role} "
             f"entity={item.input_entity_id} "
             f"revision={item.input_revision_id or '-'}"
+        )
+
+    related = KnowledgeBacklinkService(app.database).related(knowledge_id, limit=8)
+    print(f"RELATED_KNOWLEDGE {len(related)}")
+    for item in related:
+        label = _safe(item.title) if item.title else _compact(item.body)
+        print(
+            "RELATED "
+            f"{item.knowledge_id} "
+            f"revision={item.revision_id} "
+            f"revision_no={item.revision_no} "
+            f"shared_inputs={item.shared_input_count} "
+            f"kind={item.knowledge_kind} "
+            f"status={item.epistemic_status} "
+            f"title={label}"
         )
 
 
