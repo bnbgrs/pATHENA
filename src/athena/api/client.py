@@ -26,6 +26,7 @@ from athena.api.contracts import (
     DeletionDependencyResponse,
     DeletionPreviewResponse,
     DeletionResultResponse,
+    LifecycleTransitionResponse,
     ExtractorMergeCandidateResponse,
     GroundedChatResponse,
     GroundedEvidenceResponse,
@@ -232,6 +233,54 @@ class CoreApiClient:
             _chat_summary(item)
             for item in _items(payload)
         )
+
+    def list_trashed_chats(
+        self,
+        *,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> tuple[ChatSummaryResponse, ...]:
+        if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= 200:
+            raise ValueError("Trash list limit must be between 1 and 200.")
+        if isinstance(offset, bool) or not isinstance(offset, int) or offset < 0:
+            raise ValueError("Trash list offset must be zero or greater.")
+        query = {"limit": str(limit)}
+        if offset:
+            query["offset"] = str(offset)
+        payload = self._get("/api/v1/trash/chats", query=query)
+        return tuple(_chat_summary(item) for item in _items(payload))
+
+    def trash_chat(self, chat_id: str) -> LifecycleTransitionResponse:
+        _require_path_segment(chat_id, label="Chat ID")
+        result = _lifecycle_transition(
+            self._request(
+                "POST",
+                f"/api/v1/chats/{chat_id}/trash",
+                expected_status=200,
+            )
+        )
+        if result.entity_id != chat_id or result.lifecycle_state != "trashed":
+            raise CoreApiClientError(
+                "ATHENA Core returned an inconsistent chat trash result.",
+                code="invalid_response",
+            )
+        return result
+
+    def restore_chat(self, chat_id: str) -> LifecycleTransitionResponse:
+        _require_path_segment(chat_id, label="Chat ID")
+        result = _lifecycle_transition(
+            self._request(
+                "POST",
+                f"/api/v1/trash/chats/{chat_id}/restore",
+                expected_status=200,
+            )
+        )
+        if result.entity_id != chat_id or result.lifecycle_state != "active":
+            raise CoreApiClientError(
+                "ATHENA Core returned an inconsistent chat restore result.",
+                code="invalid_response",
+            )
+        return result
 
     def create_chat(
         self,
@@ -2058,6 +2107,36 @@ def _deletion_result(payload: dict[str, JsonValue]) -> DeletionResultResponse:
     if result.entity_type != "chat" or result.entity_id not in result.deleted_entity_ids:
         raise CoreApiClientError(
             "ATHENA Core returned an inconsistent chat deletion result.",
+            code="invalid_response",
+        )
+    return result
+
+
+def _lifecycle_transition(
+    payload: dict[str, JsonValue],
+) -> LifecycleTransitionResponse:
+    raw_affected = payload.get("affected_entity_ids")
+    if not isinstance(raw_affected, list) or not all(
+        isinstance(item, str) and item for item in raw_affected
+    ):
+        raise CoreApiClientError(
+            "ATHENA Core lifecycle transition is invalid.",
+            code="invalid_response",
+        )
+    result = LifecycleTransitionResponse(
+        entity_id=_required_str(payload, "entity_id"),
+        entity_type=_required_str(payload, "entity_type"),
+        lifecycle_state=_required_str(payload, "lifecycle_state"),
+        commit_id=_required_str(payload, "commit_id"),
+        affected_entity_ids=tuple(cast(str, item) for item in raw_affected),
+    )
+    if (
+        result.entity_type != "chat"
+        or result.lifecycle_state not in {"active", "trashed"}
+        or result.entity_id not in result.affected_entity_ids
+    ):
+        raise CoreApiClientError(
+            "ATHENA Core returned an inconsistent lifecycle transition.",
             code="invalid_response",
         )
     return result
