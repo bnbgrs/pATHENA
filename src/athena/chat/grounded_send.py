@@ -96,7 +96,7 @@ class GroundedProviderResultError(RuntimeError):
         self.status = status
         super().__init__(
             f"Grounded send operation {status.operation_id} is {status.state.value}; "
-            "only ambiguous operations may record a first provider result."
+            "only ambiguous or partial operations may record a first provider result."
         )
 
 
@@ -332,7 +332,10 @@ class GroundedSendCoordinator:
             chat_id=chat_id,
             fingerprint=fingerprint,
         )
-        if before.state is not GroundedRecoveryState.AMBIGUOUS:
+        if before.state not in {
+            GroundedRecoveryState.AMBIGUOUS,
+            GroundedRecoveryState.PARTIAL,
+        }:
             raise GroundedProviderResultError(before)
         result = self.provider_attempts.store_result(
             operation_id=operation_id,
