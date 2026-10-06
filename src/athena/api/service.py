@@ -14,6 +14,7 @@ from athena.api.contracts import (
     CanonicalClaimRevisionResponse,
     CanonicalMergeReviewResponse,
     CapabilitiesResponse,
+    ChatLifecycleTransitionResponse,
     ChatMessageResponse,
     ChatOperationRecoveryResponse,
     ChatSummaryResponse,
@@ -86,6 +87,7 @@ from athena.lifecycle.service import (
     DeletionPreview,
     DeletionResult,
     LifecycleDeletionService,
+    LifecycleTransitionResult,
 )
 from athena.memory.models import PersonalMemoryRevision
 from athena.model.domain import ModelImageInput, ModelInfo
@@ -483,7 +485,13 @@ class CoreApiFacade:
         if self._unified_local_chat is not None:
             features = (*features, "chat.send.unified_local")
         if self._lifecycle_deletion is not None:
-            features = (*features, "chat.delete")
+            features = (
+                *features,
+                "chat.delete",
+                "chat.trash",
+                "chat.restore",
+                "chat.trash.read",
+            )
         if self._personal_memory is not None and self._knowledge_extraction is not None:
             features = (
                 *features,
@@ -590,6 +598,22 @@ class CoreApiFacade:
         return tuple(
             _chat_summary(summary)
             for summary in self._chat.list_chats(
+                limit=limit,
+                offset=offset,
+            )
+        )
+
+    def list_trashed_chats(
+        self,
+        *,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> tuple[ChatSummaryResponse, ...]:
+        if self._lifecycle_deletion is None:
+            raise RuntimeError("Chat trash is unavailable in this Core process.")
+        return tuple(
+            _chat_summary(summary)
+            for summary in self._chat.list_trashed_chats(
                 limit=limit,
                 offset=offset,
             )
@@ -1366,6 +1390,18 @@ class CoreApiFacade:
             ) from exc
         return _knowledge_merge_review_response(item, details)
 
+    def trash_chat(self, chat_id: str) -> ChatLifecycleTransitionResponse:
+        if self._lifecycle_deletion is None:
+            raise RuntimeError("Chat trash is unavailable in this Core process.")
+        result = self._lifecycle_deletion.trash_chat(uuid.UUID(chat_id))
+        return _chat_lifecycle_transition(result)
+
+    def restore_chat(self, chat_id: str) -> ChatLifecycleTransitionResponse:
+        if self._lifecycle_deletion is None:
+            raise RuntimeError("Chat restore is unavailable in this Core process.")
+        result = self._lifecycle_deletion.restore_chat(uuid.UUID(chat_id))
+        return _chat_lifecycle_transition(result)
+
     def preview_chat_deletion(self, chat_id: str) -> DeletionPreviewResponse:
         if self._lifecycle_deletion is None:
             raise RuntimeError("Chat deletion is unavailable in this Core process.")
@@ -1896,6 +1932,20 @@ def _deletion_preview(preview: DeletionPreview) -> DeletionPreviewResponse:
             for item in preview.dependencies
         ),
         preview_digest=preview.preview_digest,
+    )
+
+
+def _chat_lifecycle_transition(
+    result: LifecycleTransitionResult,
+) -> ChatLifecycleTransitionResponse:
+    if result.entity_type != "chat":
+        raise RuntimeError("Chat lifecycle transition resolved a non-chat entity.")
+    return ChatLifecycleTransitionResponse(
+        chat_id=str(result.entity_id),
+        lifecycle_state=result.lifecycle_state,
+        commit_id=str(result.commit_id),
+        affected_entity_ids=tuple(str(item) for item in result.affected_entity_ids),
+        can_reverse=result.lifecycle_state in {"active", "trashed"},
     )
 
 

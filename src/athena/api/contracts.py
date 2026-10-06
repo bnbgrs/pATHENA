@@ -125,6 +125,17 @@ class ChatThreadResponse(ApiContract):
 
 
 @dataclass(frozen=True, slots=True)
+class ChatLifecycleTransitionResponse(ApiContract):
+    """Stable result for one reversible chat trash/restore transition."""
+
+    chat_id: str
+    lifecycle_state: str
+    commit_id: str
+    affected_entity_ids: tuple[str, ...]
+    can_reverse: bool
+
+
+@dataclass(frozen=True, slots=True)
 class GroundedEvidenceResponse(ApiContract):
     """One typed CTX evidence item behind a grounded assistant answer."""
 

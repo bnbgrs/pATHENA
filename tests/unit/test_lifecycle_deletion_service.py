@@ -534,3 +534,131 @@ def test_old_snapshot_restore_reapplies_knowledge_deletion(
 
     finally:
         restored.close()
+
+
+def test_chat_trash_is_reversible_and_does_not_write_deletion_ledger(
+    tmp_path: Path,
+) -> None:
+    app = _app(tmp_path / "runtime-chat-trash")
+    try:
+        chat_id = app.chat.create_chat()
+        first = app.chat.add_user_message(chat_id=chat_id, content="first")
+        second = app.chat.add_user_message(chat_id=chat_id, content="second")
+
+        trashed = app.lifecycle_deletion.trash_chat(chat_id)
+
+        assert trashed.entity_id == chat_id
+        assert trashed.lifecycle_state == "trashed"
+        assert set(trashed.affected_entity_ids) == {
+            chat_id,
+            first.message_id,
+            second.message_id,
+        }
+        with pytest.raises(ChatNotFoundError):
+            app.chat.load_chat(chat_id)
+        assert all(item.chat_id != chat_id for item in app.chat.list_chats())
+        trash = app.chat.list_trashed_chats()
+        assert [item.chat_id for item in trash] == [chat_id]
+        assert trash[0].lifecycle_state == "trashed"
+
+        ledger_count = app.database.connection.execute(
+            "SELECT COUNT(*) FROM deletion_ledger WHERE entity_id IN (?, ?, ?)",
+            (chat_id.bytes, first.message_id.bytes, second.message_id.bytes),
+        ).fetchone()[0]
+        assert int(ledger_count) == 0
+
+        operations = {
+            str(row["operation"])
+            for row in app.database.connection.execute(
+                """
+                SELECT operation
+                FROM provenance_records
+                WHERE subject_entity_id = ?
+                """,
+                (chat_id.bytes,),
+            ).fetchall()
+        }
+        assert "chat.trash" in operations
+    finally:
+        app.stop()
+
+
+def test_chat_restore_reopens_exact_entities_and_retains_lifecycle_audit(
+    tmp_path: Path,
+) -> None:
+    app = _app(tmp_path / "runtime-chat-restore-action")
+    try:
+        chat_id = app.chat.create_chat()
+        message = app.chat.add_user_message(chat_id=chat_id, content="restore me")
+        app.lifecycle_deletion.trash_chat(chat_id)
+
+        restored = app.lifecycle_deletion.restore_chat(chat_id)
+
+        assert restored.entity_id == chat_id
+        assert restored.lifecycle_state == "active"
+        assert set(restored.affected_entity_ids) == {chat_id, message.message_id}
+        loaded = app.chat.load_chat(chat_id)
+        assert loaded.chat_id == chat_id
+        assert loaded.messages[0].content == "restore me"
+        assert [item.chat_id for item in app.chat.list_trashed_chats()] == []
+
+        history = [
+            str(row["lifecycle_state"])
+            for row in app.database.connection.execute(
+                """
+                SELECT lifecycle_state
+                FROM entity_state_history
+                WHERE entity_id = ?
+                ORDER BY valid_from_commit_seq
+                """,
+                (chat_id.bytes,),
+            ).fetchall()
+        ]
+        assert history[-3:] == ["active", "trashed", "active"]
+
+        operations = {
+            str(row["operation"])
+            for row in app.database.connection.execute(
+                """
+                SELECT operation
+                FROM provenance_records
+                WHERE subject_entity_id = ?
+                """,
+                (chat_id.bytes,),
+            ).fetchall()
+        }
+        assert {"chat.trash", "chat.restore"}.issubset(operations)
+
+        ledger_count = app.database.connection.execute(
+            "SELECT COUNT(*) FROM deletion_ledger WHERE entity_id = ?",
+            (chat_id.bytes,),
+        ).fetchone()[0]
+        assert int(ledger_count) == 0
+    finally:
+        app.stop()
+
+
+def test_trashed_chat_can_still_be_permanently_deleted_with_existing_ledger_path(
+    tmp_path: Path,
+) -> None:
+    app = _app(tmp_path / "runtime-chat-trash-delete")
+    try:
+        chat_id = app.chat.create_chat()
+        message = app.chat.add_user_message(chat_id=chat_id, content="purge later")
+        app.lifecycle_deletion.trash_chat(chat_id)
+
+        preview = app.lifecycle_deletion.preview(chat_id)
+        result = app.lifecycle_deletion.delete(
+            chat_id,
+            preview_digest=preview.preview_digest,
+        )
+
+        assert set(result.deleted_entity_ids) == {chat_id, message.message_id}
+        assert app.chat.list_trashed_chats() == ()
+        ledger_count = app.database.connection.execute(
+            "SELECT COUNT(*) FROM deletion_ledger WHERE entity_id IN (?, ?)",
+            (chat_id.bytes, message.message_id.bytes),
+        ).fetchone()[0]
+        assert int(ledger_count) == 2
+    finally:
+        app.stop()

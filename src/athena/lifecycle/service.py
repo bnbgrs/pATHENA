@@ -49,6 +49,12 @@ class LifecycleDeletionPreviewStaleError(
     """Dependencies changed since the user reviewed the delete."""
 
 
+class LifecycleTransitionStateError(
+    LifecycleDeletionError
+):
+    """Requested reversible lifecycle transition does not match current state."""
+
+
 @dataclass(
     frozen=True,
     slots=True,
@@ -94,6 +100,20 @@ class DeletionResult:
         ...,
     ]
     preview_digest: str
+
+
+@dataclass(
+    frozen=True,
+    slots=True,
+)
+class LifecycleTransitionResult:
+    """One reversible lifecycle transition and all owned entities moved with it."""
+
+    entity_id: uuid.UUID
+    entity_type: str
+    lifecycle_state: str
+    commit_id: uuid.UUID
+    affected_entity_ids: tuple[uuid.UUID, ...]
 
 
 class LifecycleDeletionService:
@@ -177,6 +197,208 @@ class LifecycleDeletionService:
             )
         )
         return preview
+
+    def trash_chat(
+        self,
+        chat_id: uuid.UUID,
+    ) -> LifecycleTransitionResult:
+        """Move one standard chat and its owned messages into reversible trash."""
+        return self._transition_chat(
+            chat_id,
+            expected_state="active",
+            target_state="trashed",
+            operation_type="lifecycle.trash.chat",
+            provenance_operation="chat.trash",
+            reason="explicit user reversible chat trash",
+        )
+
+    def restore_chat(
+        self,
+        chat_id: uuid.UUID,
+    ) -> LifecycleTransitionResult:
+        """Restore one standard chat and its owned messages from reversible trash."""
+        return self._transition_chat(
+            chat_id,
+            expected_state="trashed",
+            target_state="active",
+            operation_type="lifecycle.restore.chat",
+            provenance_operation="chat.restore",
+            reason="explicit user reversible chat restore",
+        )
+
+    def _transition_chat(
+        self,
+        chat_id: uuid.UUID,
+        *,
+        expected_state: str,
+        target_state: str,
+        operation_type: str,
+        provenance_operation: str,
+        reason: str,
+    ) -> LifecycleTransitionResult:
+        actor_id = self.chat.ensure_local_user()
+        committed_at_us = utc_now_us()
+        commit_id = new_uuid7()
+        provenance_id = new_uuid7()
+
+        with self.database.write_transaction() as connection:
+            row = connection.execute(
+                """
+                SELECT
+                    chat.archive_mode,
+                    chat.lifecycle_state AS chat_state,
+                    registry.lifecycle_state AS registry_state
+                FROM chats AS chat
+                JOIN entity_registry AS registry
+                  ON registry.entity_id = chat.chat_id
+                WHERE chat.chat_id = ?
+                """,
+                (uuid_to_blob(chat_id),),
+            ).fetchone()
+            if row is None:
+                raise LifecycleDeletionNotFoundError(str(chat_id))
+            if str(row["archive_mode"]) != "standard":
+                raise LifecycleDeletionUnsupportedError(
+                    "Only standard persisted chats support reversible trash."
+                )
+            if (
+                str(row["chat_state"]) != expected_state
+                or str(row["registry_state"]) != expected_state
+            ):
+                raise LifecycleTransitionStateError(
+                    f"Chat must be {expected_state!r} before transition to "
+                    f"{target_state!r}."
+                )
+
+            child_rows = connection.execute(
+                """
+                SELECT
+                    message.message_id,
+                    registry.lifecycle_state
+                FROM chat_messages AS message
+                JOIN entity_registry AS registry
+                  ON registry.entity_id = message.message_id
+                WHERE message.chat_id = ?
+                ORDER BY message.sequence_no ASC,
+                         message.message_id ASC
+                """,
+                (uuid_to_blob(chat_id),),
+            ).fetchall()
+            if any(
+                str(child["lifecycle_state"]) != expected_state
+                for child in child_rows
+            ):
+                raise LifecycleTransitionStateError(
+                    "Chat message lifecycle state is inconsistent with its owner."
+                )
+
+            cursor = connection.execute(
+                """
+                INSERT INTO commit_records (
+                    commit_id,
+                    committed_at_us,
+                    actor_id,
+                    operation_type,
+                    reason
+                ) VALUES (?, ?, ?, ?, ?)
+                """,
+                (
+                    uuid_to_blob(commit_id),
+                    committed_at_us,
+                    uuid_to_blob(actor_id),
+                    operation_type,
+                    reason,
+                ),
+            )
+            if cursor.lastrowid is None:
+                raise LifecycleDeletionError(
+                    "SQLite did not return a lifecycle transition commit sequence."
+                )
+            commit_seq = int(cursor.lastrowid)
+
+            affected = (
+                chat_id,
+                *(
+                    uuid_from_blob(bytes(child["message_id"]))
+                    for child in child_rows
+                ),
+            )
+            for entity_id in affected:
+                self._transition_entity_state(
+                    connection,
+                    entity_id=entity_id,
+                    actor_id=actor_id,
+                    commit_seq=commit_seq,
+                    expected_state=expected_state,
+                    target_state=target_state,
+                    reason=reason,
+                )
+                connection.execute(
+                    """
+                    INSERT INTO commit_changes (
+                        commit_seq,
+                        entity_id,
+                        revision_id,
+                        change_type
+                    ) VALUES (?, ?, NULL, ?)
+                    """,
+                    (
+                        commit_seq,
+                        uuid_to_blob(entity_id),
+                        "update",
+                    ),
+                )
+
+            updated = connection.execute(
+                """
+                UPDATE chats
+                SET lifecycle_state = ?
+                WHERE chat_id = ?
+                  AND lifecycle_state = ?
+                """,
+                (
+                    target_state,
+                    uuid_to_blob(chat_id),
+                    expected_state,
+                ),
+            )
+            if updated.rowcount != 1:
+                raise LifecycleDeletionError(
+                    "Chat lifecycle transition failed atomically."
+                )
+
+            connection.execute(
+                """
+                INSERT INTO provenance_records (
+                    provenance_id,
+                    subject_entity_id,
+                    subject_revision_id,
+                    operation,
+                    actor_id,
+                    created_at_us,
+                    model_signature_id,
+                    processing_run_id,
+                    reason,
+                    protection_scope_id
+                ) VALUES (?, ?, NULL, ?, ?, ?, NULL, NULL, ?, NULL)
+                """,
+                (
+                    uuid_to_blob(provenance_id),
+                    uuid_to_blob(chat_id),
+                    provenance_operation,
+                    uuid_to_blob(actor_id),
+                    committed_at_us,
+                    reason,
+                ),
+            )
+
+        return LifecycleTransitionResult(
+            entity_id=chat_id,
+            entity_type="chat",
+            lifecycle_state=target_state,
+            commit_id=commit_id,
+            affected_entity_ids=affected,
+        )
 
     def delete(
         self,
@@ -939,6 +1161,93 @@ class LifecycleDeletionService:
         return int(
             cursor.lastrowid
         )
+
+    @staticmethod
+    def _transition_entity_state(
+        connection: sqlite3.Connection,
+        *,
+        entity_id: uuid.UUID,
+        actor_id: uuid.UUID,
+        commit_seq: int,
+        expected_state: str,
+        target_state: str,
+        reason: str,
+    ) -> None:
+        entity_blob = uuid_to_blob(entity_id)
+        row = connection.execute(
+            """
+            SELECT lifecycle_state, protection_scope_id
+            FROM entity_registry
+            WHERE entity_id = ?
+            """,
+            (entity_blob,),
+        ).fetchone()
+        if row is None:
+            raise LifecycleDeletionError(
+                "Lifecycle transition target disappeared during transaction."
+            )
+        if str(row["lifecycle_state"]) != expected_state:
+            raise LifecycleTransitionStateError(
+                "Lifecycle transition target changed before commit."
+            )
+
+        closed = connection.execute(
+            """
+            UPDATE entity_state_history
+            SET valid_to_commit_seq = ?
+            WHERE entity_id = ?
+              AND valid_to_commit_seq IS NULL
+            """,
+            (commit_seq, entity_blob),
+        )
+        if closed.rowcount != 1:
+            raise LifecycleDeletionError(
+                "Entity has ambiguous open lifecycle history."
+            )
+
+        protection_scope = (
+            bytes(row["protection_scope_id"])
+            if row["protection_scope_id"] is not None
+            else None
+        )
+        connection.execute(
+            """
+            INSERT INTO entity_state_history (
+                entity_id,
+                valid_from_commit_seq,
+                valid_to_commit_seq,
+                lifecycle_state,
+                protection_scope_id,
+                changed_by_actor_id,
+                reason
+            ) VALUES (?, ?, NULL, ?, ?, ?, ?)
+            """,
+            (
+                entity_blob,
+                commit_seq,
+                target_state,
+                protection_scope,
+                uuid_to_blob(actor_id),
+                reason,
+            ),
+        )
+        updated = connection.execute(
+            """
+            UPDATE entity_registry
+            SET lifecycle_state = ?
+            WHERE entity_id = ?
+              AND lifecycle_state = ?
+            """,
+            (
+                target_state,
+                entity_blob,
+                expected_state,
+            ),
+        )
+        if updated.rowcount != 1:
+            raise LifecycleDeletionError(
+                "Entity registry lifecycle transition failed."
+            )
 
     @staticmethod
     def _mark_entity_deleted(

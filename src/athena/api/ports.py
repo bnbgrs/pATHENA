@@ -6,6 +6,7 @@ from typing import Protocol
 
 from athena.api.contracts import (
     CapabilitiesResponse,
+    ChatLifecycleTransitionResponse,
     ChatOperationRecoveryResponse,
     ChatSummaryResponse,
     ChatThreadResponse,
@@ -46,6 +47,13 @@ class CoreDomainSurface(Protocol):
     ) -> NewsProfileResponse: ...
 
     def list_chats(
+        self,
+        *,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> tuple[ChatSummaryResponse, ...]: ...
+
+    def list_trashed_chats(
         self,
         *,
         limit: int = 50,
@@ -142,6 +150,10 @@ class CoreDomainSurface(Protocol):
     ) -> KnowledgeMergeReviewResponse: ...
 
     def provider_health(self) -> ProviderHealthResponse: ...
+
+    def trash_chat(self, chat_id: str) -> ChatLifecycleTransitionResponse: ...
+
+    def restore_chat(self, chat_id: str) -> ChatLifecycleTransitionResponse: ...
 
     def preview_chat_deletion(self, chat_id: str) -> DeletionPreviewResponse: ...
 

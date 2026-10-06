@@ -7,8 +7,10 @@ from typing import Any
 
 from athena.api.asgi import CoreApiAsgiApp
 from athena.api.contracts import (
+    ChatLifecycleTransitionResponse,
     ChatMessageResponse,
     ChatOperationRecoveryResponse,
+    ChatSummaryResponse,
     ChatThreadResponse,
     GroundedChatResponse,
     GroundingResponse,
@@ -1119,3 +1121,106 @@ def test_asgi_recovery_refuses_ambiguous_provider_boundary(tmp_path) -> None:
     assert problem["code"] == "chat_recovery_ambiguous"
     assert problem["retryable"] is False
     assert facade.continue_calls == 1
+
+
+class _TrashRestoreFacade:
+    chat_id = "11111111-1111-4111-8111-111111111111"
+    message_id = "22222222-2222-4222-8222-222222222222"
+
+    def __init__(self) -> None:
+        self.trash_calls: list[str] = []
+        self.restore_calls: list[str] = []
+
+    def list_trashed_chats(
+        self,
+        *,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> tuple[ChatSummaryResponse, ...]:
+        assert limit == 7
+        assert offset == 2
+        return (
+            ChatSummaryResponse(
+                chat_id=self.chat_id,
+                started_at_us=1,
+                ended_at_us=None,
+                archive_mode="standard",
+                lifecycle_state="trashed",
+                message_count=1,
+                pinned=False,
+            ),
+        )
+
+    def trash_chat(self, chat_id: str) -> ChatLifecycleTransitionResponse:
+        self.trash_calls.append(chat_id)
+        return ChatLifecycleTransitionResponse(
+            chat_id=chat_id,
+            lifecycle_state="trashed",
+            commit_id="33333333-3333-4333-8333-333333333333",
+            affected_entity_ids=(chat_id, self.message_id),
+            can_reverse=True,
+        )
+
+    def restore_chat(self, chat_id: str) -> ChatLifecycleTransitionResponse:
+        self.restore_calls.append(chat_id)
+        return ChatLifecycleTransitionResponse(
+            chat_id=chat_id,
+            lifecycle_state="active",
+            commit_id="44444444-4444-4444-8444-444444444444",
+            affected_entity_ids=(chat_id, self.message_id),
+            can_reverse=True,
+        )
+
+
+def test_asgi_chat_trash_restore_and_recovery_list_use_exact_routes(tmp_path) -> None:
+    runtime = LocalApiRuntime(tmp_path / "trash-api")
+    runtime.publish(port=32131)
+    token = runtime.token_path.read_text(encoding="utf-8").strip()
+    facade = _TrashRestoreFacade()
+    app = CoreApiAsgiApp(
+        facade=facade,  # type: ignore[arg-type]
+        runtime=runtime,
+    )
+
+    list_status, _, listed = asyncio.run(
+        _request(
+            app,
+            runtime,
+            method="GET",
+            path="/api/v1/chats/trash",
+            query=b"limit=7&offset=2",
+            token=token,
+        )
+    )
+    assert list_status == 200
+    assert listed["items"][0]["chat_id"] == facade.chat_id
+    assert listed["items"][0]["lifecycle_state"] == "trashed"
+
+    trash_status, _, trashed = asyncio.run(
+        _request(
+            app,
+            runtime,
+            method="POST",
+            path=f"/api/v1/chats/{facade.chat_id}/trash",
+            token=token,
+        )
+    )
+    assert trash_status == 200
+    assert trashed["chat_id"] == facade.chat_id
+    assert trashed["lifecycle_state"] == "trashed"
+    assert trashed["can_reverse"] is True
+
+    restore_status, _, restored = asyncio.run(
+        _request(
+            app,
+            runtime,
+            method="POST",
+            path=f"/api/v1/chats/{facade.chat_id}/restore",
+            token=token,
+        )
+    )
+    assert restore_status == 200
+    assert restored["chat_id"] == facade.chat_id
+    assert restored["lifecycle_state"] == "active"
+    assert facade.trash_calls == [facade.chat_id]
+    assert facade.restore_calls == [facade.chat_id]

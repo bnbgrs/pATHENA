@@ -5,6 +5,7 @@ from PySide6.QtTest import QSignalSpy
 from PySide6.QtWidgets import QApplication
 
 from athena.api.contracts import (
+    ChatLifecycleTransitionResponse,
     ChatSummaryResponse,
     ChatThreadResponse,
     HealthResponse,
@@ -526,3 +527,37 @@ def test_controller_rejects_mismatched_chat_load_result() -> None:
     assert pool.waitForDone(
         2_000
     )
+
+
+def test_trash_success_exposes_real_undo_and_restore_reuses_identity() -> None:
+    app, window, _controller = _window_with_two_chats()
+
+    try:
+        window.apply_chat_trashed(
+            ChatLifecycleTransitionResponse(
+                chat_id=CHAT_A,
+                lifecycle_state="trashed",
+                commit_id="44444444-4444-4444-8444-444444444444",
+                affected_entity_ids=(CHAT_A,),
+                can_reverse=True,
+            )
+        )
+
+        assert window.current_chat_id is None
+        assert window.loaded_chat_id is None
+        assert window._undo_trash_chat_id == CHAT_A
+        assert window.trash_undo_bar.isHidden() is False
+        assert window.trash_undo_button.isEnabled() is True
+
+        window.apply_chat_restored(_thread(CHAT_A))
+
+        assert window.current_chat_id == CHAT_A
+        assert window.loaded_chat_id == CHAT_A
+        assert window.selected_chat_id == CHAT_A
+        assert window.pending_chat_id is None
+        assert window._undo_trash_chat_id is None
+        assert window.trash_undo_bar.isHidden() is True
+        assert window.chat_selector.currentData() == CHAT_A
+    finally:
+        window.close()
+        app.processEvents()
