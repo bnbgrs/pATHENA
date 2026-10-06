@@ -1,5 +1,14 @@
 """ATHENA durable lifecycle primitives."""
 
+from athena.lifecycle.trash import (
+    LifecycleTransitionResult,
+    LifecycleTrashError,
+    LifecycleTrashNotFoundError,
+    LifecycleTrashService,
+    LifecycleTrashStateError,
+    LifecycleTrashUnsupportedError,
+)
+
 from athena.lifecycle.deletion import (
     DeletionLedgerError,
     DeletionLedgerRecord,
@@ -16,4 +25,10 @@ __all__ = [
     "current_deletion_watermark",
     "read_deletion_records",
     "record_deletion",
+    "LifecycleTransitionResult",
+    "LifecycleTrashError",
+    "LifecycleTrashNotFoundError",
+    "LifecycleTrashService",
+    "LifecycleTrashStateError",
+    "LifecycleTrashUnsupportedError",
 ]
