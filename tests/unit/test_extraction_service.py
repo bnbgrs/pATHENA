@@ -34,9 +34,11 @@ class FakeStructuredProvider:
         self,
         extraction_payload: Mapping[str, Any],
         contradiction_payload: Mapping[str, Any] | None = None,
+        summary_payload: Mapping[str, Any] | None = None,
     ) -> None:
         self.extraction_payload = extraction_payload
         self.contradiction_payload = contradiction_payload
+        self.summary_payload = summary_payload
         self.calls: list[tuple[str, Sequence[ModelChatMessage]]] = []
 
     def health(self) -> ProviderHealth:
@@ -80,8 +82,16 @@ class FakeStructuredProvider:
         self.calls.append((schema_id, messages))
         if schema_id == EXTRACTION_SCHEMA_ID:
             return self.extraction_payload
-        if schema_id == CONTRADICTION_AUDIT_SCHEMA_ID and self.contradiction_payload is not None:
+        if (
+            schema_id == CONTRADICTION_AUDIT_SCHEMA_ID
+            and self.contradiction_payload is not None
+        ):
             return self.contradiction_payload
+        if (
+            schema_id == "athena.chat_selection_summary.v1"
+            and self.summary_payload is not None
+        ):
+            return self.summary_payload
         raise AssertionError(f"Unexpected schema request: {schema_id}")
 
 
@@ -416,6 +426,183 @@ def test_message_scoped_extraction_uses_only_selected_stable_revision(tmp_path) 
                 "message_type": "user",
             }
         ]
+    finally:
+        database.stop()
+
+
+def test_selection_extraction_uses_only_exact_selected_revisions(tmp_path) -> None:
+    database = SQLiteDatabase(tmp_path / "athena.db")
+    database.start()
+    payload = {
+        "knowledge_units": [
+            {
+                "source_sequence_no": 3,
+                "source_quote": "The second selected message uses provenance.",
+                "knowledge_kind": "fact",
+                "title": "Selected provenance fact",
+                "body": "The second selected message uses provenance.",
+                "epistemic_status": "asserted",
+                "confidence": 0.95,
+            }
+        ],
+        "claims": [],
+        "relations": [],
+        "merge_candidates": [],
+    }
+    provider = FakeStructuredProvider(payload)
+    chat, extraction = _service(database, provider)
+
+    try:
+        chat_id = chat.create_chat()
+        excluded = chat.add_user_message(
+            chat_id=chat_id,
+            content="This unselected message must stay out.",
+        )
+        first_selected = chat.add_user_message(
+            chat_id=chat_id,
+            content="The first selected message uses SQLite.",
+        )
+        second_selected = chat.add_user_message(
+            chat_id=chat_id,
+            content="The second selected message uses provenance.",
+        )
+
+        result = extraction.extract_messages(
+            chat_id=chat_id,
+            message_revisions=(
+                (second_selected.message_id, second_selected.revision_id),
+                (first_selected.message_id, first_selected.revision_id),
+            ),
+        )
+
+        assert result.processing_run.status == "succeeded"
+        assert len(provider.calls) == 1
+        prompt = provider.calls[0][1][1].content
+        assert "[2] user:" in prompt
+        assert "[3] user:" in prompt
+        assert first_selected.content in prompt
+        assert second_selected.content in prompt
+        assert excluded.content not in prompt
+
+        row = database.connection.execute(
+            "SELECT input_snapshot_json FROM processing_runs "
+            "WHERE run_type = 'knowledge_extraction'"
+        ).fetchone()
+        assert row is not None
+        snapshot = json.loads(str(row["input_snapshot_json"]))
+        assert [
+            item["sequence_no"]
+            for item in snapshot["messages"]
+        ] == [2, 3]
+        assert [
+            item["message_id"]
+            for item in snapshot["messages"]
+        ] == [
+            str(first_selected.message_id),
+            str(second_selected.message_id),
+        ]
+    finally:
+        database.stop()
+
+
+def test_selection_summary_is_revision_pinned_and_provenance_backed(tmp_path) -> None:
+    database = SQLiteDatabase(tmp_path / "athena.db")
+    database.start()
+    provider = FakeStructuredProvider(
+        _valid_payload(),
+        summary_payload={"summary": "Selected facts only."},
+    )
+    chat, extraction = _service(database, provider)
+
+    try:
+        chat_id = chat.create_chat()
+        first = chat.add_user_message(
+            chat_id=chat_id,
+            content="First selected fact.",
+        )
+        excluded = chat.add_user_message(
+            chat_id=chat_id,
+            content="This message must not be summarized.",
+        )
+        third = chat.add_user_message(
+            chat_id=chat_id,
+            content="Third selected fact.",
+        )
+
+        result = extraction.summarize_messages(
+            chat_id=chat_id,
+            message_revisions=(
+                (third.message_id, third.revision_id),
+                (first.message_id, first.revision_id),
+            ),
+        )
+
+        assert result.summary == "Selected facts only."
+        assert result.processing_run.status == "succeeded"
+        assert tuple(item.sequence_no for item in result.source_messages) == (1, 3)
+        assert len(provider.calls) == 1
+        schema_id, messages = provider.calls[0]
+        assert schema_id == "athena.chat_selection_summary.v1"
+        prompt = messages[1].content
+        assert first.content in prompt
+        assert third.content in prompt
+        assert excluded.content not in prompt
+
+        row = database.connection.execute(
+            "SELECT status, input_snapshot_json FROM processing_runs "
+            "WHERE run_type = 'chat.selection_summary'"
+        ).fetchone()
+        assert row is not None
+        assert row["status"] == "succeeded"
+        snapshot = json.loads(str(row["input_snapshot_json"]))
+        assert [
+            (item["message_id"], item["revision_id"])
+            for item in snapshot["messages"]
+        ] == [
+            (str(first.message_id), str(first.revision_id)),
+            (str(third.message_id), str(third.revision_id)),
+        ]
+        context_refs = snapshot["context_package"]["included_refs"]
+        assert {
+            (item["entity_id"], item["revision_id"])
+            for item in context_refs
+        } == {
+            (str(first.message_id), str(first.revision_id)),
+            (str(third.message_id), str(third.revision_id)),
+        }
+    finally:
+        database.stop()
+
+
+def test_selection_rejects_stale_revision_before_any_model_call(tmp_path) -> None:
+    database = SQLiteDatabase(tmp_path / "athena.db")
+    database.start()
+    provider = FakeStructuredProvider(_valid_payload())
+    chat, extraction = _service(database, provider)
+
+    try:
+        chat_id = chat.create_chat()
+        message = chat.add_user_message(
+            chat_id=chat_id,
+            content="Persisted selected message.",
+        )
+
+        with pytest.raises(
+            ExtractionMessageRevisionMismatchError,
+            match="revision is stale",
+        ):
+            extraction.extract_messages(
+                chat_id=chat_id,
+                message_revisions=((message.message_id, uuid.uuid4()),),
+            )
+
+        assert provider.calls == []
+        assert (
+            database.connection.execute(
+                "SELECT COUNT(*) FROM processing_runs"
+            ).fetchone()[0]
+            == 0
+        )
     finally:
         database.stop()
 
