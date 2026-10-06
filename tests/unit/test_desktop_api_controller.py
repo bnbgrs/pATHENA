@@ -10,6 +10,7 @@ from PySide6.QtWidgets import QApplication
 
 from athena.api.client import CoreApiClientError
 from athena.api.contracts import (
+    ChatLifecycleTransitionResponse,
     ChatMessageResponse,
     ChatOperationRecoveryResponse,
     ChatSummaryResponse,
@@ -1263,3 +1264,79 @@ def test_controller_continue_recovery_keeps_stop_available() -> None:
     assert reconciled.messages[0].message_id == operation_id
     assert controller.chat_busy is False
     assert controller.can_cancel_active_chat is False
+
+
+class _TrashRestoreGateway(_EditForkGateway):
+    def __init__(self) -> None:
+        super().__init__()
+        self.trash_calls: list[str] = []
+        self.restore_calls: list[str] = []
+        self.restored_chat_id: str | None = None
+
+    def trash_chat(self, chat_id: str) -> ChatLifecycleTransitionResponse:
+        self._record()
+        self.trash_calls.append(chat_id)
+        return ChatLifecycleTransitionResponse(
+            chat_id=chat_id,
+            lifecycle_state="trashed",
+            commit_id=str(uuid.uuid4()),
+            affected_entity_ids=(chat_id,),
+            can_reverse=True,
+        )
+
+    def restore_chat(self, chat_id: str) -> ChatLifecycleTransitionResponse:
+        self._record()
+        self.restore_calls.append(chat_id)
+        self.restored_chat_id = chat_id
+        return ChatLifecycleTransitionResponse(
+            chat_id=chat_id,
+            lifecycle_state="active",
+            commit_id=str(uuid.uuid4()),
+            affected_entity_ids=(chat_id,),
+            can_reverse=True,
+        )
+
+    def load_chat(self, chat_id: str) -> ChatThreadResponse:
+        self._record()
+        return self._thread(
+            chat_id=chat_id,
+            message_id=str(uuid.uuid4()),
+            revision_id=str(uuid.uuid4()),
+            content="restored",
+        )
+
+
+def test_controller_trash_and_restore_run_off_ui_thread() -> None:
+    app = _app()
+    gateway = _TrashRestoreGateway()
+    pool = _pool()
+    controller = DesktopApiController(gateway, thread_pool=pool)
+    trashed = QSignalSpy(controller.chat_trashed)
+    restored = QSignalSpy(controller.chat_restored)
+    main_thread = threading.get_ident()
+    chat_id = str(uuid.uuid4())
+
+    controller.trash_chat(chat_id)
+    assert pool.waitForDone(2_000)
+    app.processEvents()
+
+    assert gateway.trash_calls == [chat_id]
+    assert trashed.count() == 1
+    transition = trashed.at(0)[0]
+    assert isinstance(transition, ChatLifecycleTransitionResponse)
+    assert transition.chat_id == chat_id
+    assert transition.lifecycle_state == "trashed"
+    assert controller.chat_busy is False
+
+    controller.restore_chat(chat_id)
+    assert pool.waitForDone(2_000)
+    app.processEvents()
+
+    assert gateway.restore_calls == [chat_id]
+    assert restored.count() == 1
+    thread = restored.at(0)[0]
+    assert isinstance(thread, ChatThreadResponse)
+    assert thread.chat_id == chat_id
+    assert gateway.thread_ids
+    assert all(thread_id != main_thread for thread_id in gateway.thread_ids)
+    assert controller.chat_busy is False
