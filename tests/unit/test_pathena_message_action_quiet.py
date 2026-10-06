@@ -75,6 +75,21 @@ def test_disabled_inactive_action_stays_visible_but_more_quiet() -> None:
     assert window.button.isHidden() is False
 
 
+def test_regenerate_action_uses_same_quiet_hierarchy() -> None:
+    _app()
+    window = _Window()
+    button = QPushButton("REGENERATE", window.message)
+    button.setObjectName("regenerateMessageButton")
+    window.message.layout().addWidget(button)
+    controller = MessageActionQuietController(window)
+
+    controller.sync()
+
+    assert button in controller._effects
+    assert controller._effects[button].opacity() == pytest.approx(0.38)
+    assert button.property("pathenaMessageActionLayoutPreserved") is True
+
+
 def test_unknown_message_button_gets_no_opacity_effect() -> None:
     _app()
     window = _Window()
