@@ -173,6 +173,57 @@ class ChatKnowledgeExtractionService:
             safety_margin=safety_margin,
         )
 
+    def extract_selection(
+        self,
+        *,
+        chat_id: uuid.UUID,
+        message_revisions: Sequence[tuple[uuid.UUID, uuid.UUID]],
+        requested_model_id: str | None = None,
+        context_limit: int | None = None,
+        output_reserve: int | None = None,
+        safety_margin: int | None = None,
+    ) -> ChatExtractionResult:
+        """Extract grounded proposals from exact persisted message revisions."""
+        if len(message_revisions) < 2:
+            raise EmptyExtractionScopeError(
+                "Message-selection extraction requires at least two messages."
+            )
+        if len(set(message_revisions)) != len(message_revisions):
+            raise ExtractionValidationError(
+                "Message-selection extraction cannot contain duplicate revisions."
+            )
+
+        trigger_actor_id = self.chat.ensure_local_user()
+        snapshot_commit_seq = self.context_packages.current_commit_seq()
+        thread = self.chat.load_chat(chat_id)
+        messages_by_id = {message.message_id: message for message in thread.messages}
+        selected: list[ChatMessage] = []
+
+        for message_id, revision_id in message_revisions:
+            message = messages_by_id.get(message_id)
+            if message is None:
+                raise ExtractionMessageNotFoundError(
+                    f"Chat {chat_id} has no message {message_id}."
+                )
+            if message.revision_id != revision_id:
+                raise ExtractionMessageRevisionMismatchError(
+                    "Requested chat-message revision is stale or does not match "
+                    "the persisted message."
+                )
+            selected.append(message)
+
+        selected.sort(key=lambda message: message.sequence_no)
+        return self._extract_messages(
+            chat_id=chat_id,
+            source_messages=tuple(selected),
+            trigger_actor_id=trigger_actor_id,
+            snapshot_commit_seq=snapshot_commit_seq,
+            requested_model_id=requested_model_id,
+            context_limit=context_limit,
+            output_reserve=output_reserve,
+            safety_margin=safety_margin,
+        )
+
     def _extract_messages(
         self,
         *,
