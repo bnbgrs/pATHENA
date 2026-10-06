@@ -138,3 +138,40 @@ def test_desktop_claim_list_show_and_history_survive_restart(
         assert "The observatory opens shortly before dawn." in history
     finally:
         second.stop()
+
+
+def test_desktop_knowledge_show_surfaces_provenance_backlinks(
+    tmp_path: Path,
+    capsys,
+) -> None:
+    app = _app(tmp_path / "runtime")
+    try:
+        chat_id = app.chat.create_chat()
+        message = app.chat.add_user_message(
+            chat_id=chat_id,
+            content="One persisted message can ground multiple Knowledge units.",
+        )
+        first = app.knowledge.promote_chat_message(
+            chat_id=chat_id,
+            sequence_no=message.sequence_no,
+            knowledge_kind=KnowledgeKind.IDEA,
+            title="First grounded idea",
+        )
+        second = app.knowledge.promote_chat_message(
+            chat_id=chat_id,
+            sequence_no=message.sequence_no,
+            knowledge_kind=KnowledgeKind.SUMMARY,
+            title="Second grounded summary",
+        )
+
+        assert _run(
+            app,
+            argparse.Namespace(command="show", knowledge_id=first.knowledge_id),
+        ) == 0
+        shown = capsys.readouterr().out
+        assert "RELATED_KNOWLEDGE 1" in shown
+        assert f"RELATED {second.knowledge_id} " in shown
+        assert "shared_inputs=1" in shown
+        assert "kind=summary" in shown
+    finally:
+        app.stop()
