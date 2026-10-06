@@ -2284,6 +2284,18 @@ class AthenaMainWindow(QMainWindow):
             )
             self.recovery_continue_button.show()
             self.recovery_bar.show()
+        elif response.state == "partial":
+            preview = " ".join((response.partial_output or "").split())
+            if len(preview) > 220:
+                preview = preview[:217].rstrip() + "…"
+            self.recovery_state_label.setText(
+                "Interrupted grounded response · exact uncommitted provider output "
+                f"was recovered: {preview!r}. Automatic Continue is disabled because "
+                "the provider cannot resume an assistant stream from an exact byte/token "
+                "offset without risking duplicated or invented text."
+            )
+            self.recovery_continue_button.hide()
+            self.recovery_bar.show()
         elif response.state in {"ambiguous", "conflict"}:
             self.recovery_state_label.setText(
                 "Recovery requires review · ATHENA will not repeat the "
