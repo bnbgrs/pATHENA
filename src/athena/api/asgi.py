@@ -28,6 +28,11 @@ from athena.chat.send_identity import (
 )
 from athena.chat.unified import UnifiedGroundedRecoveryRequiredError
 from athena.chat.unified_replay import UnifiedReplayProjectionError
+from athena.lifecycle.trash import (
+    LifecycleTrashNotFoundError,
+    LifecycleTrashStateError,
+    LifecycleTrashUnsupportedError,
+)
 from athena.lifecycle.service import (
     LifecycleDeletionAlreadyDeletedError,
     LifecycleDeletionNotFoundError,
@@ -237,6 +242,25 @@ class CoreApiAsgiApp:
                         "items": [
                             item.to_dict()
                             for item in self._facade.list_chats(
+                                limit=limit,
+                                offset=offset,
+                            )
+                        ]
+                    },
+                    request_id=request_id,
+                )
+                return
+
+            if method == "GET" and path == "/api/v1/trash/chats":
+                limit = _positive_limit(scope, default=100, maximum=200)
+                offset = _nonnegative_offset(scope, default=0)
+                await _send_json(
+                    send,
+                    status=200,
+                    payload={
+                        "items": [
+                            item.to_dict()
+                            for item in self._facade.list_trashed_chats(
                                 limit=limit,
                                 offset=offset,
                             )
@@ -895,6 +919,38 @@ class CoreApiAsgiApp:
                 return
 
             if (
+                method == "POST"
+                and path.startswith("/api/v1/chats/")
+                and path.endswith("/trash")
+            ):
+                chat_id = path.removeprefix("/api/v1/chats/").removesuffix("/trash")
+                if not chat_id or "/" in chat_id:
+                    raise ValueError("Invalid chat trash resource path.")
+                await _consume_empty_body(receive)
+                await _send_contract(
+                    send,
+                    self._facade.trash_chat(chat_id),
+                    request_id=request_id,
+                )
+                return
+
+            if (
+                method == "POST"
+                and path.startswith("/api/v1/trash/chats/")
+                and path.endswith("/restore")
+            ):
+                chat_id = path.removeprefix("/api/v1/trash/chats/").removesuffix("/restore")
+                if not chat_id or "/" in chat_id:
+                    raise ValueError("Invalid chat restore resource path.")
+                await _consume_empty_body(receive)
+                await _send_contract(
+                    send,
+                    self._facade.restore_chat(chat_id),
+                    request_id=request_id,
+                )
+                return
+
+            if (
                 method == "GET"
                 and path.startswith("/api/v1/chats/")
                 and path.endswith("/deletion-preview")
@@ -1268,6 +1324,35 @@ class CoreApiAsgiApp:
                 request_id=request_id,
             )
             return
+        except LifecycleTrashNotFoundError:
+            await _send_problem(
+                send,
+                status=404,
+                code="chat_not_found",
+                message="The requested chat does not exist.",
+                request_id=request_id,
+            )
+            return
+        except LifecycleTrashStateError:
+            await _send_problem(
+                send,
+                status=409,
+                code="lifecycle_state_conflict",
+                message="The chat is not in the lifecycle state required for this action.",
+                request_id=request_id,
+                retryable=False,
+            )
+            return
+        except LifecycleTrashUnsupportedError:
+            await _send_problem(
+                send,
+                status=409,
+                code="lifecycle_unsupported",
+                message="This chat cannot use reversible trash/restore.",
+                request_id=request_id,
+                retryable=False,
+            )
+            return
         except (
             LifecycleDeletionNotFoundError,
             LifecycleDeletionAlreadyDeletedError,
@@ -1339,6 +1424,7 @@ def _known_path(path: str) -> bool:
         "/api/v1/search",
         "/api/v1/news/profile",
         "/api/v1/chats",
+        "/api/v1/trash/chats",
         "/api/v1/models",
         "/api/v1/models/health",
         "/api/v1/system/shutdown",
@@ -1353,6 +1439,18 @@ def _known_path(path: str) -> bool:
     if _chat_operation_action_resource(path, action="recovery") is not None:
         return True
     if _chat_operation_action_resource(path, action="continue") is not None:
+        return True
+    if _single_resource_id(
+        path,
+        prefix="/api/v1/chats/",
+        suffix="/trash",
+    ) is not None:
+        return True
+    if _single_resource_id(
+        path,
+        prefix="/api/v1/trash/chats/",
+        suffix="/restore",
+    ) is not None:
         return True
     if (
         path.startswith("/api/v1/chats/")
