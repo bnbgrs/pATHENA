@@ -1059,3 +1059,87 @@ def test_client_continues_unified_operation_without_reposting_request_input(
             b"",
         )
     ]
+
+
+def test_client_trash_and_restore_use_exact_mutation_routes(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runtime_root = tmp_path / "api"
+    _bootstrap(runtime_root)
+    chat_id = "11111111-1111-1111-1111-111111111111"
+    message_id = "22222222-2222-2222-2222-222222222222"
+    seen: list[tuple[str, str]] = []
+    states = iter(("trashed", "active"))
+
+    def fake_urlopen(request: Any, timeout: float) -> _Response:
+        del timeout
+        state = next(states)
+        seen.append((request.get_method(), request.full_url))
+        return _Response(
+            {
+                "chat_id": chat_id,
+                "lifecycle_state": state,
+                "commit_id": "33333333-3333-3333-3333-333333333333",
+                "affected_entity_ids": [chat_id, message_id],
+                "can_reverse": True,
+            }
+        )
+
+    monkeypatch.setattr(client_module, "urlopen", fake_urlopen)
+    client = CoreApiClient(runtime_root)
+
+    trashed = client.trash_chat(chat_id)
+    restored = client.restore_chat(chat_id)
+
+    assert isinstance(trashed, ChatLifecycleTransitionResponse)
+    assert trashed.lifecycle_state == "trashed"
+    assert restored.lifecycle_state == "active"
+    assert trashed.affected_entity_ids == (chat_id, message_id)
+    assert seen == [
+        (
+            "POST",
+            f"http://127.0.0.1:32123/api/v1/chats/{chat_id}/trash",
+        ),
+        (
+            "POST",
+            f"http://127.0.0.1:32123/api/v1/chats/{chat_id}/restore",
+        ),
+    ]
+
+
+def test_client_lists_chat_trash_with_stable_identities(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runtime_root = tmp_path / "api"
+    _bootstrap(runtime_root)
+    chat_id = "11111111-1111-1111-1111-111111111111"
+
+    def fake_urlopen(request: Any, timeout: float) -> _Response:
+        del timeout
+        assert request.get_method() == "GET"
+        assert request.full_url.endswith("/api/v1/chats/trash?limit=50")
+        return _Response(
+            {
+                "items": [
+                    {
+                        "chat_id": chat_id,
+                        "started_at_us": 1,
+                        "ended_at_us": None,
+                        "archive_mode": "standard",
+                        "lifecycle_state": "trashed",
+                        "message_count": 2,
+                        "pinned": False,
+                    }
+                ]
+            }
+        )
+
+    monkeypatch.setattr(client_module, "urlopen", fake_urlopen)
+
+    trash = CoreApiClient(runtime_root).list_trashed_chats()
+
+    assert len(trash) == 1
+    assert trash[0].chat_id == chat_id
+    assert trash[0].lifecycle_state == "trashed"
