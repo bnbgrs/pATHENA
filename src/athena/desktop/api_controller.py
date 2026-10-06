@@ -1028,7 +1028,7 @@ class _ChatTask(QRunnable):
                     raise RuntimeError("Restored chat load returned another chat.")
                 outcome = _ChatOperationOutcome(
                     operation=self.operation,
-                    lifecycle_transition=transition,
+                    thread=thread,
                 )
             elif self.operation == "preview_delete":
                 if resolved_chat_id is None:
@@ -2300,17 +2300,12 @@ class DesktopApiController(QObject):
             elif outcome.lifecycle_transition is not None:
                 if outcome.operation == "trash":
                     self.chat_trashed.emit(outcome.lifecycle_transition)
-                elif outcome.operation == "restore":
-                    restored = self.gateway.load_chat(
-                        outcome.lifecycle_transition.chat_id
-                    )
-                    self.chat_restored.emit(restored)
+                    self.refresh()
                 else:
                     self.chat_operation_failed.emit(
                         outcome.operation,
                         "ATHENA returned an unknown lifecycle transition.",
                     )
-                self.refresh()
             elif outcome.pinned_chat_id is not None:
                 assert outcome.pinned_state is not None
                 self.chat_pin_changed.emit(
@@ -2334,6 +2329,9 @@ class DesktopApiController(QObject):
                     )
                 if outcome.operation == "send":
                     self.chat_sent.emit(outcome.thread)
+                elif outcome.operation == "restore":
+                    self.chat_restored.emit(outcome.thread)
+                    self.refresh()
                 else:
                     self.chat_loaded.emit(outcome.thread)
         finally:
