@@ -1503,7 +1503,7 @@ class ChatRepository:
               ON m.chat_id = c.chat_id
             LEFT JOIN chat_preferences AS p
               ON p.chat_id = c.chat_id
-            WHERE c.lifecycle_state != 'deleted'
+            WHERE c.lifecycle_state = 'active'
             GROUP BY
                 c.chat_id,
                 c.started_at_us,
@@ -1576,7 +1576,7 @@ class ChatRepository:
             SELECT chat_id, started_at_us, ended_at_us, archive_mode, lifecycle_state
             FROM chats
             WHERE chat_id = ?
-              AND lifecycle_state != 'deleted'
+              AND lifecycle_state = 'active'
             """,
             (uuid_to_blob(chat_id),),
         ).fetchone()
@@ -1698,7 +1698,7 @@ class ChatRepository:
         ).fetchone()
         if row is None:
             raise ChatNotFoundError(str(chat_id))
-        if str(row["lifecycle_state"]) == "deleted":
+        if str(row["lifecycle_state"]) != "active":
             raise ChatNotFoundError(str(chat_id))
         if str(row["archive_mode"]) != "standard":
             raise UnsupportedArchiveModeError(
