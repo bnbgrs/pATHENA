@@ -173,6 +173,52 @@ class ChatKnowledgeExtractionService:
             safety_margin=safety_margin,
         )
 
+    def extract_messages(
+        self,
+        *,
+        chat_id: uuid.UUID,
+        message_revisions: Sequence[tuple[uuid.UUID, uuid.UUID]],
+        requested_model_id: str | None = None,
+        context_limit: int | None = None,
+        output_reserve: int | None = None,
+        safety_margin: int | None = None,
+    ) -> ChatExtractionResult:
+        """Extract from an exact persisted multi-message revision selection."""
+        if len(message_revisions) < 2:
+            raise ValueError("Multi-message extraction requires at least two messages.")
+        requested: dict[uuid.UUID, uuid.UUID] = {}
+        for message_id, revision_id in message_revisions:
+            if message_id in requested:
+                raise ValueError("Multi-message extraction contains a duplicate message.")
+            requested[message_id] = revision_id
+
+        trigger_actor_id = self.chat.ensure_local_user()
+        snapshot_commit_seq = self.context_packages.current_commit_seq()
+        thread = self.chat.load_chat(chat_id)
+        selected = tuple(
+            item for item in thread.messages if item.message_id in requested
+        )
+        if len(selected) != len(requested):
+            raise ExtractionMessageNotFoundError(
+                "At least one selected chat message does not exist in this chat."
+            )
+        for message in selected:
+            if message.revision_id != requested[message.message_id]:
+                raise ExtractionMessageRevisionMismatchError(
+                    "At least one selected chat-message revision is stale."
+                )
+
+        return self._extract_messages(
+            chat_id=chat_id,
+            source_messages=selected,
+            trigger_actor_id=trigger_actor_id,
+            snapshot_commit_seq=snapshot_commit_seq,
+            requested_model_id=requested_model_id,
+            context_limit=context_limit,
+            output_reserve=output_reserve,
+            safety_margin=safety_margin,
+        )
+
     def _extract_messages(
         self,
         *,
