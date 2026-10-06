@@ -153,6 +153,12 @@ class ChatService:
         provider_id: str,
         model_id: str,
         operation_id: uuid.UUID | None = None,
+        provenance_message_revisions: tuple[
+            tuple[uuid.UUID, uuid.UUID], ...
+        ] = (),
+        model_signature_id: uuid.UUID | None = None,
+        processing_run_id: uuid.UUID | None = None,
+        provenance_operation: str = "chat_message.create",
     ) -> ChatMessage:
         if not content.strip():
             raise EmptyMessageError("An assistant message must contain non-whitespace text.")
@@ -175,6 +181,10 @@ class ChatService:
             message_type=MessageType.ASSISTANT,
             content=content,
             message_id=message_id,
+            provenance_message_revisions=provenance_message_revisions,
+            model_signature_id=model_signature_id,
+            processing_run_id=processing_run_id,
+            provenance_operation=provenance_operation,
         )
 
     def inspect_send_operation(
