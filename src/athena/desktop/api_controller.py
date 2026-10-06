@@ -23,6 +23,7 @@ from athena.api.contracts import (
     KnowledgeMergeReviewResponse,
     KnowledgeReviewResponse,
     MessageKnowledgeExtractionResponse,
+    MessageSelectionKnowledgeExtractionResponse,
     ModelResponse,
     NewsProfileResponse,
     ProviderHealthResponse,
@@ -202,6 +203,42 @@ class CoreApiGateway(Protocol):
         max_output_tokens: int | None = None,
     ) -> MessageKnowledgeExtractionResponse: ...
 
+    def extract_chat_message_selection_knowledge(
+        self,
+        chat_id: str,
+        *,
+        message_revisions: tuple[tuple[str, str], ...],
+        model_id: str | None = None,
+        effective_context_limit: int | None = None,
+        max_output_tokens: int | None = None,
+    ) -> MessageSelectionKnowledgeExtractionResponse: ...
+
+    def extract_selected_messages_knowledge(
+        self,
+        *,
+        chat_id: str,
+        message_revisions: tuple[tuple[str, str], ...],
+        model_id: str | None = None,
+        effective_context_limit: int | None = None,
+        max_output_tokens: int | None = None,
+    ) -> None:
+        if (
+            self._chat_busy
+            or not chat_id
+            or not message_revisions
+            or len(message_revisions) > 50
+            or len(set(message_revisions)) != len(message_revisions)
+        ):
+            return
+        self._start_chat_task(
+            operation="extract_knowledge_selection",
+            chat_id=chat_id,
+            message_revisions=message_revisions,
+            model_id=model_id,
+            effective_context_limit=effective_context_limit,
+            max_output_tokens=max_output_tokens,
+        )
+
     def prepare_knowledge_review(
         self,
         processing_run_id: str,
@@ -303,6 +340,7 @@ class _ChatOperationOutcome:
     lifecycle_transition: LifecycleTransitionResponse | None = None
     remembered: RememberedChatMessageResponse | None = None
     knowledge_extraction: MessageKnowledgeExtractionResponse | None = None
+    knowledge_selection_extraction: MessageSelectionKnowledgeExtractionResponse | None = None
     knowledge_review: KnowledgeReviewResponse | None = None
     merge_review: KnowledgeMergeReviewResponse | None = None
     pinned_chat_id: str | None = None
@@ -325,6 +363,7 @@ class _ChatOperationOutcome:
                 self.lifecycle_transition,
                 self.remembered,
                 self.knowledge_extraction,
+                self.knowledge_selection_extraction,
                 self.knowledge_review,
                 self.merge_review,
                 self.pinned_chat_id,
@@ -463,6 +502,7 @@ class _ChatTask(QRunnable):
         preview_digest: str | None,
         message_id: str | None,
         revision_id: str | None,
+        message_revisions: tuple[tuple[str, str], ...] = (),
         processing_run_id: str | None = None,
         review_id: str | None = None,
         review_decision: str | None = None,
@@ -488,6 +528,7 @@ class _ChatTask(QRunnable):
         self.preview_digest = preview_digest
         self.message_id = message_id
         self.revision_id = revision_id
+        self.message_revisions = message_revisions
         self.processing_run_id = processing_run_id
         self.review_id = review_id
         self.review_decision = review_decision
@@ -945,6 +986,26 @@ class _ChatTask(QRunnable):
                 outcome = _ChatOperationOutcome(
                     operation=self.operation,
                     knowledge_extraction=extraction,
+                )
+            elif self.operation == "extract_knowledge_selection":
+                if resolved_chat_id is None or not self.message_revisions:
+                    raise ValueError(
+                        "Knowledge selection extraction requires stable message revisions."
+                    )
+                extraction = self.gateway.extract_chat_message_selection_knowledge(
+                    resolved_chat_id,
+                    message_revisions=self.message_revisions,
+                    model_id=self.model_id,
+                    effective_context_limit=self.effective_context_limit,
+                    max_output_tokens=self.max_output_tokens,
+                )
+                if extraction.chat_id != resolved_chat_id:
+                    raise RuntimeError(
+                        "Knowledge selection extraction belongs to another chat."
+                    )
+                outcome = _ChatOperationOutcome(
+                    operation=self.operation,
+                    knowledge_selection_extraction=extraction,
                 )
             elif self.operation == "prepare_knowledge_review":
                 processing_run_id = self.processing_run_id
@@ -2034,6 +2095,7 @@ class DesktopApiController(QObject):
         preview_digest: str | None = None,
         message_id: str | None = None,
         revision_id: str | None = None,
+        message_revisions: tuple[tuple[str, str], ...] = (),
         processing_run_id: str | None = None,
         review_id: str | None = None,
         review_decision: str | None = None,
@@ -2057,6 +2119,7 @@ class DesktopApiController(QObject):
             preview_digest=preview_digest,
             message_id=message_id,
             revision_id=revision_id,
+            message_revisions=message_revisions,
             processing_run_id=processing_run_id,
             review_id=review_id,
             review_decision=review_decision,
@@ -2315,6 +2378,10 @@ class DesktopApiController(QObject):
                 self.message_remembered.emit(outcome.remembered)
             elif outcome.knowledge_extraction is not None:
                 self.knowledge_extraction_ready.emit(outcome.knowledge_extraction)
+            elif outcome.knowledge_selection_extraction is not None:
+                self.knowledge_extraction_ready.emit(
+                    outcome.knowledge_selection_extraction
+                )
             elif outcome.knowledge_review is not None:
                 self.knowledge_review_ready.emit(outcome.knowledge_review)
             elif outcome.merge_review is not None:
