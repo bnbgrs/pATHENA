@@ -1193,7 +1193,8 @@ def test_client_message_selection_actions_pin_exact_revisions(
                     "claims": [],
                     "relations": [],
                     "extractor_merge_candidates": [],
-                }
+                },
+                status=201,
             )
         assert request.full_url.endswith("/message-selection/summary")
         return _Response(
@@ -1204,7 +1205,8 @@ def test_client_message_selection_actions_pin_exact_revisions(
                 "model_id": "local/model",
                 "model_signature_id": "77777777-7777-4777-8777-777777777777",
                 "summary": "Two selected persisted messages.",
-            }
+            },
+            status=201,
         )
 
     monkeypatch.setattr(client_module, "urlopen", fake_urlopen)
