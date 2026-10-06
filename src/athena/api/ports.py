@@ -11,6 +11,7 @@ from athena.api.contracts import (
     ChatThreadResponse,
     DeletionPreviewResponse,
     DeletionResultResponse,
+    LifecycleTransitionResponse,
     GroundedChatResponse,
     HealthResponse,
     ImageSourceResponse,
@@ -51,6 +52,17 @@ class CoreDomainSurface(Protocol):
         limit: int = 50,
         offset: int = 0,
     ) -> tuple[ChatSummaryResponse, ...]: ...
+
+    def list_trashed_chats(
+        self,
+        *,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> tuple[ChatSummaryResponse, ...]: ...
+
+    def trash_chat(self, chat_id: str) -> LifecycleTransitionResponse: ...
+
+    def restore_chat(self, chat_id: str) -> LifecycleTransitionResponse: ...
 
     def set_chat_pinned(
         self,
