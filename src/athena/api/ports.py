@@ -52,6 +52,13 @@ class CoreDomainSurface(Protocol):
         offset: int = 0,
     ) -> tuple[ChatSummaryResponse, ...]: ...
 
+    def list_trashed_chats(
+        self,
+        *,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> tuple[ChatSummaryResponse, ...]: ...
+
     def set_chat_pinned(
         self,
         chat_id: str,
@@ -142,6 +149,10 @@ class CoreDomainSurface(Protocol):
     ) -> KnowledgeMergeReviewResponse: ...
 
     def provider_health(self) -> ProviderHealthResponse: ...
+
+    def trash_chat(self, chat_id: str) -> ChatLifecycleTransitionResponse: ...
+
+    def restore_chat(self, chat_id: str) -> ChatLifecycleTransitionResponse: ...
 
     def preview_chat_deletion(self, chat_id: str) -> DeletionPreviewResponse: ...
 
