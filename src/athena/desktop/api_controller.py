@@ -209,30 +209,6 @@ class CoreApiGateway(Protocol):
         max_output_tokens: int | None = None,
     ) -> SelectedMessagesKnowledgeExtractionResponse: ...
 
-    def extract_selected_messages_knowledge(
-        self,
-        *,
-        chat_id: str,
-        message_revisions: tuple[tuple[str, str], ...],
-        model_id: str | None = None,
-        effective_context_limit: int | None = None,
-        max_output_tokens: int | None = None,
-    ) -> None:
-        if (
-            self._chat_busy
-            or not chat_id
-            or not 2 <= len(message_revisions) <= 50
-        ):
-            return
-        self._start_chat_task(
-            operation="extract_selected_knowledge",
-            chat_id=chat_id,
-            message_revisions=message_revisions,
-            model_id=model_id,
-            effective_context_limit=effective_context_limit,
-            max_output_tokens=max_output_tokens,
-        )
-
     def prepare_knowledge_review(
         self,
         processing_run_id: str,
@@ -2011,6 +1987,30 @@ class DesktopApiController(QObject):
             chat_id=chat_id,
             message_id=message_id,
             revision_id=revision_id,
+            model_id=model_id,
+            effective_context_limit=effective_context_limit,
+            max_output_tokens=max_output_tokens,
+        )
+
+    def extract_selected_messages_knowledge(
+        self,
+        *,
+        chat_id: str,
+        message_revisions: tuple[tuple[str, str], ...],
+        model_id: str | None = None,
+        effective_context_limit: int | None = None,
+        max_output_tokens: int | None = None,
+    ) -> None:
+        if (
+            self._chat_busy
+            or not chat_id
+            or not 2 <= len(message_revisions) <= 50
+        ):
+            return
+        self._start_chat_task(
+            operation="extract_selected_knowledge",
+            chat_id=chat_id,
+            message_revisions=message_revisions,
             model_id=model_id,
             effective_context_limit=effective_context_limit,
             max_output_tokens=max_output_tokens,
