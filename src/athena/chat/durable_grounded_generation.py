@@ -11,6 +11,8 @@ from athena.chat.generation import (
     ChatGenerationService,
     GenerationCancelledError,
 )
+from athena.chat.grounded_checkpoint_provider import GroundedCheckpointingProvider
+from athena.chat.grounded_partial_output import GroundedPartialOutputRepository
 from athena.chat.grounded_processing_run import (
     GroundedProcessingRunError,
     bind_grounded_processing_run,
@@ -199,6 +201,7 @@ class DurableGroundedGenerationService:
                 in {
                     GroundedRecoveryState.RESUMABLE,
                     GroundedRecoveryState.AMBIGUOUS,
+                    GroundedRecoveryState.PARTIAL_AVAILABLE,
                 }
                 and isinstance(error, (KeyboardInterrupt, GenerationCancelledError))
             ):
@@ -209,7 +212,10 @@ class DurableGroundedGenerationService:
                     trigger_actor_id=trigger_actor_id,
                     error_detail=type(error).__name__,
                 )
-            elif recovery.state is GroundedRecoveryState.AMBIGUOUS:
+            elif recovery.state in {
+                GroundedRecoveryState.AMBIGUOUS,
+                GroundedRecoveryState.PARTIAL_AVAILABLE,
+            }:
                 fail_grounded_processing_run(
                     self.coordinator.database,
                     processing_run_id=processing_run_id,
@@ -297,9 +303,17 @@ class DurableGroundedGenerationService:
             fingerprint=fingerprint,
             receipt_payload_builder=receipt_payload_builder,
         )
+        checkpointing_provider = GroundedCheckpointingProvider(
+            self.generation.provider,
+            partial_output=GroundedPartialOutputRepository(
+                self.coordinator.database
+            ),
+            operation_id=operation_id,
+            chat_id=chat_id,
+        )
         delegated = ChatGenerationService(
             durable_chat,
-            self.generation.provider,
+            checkpointing_provider,
             interactive_demand=self.generation.interactive_demand,
         )
 
