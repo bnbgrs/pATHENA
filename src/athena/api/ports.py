@@ -18,6 +18,7 @@ from athena.api.contracts import (
     KnowledgeMergeReviewResponse,
     KnowledgeReviewResponse,
     MessageKnowledgeExtractionResponse,
+    MessageSelectionKnowledgeExtractionResponse,
     ModelResponse,
     NewsProfileResponse,
     ProviderHealthResponse,
@@ -116,6 +117,16 @@ class CoreDomainSurface(Protocol):
         temperature: float | None = None,
         thinking_enabled: bool | None = None,
     ) -> ChatThreadResponse: ...
+
+    def extract_chat_message_selection_knowledge(
+        self,
+        chat_id: str,
+        *,
+        message_revisions: tuple[tuple[str, str], ...],
+        requested_model_id: str | None = None,
+        effective_context_limit: int | None = None,
+        max_output_tokens: int | None = None,
+    ) -> MessageSelectionKnowledgeExtractionResponse: ...
 
     def remember_chat_message(
         self,
