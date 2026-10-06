@@ -1558,29 +1558,6 @@ class CoreApiFacade:
         )
 
 
-def _message_selection_knowledge_extraction_response(
-    result: ChatExtractionResult,
-    *,
-    selected_messages: tuple[ChatMessage, ...],
-) -> MessageSelectionKnowledgeExtractionResponse:
-    common = _proposal_response_parts(result)
-    return MessageSelectionKnowledgeExtractionResponse(
-        chat_id=str(result.chat_id),
-        selected_messages=tuple(
-            SelectedMessageRevisionResponse(
-                message_id=str(item.message_id),
-                revision_id=str(item.revision_id),
-                sequence_no=item.sequence_no,
-            )
-            for item in selected_messages
-        ),
-        processing_run_id=str(result.processing_run.processing_run_id),
-        model_id=result.model.backend_model_id,
-        model_signature_id=str(result.model_signature.model_signature_id),
-        **common,
-    )
-
-
 def _proposal_response_parts(
     result: ChatExtractionResult,
 ) -> dict[str, tuple[Any, ...]]:
