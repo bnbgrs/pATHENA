@@ -449,6 +449,7 @@ class CoreApiClient:
                 f"/api/v1/chats/{chat_id}/messages/{message_id}/regenerate",
                 expected_status=201,
                 json_body=body,
+                timeout_seconds=self.generation_timeout_seconds,
             )
         )
         if thread.chat_id == chat_id:
