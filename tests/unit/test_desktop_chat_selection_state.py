@@ -546,7 +546,7 @@ def test_trash_success_exposes_real_undo_and_restore_reuses_identity() -> None:
         assert window.current_chat_id is None
         assert window.loaded_chat_id is None
         assert window._undo_trash_chat_id == CHAT_A
-        assert window.trash_undo_bar.isVisible() is True
+        assert window.trash_undo_bar.isHidden() is False
         assert window.trash_undo_button.isEnabled() is True
 
         window.apply_chat_restored(_thread(CHAT_A))
@@ -556,7 +556,7 @@ def test_trash_success_exposes_real_undo_and_restore_reuses_identity() -> None:
         assert window.selected_chat_id == CHAT_A
         assert window.pending_chat_id is None
         assert window._undo_trash_chat_id is None
-        assert window.trash_undo_bar.isVisible() is False
+        assert window.trash_undo_bar.isHidden() is True
         assert window.chat_selector.currentData() == CHAT_A
     finally:
         window.close()
