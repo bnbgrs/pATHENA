@@ -39,6 +39,9 @@ from athena.api.contracts import (
     KnowledgeReviewResponse,
     KnowledgeUnitProposalResponse,
     MessageKnowledgeExtractionResponse,
+    MessageRevisionRefResponse,
+    MessageSelectionKnowledgeExtractionResponse,
+    MessageSelectionSummaryResponse,
     ModelResponse,
     NewsProfileResponse,
     ProviderHealthResponse,
@@ -942,6 +945,85 @@ class CoreApiClient:
             )
         return result
 
+    def extract_chat_message_selection_knowledge(
+        self,
+        chat_id: str,
+        *,
+        message_revisions: tuple[tuple[str, str], ...],
+        model_id: str | None = None,
+        effective_context_limit: int | None = None,
+        max_output_tokens: int | None = None,
+    ) -> MessageSelectionKnowledgeExtractionResponse:
+        payload = _message_selection_request_payload(
+            chat_id=chat_id,
+            message_revisions=message_revisions,
+            model_id=model_id,
+            effective_context_limit=effective_context_limit,
+            max_output_tokens=max_output_tokens,
+        )
+        result = _message_selection_knowledge_extraction(
+            self._request(
+                "POST",
+                f"/api/v1/chats/{chat_id}/message-selection/knowledge-extraction",
+                expected_status=201,
+                json_body=payload,
+                timeout_seconds=self.generation_timeout_seconds,
+            )
+        )
+        expected = set(message_revisions)
+        returned = {
+            (item.message_id, item.revision_id)
+            for item in result.selected_messages
+        }
+        if result.chat_id != chat_id or returned != expected:
+            raise CoreApiClientError(
+                "ATHENA Core returned extraction data for another message selection.",
+                code="invalid_response",
+            )
+        return result
+
+    def summarize_chat_message_selection(
+        self,
+        chat_id: str,
+        *,
+        message_revisions: tuple[tuple[str, str], ...],
+        model_id: str | None = None,
+        effective_context_limit: int | None = None,
+        max_output_tokens: int | None = None,
+    ) -> MessageSelectionSummaryResponse:
+        payload = _message_selection_request_payload(
+            chat_id=chat_id,
+            message_revisions=message_revisions,
+            model_id=model_id,
+            effective_context_limit=effective_context_limit,
+            max_output_tokens=max_output_tokens,
+        )
+        result = _message_selection_summary(
+            self._request(
+                "POST",
+                f"/api/v1/chats/{chat_id}/message-selection/summary",
+                expected_status=201,
+                json_body=payload,
+                timeout_seconds=self.generation_timeout_seconds,
+            )
+        )
+        expected = set(message_revisions)
+        returned = {
+            (item.message_id, item.revision_id)
+            for item in result.selected_messages
+        }
+        if result.chat_id != chat_id or returned != expected:
+            raise CoreApiClientError(
+                "ATHENA Core returned a summary for another message selection.",
+                code="invalid_response",
+            )
+        if result.summary_message.chat_id != chat_id:
+            raise CoreApiClientError(
+                "ATHENA Core returned a summary message for another chat.",
+                code="invalid_response",
+            )
+        return result
+
     def prepare_knowledge_review(
         self,
         processing_run_id: str,
@@ -1685,6 +1767,125 @@ def _extractor_merge_candidate(
         proposal_index=_required_int(payload, "proposal_index"),
         reason=_required_str(payload, "reason"),
         confidence=_required_float(payload, "confidence"),
+    )
+
+
+def _message_selection_request_payload(
+    *,
+    chat_id: str,
+    message_revisions: tuple[tuple[str, str], ...],
+    model_id: str | None,
+    effective_context_limit: int | None,
+    max_output_tokens: int | None,
+) -> dict[str, JsonValue]:
+    if not chat_id or "/" in chat_id:
+        raise ValueError("Chat ID must be a single non-empty path segment.")
+    if not 2 <= len(message_revisions) <= 100:
+        raise ValueError("Message selection must contain between 2 and 100 messages.")
+    if len(set(message_revisions)) != len(message_revisions):
+        raise ValueError("Message selection cannot contain duplicate revisions.")
+    messages: list[JsonValue] = []
+    for message_id, revision_id in message_revisions:
+        if not message_id or "/" in message_id or not revision_id.strip():
+            raise ValueError("Message selection contains an invalid message identity.")
+        messages.append(
+            {
+                "message_id": message_id,
+                "revision_id": revision_id,
+            }
+        )
+    if model_id is not None and not model_id.strip():
+        raise ValueError("Selection model_id must be non-empty when provided.")
+    if effective_context_limit is not None and (
+        isinstance(effective_context_limit, bool)
+        or not isinstance(effective_context_limit, int)
+        or effective_context_limit < 1
+    ):
+        raise ValueError(
+            "Selection effective_context_limit must be positive when provided."
+        )
+    if max_output_tokens is not None and (
+        isinstance(max_output_tokens, bool)
+        or not isinstance(max_output_tokens, int)
+        or max_output_tokens < 1
+    ):
+        raise ValueError(
+            "Selection max_output_tokens must be positive when provided."
+        )
+    payload: dict[str, JsonValue] = {"messages": messages}
+    if model_id is not None:
+        payload["model_id"] = model_id
+    if effective_context_limit is not None:
+        payload["effective_context_limit"] = effective_context_limit
+    if max_output_tokens is not None:
+        payload["max_output_tokens"] = max_output_tokens
+    return payload
+
+
+def _message_revision_ref(
+    payload: dict[str, JsonValue],
+) -> MessageRevisionRefResponse:
+    return MessageRevisionRefResponse(
+        message_id=_required_str(payload, "message_id"),
+        revision_id=_required_str(payload, "revision_id"),
+        sequence_no=_required_int(payload, "sequence_no"),
+    )
+
+
+def _message_selection_knowledge_extraction(
+    payload: dict[str, JsonValue],
+) -> MessageSelectionKnowledgeExtractionResponse:
+    selected = tuple(
+        _message_revision_ref(item)
+        for item in _object_items(payload, "selected_messages")
+    )
+    if len(selected) < 2:
+        raise CoreApiClientError(
+            "ATHENA Core returned an undersized message selection.",
+            code="invalid_response",
+        )
+    synthetic = dict(payload)
+    synthetic["message_id"] = selected[0].message_id
+    synthetic["message_revision_id"] = selected[0].revision_id
+    single = _message_knowledge_extraction(synthetic)
+    return MessageSelectionKnowledgeExtractionResponse(
+        chat_id=single.chat_id,
+        selected_messages=selected,
+        processing_run_id=single.processing_run_id,
+        model_id=single.model_id,
+        model_signature_id=single.model_signature_id,
+        knowledge_units=single.knowledge_units,
+        claims=single.claims,
+        relations=single.relations,
+        extractor_merge_candidates=single.extractor_merge_candidates,
+    )
+
+
+def _message_selection_summary(
+    payload: dict[str, JsonValue],
+) -> MessageSelectionSummaryResponse:
+    selected = tuple(
+        _message_revision_ref(item)
+        for item in _object_items(payload, "selected_messages")
+    )
+    if len(selected) < 2:
+        raise CoreApiClientError(
+            "ATHENA Core returned an undersized message selection.",
+            code="invalid_response",
+        )
+    summary_payload = payload.get("summary_message")
+    if not isinstance(summary_payload, dict):
+        raise CoreApiClientError(
+            "ATHENA Core returned invalid summary-message data.",
+            code="invalid_response",
+        )
+    return MessageSelectionSummaryResponse(
+        chat_id=_required_str(payload, "chat_id"),
+        selected_messages=selected,
+        processing_run_id=_required_str(payload, "processing_run_id"),
+        model_id=_required_str(payload, "model_id"),
+        model_signature_id=_required_str(payload, "model_signature_id"),
+        summary_message=_chat_message(cast(dict[str, JsonValue], summary_payload)),
     )
 
 
