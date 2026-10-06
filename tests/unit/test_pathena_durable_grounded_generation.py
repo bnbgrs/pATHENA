@@ -325,7 +325,7 @@ def test_grounding_retry_is_fenced_before_second_provider_call(tmp_path: Path) -
             operation_id=operation_id,
             chat_id=chat_id,
             fingerprint=fingerprint,
-).state is GroundedRecoveryState.PARTIAL_AVAILABLE
+        ).state is GroundedRecoveryState.PARTIAL_AVAILABLE
         assert len(chats.load_chat(chat_id).messages) == 1
     finally:
         database.stop()
