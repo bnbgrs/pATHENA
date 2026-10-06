@@ -204,6 +204,7 @@ class ChatOperationRecoveryResponse(ApiContract):
     state: str
     can_continue: bool
     processing_run_id: str | None
+    partial_output: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
