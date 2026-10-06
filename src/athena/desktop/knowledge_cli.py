@@ -142,15 +142,15 @@ def _print_show(app: AthenaApplication, knowledge_id: uuid.UUID) -> None:
 
     related = KnowledgeBacklinkService(app.database).related(knowledge_id, limit=8)
     print(f"RELATED_KNOWLEDGE {len(related)}")
-    for item in related:
+    for related_item in related:
         print(
             "RELATED "
-            f"{item.knowledge_id} "
-            f"revision={item.revision_id} "
-            f"revision_no={item.revision_no} "
-            f"shared_inputs={item.shared_input_count} "
-            f"kind={item.knowledge_kind} "
-            f"status={item.epistemic_status}"
+            f"{related_item.knowledge_id} "
+            f"revision={related_item.revision_id} "
+            f"revision_no={related_item.revision_no} "
+            f"shared_inputs={related_item.shared_input_count} "
+            f"kind={related_item.knowledge_kind} "
+            f"status={related_item.epistemic_status}"
         )
 
 
