@@ -39,6 +39,8 @@ from athena.api.contracts import (
     KnowledgeReviewResponse,
     KnowledgeUnitProposalResponse,
     MessageKnowledgeExtractionResponse,
+    MessageSelectionKnowledgeExtractionResponse,
+    SelectedMessageRevisionResponse,
     ModelResponse,
     NewsProfileResponse,
     ProviderHealthResponse,
@@ -970,6 +972,79 @@ class CoreApiClient:
             )
         return result
 
+    def extract_chat_message_selection_knowledge(
+        self,
+        chat_id: str,
+        *,
+        message_revisions: tuple[tuple[str, str], ...],
+        model_id: str | None = None,
+        effective_context_limit: int | None = None,
+        max_output_tokens: int | None = None,
+    ) -> MessageSelectionKnowledgeExtractionResponse:
+        _require_path_segment(chat_id, label="Chat ID")
+        if not message_revisions or len(message_revisions) > 50:
+            raise ValueError(
+                "Knowledge extraction selection requires between 1 and 50 messages."
+            )
+        if len(set(message_revisions)) != len(message_revisions):
+            raise ValueError("Knowledge extraction selection contains duplicates.")
+        for message_id, revision_id in message_revisions:
+            _require_path_segment(message_id, label="Message ID")
+            if not revision_id.strip():
+                raise ValueError("Message revision_id must be non-empty.")
+        if model_id is not None and not model_id.strip():
+            raise ValueError(
+                "Knowledge extraction model_id must be non-empty when provided."
+            )
+        if effective_context_limit is not None and (
+            isinstance(effective_context_limit, bool)
+            or not isinstance(effective_context_limit, int)
+            or effective_context_limit < 1
+        ):
+            raise ValueError(
+                "Knowledge extraction effective_context_limit must be positive when provided."
+            )
+        if max_output_tokens is not None and (
+            isinstance(max_output_tokens, bool)
+            or not isinstance(max_output_tokens, int)
+            or max_output_tokens < 1
+        ):
+            raise ValueError(
+                "Knowledge extraction max_output_tokens must be positive when provided."
+            )
+        payload: dict[str, JsonValue] = {
+            "message_revisions": [
+                {"message_id": message_id, "revision_id": revision_id}
+                for message_id, revision_id in message_revisions
+            ]
+        }
+        if model_id is not None:
+            payload["model_id"] = model_id
+        if effective_context_limit is not None:
+            payload["effective_context_limit"] = effective_context_limit
+        if max_output_tokens is not None:
+            payload["max_output_tokens"] = max_output_tokens
+        result = _message_selection_knowledge_extraction(
+            self._request(
+                "POST",
+                f"/api/v1/chats/{chat_id}/knowledge-extraction/selection",
+                expected_status=201,
+                json_body=payload,
+                timeout_seconds=self.generation_timeout_seconds,
+            )
+        )
+        requested = set(message_revisions)
+        returned = {
+            (item.message_id, item.revision_id)
+            for item in result.selected_messages
+        }
+        if result.chat_id != chat_id or returned != requested:
+            raise CoreApiClientError(
+                "ATHENA Core returned extraction data for another message selection.",
+                code="invalid_response",
+            )
+        return result
+
     def prepare_knowledge_review(
         self,
         processing_run_id: str,
@@ -1693,6 +1768,50 @@ def _extractor_merge_candidate(
         proposal_index=_required_int(payload, "proposal_index"),
         reason=_required_str(payload, "reason"),
         confidence=_required_float(payload, "confidence"),
+    )
+
+
+def _message_selection_knowledge_extraction(
+    payload: dict[str, JsonValue],
+) -> MessageSelectionKnowledgeExtractionResponse:
+    raw_selected = _object_items(payload, "selected_messages")
+    if not raw_selected:
+        raise CoreApiClientError(
+            "ATHENA Core returned an empty Knowledge message selection.",
+            code="invalid_response",
+        )
+    selected = tuple(
+        SelectedMessageRevisionResponse(
+            message_id=_required_str(item, "message_id"),
+            revision_id=_required_str(item, "revision_id"),
+            sequence_no=_required_int(item, "sequence_no"),
+        )
+        for item in raw_selected
+    )
+    identities = tuple((item.message_id, item.revision_id) for item in selected)
+    if (
+        len(set(identities)) != len(identities)
+        or tuple(item.sequence_no for item in selected)
+        != tuple(sorted(item.sequence_no for item in selected))
+    ):
+        raise CoreApiClientError(
+            "ATHENA Core returned an invalid Knowledge message selection.",
+            code="invalid_response",
+        )
+    surrogate = dict(payload)
+    surrogate["message_id"] = selected[0].message_id
+    surrogate["message_revision_id"] = selected[0].revision_id
+    common = _message_knowledge_extraction(surrogate)
+    return MessageSelectionKnowledgeExtractionResponse(
+        chat_id=common.chat_id,
+        selected_messages=selected,
+        processing_run_id=common.processing_run_id,
+        model_id=common.model_id,
+        model_signature_id=common.model_signature_id,
+        knowledge_units=common.knowledge_units,
+        claims=common.claims,
+        relations=common.relations,
+        extractor_merge_candidates=common.extractor_merge_candidates,
     )
 
 
