@@ -20,6 +20,16 @@ class ProvenanceReview:
 
 
 @dataclass(frozen=True)
+class RelatedKnowledgeReview:
+    knowledge_id: str
+    revision_id: str
+    revision_no: int
+    shared_input_count: int
+    kind: str
+    status: str
+
+
+@dataclass(frozen=True)
 class EvidenceReview:
     role: str
     anchor_id: str | None
@@ -63,6 +73,7 @@ class KnowledgeEntityReview:
     content: str
     title: str | None
     provenance: tuple[ProvenanceReview, ...]
+    related: tuple[RelatedKnowledgeReview, ...]
     evidence: tuple[EvidenceReview, ...]
 
 
@@ -228,6 +239,14 @@ def parse_knowledge_entity_review(output: str) -> KnowledgeEntityReview:
     provenance_count = _integer(
         lines[provenance_index].split(" ", 1)[1], "provenance count"
     )
+    related_index = next(
+        (
+            index
+            for index in range(provenance_index + 1, len(lines))
+            if lines[index].startswith("RELATED_KNOWLEDGE ")
+        ),
+        len(lines),
+    )
     evidence_index = next(
         (
             index
@@ -236,8 +255,9 @@ def parse_knowledge_entity_review(output: str) -> KnowledgeEntityReview:
         ),
         len(lines),
     )
+    provenance_end = min(related_index, evidence_index)
     provenance: list[ProvenanceReview] = []
-    for line in lines[provenance_index + 1 : evidence_index]:
+    for line in lines[provenance_index + 1 : provenance_end]:
         parts = line.split(maxsplit=2)
         if len(parts) != 3 or parts[0] != "PROVENANCE":
             raise KnowledgeReviewError("Persisted provenance record is invalid.")
@@ -253,6 +273,43 @@ def parse_knowledge_entity_review(output: str) -> KnowledgeEntityReview:
         )
     if len(provenance) != provenance_count:
         raise KnowledgeReviewError("Persisted provenance count does not match its records.")
+
+    related: list[RelatedKnowledgeReview] = []
+    if related_index < len(lines):
+        related_count = _integer(
+            lines[related_index].split(" ", 1)[1], "related Knowledge count"
+        )
+        related_end = evidence_index if evidence_index > related_index else len(lines)
+        for line in lines[related_index + 1 : related_end]:
+            parts = line.split(maxsplit=2)
+            if len(parts) != 3 or parts[0] != "RELATED":
+                raise KnowledgeReviewError("Persisted related Knowledge record is invalid.")
+            fields = _fields("RELATED " + parts[2], "RELATED")
+            related.append(
+                RelatedKnowledgeReview(
+                    knowledge_id=_canonical_uuid(
+                        parts[1], "related Knowledge identity"
+                    ),
+                    revision_id=_canonical_uuid(
+                        _required(fields, "revision"),
+                        "related Knowledge revision",
+                    ),
+                    revision_no=_integer(
+                        _required(fields, "revision_no"),
+                        "related Knowledge revision number",
+                    ),
+                    shared_input_count=_integer(
+                        _required(fields, "shared_inputs"),
+                        "related Knowledge shared input count",
+                    ),
+                    kind=_required(fields, "kind"),
+                    status=_required(fields, "status"),
+                )
+            )
+        if len(related) != related_count:
+            raise KnowledgeReviewError(
+                "Persisted related Knowledge count does not match its records."
+            )
 
     evidence: list[EvidenceReview] = []
     if evidence_index < len(lines):
@@ -286,6 +343,7 @@ def parse_knowledge_entity_review(output: str) -> KnowledgeEntityReview:
         content=content,
         title=_optional(header.get("TITLE", "-")) if entity_type == "KNOWLEDGE" else None,
         provenance=tuple(provenance),
+        related=tuple(related),
         evidence=tuple(evidence),
     )
 
@@ -325,6 +383,18 @@ def render_knowledge_entity_review(review: KnowledgeEntityReview) -> str:
             f"{provenance_item.role.replace('_', ' ')} · "
             f"{_short(provenance_item.entity_id)}{revision}"
         )
+    if review.entity_type == "knowledge":
+        lines.extend(("", "Related Knowledge"))
+        if not review.related:
+            lines.append("No provenance-backed related Knowledge was found.")
+        for item in review.related:
+            lines.append(
+                f"{_short(item.knowledge_id)} · "
+                f"{item.kind.replace('_', ' ').title()} · "
+                f"{item.status.replace('_', ' ').title()} · "
+                f"{item.shared_input_count} shared provenance input"
+                f"{'' if item.shared_input_count == 1 else 's'}"
+            )
     if review.entity_type == "claim":
         lines.extend(("", "Evidence"))
         if not review.evidence:
