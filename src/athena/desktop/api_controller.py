@@ -11,6 +11,7 @@ from PySide6.QtCore import QMetaObject, QObject, QRunnable, Qt, QThreadPool, Sig
 
 from athena.api.client import CoreApiClientError
 from athena.api.contracts import (
+    ChatLifecycleTransitionResponse,
     ChatOperationRecoveryResponse,
     ChatSummaryResponse,
     ChatThreadResponse,
@@ -67,6 +68,13 @@ class CoreApiGateway(Protocol):
     ) -> NewsProfileResponse: ...
 
     def list_chats(
+        self,
+        *,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> tuple[ChatSummaryResponse, ...]: ...
+
+    def list_trashed_chats(
         self,
         *,
         limit: int = 50,
@@ -207,6 +215,10 @@ class CoreApiGateway(Protocol):
         decision: str,
     ) -> KnowledgeMergeReviewResponse: ...
 
+    def trash_chat(self, chat_id: str) -> ChatLifecycleTransitionResponse: ...
+
+    def restore_chat(self, chat_id: str) -> ChatLifecycleTransitionResponse: ...
+
     def preview_chat_deletion(self, chat_id: str) -> DeletionPreviewResponse: ...
 
     def delete_chat(
@@ -234,6 +246,8 @@ class DesktopApiSnapshot:
     model_freshness: SnapshotFreshness | None = None
     storage: StorageHealthResponse | None = None
     storage_error: str | None = None
+    trashed_chats: tuple[ChatSummaryResponse, ...] = ()
+    trash_error: str | None = None
 
     @property
     def loaded_model(self) -> ModelResponse | None:
@@ -287,6 +301,7 @@ class _ChatOperationOutcome:
     image_source: ImageSourceResponse | None = None
     deletion_preview: DeletionPreviewResponse | None = None
     deleted_chat_id: str | None = None
+    lifecycle_transition: ChatLifecycleTransitionResponse | None = None
     remembered: RememberedChatMessageResponse | None = None
     knowledge_extraction: MessageKnowledgeExtractionResponse | None = None
     knowledge_review: KnowledgeReviewResponse | None = None
@@ -307,6 +322,7 @@ class _ChatOperationOutcome:
                 self.image_source,
                 self.deletion_preview,
                 self.deleted_chat_id,
+                self.lifecycle_transition,
                 self.remembered,
                 self.knowledge_extraction,
                 self.knowledge_review,
@@ -983,6 +999,37 @@ class _ChatTask(QRunnable):
                     pinned_chat_id=resolved_chat_id,
                     pinned_state=self.pinned_state,
                 )
+            elif self.operation == "trash":
+                if resolved_chat_id is None:
+                    raise ValueError("Chat trash requires a chat ID.")
+                transition = self.gateway.trash_chat(resolved_chat_id)
+                if (
+                    transition.chat_id != resolved_chat_id
+                    or transition.lifecycle_state != "trashed"
+                    or not transition.can_reverse
+                ):
+                    raise RuntimeError("Chat trash result is inconsistent.")
+                outcome = _ChatOperationOutcome(
+                    operation=self.operation,
+                    lifecycle_transition=transition,
+                )
+            elif self.operation == "restore":
+                if resolved_chat_id is None:
+                    raise ValueError("Chat restore requires a chat ID.")
+                transition = self.gateway.restore_chat(resolved_chat_id)
+                if (
+                    transition.chat_id != resolved_chat_id
+                    or transition.lifecycle_state != "active"
+                    or not transition.can_reverse
+                ):
+                    raise RuntimeError("Chat restore result is inconsistent.")
+                thread = self.gateway.load_chat(resolved_chat_id)
+                if thread.chat_id != resolved_chat_id:
+                    raise RuntimeError("Restored chat load returned another chat.")
+                outcome = _ChatOperationOutcome(
+                    operation=self.operation,
+                    lifecycle_transition=transition,
+                )
             elif self.operation == "preview_delete":
                 if resolved_chat_id is None:
                     raise ValueError("Chat deletion preview requires a chat ID.")
@@ -1338,6 +1385,22 @@ def _chat_snapshot(
         offset += len(page)
 
 
+def _trash_snapshot(
+    gateway: CoreApiGateway,
+    *,
+    chat_limit: int,
+) -> tuple[tuple[ChatSummaryResponse, ...], str | None]:
+    try:
+        return (
+            gateway.list_trashed_chats(limit=chat_limit, offset=0),
+            None,
+        )
+    except CoreApiClientError as exc:
+        return (), str(exc)
+    except Exception:
+        return (), "ATHENA chat trash refresh failed."
+
+
 def _model_snapshot(
     gateway: CoreApiGateway,
 ) -> tuple[ProviderHealthResponse | None, tuple[ModelResponse, ...], str | None]:
@@ -1374,6 +1437,7 @@ def _collect_snapshot(
 ) -> DesktopApiSnapshot:
     health = gateway.health()
     chats, chat_error = _chat_snapshot(gateway, chat_limit=chat_limit)
+    trashed_chats, trash_error = _trash_snapshot(gateway, chat_limit=chat_limit)
     provider, models, model_error = _model_snapshot(gateway)
     storage, storage_error = _storage_snapshot(gateway)
     return DesktopApiSnapshot(
@@ -1385,6 +1449,8 @@ def _collect_snapshot(
         model_error=model_error,
         storage=storage,
         storage_error=storage_error,
+        trashed_chats=trashed_chats,
+        trash_error=trash_error,
     )
 
 
@@ -1514,6 +1580,8 @@ class DesktopApiController(QObject):
     image_source_captured = Signal(object)
     chat_deletion_preview_ready = Signal(object)
     chat_deleted = Signal(str)
+    chat_trashed = Signal(object)
+    chat_restored = Signal(object)
     chat_pin_changed = Signal(str, bool)
     message_remembered = Signal(object)
     knowledge_extraction_ready = Signal(object)
@@ -1927,6 +1995,16 @@ class DesktopApiController(QObject):
             pinned_state=pinned,
         )
 
+    def trash_chat(self, chat_id: str) -> None:
+        if not chat_id or self._chat_busy:
+            return
+        self._start_chat_task(operation="trash", chat_id=chat_id)
+
+    def restore_chat(self, chat_id: str) -> None:
+        if not chat_id or self._chat_busy:
+            return
+        self._start_chat_task(operation="restore", chat_id=chat_id)
+
     def preview_chat_deletion(self, chat_id: str) -> None:
         if not chat_id or self._chat_busy:
             return
@@ -2077,6 +2155,8 @@ class DesktopApiController(QObject):
             model_freshness=model_freshness,
             storage=snapshot.storage,
             storage_error=snapshot.storage_error,
+            trashed_chats=snapshot.trashed_chats,
+            trash_error=snapshot.trash_error,
         )
 
     @Slot()
@@ -2217,6 +2297,20 @@ class DesktopApiController(QObject):
                 self.chat_deletion_preview_ready.emit(outcome.deletion_preview)
             elif outcome.deleted_chat_id is not None:
                 self.chat_deleted.emit(outcome.deleted_chat_id)
+            elif outcome.lifecycle_transition is not None:
+                if outcome.operation == "trash":
+                    self.chat_trashed.emit(outcome.lifecycle_transition)
+                elif outcome.operation == "restore":
+                    restored = self.gateway.load_chat(
+                        outcome.lifecycle_transition.chat_id
+                    )
+                    self.chat_restored.emit(restored)
+                else:
+                    self.chat_operation_failed.emit(
+                        outcome.operation,
+                        "ATHENA returned an unknown lifecycle transition.",
+                    )
+                self.refresh()
             elif outcome.pinned_chat_id is not None:
                 assert outcome.pinned_state is not None
                 self.chat_pin_changed.emit(
