@@ -25,6 +25,7 @@ from athena.api.contracts import (
     NewsProfileResponse,
     ProviderHealthResponse,
     RememberedChatMessageResponse,
+    SelectedMessagesKnowledgeExtractionResponse,
     StorageHealthResponse,
 )
 from athena.api.ports import CoreDomainSurface
@@ -411,6 +412,25 @@ class SerializedCoreApiSurface:
                 chat_id,
                 message_id,
                 revision_id=revision_id,
+                requested_model_id=requested_model_id,
+                effective_context_limit=effective_context_limit,
+                max_output_tokens=max_output_tokens,
+            )
+        )
+
+    def extract_selected_chat_messages_knowledge(
+        self,
+        chat_id: str,
+        *,
+        message_revisions: tuple[tuple[str, str], ...],
+        requested_model_id: str | None = None,
+        effective_context_limit: int | None = None,
+        max_output_tokens: int | None = None,
+    ) -> SelectedMessagesKnowledgeExtractionResponse:
+        return self._executor.call(
+            lambda: self._surface.extract_selected_chat_messages_knowledge(
+                chat_id,
+                message_revisions=message_revisions,
                 requested_model_id=requested_model_id,
                 effective_context_limit=effective_context_limit,
                 max_output_tokens=max_output_tokens,
