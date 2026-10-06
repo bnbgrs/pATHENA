@@ -324,17 +324,19 @@ def test_client_regenerates_exact_assistant_revision_with_generation_controls(
     revision_id = "33333333-3333-3333-3333-333333333333"
     operation_id = "55555555-5555-4555-8555-555555555555"
     branch_chat_id = "66666666-6666-6666-6666-666666666666"
-    seen: list[tuple[str, str, dict[str, Any]]] = []
+    seen: list[tuple[str, str, dict[str, Any], float]] = []
 
     def fake_urlopen(request: Any, timeout: float) -> _Response:
-        del timeout
         body = json.loads(request.data.decode("utf-8"))
-        seen.append((request.get_method(), request.full_url, body))
+        seen.append((request.get_method(), request.full_url, body, timeout))
         return _Response(_chat_thread_payload(chat_id=branch_chat_id), status=201)
 
     monkeypatch.setattr(client_module, "urlopen", fake_urlopen)
 
-    thread = CoreApiClient(runtime_root).regenerate_chat_message(
+    thread = CoreApiClient(
+        runtime_root,
+        generation_timeout_seconds=123.0,
+    ).regenerate_chat_message(
         chat_id,
         message_id,
         revision_id=revision_id,
@@ -366,6 +368,7 @@ def test_client_regenerates_exact_assistant_revision_with_generation_controls(
                 "temperature": 0.4,
                 "thinking_enabled": True,
             },
+            123.0,
         )
     ]
 
