@@ -38,6 +38,9 @@ def _message(parent: QWidget, sequence: int) -> tuple[QWidget, list[QPushButton]
         _button(container, "addKnowledgeButton", sequence),
         _button(container, "copyMessageButton", sequence),
         _button(container, "rememberMessageButton", sequence),
+        _button(container, "editMessageButton", sequence),
+        _button(container, "regenerateMessageButton", sequence),
+        _button(container, "forkMessageButton", sequence),
     ]
     return container, buttons
 
@@ -61,11 +64,21 @@ def test_groups_follow_message_sequence_and_action_order() -> None:
     groups = controller._message_groups()
 
     assert len(groups) == 2
-    assert [button.property("messageSequence") for button in groups[0]] == [10, 10, 10]
+    assert [button.property("messageSequence") for button in groups[0]] == [
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+    ]
     assert [button.objectName() for button in groups[0]] == [
         "copyMessageButton",
         "rememberMessageButton",
         "addKnowledgeButton",
+        "editMessageButton",
+        "regenerateMessageButton",
+        "forkMessageButton",
     ]
 
 
@@ -82,17 +95,23 @@ def test_sync_marks_stable_group_and_action_indices() -> None:
         for button in document.findChildren(QPushButton)
         if button.property("pathenaMessageTabOrderManaged") is True
     ]
-    assert len(ordered) == 6
+    assert len(ordered) == 12
     assert sorted(int(button.property("pathenaMessageTabGroup")) for button in ordered) == [
         0,
         0,
         0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
         1,
         1,
         1,
     ]
     assert composer.property("pathenaMessageTabReturnTarget") is True
-    assert window.property("pathenaMessageTabOrderCount") == 6
+    assert window.property("pathenaMessageTabOrderCount") == 12
 
 
 def test_disabled_remember_state_is_preserved() -> None:
@@ -113,7 +132,7 @@ def test_new_message_is_included_after_resync() -> None:
     window, document, _composer = _surface()
     _message(document, 1)
     controller = MessageActionTabOrderController(window)
-    assert window.property("pathenaMessageTabOrderCount") == 3
+    assert window.property("pathenaMessageTabOrderCount") == 6
 
     _message(document, 2)
     controller.sync()
