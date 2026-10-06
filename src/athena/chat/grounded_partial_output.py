@@ -310,6 +310,69 @@ class GroundedPartialOutputRepository:
             chunk_count=chunk_count,
         )
 
+    def load_through_attempt(
+        self,
+        operation_id: uuid.UUID,
+        *,
+        max_attempt_no: int,
+    ) -> GroundedPartialOutput | None:
+        if (
+            isinstance(max_attempt_no, bool)
+            or not isinstance(max_attempt_no, int)
+            or max_attempt_no < 0
+        ):
+            raise ValueError(
+                "Grounded partial-output max_attempt_no must be non-negative."
+            )
+        operation_blob = uuid_to_blob(operation_id)
+        rows = self.database.connection.execute(
+            """
+            SELECT chat_id, attempt_no, chunk_no, content
+            FROM grounded_partial_output_chunks
+            WHERE operation_id = ? AND attempt_no <= ?
+            ORDER BY attempt_no ASC, chunk_no ASC
+            """,
+            (operation_blob, max_attempt_no),
+        ).fetchall()
+        if not rows:
+            return None
+        chat_id = uuid_from_blob(bytes(rows[0]["chat_id"]))
+        current_attempt = -1
+        expected_chunk = 0
+        parts: list[str] = []
+        chunk_count = 0
+        for row in rows:
+            if uuid_from_blob(bytes(row["chat_id"])) != chat_id:
+                raise GroundedPartialOutputError(
+                    "Partial-output chunks disagree on chat identity."
+                )
+            attempt_no = int(row["attempt_no"])
+            if attempt_no != current_attempt:
+                if attempt_no != current_attempt + 1:
+                    raise GroundedPartialOutputError(
+                        "Partial-output attempts are not contiguous."
+                    )
+                current_attempt = attempt_no
+                expected_chunk = 0
+            if int(row["chunk_no"]) != expected_chunk:
+                raise GroundedPartialOutputError(
+                    "Partial-output chunk sequence is not contiguous."
+                )
+            parts.append(str(row["content"]))
+            chunk_count += 1
+            expected_chunk += 1
+        if current_attempt > max_attempt_no:
+            raise GroundedPartialOutputError(
+                "Partial-output attempt exceeded requested reconstruction bound."
+            )
+        return GroundedPartialOutput(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            attempt_no=current_attempt,
+            content="".join(parts),
+            chunk_count=chunk_count,
+        )
+
     def claim_continuation(
         self,
         *,
