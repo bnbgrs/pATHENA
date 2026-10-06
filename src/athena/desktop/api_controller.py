@@ -1498,6 +1498,7 @@ class _SearchTask(QRunnable):
         request_id: int,
         query: str,
         limit: int,
+        entity_types: tuple[UniversalSearchEntityType, ...] | None,
         outcomes: SimpleQueue[_SearchOutcome],
         receiver: QObject,
     ) -> None:
@@ -1506,6 +1507,7 @@ class _SearchTask(QRunnable):
         self.request_id = request_id
         self.query = query
         self.limit = limit
+        self.entity_types = entity_types
         self.outcomes = outcomes
         self.receiver = receiver
         self.setAutoDelete(False)
@@ -1516,6 +1518,7 @@ class _SearchTask(QRunnable):
             results = self.gateway.universal_search(
                 self.query,
                 limit=self.limit,
+                entity_types=self.entity_types,
             )
         except CoreApiClientError as exc:
             outcome = _SearchOutcome(
@@ -1633,6 +1636,7 @@ class DesktopApiController(QObject):
         query: str,
         *,
         limit: int = 30,
+        entity_types: tuple[UniversalSearchEntityType, ...] | None = None,
     ) -> int:
         if not isinstance(query, str):
             raise TypeError("Desktop search query must be text.")
@@ -1644,6 +1648,14 @@ class DesktopApiController(QObject):
         if not 1 <= limit <= 100:
             raise ValueError("Desktop search limit must be between 1 and 100.")
 
+        if entity_types is not None:
+            if not isinstance(entity_types, tuple) or not entity_types:
+                raise ValueError("Desktop search entity_types must be a non-empty tuple.")
+            if any(not isinstance(item, UniversalSearchEntityType) for item in entity_types):
+                raise TypeError("Desktop search entity_types contain an invalid value.")
+            if len(set(entity_types)) != len(entity_types):
+                raise ValueError("Desktop search entity_types must be unique.")
+
         request_id = self._next_search_request_id
         self._next_search_request_id += 1
         task = _SearchTask(
@@ -1651,6 +1663,7 @@ class DesktopApiController(QObject):
             request_id=request_id,
             query=normalized,
             limit=limit,
+            entity_types=entity_types,
             outcomes=self._search_outcomes,
             receiver=self,
         )
