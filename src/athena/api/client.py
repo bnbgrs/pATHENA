@@ -2236,6 +2236,7 @@ def _chat_operation_recovery(
     state = _required_str(payload, "state")
     can_continue = payload.get("can_continue")
     processing_run_id = payload.get("processing_run_id")
+    partial_output = payload.get("partial_output")
     if mode != "grounded":
         raise CoreApiClientError(
             "ATHENA Core returned unsupported chat recovery mode.",
@@ -2245,6 +2246,7 @@ def _chat_operation_recovery(
         "absent",
         "resumable",
         "ambiguous",
+        "partial",
         "result_available",
         "finalization_required",
         "complete",
@@ -2264,6 +2266,23 @@ def _chat_operation_recovery(
             "ATHENA Core returned invalid recovery ProcessingRun identity.",
             code="invalid_response",
         )
+    if partial_output is not None and (
+        not isinstance(partial_output, str) or not partial_output
+    ):
+        raise CoreApiClientError(
+            "ATHENA Core returned invalid recovery partial output.",
+            code="invalid_response",
+        )
+    if state == "partial" and partial_output is None:
+        raise CoreApiClientError(
+            "ATHENA Core partial recovery is missing its persisted output.",
+            code="invalid_response",
+        )
+    if state != "partial" and partial_output is not None:
+        raise CoreApiClientError(
+            "ATHENA Core exposed partial output for a non-partial recovery state.",
+            code="invalid_response",
+        )
     expected_continue = state in {
         "resumable",
         "result_available",
@@ -2281,6 +2300,7 @@ def _chat_operation_recovery(
         state=state,
         can_continue=can_continue,
         processing_run_id=processing_run_id,
+        partial_output=partial_output,
     )
 
 
