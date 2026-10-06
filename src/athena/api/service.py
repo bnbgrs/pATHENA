@@ -1016,6 +1016,11 @@ class CoreApiFacade:
                 if status.processing_run_id is None
                 else str(status.processing_run_id)
             ),
+            partial_output=(
+                None
+                if status.partial_output is None
+                else status.partial_output.content
+            ),
         )
 
     def continue_unified_local_chat_operation(
