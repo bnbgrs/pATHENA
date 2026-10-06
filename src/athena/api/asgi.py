@@ -631,6 +631,60 @@ class CoreApiAsgiApp:
                 )
                 return
 
+            selection_extraction_resource = _message_selection_action_resource(
+                path,
+                action="knowledge-extraction",
+            )
+            if method == "POST" and selection_extraction_resource is not None:
+                chat_id = selection_extraction_resource
+                payload = await _read_json_object(receive)
+                (
+                    message_revisions,
+                    model_id,
+                    effective_context_limit,
+                    max_output_tokens,
+                ) = _message_selection_request(payload)
+                await _send_contract(
+                    send,
+                    self._facade.extract_chat_message_selection_knowledge(
+                        chat_id,
+                        message_revisions=message_revisions,
+                        requested_model_id=model_id,
+                        effective_context_limit=effective_context_limit,
+                        max_output_tokens=max_output_tokens,
+                    ),
+                    status=201,
+                    request_id=request_id,
+                )
+                return
+
+            selection_summary_resource = _message_selection_action_resource(
+                path,
+                action="summary",
+            )
+            if method == "POST" and selection_summary_resource is not None:
+                chat_id = selection_summary_resource
+                payload = await _read_json_object(receive)
+                (
+                    message_revisions,
+                    model_id,
+                    effective_context_limit,
+                    max_output_tokens,
+                ) = _message_selection_request(payload)
+                await _send_contract(
+                    send,
+                    self._facade.summarize_chat_message_selection(
+                        chat_id,
+                        message_revisions=message_revisions,
+                        requested_model_id=model_id,
+                        effective_context_limit=effective_context_limit,
+                        max_output_tokens=max_output_tokens,
+                    ),
+                    status=201,
+                    request_id=request_id,
+                )
+                return
+
             if (
                 method == "POST"
                 and path.startswith("/api/v1/chats/")
@@ -1461,6 +1515,10 @@ def _known_path(path: str) -> bool:
         return True
     if _message_action_resource(path, action="knowledge-extraction") is not None:
         return True
+    if _message_selection_action_resource(path, action="knowledge-extraction") is not None:
+        return True
+    if _message_selection_action_resource(path, action="summary") is not None:
+        return True
     if path.startswith("/api/v1/chats/") and path.endswith("/messages"):
         chat_id = path.removeprefix("/api/v1/chats/").removesuffix(
             "/messages"
@@ -1488,6 +1546,93 @@ def _known_path(path: str) -> bool:
         return bool(chat_id) and "/" not in chat_id
     return False
 
+
+
+def _message_selection_action_resource(
+    path: str,
+    *,
+    action: str,
+) -> str | None:
+    prefix = "/api/v1/chats/"
+    suffix = f"/message-selection/{action}"
+    if not path.startswith(prefix) or not path.endswith(suffix):
+        return None
+    chat_id = path[len(prefix) : -len(suffix)]
+    if not chat_id or "/" in chat_id:
+        return None
+    return chat_id
+
+
+def _message_selection_request(
+    payload: dict[str, JsonValue],
+) -> tuple[
+    tuple[tuple[str, str], ...],
+    str | None,
+    int | None,
+    int | None,
+]:
+    unknown = set(payload) - {
+        "messages",
+        "model_id",
+        "effective_context_limit",
+        "max_output_tokens",
+    }
+    if unknown:
+        raise ValueError(
+            "Message-selection request contains unsupported fields."
+        )
+    raw_messages = payload.get("messages")
+    if not isinstance(raw_messages, list) or not 2 <= len(raw_messages) <= 100:
+        raise ValueError(
+            "Message-selection request requires between 2 and 100 messages."
+        )
+    message_revisions: list[tuple[str, str]] = []
+    for item in raw_messages:
+        if not isinstance(item, dict) or set(item) != {"message_id", "revision_id"}:
+            raise ValueError(
+                "Each selected message requires message_id and revision_id."
+            )
+        message_id = item.get("message_id")
+        revision_id = item.get("revision_id")
+        if (
+            not isinstance(message_id, str)
+            or not message_id.strip()
+            or "/" in message_id
+            or not isinstance(revision_id, str)
+            or not revision_id.strip()
+        ):
+            raise ValueError("Selected message identity is invalid.")
+        message_revisions.append((message_id, revision_id))
+    refs = tuple(message_revisions)
+    if len(set(refs)) != len(refs):
+        raise ValueError("Message selection cannot contain duplicate revisions.")
+
+    model_id = payload.get("model_id")
+    if model_id is not None and (
+        not isinstance(model_id, str) or not model_id.strip()
+    ):
+        raise ValueError(
+            "Message-selection model_id must be a non-empty string or null."
+        )
+    effective_context_limit = payload.get("effective_context_limit")
+    if effective_context_limit is not None and (
+        isinstance(effective_context_limit, bool)
+        or not isinstance(effective_context_limit, int)
+        or effective_context_limit < 1
+    ):
+        raise ValueError(
+            "Message-selection effective_context_limit must be positive or null."
+        )
+    max_output_tokens = payload.get("max_output_tokens")
+    if max_output_tokens is not None and (
+        isinstance(max_output_tokens, bool)
+        or not isinstance(max_output_tokens, int)
+        or max_output_tokens < 1
+    ):
+        raise ValueError(
+            "Message-selection max_output_tokens must be positive or null."
+        )
+    return refs, model_id, effective_context_limit, max_output_tokens
 
 
 def _chat_operation_action_resource(
