@@ -54,6 +54,7 @@ from athena.api.contracts import (
     KnowledgeMergeReviewResponse,
     KnowledgeReviewResponse,
     MessageKnowledgeExtractionResponse,
+    MessageSelectionKnowledgeExtractionResponse,
     ModelResponse,
     RememberedChatMessageResponse,
 )
@@ -342,6 +343,8 @@ class AthenaMainWindow(QMainWindow):
         self.undo_trash_button.hide()
         self.pin_chat_button = QPushButton("PIN")
         self.new_chat_button = QPushButton("NEW CHAT")
+        self.summarize_selected_button = QPushButton("SUMMARIZE SELECTED")
+        self.knowledge_selected_button = QPushButton("KNOWLEDGE SELECTED")
         self.recovery_bar = QFrame()
         self.recovery_state_label = QLabel("")
         self.recovery_continue_button = QPushButton("CONTINUE")
@@ -360,14 +363,23 @@ class AthenaMainWindow(QMainWindow):
         self._temperature_by_model: dict[str, float] = {}
         self._thinking_by_model: dict[str, bool] = {}
         self._remembered_message_revisions: set[tuple[str, str]] = set()
+        self._selected_message_revisions: set[tuple[str, str]] = set()
         self._pinned_chat_ids: set[str] = set()
         self._last_trashed_chat_id: str | None = None
         self._pending_image_source_ids: list[str] = []
         self._pending_image_names: list[str] = []
-        self._knowledge_extraction: MessageKnowledgeExtractionResponse | None = None
+        self._knowledge_extraction: (
+            MessageKnowledgeExtractionResponse
+            | MessageSelectionKnowledgeExtractionResponse
+            | None
+        ) = None
         self._knowledge_review: KnowledgeReviewResponse | None = None
         self._knowledge_review_chat_id: str | None = None
-        self._knowledge_review_request: tuple[str, str, str] | None = None
+        self._knowledge_review_request: (
+            tuple[str, str, str]
+            | tuple[str, tuple[tuple[str, str], ...]]
+            | None
+        ) = None
         self._transient_failures: dict[str, list[tuple[int, str, str]]] = {}
         self._last_rendered_sequence = 0
         self._core_transport_ready = False
@@ -629,6 +641,23 @@ class AthenaMainWindow(QMainWindow):
         layout.addWidget(self.delete_chat_button)
         layout.addWidget(self.undo_trash_button)
         layout.addWidget(self.trash_recovery_button)
+        layout.addSpacing(10)
+        self.summarize_selected_button.setObjectName("summarizeSelectedButton")
+        self.summarize_selected_button.setToolTip(
+            "Summarize the exact selected persisted message revisions with the selected model"
+        )
+        self.summarize_selected_button.clicked.connect(
+            self._summarize_selected_messages
+        )
+        self.knowledge_selected_button.setObjectName("knowledgeSelectedButton")
+        self.knowledge_selected_button.setToolTip(
+            "Run one grounded Knowledge extraction over the exact selected persisted revisions"
+        )
+        self.knowledge_selected_button.clicked.connect(
+            self._extract_selected_messages_knowledge
+        )
+        layout.addWidget(self.summarize_selected_button)
+        layout.addWidget(self.knowledge_selected_button)
         layout.addSpacing(10)
 
         model_label = QLabel("MODEL")
@@ -1279,6 +1308,8 @@ class AthenaMainWindow(QMainWindow):
     ) -> None:
         self.current_chat_id = None
         self.loaded_chat_id = None
+        self._current_thread = None
+        self._selected_message_revisions.clear()
         self.selected_chat_id = None
         self.pending_chat_id = None
         self._last_rendered_sequence = 0
@@ -2912,6 +2943,19 @@ class AthenaMainWindow(QMainWindow):
         self.trash_recovery_button.setEnabled(controls_available)
         self.related_knowledge_button.setEnabled(
             controls_available and self.current_chat_id is not None
+        )
+        selected_count = len(self._selected_message_revisions)
+        self.summarize_selected_button.setEnabled(
+            controls_available
+            and self._core_ready
+            and selected_count > 0
+            and self._selected_model() is not None
+        )
+        self.knowledge_selected_button.setEnabled(
+            controls_available
+            and self._core_ready
+            and selected_count > 0
+            and self._selected_model() is not None
         )
         self.undo_trash_button.setEnabled(
             controls_available and self._last_trashed_chat_id is not None
