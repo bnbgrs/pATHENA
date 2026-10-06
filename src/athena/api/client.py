@@ -373,6 +373,91 @@ class CoreApiClient:
             )
         return thread
 
+    def regenerate_chat_message(
+        self,
+        chat_id: str,
+        message_id: str,
+        *,
+        revision_id: str,
+        model_id: str | None = None,
+        operation_id: str | None = None,
+        effective_context_limit: int | None = None,
+        max_output_tokens: int | None = None,
+        temperature: float | None = None,
+        thinking_enabled: bool | None = None,
+    ) -> ChatThreadResponse:
+        _require_path_segment(chat_id, label="Chat ID")
+        _require_path_segment(message_id, label="Message ID")
+        try:
+            canonical_revision_id = str(uuid.UUID(revision_id))
+        except ValueError as exc:
+            raise ValueError(
+                "Regenerate message revision ID must be a valid UUID."
+            ) from exc
+        if model_id is not None and not model_id.strip():
+            raise ValueError("Regenerate model_id must be non-empty when provided.")
+        canonical_operation_id: str | None = None
+        if operation_id is not None:
+            try:
+                canonical_operation_id = str(uuid.UUID(operation_id))
+            except ValueError as exc:
+                raise ValueError(
+                    "Regenerate operation_id must be a valid UUID."
+                ) from exc
+        if effective_context_limit is not None and (
+            isinstance(effective_context_limit, bool)
+            or not isinstance(effective_context_limit, int)
+            or effective_context_limit < 1
+        ):
+            raise ValueError(
+                "Regenerate effective_context_limit must be a positive integer."
+            )
+        if max_output_tokens is not None and (
+            isinstance(max_output_tokens, bool)
+            or not isinstance(max_output_tokens, int)
+            or max_output_tokens < 1
+        ):
+            raise ValueError(
+                "Regenerate max_output_tokens must be a positive integer."
+            )
+        if temperature is not None and (
+            isinstance(temperature, bool)
+            or not isinstance(temperature, (int, float))
+            or not 0.0 <= float(temperature) <= 2.0
+        ):
+            raise ValueError("Regenerate temperature must be between 0.0 and 2.0.")
+        if thinking_enabled is not None and not isinstance(thinking_enabled, bool):
+            raise TypeError("Regenerate thinking_enabled must be boolean.")
+
+        body: dict[str, object] = {"revision_id": canonical_revision_id}
+        if model_id is not None:
+            body["model_id"] = model_id
+        if canonical_operation_id is not None:
+            body["operation_id"] = canonical_operation_id
+        if effective_context_limit is not None:
+            body["effective_context_limit"] = effective_context_limit
+        if max_output_tokens is not None:
+            body["max_output_tokens"] = max_output_tokens
+        if temperature is not None:
+            body["temperature"] = float(temperature)
+        if thinking_enabled is not None:
+            body["thinking_enabled"] = thinking_enabled
+
+        thread = _chat_thread(
+            self._request(
+                "POST",
+                f"/api/v1/chats/{chat_id}/messages/{message_id}/regenerate",
+                expected_status=201,
+                json_body=body,
+            )
+        )
+        if thread.chat_id == chat_id:
+            raise CoreApiClientError(
+                "ATHENA Core returned the source chat instead of a regeneration branch.",
+                code="invalid_response",
+            )
+        return thread
+
     def capture_image_source(
         self,
         data: bytes,
