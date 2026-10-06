@@ -58,6 +58,8 @@ from athena.api.contracts import (
     RememberedChatMessageResponse,
 )
 from athena.desktop.api_controller import DesktopApiController, DesktopApiSnapshot
+from athena.api.search_contracts import SearchResultResponse
+from athena.retrieval.universal import UniversalSearchEntityType
 from athena.desktop.ascii_panel import AsciiPanel
 from athena.desktop.theme import BORDER, ORANGE, TEXT_DIM, TEXT_MUTED
 
@@ -413,6 +415,12 @@ class AthenaMainWindow(QMainWindow):
             "knowledge relationships appear here only when a grounded response provides them."
         )
         self.inspector_copy_button = QPushButton("COPY")
+        self.related_knowledge_button = QPushButton("RELATED")
+        self.related_knowledge_state = QLabel("No related Knowledge lookup yet.")
+        self.related_knowledge_state.setWordWrap(True)
+        self._related_search_request_id: int | None = None
+        self._related_search_query: str | None = None
+        self._current_thread: ChatThreadResponse | None = None
         self.connection_detail = QLabel("Awaiting Core API")
         self.connection_detail.setProperty("role", "muted")
         self.connection_detail.setWordWrap(True)
@@ -1801,6 +1809,24 @@ class AthenaMainWindow(QMainWindow):
         layout.addWidget(self.inspector_scroll, 1)
 
         layout.addWidget(_rule())
+        related_header = QHBoxLayout()
+        related_header.setContentsMargins(0, 0, 0, 0)
+        related_header.setSpacing(8)
+        related_header.addWidget(_section_label("RELATED KNOWLEDGE"))
+        related_header.addStretch(1)
+        self.related_knowledge_button.setObjectName("relatedKnowledgeButton")
+        self.related_knowledge_button.setToolTip(
+            "Search canonical Knowledge and Claims related to the latest persisted chat turn"
+        )
+        self.related_knowledge_button.clicked.connect(
+            self._request_related_knowledge
+        )
+        related_header.addWidget(self.related_knowledge_button)
+        layout.addLayout(related_header)
+        self.related_knowledge_state.setObjectName("inspectorBody")
+        layout.addWidget(self.related_knowledge_state)
+
+        layout.addWidget(_rule())
 
         job_header = QLabel("JOBS / API NOT CONNECTED")
         job_header.setObjectName("jobHeader")
@@ -1853,9 +1879,89 @@ class AthenaMainWindow(QMainWindow):
         controller.chat_busy_changed.connect(self.apply_chat_busy)
         controller.chat_cancel_state_changed.connect(self.apply_chat_cancel_state)
         controller.chat_cancelled.connect(self.apply_chat_cancelled)
+        controller.search_ready.connect(self._apply_related_knowledge_search)
+        controller.search_failed.connect(self._apply_related_knowledge_failure)
 
         QTimer.singleShot(0, self.refresh_core_status)
         self.refresh_timer.start()
+
+    def _request_related_knowledge(self) -> None:
+        controller = self.api_controller
+        thread = self._current_thread
+        if controller is None or self._chat_busy:
+            return
+        if thread is None:
+            self.related_knowledge_state.setText("Load a persisted conversation first.")
+            return
+        message = next(
+            (
+                item
+                for item in reversed(thread.messages)
+                if item.content is not None and item.content.strip()
+            ),
+            None,
+        )
+        if message is None or message.content is None:
+            self.related_knowledge_state.setText("No searchable persisted turn is available.")
+            return
+        query = " ".join(message.content.split())
+        if len(query) > 600:
+            query = query[:600].rstrip()
+        self._related_search_query = query
+        self.related_knowledge_state.setText("Searching canonical Knowledge…")
+        self._related_search_request_id = controller.search(
+            query,
+            limit=6,
+            entity_types=(
+                UniversalSearchEntityType.KNOWLEDGE,
+                UniversalSearchEntityType.CLAIM,
+            ),
+        )
+
+    @Slot(int, str, object)
+    def _apply_related_knowledge_search(
+        self,
+        request_id: int,
+        query: str,
+        results: object,
+    ) -> None:
+        if request_id != self._related_search_request_id:
+            return
+        self._related_search_request_id = None
+        if query != self._related_search_query or not isinstance(results, tuple):
+            self.related_knowledge_state.setText("Related Knowledge result was superseded.")
+            return
+        matches = tuple(item for item in results if isinstance(item, SearchResultResponse))
+        if not matches:
+            self.related_knowledge_state.setText("No related canonical Knowledge found.")
+            return
+        lines: list[str] = []
+        for item in matches[:6]:
+            title = (
+                item.title.strip()
+                if isinstance(item.title, str) and item.title.strip()
+                else item.entity_type
+            )
+            preview = " ".join(item.preview.split())
+            if len(preview) > 180:
+                preview = preview[:177].rstrip() + "…"
+            lines.append(f"{title} · {item.result_ref}\n{preview}")
+        self.related_knowledge_state.setText("\n\n".join(lines))
+
+    @Slot(int, str, str)
+    def _apply_related_knowledge_failure(
+        self,
+        request_id: int,
+        query: str,
+        error: str,
+    ) -> None:
+        del query
+        if request_id != self._related_search_request_id:
+            return
+        self._related_search_request_id = None
+        self.related_knowledge_state.setText(
+            f"Related Knowledge unavailable · {error}"
+        )
 
     @Slot()
     def refresh_core_status(self) -> None:
@@ -2015,6 +2121,8 @@ class AthenaMainWindow(QMainWindow):
         self._commit_loaded_chat_identity(
             thread.chat_id
         )
+        self._current_thread = thread
+        self.related_knowledge_state.setText("Select RELATED to search canonical Knowledge.")
         self._render_chat_thread(thread)
         self._schedule_recovery_inspection(thread)
 
@@ -2782,6 +2890,9 @@ class AthenaMainWindow(QMainWindow):
             controls_available and has_chat
         )
         self.trash_recovery_button.setEnabled(controls_available)
+        self.related_knowledge_button.setEnabled(
+            controls_available and self.current_chat_id is not None
+        )
         self.undo_trash_button.setEnabled(
             controls_available and self._last_trashed_chat_id is not None
         )
