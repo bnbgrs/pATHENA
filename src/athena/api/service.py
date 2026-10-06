@@ -36,6 +36,9 @@ from athena.api.contracts import (
     KnowledgeReviewResponse,
     KnowledgeUnitProposalResponse,
     MessageKnowledgeExtractionResponse,
+    MessageRevisionRefResponse,
+    MessageSelectionKnowledgeExtractionResponse,
+    MessageSelectionSummaryResponse,
     ModelResponse,
     NewsProfileResponse,
     ProviderHealthResponse,
@@ -61,6 +64,10 @@ from athena.chat.provenance import strip_durable_provenance_manifest
 from athena.chat.send_identity import (
     SendOperationState,
     SendOperationStateError,
+)
+from athena.chat.selection_summary import (
+    MessageSelectionSummaryResult,
+    MessageSelectionSummaryService,
 )
 from athena.chat.service import ChatService
 from athena.chat.unified import UnifiedLocalChatResult
@@ -175,6 +182,30 @@ class MessageKnowledgeExtractor(Protocol):
         context_limit: int | None = None,
         output_reserve: int | None = None,
     ) -> ChatExtractionResult: ...
+
+    def extract_selection(
+        self,
+        *,
+        chat_id: uuid.UUID,
+        message_revisions: tuple[tuple[uuid.UUID, uuid.UUID], ...],
+        requested_model_id: str | None = None,
+        context_limit: int | None = None,
+        output_reserve: int | None = None,
+    ) -> ChatExtractionResult: ...
+
+
+class MessageSelectionSummarizer(Protocol):
+    """Core-backed summary over exact persisted chat-message revisions."""
+
+    def summarize(
+        self,
+        *,
+        chat_id: uuid.UUID,
+        message_revisions: tuple[tuple[uuid.UUID, uuid.UUID], ...],
+        requested_model_id: str | None = None,
+        context_limit: int | None = None,
+        output_reserve: int | None = None,
+    ) -> MessageSelectionSummaryResult: ...
 
 
 class ChatMessageNotFoundError(LookupError):
@@ -329,6 +360,7 @@ class CoreApiFacade:
         self._unified_local_chat: UnifiedLocalChatSender | None = None
         self._personal_memory: PersonalMemoryWriter | None = None
         self._knowledge_extraction: MessageKnowledgeExtractor | None = None
+        self._message_selection_summary: MessageSelectionSummarizer | None = None
         self._extraction_snapshots: ExtractionSnapshotLoader | None = None
         self._proposal_review_planner: ProposalReviewPlanner | None = None
         self._knowledge_reviews: KnowledgeReviewQueue | None = None
@@ -445,6 +477,18 @@ class CoreApiFacade:
         self._personal_memory = personal_memory
         self._knowledge_extraction = extraction
 
+    def attach_message_selection_summary(
+        self,
+        summarizer: MessageSelectionSummarizer,
+    ) -> None:
+        """Attach durable exact-revision message-selection summaries once."""
+
+        if self._message_selection_summary is not None:
+            raise RuntimeError(
+                "Message-selection summary is already attached to the Core API."
+            )
+        self._message_selection_summary = summarizer
+
     def attach_knowledge_review(
         self,
         *,
@@ -454,6 +498,8 @@ class CoreApiFacade:
     ) -> None:
         """Attach frozen-proposal review services exactly once."""
 
+        if self._message_selection_summary is not None:
+            features = (*features, "chat.summarize.message_selection")
         if (
             self._extraction_snapshots is not None
             or self._proposal_review_planner is not None
@@ -497,6 +543,7 @@ class CoreApiFacade:
                 *features,
                 "memory.remember.chat_message",
                 "knowledge.extract.chat_message",
+                "knowledge.extract.message_selection",
             )
         if (
             self._extraction_snapshots is not None
@@ -1233,6 +1280,124 @@ class CoreApiFacade:
             revision_id=parsed_revision_id,
         )
 
+    def extract_chat_message_selection_knowledge(
+        self,
+        chat_id: str,
+        *,
+        message_revisions: tuple[tuple[str, str], ...],
+        requested_model_id: str | None = None,
+        effective_context_limit: int | None = None,
+        max_output_tokens: int | None = None,
+    ) -> MessageSelectionKnowledgeExtractionResponse:
+        if self._knowledge_extraction is None:
+            raise RuntimeError(
+                "Knowledge extraction is unavailable in this Core process."
+            )
+        parsed_chat_id, parsed_refs, messages = self._resolve_message_selection(
+            chat_id=chat_id,
+            message_revisions=message_revisions,
+        )
+        try:
+            result = self._knowledge_extraction.extract_selection(
+                chat_id=parsed_chat_id,
+                message_revisions=parsed_refs,
+                requested_model_id=requested_model_id,
+                context_limit=effective_context_limit,
+                output_reserve=max_output_tokens,
+            )
+        except ExtractionMessageNotFoundError as exc:
+            raise ChatMessageNotFoundError(str(exc)) from exc
+        except ExtractionMessageRevisionMismatchError as exc:
+            raise ChatMessageRevisionMismatchError(str(exc)) from exc
+        if result.chat_id != parsed_chat_id:
+            raise RuntimeError("Knowledge extraction returned another chat.")
+        return _selection_knowledge_extraction_response(
+            result,
+            messages=messages,
+        )
+
+    def summarize_chat_message_selection(
+        self,
+        chat_id: str,
+        *,
+        message_revisions: tuple[tuple[str, str], ...],
+        requested_model_id: str | None = None,
+        effective_context_limit: int | None = None,
+        max_output_tokens: int | None = None,
+    ) -> MessageSelectionSummaryResponse:
+        summarizer = self._message_selection_summary
+        if summarizer is None:
+            raise RuntimeError(
+                "Message-selection summary is unavailable in this Core process."
+            )
+        parsed_chat_id, parsed_refs, messages = self._resolve_message_selection(
+            chat_id=chat_id,
+            message_revisions=message_revisions,
+        )
+        result = summarizer.summarize(
+            chat_id=parsed_chat_id,
+            message_revisions=parsed_refs,
+            requested_model_id=requested_model_id,
+            context_limit=effective_context_limit,
+            output_reserve=max_output_tokens,
+        )
+        if result.chat_id != parsed_chat_id:
+            raise RuntimeError("Message-selection summary returned another chat.")
+        if tuple(
+            (message.message_id, message.revision_id)
+            for message in result.source_messages
+        ) != tuple(
+            (message.message_id, message.revision_id)
+            for message in messages
+        ):
+            raise RuntimeError(
+                "Message-selection summary returned another persisted selection."
+            )
+        return _message_selection_summary_response(result)
+
+    def _resolve_message_selection(
+        self,
+        *,
+        chat_id: str,
+        message_revisions: tuple[tuple[str, str], ...],
+    ) -> tuple[
+        uuid.UUID,
+        tuple[tuple[uuid.UUID, uuid.UUID], ...],
+        tuple[ChatMessage, ...],
+    ]:
+        if len(message_revisions) < 2:
+            raise ValueError("Message selection requires at least two messages.")
+        if len(message_revisions) > 100:
+            raise ValueError("Message selection cannot exceed 100 messages.")
+
+        parsed_chat_id = uuid.UUID(chat_id)
+        parsed_refs = tuple(
+            (uuid.UUID(message_id), uuid.UUID(revision_id))
+            for message_id, revision_id in message_revisions
+        )
+        if len(set(parsed_refs)) != len(parsed_refs):
+            raise ValueError("Message selection cannot contain duplicate revisions.")
+
+        thread = self._chat.load_chat(parsed_chat_id)
+        messages_by_id = {message.message_id: message for message in thread.messages}
+        selected: list[ChatMessage] = []
+        for message_id, revision_id in parsed_refs:
+            message = messages_by_id.get(message_id)
+            if message is None:
+                raise ChatMessageNotFoundError(
+                    "The selected chat message does not exist in this chat."
+                )
+            if message.revision_id != revision_id:
+                raise ChatMessageRevisionMismatchError(
+                    "The selected chat message revision is stale."
+                )
+            selected.append(message)
+        selected.sort(key=lambda message: message.sequence_no)
+        sorted_refs = tuple(
+            (message.message_id, message.revision_id) for message in selected
+        )
+        return parsed_chat_id, sorted_refs, tuple(selected)
+
     def _resolve_message_revision(
         self,
         *,
@@ -1538,6 +1703,95 @@ def _message_knowledge_extraction_response(
             )
             for index, item in enumerate(result.proposals.merge_candidates)
         ),
+    )
+
+
+def _message_revision_ref_response(
+    message: ChatMessage,
+) -> MessageRevisionRefResponse:
+    return MessageRevisionRefResponse(
+        message_id=str(message.message_id),
+        revision_id=str(message.revision_id),
+        sequence_no=message.sequence_no,
+    )
+
+
+def _selection_knowledge_extraction_response(
+    result: ChatExtractionResult,
+    *,
+    messages: tuple[ChatMessage, ...],
+) -> MessageSelectionKnowledgeExtractionResponse:
+    return MessageSelectionKnowledgeExtractionResponse(
+        chat_id=str(result.chat_id),
+        selected_messages=tuple(
+            _message_revision_ref_response(message) for message in messages
+        ),
+        processing_run_id=str(result.processing_run.processing_run_id),
+        model_id=result.model.backend_model_id,
+        model_signature_id=str(result.model_signature.model_signature_id),
+        knowledge_units=tuple(
+            KnowledgeUnitProposalResponse(
+                proposal_index=index,
+                source_sequence_no=item.source_sequence_no,
+                source_quote=item.source_quote,
+                knowledge_kind=item.knowledge_kind.value,
+                title=item.title,
+                body=item.body,
+                epistemic_status=item.epistemic_status.value,
+                confidence=item.confidence,
+            )
+            for index, item in enumerate(result.proposals.knowledge_units)
+        ),
+        claims=tuple(
+            ClaimProposalResponse(
+                proposal_index=index,
+                source_sequence_no=item.source_sequence_no,
+                source_quote=item.source_quote,
+                claim_kind=item.claim_kind.value,
+                statement=item.statement,
+                epistemic_status=item.epistemic_status.value,
+                confidence=item.confidence,
+            )
+            for index, item in enumerate(result.proposals.claims)
+        ),
+        relations=tuple(
+            RelationProposalResponse(
+                relation_index=index,
+                left_type=item.left_type.value,
+                left_index=item.left_index,
+                relation_type=item.relation_type,
+                right_type=item.right_type.value,
+                right_index=item.right_index,
+                confidence=item.confidence,
+            )
+            for index, item in enumerate(result.proposals.relations)
+        ),
+        extractor_merge_candidates=tuple(
+            ExtractorMergeCandidateResponse(
+                candidate_index=index,
+                proposal_type=item.proposal_type.value,
+                proposal_index=item.proposal_index,
+                reason=item.reason,
+                confidence=item.confidence,
+            )
+            for index, item in enumerate(result.proposals.merge_candidates)
+        ),
+    )
+
+
+def _message_selection_summary_response(
+    result: MessageSelectionSummaryResult,
+) -> MessageSelectionSummaryResponse:
+    return MessageSelectionSummaryResponse(
+        chat_id=str(result.chat_id),
+        selected_messages=tuple(
+            _message_revision_ref_response(message)
+            for message in result.source_messages
+        ),
+        processing_run_id=str(result.processing_run.processing_run_id),
+        model_id=result.model.backend_model_id,
+        model_signature_id=str(result.model_signature.model_signature_id),
+        summary_message=_chat_message(result.summary_message),
     )
 
 
