@@ -23,6 +23,8 @@ def _parser() -> argparse.ArgumentParser:
 
     enqueue = commands.add_parser("enqueue")
     enqueue.add_argument("query")
+    enqueue.add_argument("--prefer-domain", action="append", default=[])
+    enqueue.add_argument("--block-domain", action="append", default=[])
 
     listing = commands.add_parser("list")
     listing.add_argument("--limit", type=int, default=100)
@@ -125,9 +127,14 @@ def _print_show(app: AthenaApplication, job_id: uuid.UUID) -> None:
 
 def _run(app: AthenaApplication, args: argparse.Namespace) -> int:
     if args.command == "enqueue":
+        domains = tuple(
+            [f"prefer:{domain}" for domain in args.prefer_domain]
+            + [f"block:{domain}" for domain in args.block_domain]
+        )
         job = app.research.enqueue_local(
             query=args.query,
             priority=JobPriority.NORMAL,
+            domains=domains,
         )
         print(f"JOB_QUEUED {job.job_id}")
         print(f"QUERY {_query_for_job(job)}")
