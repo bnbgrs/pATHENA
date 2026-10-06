@@ -10,6 +10,7 @@ import pytest
 
 from athena.api import client as client_module
 from athena.api.client import CoreApiClient, CoreApiClientError
+from athena.api.contracts import ChatLifecycleTransitionResponse
 from athena.retrieval.universal import UniversalSearchEntityType
 
 
