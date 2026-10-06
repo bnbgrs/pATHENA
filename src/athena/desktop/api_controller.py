@@ -1390,9 +1390,12 @@ def _trash_snapshot(
     *,
     chat_limit: int,
 ) -> tuple[tuple[ChatSummaryResponse, ...], str | None]:
+    list_trashed = getattr(gateway, "list_trashed_chats", None)
+    if not callable(list_trashed):
+        return (), None
     try:
         return (
-            gateway.list_trashed_chats(limit=chat_limit, offset=0),
+            list_trashed(limit=chat_limit, offset=0),
             None,
         )
     except CoreApiClientError as exc:
