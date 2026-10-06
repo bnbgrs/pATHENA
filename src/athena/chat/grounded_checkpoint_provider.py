@@ -55,13 +55,32 @@ class GroundedCheckpointingProvider:
         temperature: float | None = None,
     ) -> Iterator[str]:
         attempt_no = self._claim_attempt_no()
-        stream = self._base.stream_chat(
-            model_id=model_id,
-            messages=messages,
-            max_output_tokens=max_output_tokens,
-            reasoning_mode=reasoning_mode,
-            temperature=temperature,
-        )
+        if temperature is not None:
+            stream = self._base.stream_chat(
+                model_id=model_id,
+                messages=messages,
+                max_output_tokens=max_output_tokens,
+                reasoning_mode=reasoning_mode,
+                temperature=temperature,
+            )
+        elif reasoning_mode is not None:
+            stream = self._base.stream_chat(
+                model_id=model_id,
+                messages=messages,
+                max_output_tokens=max_output_tokens,
+                reasoning_mode=reasoning_mode,
+            )
+        elif max_output_tokens is not None:
+            stream = self._base.stream_chat(
+                model_id=model_id,
+                messages=messages,
+                max_output_tokens=max_output_tokens,
+            )
+        else:
+            stream = self._base.stream_chat(
+                model_id=model_id,
+                messages=messages,
+            )
         for chunk in stream:
             self._record(attempt_no, chunk)
             yield chunk
