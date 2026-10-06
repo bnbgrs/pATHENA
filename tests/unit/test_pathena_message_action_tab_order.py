@@ -137,7 +137,7 @@ def test_new_message_is_included_after_resync() -> None:
     _message(document, 2)
     controller.sync()
 
-    assert window.property("pathenaMessageTabOrderCount") == 6
+    assert window.property("pathenaMessageTabOrderCount") == 12
 
 
 def test_event_filter_tolerates_transient_missing_document_binding() -> None:
