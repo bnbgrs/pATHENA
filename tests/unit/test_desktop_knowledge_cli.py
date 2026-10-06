@@ -172,6 +172,6 @@ def test_desktop_knowledge_show_surfaces_provenance_backlinks(
         assert "RELATED_KNOWLEDGE 1" in shown
         assert f"RELATED {second.knowledge_id} " in shown
         assert "shared_inputs=1" in shown
-        assert "title=Second grounded summary" in shown
+        assert "kind=summary" in shown
     finally:
         app.stop()
