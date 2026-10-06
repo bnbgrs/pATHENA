@@ -147,6 +147,7 @@ def test_capabilities_are_explicit_and_stable() -> None:
         "chat.create",
         "chat.edit.user_message",
         "chat.fork",
+        "chat.regenerate",
         "chat.pin",
         "chat.vision",
         "source.image.capture",
