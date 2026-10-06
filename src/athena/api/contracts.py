@@ -271,6 +271,25 @@ class ExtractorMergeCandidateResponse(ApiContract):
 
 
 @dataclass(frozen=True, slots=True)
+class SelectedMessageRevisionResponse(ApiContract):
+    message_id: str
+    message_revision_id: str
+
+
+@dataclass(frozen=True, slots=True)
+class SelectedMessagesKnowledgeExtractionResponse(ApiContract):
+    chat_id: str
+    messages: tuple[SelectedMessageRevisionResponse, ...]
+    processing_run_id: str
+    model_id: str
+    model_signature_id: str
+    knowledge_units: tuple[KnowledgeUnitProposalResponse, ...]
+    claims: tuple[ClaimProposalResponse, ...]
+    relations: tuple[RelationProposalResponse, ...]
+    extractor_merge_candidates: tuple[ExtractorMergeCandidateResponse, ...]
+
+
+@dataclass(frozen=True, slots=True)
 class MessageKnowledgeExtractionResponse(ApiContract):
     chat_id: str
     message_id: str
