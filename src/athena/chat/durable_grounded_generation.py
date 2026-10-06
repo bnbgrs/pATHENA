@@ -11,6 +11,8 @@ from athena.chat.generation import (
     ChatGenerationService,
     GenerationCancelledError,
 )
+from athena.chat.grounded_checkpoint_provider import GroundedCheckpointingProvider
+from athena.chat.grounded_partial_output import GroundedPartialOutputRepository
 from athena.chat.grounded_processing_run import (
     GroundedProcessingRunError,
     bind_grounded_processing_run,
@@ -297,9 +299,17 @@ class DurableGroundedGenerationService:
             fingerprint=fingerprint,
             receipt_payload_builder=receipt_payload_builder,
         )
+        checkpointing_provider = GroundedCheckpointingProvider(
+            self.generation.provider,
+            partial_output=GroundedPartialOutputRepository(
+                self.coordinator.database
+            ),
+            operation_id=operation_id,
+            chat_id=chat_id,
+        )
         delegated = ChatGenerationService(
             durable_chat,
-            self.generation.provider,
+            checkpointing_provider,
             interactive_demand=self.generation.interactive_demand,
         )
 
