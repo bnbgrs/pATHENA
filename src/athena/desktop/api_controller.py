@@ -16,6 +16,7 @@ from athena.api.contracts import (
     ChatThreadResponse,
     DeletionPreviewResponse,
     DeletionResultResponse,
+    LifecycleTransitionResponse,
     GroundedChatResponse,
     HealthResponse,
     ImageSourceResponse,
@@ -72,6 +73,17 @@ class CoreApiGateway(Protocol):
         limit: int = 50,
         offset: int = 0,
     ) -> tuple[ChatSummaryResponse, ...]: ...
+
+    def list_trashed_chats(
+        self,
+        *,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> tuple[ChatSummaryResponse, ...]: ...
+
+    def trash_chat(self, chat_id: str) -> LifecycleTransitionResponse: ...
+
+    def restore_chat(self, chat_id: str) -> LifecycleTransitionResponse: ...
 
     def set_chat_pinned(
         self,
@@ -287,6 +299,8 @@ class _ChatOperationOutcome:
     image_source: ImageSourceResponse | None = None
     deletion_preview: DeletionPreviewResponse | None = None
     deleted_chat_id: str | None = None
+    trashed_chats: tuple[ChatSummaryResponse, ...] | None = None
+    lifecycle_transition: LifecycleTransitionResponse | None = None
     remembered: RememberedChatMessageResponse | None = None
     knowledge_extraction: MessageKnowledgeExtractionResponse | None = None
     knowledge_review: KnowledgeReviewResponse | None = None
@@ -307,6 +321,8 @@ class _ChatOperationOutcome:
                 self.image_source,
                 self.deletion_preview,
                 self.deleted_chat_id,
+                self.trashed_chats,
+                self.lifecycle_transition,
                 self.remembered,
                 self.knowledge_extraction,
                 self.knowledge_review,
@@ -983,6 +999,37 @@ class _ChatTask(QRunnable):
                     pinned_chat_id=resolved_chat_id,
                     pinned_state=self.pinned_state,
                 )
+            elif self.operation == "list_trash":
+                outcome = _ChatOperationOutcome(
+                    operation=self.operation,
+                    trashed_chats=self.gateway.list_trashed_chats(limit=200),
+                )
+            elif self.operation == "trash":
+                if resolved_chat_id is None:
+                    raise ValueError("Chat trash requires a chat ID.")
+                transition = self.gateway.trash_chat(resolved_chat_id)
+                if (
+                    transition.entity_id != resolved_chat_id
+                    or transition.lifecycle_state != "trashed"
+                ):
+                    raise RuntimeError("Chat trash result is inconsistent.")
+                outcome = _ChatOperationOutcome(
+                    operation=self.operation,
+                    lifecycle_transition=transition,
+                )
+            elif self.operation == "restore":
+                if resolved_chat_id is None:
+                    raise ValueError("Chat restore requires a chat ID.")
+                transition = self.gateway.restore_chat(resolved_chat_id)
+                if (
+                    transition.entity_id != resolved_chat_id
+                    or transition.lifecycle_state != "active"
+                ):
+                    raise RuntimeError("Chat restore result is inconsistent.")
+                outcome = _ChatOperationOutcome(
+                    operation=self.operation,
+                    lifecycle_transition=transition,
+                )
             elif self.operation == "preview_delete":
                 if resolved_chat_id is None:
                     raise ValueError("Chat deletion preview requires a chat ID.")
@@ -1514,6 +1561,9 @@ class DesktopApiController(QObject):
     image_source_captured = Signal(object)
     chat_deletion_preview_ready = Signal(object)
     chat_deleted = Signal(str)
+    trash_list_ready = Signal(object)
+    chat_trashed = Signal(object)
+    chat_restored = Signal(object)
     chat_pin_changed = Signal(str, bool)
     message_remembered = Signal(object)
     knowledge_extraction_ready = Signal(object)
@@ -1927,6 +1977,21 @@ class DesktopApiController(QObject):
             pinned_state=pinned,
         )
 
+    def list_trashed_chats(self) -> None:
+        if self._chat_busy:
+            return
+        self._start_chat_task(operation="list_trash", chat_id=None)
+
+    def trash_chat(self, chat_id: str) -> None:
+        if not chat_id or self._chat_busy:
+            return
+        self._start_chat_task(operation="trash", chat_id=chat_id)
+
+    def restore_chat(self, chat_id: str) -> None:
+        if not chat_id or self._chat_busy:
+            return
+        self._start_chat_task(operation="restore", chat_id=chat_id)
+
     def preview_chat_deletion(self, chat_id: str) -> None:
         if not chat_id or self._chat_busy:
             return
@@ -2213,6 +2278,15 @@ class DesktopApiController(QObject):
                         "Generation completed before cancellation could take effect.",
                     )
                 self.grounded_chat_sent.emit(outcome.grounded)
+            elif outcome.trashed_chats is not None:
+                self.trash_list_ready.emit(outcome.trashed_chats)
+            elif outcome.lifecycle_transition is not None:
+                if outcome.operation == "trash":
+                    self.chat_trashed.emit(outcome.lifecycle_transition)
+                    self.refresh()
+                elif outcome.operation == "restore":
+                    self.chat_restored.emit(outcome.lifecycle_transition)
+                    self.refresh()
             elif outcome.deletion_preview is not None:
                 self.chat_deletion_preview_ready.emit(outcome.deletion_preview)
             elif outcome.deleted_chat_id is not None:
