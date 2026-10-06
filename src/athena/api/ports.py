@@ -91,6 +91,20 @@ class CoreDomainSurface(Protocol):
         revision_id: str,
     ) -> ChatThreadResponse: ...
 
+    def regenerate_chat_message(
+        self,
+        chat_id: str,
+        message_id: str,
+        *,
+        revision_id: str,
+        requested_model_id: str | None = None,
+        operation_id: str | None = None,
+        effective_context_limit: int | None = None,
+        max_output_tokens: int | None = None,
+        temperature: float | None = None,
+        thinking_enabled: bool | None = None,
+    ) -> ChatThreadResponse: ...
+
     def remember_chat_message(
         self,
         chat_id: str,
