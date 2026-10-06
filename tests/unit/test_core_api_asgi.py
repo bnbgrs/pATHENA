@@ -9,8 +9,8 @@ from athena.api.asgi import CoreApiAsgiApp
 from athena.api.contracts import (
     ChatLifecycleTransitionResponse,
     ChatMessageResponse,
-    ChatSummaryResponse,
     ChatOperationRecoveryResponse,
+    ChatSummaryResponse,
     ChatThreadResponse,
     GroundedChatResponse,
     GroundingResponse,
