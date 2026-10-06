@@ -383,10 +383,8 @@ def render_knowledge_entity_review(review: KnowledgeEntityReview) -> str:
             f"{provenance_item.role.replace('_', ' ')} · "
             f"{_short(provenance_item.entity_id)}{revision}"
         )
-    if review.entity_type == "knowledge":
+    if review.entity_type == "knowledge" and review.related:
         lines.extend(("", "Related Knowledge"))
-        if not review.related:
-            lines.append("No provenance-backed related Knowledge was found.")
         for item in review.related:
             lines.append(
                 f"{_short(item.knowledge_id)} · "
