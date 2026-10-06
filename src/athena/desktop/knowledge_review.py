@@ -73,8 +73,8 @@ class KnowledgeEntityReview:
     content: str
     title: str | None
     provenance: tuple[ProvenanceReview, ...]
-    related: tuple[RelatedKnowledgeReview, ...]
     evidence: tuple[EvidenceReview, ...]
+    related: tuple[RelatedKnowledgeReview, ...] = ()
 
 
 def _canonical_uuid(value: str, label: str) -> str:
