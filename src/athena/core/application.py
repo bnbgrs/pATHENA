@@ -60,6 +60,7 @@ from athena.knowledge.source_hierarchical_service import SourceHierarchicalExtra
 from athena.lifecycle.protected_purge import ProtectedScopePurgeService
 from athena.lifecycle.purge import LifecyclePurgeService
 from athena.lifecycle.service import LifecycleDeletionService
+from athena.lifecycle.trash import LifecycleTrashService
 from athena.memory.repository import PersonalMemoryRepository
 from athena.memory.service import PersonalMemoryService
 from athena.model.adapters.lm_studio import LMStudioProvider
@@ -264,6 +265,10 @@ class AthenaApplication:
             chat=self.chat,
             deletion_sync=self.backup.sync_all_deletion_ledgers,
         )
+        self.lifecycle_trash = LifecycleTrashService(
+            database=self.database,
+            chat=self.chat,
+        )
         self.lifecycle_purge = LifecyclePurgeService(
             database=self.database,
             blob_store=self.blob_store,
@@ -344,6 +349,7 @@ class AthenaApplication:
             model_provider=self.model_provider,
             direct_chat=self.direct_chat,
             lifecycle_deletion=self.lifecycle_deletion,
+            lifecycle_trash=self.lifecycle_trash,
             image_sources=self.sources,
         )
         self.knowledge_read = attach_knowledge_read_api(
