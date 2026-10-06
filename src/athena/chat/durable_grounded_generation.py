@@ -333,6 +333,13 @@ class DurableGroundedGenerationService:
                 fingerprint=fingerprint,
             )
 
+        def journal_uncommitted_delta(delta: str) -> None:
+            self.coordinator.record_provider_partial_delta(
+                operation_id=operation_id,
+                chat_id=chat_id,
+                delta=delta,
+            )
+
         try:
             result = delegated.send_context_package(
                 chat_id=chat_id,
@@ -340,6 +347,7 @@ class DurableGroundedGenerationService:
                 context_package=context_package,
                 operation_id=operation_id,
                 on_delta=None,
+                on_uncommitted_delta=journal_uncommitted_delta,
                 grounding_contract=grounding_contract,
                 on_before_provider_call=before_provider,
                 cancel_requested=cancel_requested,
