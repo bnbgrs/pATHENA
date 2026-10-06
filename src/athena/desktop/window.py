@@ -2695,6 +2695,7 @@ class AthenaMainWindow(QMainWindow):
 
         knowledge_operations = {
             "extract_knowledge",
+            "extract_selection_knowledge",
             "prepare_knowledge_review",
             "load_merge_review",
             "resolve_merge_review",
@@ -2729,7 +2730,9 @@ class AthenaMainWindow(QMainWindow):
             else "Chat loading"
             if operation == "load"
             else "Knowledge extraction"
-            if operation == "extract_knowledge"
+            if operation in {"extract_knowledge", "extract_selection_knowledge"}
+            else "Selection summary"
+            if operation == "summarize_selection"
             else "Knowledge review"
             if operation in {
                 "prepare_knowledge_review",
@@ -2754,6 +2757,8 @@ class AthenaMainWindow(QMainWindow):
                 "fork",
                 "remember",
                 "extract_knowledge",
+                "extract_selection_knowledge",
+                "summarize_selection",
                 "prepare_knowledge_review",
                 "resolve_merge_review",
             }
@@ -3649,7 +3654,10 @@ class AthenaMainWindow(QMainWindow):
 
         if (
             controller is None
-            or self._knowledge_review_request is None
+            or (
+                self._knowledge_review_request is None
+                and self._knowledge_selection_review_request is None
+            )
             or extraction is None
             or extraction.processing_run_id != processing_run_id
         ):
