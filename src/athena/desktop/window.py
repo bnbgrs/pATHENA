@@ -44,9 +44,11 @@ from PySide6.QtWidgets import (
 from athena.api.contracts import (
     CanonicalMergeReviewResponse,
     ChatOperationRecoveryResponse,
+    ChatSummaryResponse,
     ChatThreadResponse,
     DeletionPreviewResponse,
     GroundedChatResponse,
+    LifecycleTransitionResponse,
     GroundedEvidenceResponse,
     ImageSourceResponse,
     KnowledgeMergeReviewResponse,
@@ -332,7 +334,10 @@ class AthenaMainWindow(QMainWindow):
         self.settings_model_selector = QComboBox()
         self.context_slider = QSlider(Qt.Orientation.Horizontal)
         self.context_value_label = QLabel("—")
-        self.delete_chat_button = QPushButton("DELETE")
+        self.delete_chat_button = QPushButton("TRASH")
+        self.trash_recovery_button = QPushButton("RECOVER")
+        self.undo_trash_button = QPushButton("UNDO")
+        self.undo_trash_button.hide()
         self.pin_chat_button = QPushButton("PIN")
         self.new_chat_button = QPushButton("NEW CHAT")
         self.recovery_bar = QFrame()
@@ -354,6 +359,7 @@ class AthenaMainWindow(QMainWindow):
         self._thinking_by_model: dict[str, bool] = {}
         self._remembered_message_revisions: set[tuple[str, str]] = set()
         self._pinned_chat_ids: set[str] = set()
+        self._last_trashed_chat_id: str | None = None
         self._pending_image_source_ids: list[str] = []
         self._pending_image_names: list[str] = []
         self._knowledge_extraction: MessageKnowledgeExtractionResponse | None = None
@@ -613,6 +619,8 @@ class AthenaMainWindow(QMainWindow):
         layout.addWidget(self.new_chat_button)
         layout.addWidget(self.pin_chat_button)
         layout.addWidget(self.delete_chat_button)
+        layout.addWidget(self.undo_trash_button)
+        layout.addWidget(self.trash_recovery_button)
         layout.addSpacing(10)
 
         model_label = QLabel("MODEL")
@@ -1353,14 +1361,113 @@ class AthenaMainWindow(QMainWindow):
 
     def _request_chat_deletion(self) -> None:
         controller = self.api_controller
+        chat_id = self.current_chat_id
         if (
             controller is None
-            or self.current_chat_id is None
+            or chat_id is None
             or self._chat_busy
             or self.pending_chat_id is not None
         ):
             return
-        controller.preview_chat_deletion(self.current_chat_id)
+
+        dialog = QMessageBox(self)
+        dialog.setWindowTitle("Move chat to Trash")
+        dialog.setIcon(QMessageBox.Icon.NoIcon)
+        dialog.setText(
+            "Move this conversation to Trash?\n\n"
+            "The chat and its messages remain durable and can be restored."
+        )
+        dialog.setStandardButtons(
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel
+        )
+        dialog.setDefaultButton(QMessageBox.StandardButton.Cancel)
+        if QMessageBox.StandardButton(dialog.exec()) != QMessageBox.StandardButton.Yes:
+            return
+        controller.trash_chat(chat_id)
+
+    def _undo_last_trash(self) -> None:
+        controller = self.api_controller
+        chat_id = self._last_trashed_chat_id
+        if controller is None or chat_id is None or self._chat_busy:
+            return
+        self.undo_trash_button.setEnabled(False)
+        controller.restore_chat(chat_id)
+
+    def _open_trash_recovery(self) -> None:
+        controller = self.api_controller
+        if controller is None or self._chat_busy:
+            return
+        controller.list_trashed_chats()
+
+    @Slot(object)
+    def apply_trash_list_ready(self, items: object) -> None:
+        if not isinstance(items, tuple):
+            return
+        chats = tuple(item for item in items if isinstance(item, ChatSummaryResponse))
+        if not chats:
+            self.connection_detail.setText("Trash is empty.")
+            return
+        labels = [
+            f"{chat.chat_id}  ·  {chat.message_count} messages"
+            for chat in chats
+        ]
+        selected, accepted = QInputDialog.getItem(
+            self,
+            "Conversation recovery",
+            "Restore trashed conversation:",
+            labels,
+            0,
+            False,
+        )
+        if not accepted:
+            return
+        try:
+            index = labels.index(selected)
+        except ValueError:
+            return
+        controller = self.api_controller
+        if controller is not None:
+            controller.restore_chat(chats[index].chat_id)
+
+    @Slot(object)
+    def apply_chat_trashed(self, transition: object) -> None:
+        if not isinstance(transition, LifecycleTransitionResponse):
+            return
+        if transition.lifecycle_state != "trashed":
+            return
+        chat_id = transition.entity_id
+        self._last_trashed_chat_id = chat_id
+        if chat_id == self.current_chat_id:
+            self._transient_failures.pop(chat_id, None)
+            self._enter_new_chat_state(
+                clear_transient=True,
+                message="Conversation moved to Trash. Undo is available.",
+            )
+        self.undo_trash_button.show()
+        self.undo_trash_button.setEnabled(True)
+        self.connection_detail.setText(
+            "Conversation moved to Trash. UNDO restores the same stable chat ID."
+        )
+        QTimer.singleShot(12_000, self._expire_trash_undo)
+        QTimer.singleShot(0, self.refresh_core_status)
+
+    def _expire_trash_undo(self) -> None:
+        self._last_trashed_chat_id = None
+        self.undo_trash_button.hide()
+
+    @Slot(object)
+    def apply_chat_restored(self, transition: object) -> None:
+        if not isinstance(transition, LifecycleTransitionResponse):
+            return
+        if transition.lifecycle_state != "active":
+            return
+        if transition.entity_id == self._last_trashed_chat_id:
+            self._last_trashed_chat_id = None
+            self.undo_trash_button.hide()
+        self.connection_detail.setText(
+            f"Conversation restored · {transition.entity_id}"
+        )
+        QTimer.singleShot(0, self.refresh_core_status)
 
     def apply_chat_deletion_preview(self, preview: object) -> None:
         if not isinstance(preview, DeletionPreviewResponse):
@@ -1555,10 +1662,23 @@ class AthenaMainWindow(QMainWindow):
         )
         self.pin_chat_button.clicked.connect(self._toggle_chat_pin)
         self.delete_chat_button.setObjectName("deleteChatButton")
+        self.delete_chat_button.setAccessibleName("Move conversation to trash")
         self.delete_chat_button.setToolTip(
-            "Preview and logically delete the selected persistent chat"
+            "Move the selected persistent chat to reversible Trash"
         )
         self.delete_chat_button.clicked.connect(self._request_chat_deletion)
+        self.undo_trash_button.setObjectName("undoTrashButton")
+        self.undo_trash_button.setAccessibleName("Undo conversation trash")
+        self.undo_trash_button.setToolTip(
+            "Restore the most recently trashed conversation while Undo is available"
+        )
+        self.undo_trash_button.clicked.connect(self._undo_last_trash)
+        self.trash_recovery_button.setObjectName("trashRecoveryButton")
+        self.trash_recovery_button.setAccessibleName("Open conversation recovery")
+        self.trash_recovery_button.setToolTip(
+            "View trashed conversations by stable ID and restore one"
+        )
+        self.trash_recovery_button.clicked.connect(self._open_trash_recovery)
         self.new_chat_button.setObjectName("newChatButton")
         self.new_chat_button.setToolTip("Start a new empty chat session")
         self.new_chat_button.clicked.connect(self._start_new_chat)
@@ -1717,6 +1837,9 @@ class AthenaMainWindow(QMainWindow):
             self.apply_chat_deletion_preview
         )
         controller.chat_deleted.connect(self.apply_chat_deleted)
+        controller.trash_list_ready.connect(self.apply_trash_list_ready)
+        controller.chat_trashed.connect(self.apply_chat_trashed)
+        controller.chat_restored.connect(self.apply_chat_restored)
         controller.chat_pin_changed.connect(self.apply_chat_pin_changed)
         controller.message_remembered.connect(self.apply_message_remembered)
         controller.knowledge_extraction_ready.connect(
@@ -2657,6 +2780,10 @@ class AthenaMainWindow(QMainWindow):
         has_chat = self.current_chat_id is not None
         self.delete_chat_button.setEnabled(
             controls_available and has_chat
+        )
+        self.trash_recovery_button.setEnabled(controls_available)
+        self.undo_trash_button.setEnabled(
+            controls_available and self._last_trashed_chat_id is not None
         )
         self.pin_chat_button.setEnabled(
             controls_available and has_chat
