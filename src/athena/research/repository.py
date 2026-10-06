@@ -8,6 +8,7 @@ import json
 import sqlite3
 import uuid
 from collections.abc import Mapping, Sequence
+from urllib.parse import urlsplit
 from typing import Any
 
 from athena.common.ids import new_uuid7, uuid_from_blob, uuid_to_blob
@@ -89,7 +90,71 @@ from athena.research.validation import (
 )
 from athena.storage.database import SQLiteDatabase
 
+
 PRECISE_SYNTHESIS_PROVENANCE_POLICY_ID = "terminal-source-output-v1"
+
+
+def _normalize_research_domain(value: str) -> str:
+    domain = value.strip().casefold().rstrip(".")
+    if domain.startswith("*."):
+        domain = domain[2:]
+    if not domain or "/" in domain or " " in domain or ":" in domain:
+        raise ResearchScopeUnsupportedError(
+            f"Research domain policy contains an invalid domain: {value!r}."
+        )
+    try:
+        domain = domain.encode("idna").decode("ascii")
+    except UnicodeError as exc:
+        raise ResearchScopeUnsupportedError(
+            f"Research domain policy contains an invalid domain: {value!r}."
+        ) from exc
+    if "." not in domain and domain != "localhost":
+        raise ResearchScopeUnsupportedError(
+            f"Research domain policy requires a hostname: {value!r}."
+        )
+    return domain
+
+
+def _research_domain_policy(
+    values: Sequence[str],
+) -> tuple[tuple[str, ...], tuple[str, ...], tuple[str, ...]]:
+    include: set[str] = set()
+    prefer: set[str] = set()
+    block: set[str] = set()
+    for raw in values:
+        mode = "include"
+        value = raw
+        if raw.startswith("prefer:"):
+            mode, value = "prefer", raw[7:]
+        elif raw.startswith("block:"):
+            mode, value = "block", raw[6:]
+        domain = _normalize_research_domain(value)
+        {"include": include, "prefer": prefer, "block": block}[mode].add(domain)
+    overlap = block & (include | prefer)
+    if overlap:
+        names = ", ".join(sorted(overlap))
+        raise ResearchScopeUnsupportedError(
+            f"Research domain policy both includes/prefers and blocks: {names}."
+        )
+    return tuple(sorted(include)), tuple(sorted(prefer)), tuple(sorted(block))
+
+
+def _source_hostname(source_uri: object) -> str | None:
+    if not isinstance(source_uri, str) or not source_uri.strip():
+        return None
+    candidate = source_uri.strip()
+    try:
+        parsed = urlsplit(candidate if "://" in candidate else "//" + candidate)
+    except ValueError:
+        return None
+    hostname = parsed.hostname
+    return hostname.casefold().rstrip(".") if hostname else None
+
+
+def _hostname_matches(hostname: str | None, domain: str) -> bool:
+    return hostname == domain or (
+        hostname is not None and hostname.endswith("." + domain)
+    )
 
 
 
@@ -245,9 +310,12 @@ class ResearchRepository:
 
             domains = _json_string_array(scope.domains_json, "domains_json")
             projects = _json_string_array(scope.project_ids_json, "project_ids_json")
-            if domains or projects:
+            include_domains, preferred_domains, blocked_domains = (
+                _research_domain_policy(domains)
+            )
+            if projects:
                 raise ResearchScopeUnsupportedError(
-                    "Foundation local discovery cannot yet apply domain/project filters; "
+                    "Foundation local discovery cannot yet apply project filters; "
                     "refusing to silently broaden the ResearchScope."
                 )
             internet_scope: Mapping[str, Any] | None = None
@@ -365,6 +433,38 @@ class ResearchRepository:
                 time_start_us=scope.time_start_us,
                 time_end_us=scope.time_end_us,
             )
+            if domains:
+                def allowed_by_domain_policy(row: sqlite3.Row) -> bool:
+                    hostname = _source_hostname(row["source_uri"])
+                    if any(_hostname_matches(hostname, domain) for domain in blocked_domains):
+                        return False
+                    if include_domains and not any(
+                        _hostname_matches(hostname, domain)
+                        for domain in include_domains
+                    ):
+                        return False
+                    return True
+
+                rows = tuple(row for row in rows if allowed_by_domain_policy(row))
+                if preferred_domains:
+                    rows = tuple(
+                        sorted(
+                            rows,
+                            key=lambda row: (
+                                0
+                                if any(
+                                    _hostname_matches(
+                                        _source_hostname(row["source_uri"]),
+                                        domain,
+                                    )
+                                    for domain in preferred_domains
+                                )
+                                else 1,
+                                int(row["acquired_at_us"]),
+                                bytes(row["source_id"]),
+                            ),
+                        )
+                    )
             if scope.mode is ResearchMode.LOCAL_PLUS_WEB:
                 authorized = set(authorized_external_source_ids)
                 rows = tuple(
@@ -2843,7 +2943,12 @@ class ResearchRepository:
         where = " AND ".join(clauses)
         rows = connection.execute(
             f"""
-            SELECT s.source_id, s.source_type, s.acquired_at_us, s.content_sha256
+            SELECT
+                s.source_id,
+                s.source_type,
+                s.acquired_at_us,
+                s.content_sha256,
+                s.source_uri
             FROM sources AS s
             JOIN entity_state_history AS esh
               ON esh.entity_id = s.source_id
