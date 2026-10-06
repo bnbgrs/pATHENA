@@ -64,11 +64,13 @@ class _Provider:
         messages: Sequence[ModelChatMessage],
         max_output_tokens: int | None = None,
         reasoning_mode: str | None = None,
+        temperature: float | None = None,
     ) -> Iterator[str]:
         del messages
         assert model_id == "primary"
         assert max_output_tokens == 1000
         assert reasoning_mode == "off"
+        assert temperature is None
         self.calls += 1
         yield "durable answer"
 
@@ -309,7 +311,12 @@ def test_grounding_retry_is_fenced_before_second_provider_call(tmp_path: Path) -
                 ),
                 on_before_provider_call=on_before_provider_call,
             )
-        assert exc_info.value.status.state is GroundedRecoveryState.AMBIGUOUS
+        assert (
+            exc_info.value.status.state
+            is GroundedRecoveryState.PARTIAL_AVAILABLE
+        )
+        assert exc_info.value.status.partial_output is not None
+        assert exc_info.value.status.partial_output.content == "durable answer"
         assert provider.calls == 1
         assert before_provider_calls == 1
         assert coordinator.provider_attempts.load(operation_id) is not None
@@ -318,7 +325,7 @@ def test_grounding_retry_is_fenced_before_second_provider_call(tmp_path: Path) -
             operation_id=operation_id,
             chat_id=chat_id,
             fingerprint=fingerprint,
-        ).state is GroundedRecoveryState.AMBIGUOUS
+        ).state is GroundedRecoveryState.PARTIAL_AVAILABLE
         assert len(chats.load_chat(chat_id).messages) == 1
     finally:
         database.stop()

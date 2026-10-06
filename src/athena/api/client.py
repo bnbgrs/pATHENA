@@ -2237,6 +2237,7 @@ def _chat_operation_recovery(
         "absent",
         "resumable",
         "ambiguous",
+        "partial_available",
         "result_available",
         "finalization_required",
         "complete",

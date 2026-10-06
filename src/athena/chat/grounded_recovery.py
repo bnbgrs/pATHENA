@@ -16,6 +16,11 @@ from athena.chat.grounded_context_package import (
     GroundedContextPackageRepository,
     GroundedContextPackageSchemaError,
 )
+from athena.chat.grounded_partial_output import (
+    GroundedPartialOutput,
+    GroundedPartialOutputError,
+    GroundedPartialOutputRepository,
+)
 from athena.chat.grounded_processing_run import (
     GroundedProcessingRunError,
     complete_grounded_processing_run,
@@ -57,6 +62,7 @@ class GroundedRecoveryState(str, Enum):
     ABSENT = "absent"
     RESUMABLE = "resumable"
     AMBIGUOUS = "ambiguous"
+    PARTIAL_AVAILABLE = "partial_available"
     RESULT_AVAILABLE = "result_available"
     FINALIZATION_REQUIRED = "finalization_required"
     COMPLETE = "complete"
@@ -71,6 +77,7 @@ class GroundedRecoveryStatus:
     receipt: GroundedSendReceipt | None
     provider_result: GroundedProviderResult | None = None
     provider_identity: GroundedProviderResultIdentity | None = None
+    partial_output: GroundedPartialOutput | None = None
     processing_run_id: uuid.UUID | None = None
 
 
@@ -87,6 +94,7 @@ class GroundedSendRecovery:
         self.reconciler = GroundedSendReconciler(database)
         self.context_packages = GroundedContextPackageRepository(database)
         self.provider_attempts = GroundedProviderAttemptRepository(database)
+        self.partial_outputs = GroundedPartialOutputRepository(database)
         self.assistant_turns = GroundedAssistantTurnRepository(database)
         self.completions = GroundedSendCompletionRepository(database)
         self.chats = ChatRepository(database)
@@ -239,6 +247,22 @@ class GroundedSendRecovery:
                 GroundedRecoveryState.CONFLICT,
                 processing_run_id=operation.processing_run_id,
             )
+        try:
+            partial_output = self.partial_outputs.load_latest(operation_id)
+        except GroundedPartialOutputError:
+            return self._status(
+                operation_id,
+                chat_id,
+                GroundedRecoveryState.CONFLICT,
+                processing_run_id=operation.processing_run_id,
+            )
+        if partial_output is not None and partial_output.chat_id != chat_id:
+            return self._status(
+                operation_id,
+                chat_id,
+                GroundedRecoveryState.CONFLICT,
+                processing_run_id=operation.processing_run_id,
+            )
         if not self._operation_processing_run_is_valid(
             operation=operation,
             context_record=context_record,
@@ -293,15 +317,17 @@ class GroundedSendRecovery:
                 provider_identity=identity,
                 processing_run_id=operation.processing_run_id,
             )
-        state = (
-            GroundedRecoveryState.RESUMABLE
-            if attempt is None
-            else GroundedRecoveryState.AMBIGUOUS
-        )
+        if attempt is None:
+            state = GroundedRecoveryState.RESUMABLE
+        elif partial_output is not None:
+            state = GroundedRecoveryState.PARTIAL_AVAILABLE
+        else:
+            state = GroundedRecoveryState.AMBIGUOUS
         return self._status(
             operation_id,
             chat_id,
             state,
+            partial_output=partial_output,
             processing_run_id=operation.processing_run_id,
         )
 
@@ -656,6 +682,7 @@ class GroundedSendRecovery:
         *,
         provider_result: GroundedProviderResult | None = None,
         provider_identity: GroundedProviderResultIdentity | None = None,
+        partial_output: GroundedPartialOutput | None = None,
         processing_run_id: uuid.UUID | None = None,
     ) -> GroundedRecoveryStatus:
         return GroundedRecoveryStatus(
@@ -665,5 +692,6 @@ class GroundedSendRecovery:
             receipt=None,
             provider_result=provider_result,
             provider_identity=provider_identity,
+            partial_output=partial_output,
             processing_run_id=processing_run_id,
         )

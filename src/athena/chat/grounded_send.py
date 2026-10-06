@@ -314,7 +314,10 @@ class GroundedSendCoordinator:
             chat_id=chat_id,
             fingerprint=fingerprint,
         )
-        if before.state is not GroundedRecoveryState.AMBIGUOUS:
+        if before.state not in {
+            GroundedRecoveryState.AMBIGUOUS,
+            GroundedRecoveryState.PARTIAL_AVAILABLE,
+        }:
             raise GroundedProviderResultError(before)
         result = self.provider_attempts.store_result(
             operation_id=operation_id,
