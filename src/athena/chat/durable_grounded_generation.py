@@ -39,6 +39,7 @@ from athena.chat.models import ChatMessage
 from athena.chat.request_fingerprint import ChatRequestFingerprint
 from athena.chat.service import ChatService
 from athena.retrieval.context_package import ContextPackage
+from athena.storage.database import SQLiteDatabase
 
 ReceiptPayloadBuilder = Callable[[str, str, str], str]
 
@@ -303,17 +304,19 @@ class DurableGroundedGenerationService:
             fingerprint=fingerprint,
             receipt_payload_builder=receipt_payload_builder,
         )
-        checkpointing_provider = GroundedCheckpointingProvider(
-            self.generation.provider,
-            partial_output=GroundedPartialOutputRepository(
-                self.coordinator.database
-            ),
-            operation_id=operation_id,
-            chat_id=chat_id,
-        )
+        provider = self.generation.provider
+        if isinstance(self.coordinator.database, SQLiteDatabase):
+            provider = GroundedCheckpointingProvider(
+                provider,
+                partial_output=GroundedPartialOutputRepository(
+                    self.coordinator.database
+                ),
+                operation_id=operation_id,
+                chat_id=chat_id,
+            )
         delegated = ChatGenerationService(
             durable_chat,
-            checkpointing_provider,
+            provider,
             interactive_demand=self.generation.interactive_demand,
         )
 
