@@ -29,6 +29,9 @@ def test_research_splitter_geometry_round_trips_through_injected_settings(
         app.processEvents()
         first.splitter.setSizes([240, 640])
         first._persist_splitter_state()
+        first.preferred_domains_input.setText("docs.example.org, example.com")
+        first.blocked_domains_input.setText("ads.example.net")
+        first._persist_domain_policy()
         saved_state = bytes(first.splitter.saveState())
         assert saved_state
     finally:
@@ -41,6 +44,8 @@ def test_research_splitter_geometry_round_trips_through_injected_settings(
         second.show()
         app.processEvents()
         assert bytes(second.splitter.saveState()) == saved_state
+        assert second.preferred_domains_input.text() == "docs.example.org example.com"
+        assert second.blocked_domains_input.text() == "ads.example.net"
         sizes = second.splitter.sizes()
         assert len(sizes) == 2
         assert sizes[0] > 0
