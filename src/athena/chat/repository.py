@@ -1503,7 +1503,7 @@ class ChatRepository:
               ON m.chat_id = c.chat_id
             LEFT JOIN chat_preferences AS p
               ON p.chat_id = c.chat_id
-            WHERE c.lifecycle_state != 'deleted'
+            WHERE c.lifecycle_state = 'active'
             GROUP BY
                 c.chat_id,
                 c.started_at_us,
@@ -1513,6 +1513,63 @@ class ChatRepository:
                 p.pinned
             ORDER BY COALESCE(p.pinned, 0) DESC,
                      c.started_at_us DESC,
+                     c.chat_id DESC
+            LIMIT ? OFFSET ?
+            """,
+            (limit, offset),
+        ).fetchall()
+
+        return tuple(
+            ChatSummary(
+                chat_id=uuid_from_blob(bytes(row["chat_id"])),
+                started_at_us=int(row["started_at_us"]),
+                ended_at_us=(
+                    int(row["ended_at_us"]) if row["ended_at_us"] is not None else None
+                ),
+                archive_mode=str(row["archive_mode"]),
+                lifecycle_state=str(row["lifecycle_state"]),
+                message_count=int(row["message_count"]),
+                pinned=bool(int(row["pinned"])),
+            )
+            for row in rows
+        )
+
+    def list_trashed_chats(
+        self,
+        *,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> tuple[ChatSummary, ...]:
+        """List reversible chat trash without exposing it through normal chat reads."""
+        if limit < 1 or limit > 500:
+            raise ValueError("Chat trash limit must be between 1 and 500.")
+        if offset < 0:
+            raise ValueError("Chat trash offset must be zero or greater.")
+
+        rows = self.database.connection.execute(
+            """
+            SELECT
+                c.chat_id,
+                c.started_at_us,
+                c.ended_at_us,
+                c.archive_mode,
+                c.lifecycle_state,
+                COALESCE(p.pinned, 0) AS pinned,
+                COUNT(m.message_id) AS message_count
+            FROM chats AS c
+            LEFT JOIN chat_messages AS m
+              ON m.chat_id = c.chat_id
+            LEFT JOIN chat_preferences AS p
+              ON p.chat_id = c.chat_id
+            WHERE c.lifecycle_state = 'trashed'
+            GROUP BY
+                c.chat_id,
+                c.started_at_us,
+                c.ended_at_us,
+                c.archive_mode,
+                c.lifecycle_state,
+                p.pinned
+            ORDER BY c.started_at_us DESC,
                      c.chat_id DESC
             LIMIT ? OFFSET ?
             """,
@@ -1576,7 +1633,7 @@ class ChatRepository:
             SELECT chat_id, started_at_us, ended_at_us, archive_mode, lifecycle_state
             FROM chats
             WHERE chat_id = ?
-              AND lifecycle_state != 'deleted'
+              AND lifecycle_state = 'active'
             """,
             (uuid_to_blob(chat_id),),
         ).fetchone()
@@ -1698,7 +1755,7 @@ class ChatRepository:
         ).fetchone()
         if row is None:
             raise ChatNotFoundError(str(chat_id))
-        if str(row["lifecycle_state"]) == "deleted":
+        if str(row["lifecycle_state"]) != "active":
             raise ChatNotFoundError(str(chat_id))
         if str(row["archive_mode"]) != "standard":
             raise UnsupportedArchiveModeError(
