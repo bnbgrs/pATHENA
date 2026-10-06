@@ -8,8 +8,8 @@ from queue import Queue
 from typing import Callable, TypeVar, cast
 
 from athena.api.contracts import (
-    ChatLifecycleTransitionResponse,
     CapabilitiesResponse,
+    ChatLifecycleTransitionResponse,
     ChatOperationRecoveryResponse,
     ChatSummaryResponse,
     ChatThreadResponse,
