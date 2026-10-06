@@ -33,6 +33,7 @@ from athena.lifecycle.service import (
     LifecycleDeletionNotFoundError,
     LifecycleDeletionPreviewStaleError,
     LifecycleDeletionUnsupportedError,
+    LifecycleTransitionStateError,
 )
 from athena.model.adapters.lm_studio import ProviderOutputLimitError
 from athena.retrieval.universal import UniversalSearchEntityType
@@ -246,6 +247,32 @@ class CoreApiAsgiApp:
                 )
                 return
 
+            if method == "GET" and path == "/api/v1/chats/trash":
+                limit = _positive_limit(
+                    scope,
+                    default=50,
+                    maximum=200,
+                )
+                offset = _nonnegative_offset(
+                    scope,
+                    default=0,
+                )
+                await _send_json(
+                    send,
+                    status=200,
+                    payload={
+                        "items": [
+                            item.to_dict()
+                            for item in self._facade.list_trashed_chats(
+                                limit=limit,
+                                offset=offset,
+                            )
+                        ]
+                    },
+                    request_id=request_id,
+                )
+                return
+
             if method == "POST" and path == "/api/v1/chats":
                 await _consume_empty_body(receive)
                 await _send_contract(
@@ -302,6 +329,42 @@ class CoreApiAsgiApp:
                         chat_id
                     ),
                     status=201,
+                    request_id=request_id,
+                )
+                return
+
+            trash_chat_id = _single_resource_id(
+                path,
+                prefix="/api/v1/chats/",
+                suffix="/trash",
+            )
+            if method == "POST" and trash_chat_id is not None:
+                await _consume_empty_body(receive)
+                try:
+                    trash_chat_id = str(uuid.UUID(trash_chat_id))
+                except ValueError as exc:
+                    raise ValueError("Chat ID must be a valid UUID.") from exc
+                await _send_contract(
+                    send,
+                    self._facade.trash_chat(trash_chat_id),
+                    request_id=request_id,
+                )
+                return
+
+            restore_chat_id = _single_resource_id(
+                path,
+                prefix="/api/v1/chats/",
+                suffix="/restore",
+            )
+            if method == "POST" and restore_chat_id is not None:
+                await _consume_empty_body(receive)
+                try:
+                    restore_chat_id = str(uuid.UUID(restore_chat_id))
+                except ValueError as exc:
+                    raise ValueError("Chat ID must be a valid UUID.") from exc
+                await _send_contract(
+                    send,
+                    self._facade.restore_chat(restore_chat_id),
                     request_id=request_id,
                 )
                 return
@@ -1117,6 +1180,16 @@ class CoreApiAsgiApp:
                 status=409,
                 code="chat_regenerate_unsupported",
                 message="This assistant response cannot be regenerated through the current path.",
+                request_id=request_id,
+                retryable=False,
+            )
+            return
+        except LifecycleTransitionStateError:
+            await _send_problem(
+                send,
+                status=409,
+                code="chat_lifecycle_transition_conflict",
+                message="The chat lifecycle state changed or does not support this transition.",
                 request_id=request_id,
                 retryable=False,
             )
