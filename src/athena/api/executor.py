@@ -21,6 +21,8 @@ from athena.api.contracts import (
     KnowledgeMergeReviewResponse,
     KnowledgeReviewResponse,
     MessageKnowledgeExtractionResponse,
+    MessageSelectionKnowledgeExtractionResponse,
+    MessageSelectionSummaryResponse,
     ModelResponse,
     NewsProfileResponse,
     ProviderHealthResponse,
@@ -411,6 +413,44 @@ class SerializedCoreApiSurface:
                 chat_id,
                 message_id,
                 revision_id=revision_id,
+                requested_model_id=requested_model_id,
+                effective_context_limit=effective_context_limit,
+                max_output_tokens=max_output_tokens,
+            )
+        )
+
+    def extract_chat_message_selection_knowledge(
+        self,
+        chat_id: str,
+        *,
+        message_revisions: tuple[tuple[str, str], ...],
+        requested_model_id: str | None = None,
+        effective_context_limit: int | None = None,
+        max_output_tokens: int | None = None,
+    ) -> MessageSelectionKnowledgeExtractionResponse:
+        return self._executor.call(
+            lambda: self._surface.extract_chat_message_selection_knowledge(
+                chat_id,
+                message_revisions=message_revisions,
+                requested_model_id=requested_model_id,
+                effective_context_limit=effective_context_limit,
+                max_output_tokens=max_output_tokens,
+            )
+        )
+
+    def summarize_chat_message_selection(
+        self,
+        chat_id: str,
+        *,
+        message_revisions: tuple[tuple[str, str], ...],
+        requested_model_id: str | None = None,
+        effective_context_limit: int | None = None,
+        max_output_tokens: int | None = None,
+    ) -> MessageSelectionSummaryResponse:
+        return self._executor.call(
+            lambda: self._surface.summarize_chat_message_selection(
+                chat_id,
+                message_revisions=message_revisions,
                 requested_model_id=requested_model_id,
                 effective_context_limit=effective_context_limit,
                 max_output_tokens=max_output_tokens,
