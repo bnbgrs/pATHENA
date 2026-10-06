@@ -41,6 +41,8 @@ from athena.api.contracts import (
     ProviderHealthResponse,
     RelationProposalResponse,
     RememberedChatMessageResponse,
+    SelectedMessageRevisionResponse,
+    SelectedMessagesKnowledgeExtractionResponse,
 )
 from athena.api.knowledge_explanation import KnowledgeProvenanceExplanationResponse
 from athena.api.knowledge_history import KnowledgeHistoryResponse
@@ -171,6 +173,16 @@ class MessageKnowledgeExtractor(Protocol):
         chat_id: uuid.UUID,
         message_id: uuid.UUID,
         revision_id: uuid.UUID,
+        requested_model_id: str | None = None,
+        context_limit: int | None = None,
+        output_reserve: int | None = None,
+    ) -> ChatExtractionResult: ...
+
+    def extract_messages(
+        self,
+        *,
+        chat_id: uuid.UUID,
+        message_revisions: tuple[tuple[uuid.UUID, uuid.UUID], ...],
         requested_model_id: str | None = None,
         context_limit: int | None = None,
         output_reserve: int | None = None,
@@ -1231,6 +1243,82 @@ class CoreApiFacade:
             result,
             message_id=parsed_message_id,
             revision_id=parsed_revision_id,
+        )
+
+    def extract_selected_chat_messages_knowledge(
+        self,
+        chat_id: str,
+        *,
+        message_revisions: tuple[tuple[str, str], ...],
+        requested_model_id: str | None = None,
+        effective_context_limit: int | None = None,
+        max_output_tokens: int | None = None,
+    ) -> SelectedMessagesKnowledgeExtractionResponse:
+        extractor = self._knowledge_extraction
+        if extractor is None:
+            raise RuntimeError(
+                "Knowledge extraction is unavailable in this Core process."
+            )
+        if not 2 <= len(message_revisions) <= 50:
+            raise ValueError(
+                "Selected-message Knowledge extraction requires 2 to 50 messages."
+            )
+        resolved: list[tuple[int, uuid.UUID, uuid.UUID]] = []
+        parsed_chat_id = uuid.UUID(chat_id)
+        for message_id, revision_id in message_revisions:
+            resolved_chat_id, parsed_message_id, parsed_revision_id, message = (
+                self._resolve_message_revision(
+                    chat_id=chat_id,
+                    message_id=message_id,
+                    revision_id=revision_id,
+                )
+            )
+            if resolved_chat_id != parsed_chat_id:
+                raise RuntimeError("Selected message resolved to another chat.")
+            resolved.append(
+                (message.sequence_no, parsed_message_id, parsed_revision_id)
+            )
+        resolved.sort(key=lambda item: item[0])
+        exact_revisions = tuple(
+            (message_id, revision_id)
+            for _sequence_no, message_id, revision_id in resolved
+        )
+        try:
+            result = extractor.extract_messages(
+                chat_id=parsed_chat_id,
+                message_revisions=exact_revisions,
+                requested_model_id=requested_model_id,
+                context_limit=effective_context_limit,
+                output_reserve=max_output_tokens,
+            )
+        except ExtractionMessageNotFoundError as exc:
+            raise ChatMessageNotFoundError(str(exc)) from exc
+        except ExtractionMessageRevisionMismatchError as exc:
+            raise ChatMessageRevisionMismatchError(str(exc)) from exc
+        if result.chat_id != parsed_chat_id:
+            raise RuntimeError("Knowledge extraction returned another chat.")
+
+        anchor = _message_knowledge_extraction_response(
+            result,
+            message_id=exact_revisions[0][0],
+            revision_id=exact_revisions[0][1],
+        )
+        return SelectedMessagesKnowledgeExtractionResponse(
+            chat_id=anchor.chat_id,
+            messages=tuple(
+                SelectedMessageRevisionResponse(
+                    message_id=str(message_id),
+                    message_revision_id=str(revision_id),
+                )
+                for message_id, revision_id in exact_revisions
+            ),
+            processing_run_id=anchor.processing_run_id,
+            model_id=anchor.model_id,
+            model_signature_id=anchor.model_signature_id,
+            knowledge_units=anchor.knowledge_units,
+            claims=anchor.claims,
+            relations=anchor.relations,
+            extractor_merge_candidates=anchor.extractor_merge_candidates,
         )
 
     def _resolve_message_revision(
