@@ -1386,8 +1386,10 @@ class CoreApiFacade:
             raise ValueError("Message selection cannot exceed 100 messages.")
         parsed_chat_id = uuid.UUID(chat_id)
         parsed: list[tuple[uuid.UUID, uuid.UUID]] = []
-        for message_id, revision_id in message_revisions:
-            parsed.append((uuid.UUID(message_id), uuid.UUID(revision_id)))
+        for raw_message_id, raw_revision_id in message_revisions:
+            parsed.append(
+                (uuid.UUID(raw_message_id), uuid.UUID(raw_revision_id))
+            )
         message_ids = [message_id for message_id, _revision_id in parsed]
         if len(set(message_ids)) != len(message_ids):
             raise ValueError("Message selection must not contain duplicate message IDs.")
@@ -1395,13 +1397,13 @@ class CoreApiFacade:
         thread = self._chat.load_chat(parsed_chat_id)
         by_id = {message.message_id: message for message in thread.messages}
         selected: list[ChatMessage] = []
-        for message_id, revision_id in parsed:
-            message = by_id.get(message_id)
+        for parsed_message_id, parsed_revision_id in parsed:
+            message = by_id.get(parsed_message_id)
             if message is None:
                 raise ChatMessageNotFoundError(
                     "The requested chat message does not exist in this chat."
                 )
-            if message.revision_id != revision_id:
+            if message.revision_id != parsed_revision_id:
                 raise ChatMessageRevisionMismatchError(
                     "The requested chat message revision is stale."
                 )
