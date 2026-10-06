@@ -345,7 +345,7 @@ class LifecycleDeletionService:
                     (
                         commit_seq,
                         uuid_to_blob(entity_id),
-                        target_state,
+                        "update",
                     ),
                 )
 
