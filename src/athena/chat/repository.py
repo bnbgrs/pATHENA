@@ -1175,6 +1175,12 @@ class ChatRepository:
         content_format: str = "text/plain",
         message_id: uuid.UUID | None = None,
         source_ids: tuple[uuid.UUID, ...] = (),
+        provenance_message_revisions: tuple[
+            tuple[uuid.UUID, uuid.UUID], ...
+        ] = (),
+        model_signature_id: uuid.UUID | None = None,
+        processing_run_id: uuid.UUID | None = None,
+        provenance_operation: str = "chat_message.create",
     ) -> ChatMessage:
         resolved_message_id = (
             message_id
@@ -1190,10 +1196,52 @@ class ChatRepository:
             raise TypeError("Chat message source IDs must be UUIDs.")
         if len(set(source_ids)) != len(source_ids):
             raise ValueError("Chat message source IDs must be unique.")
+        if len(set(provenance_message_revisions)) != len(
+            provenance_message_revisions
+        ):
+            raise ValueError(
+                "Chat message provenance revisions must be unique."
+            )
+        for source_message_id, source_revision_id in provenance_message_revisions:
+            if not isinstance(source_message_id, uuid.UUID) or not isinstance(
+                source_revision_id, uuid.UUID
+            ):
+                raise TypeError(
+                    "Chat message provenance revisions must contain UUID pairs."
+                )
 
         with self.database.write_transaction() as connection:
             self._require_active_actor(connection, actor_id)
             self._require_standard_chat(connection, chat_id)
+
+            for source_message_id, source_revision_id in provenance_message_revisions:
+                source_row = connection.execute(
+                    """
+                    SELECT m.chat_id, h.current_revision_id, e.lifecycle_state
+                    FROM chat_messages AS m
+                    JOIN entity_heads AS h
+                      ON h.entity_id = m.message_id
+                    JOIN entity_registry AS e
+                      ON e.entity_id = m.message_id
+                    WHERE m.message_id = ?
+                    """,
+                    (uuid_to_blob(source_message_id),),
+                ).fetchone()
+                if (
+                    source_row is None
+                    or bytes(source_row["chat_id"]) != uuid_to_blob(chat_id)
+                    or str(source_row["lifecycle_state"]) != "active"
+                ):
+                    raise ChatMessageNotFoundError(
+                        "Summary provenance source is not an active message "
+                        "in the requested chat."
+                    )
+                if bytes(source_row["current_revision_id"]) != uuid_to_blob(
+                    source_revision_id
+                ):
+                    raise ChatRevisionConflictError(
+                        "Summary provenance source revision is stale."
+                    )
 
             next_sequence = int(
                 connection.execute(
@@ -1226,9 +1274,11 @@ class ChatRepository:
                 provenance_id=provenance_id,
                 entity_id=resolved_message_id,
                 revision_id=revision_id,
-                operation="chat_message.create",
+                operation=provenance_operation,
                 actor_id=actor_id,
                 created_at_us=created_at_us,
+                model_signature_id=model_signature_id,
+                processing_run_id=processing_run_id,
             )
             for ordinal, source_id in enumerate(source_ids):
                 source_row = connection.execute(
@@ -1254,6 +1304,18 @@ class ChatRepository:
                     input_revision_id=None,
                     input_role="attachment",
                     ordinal=ordinal,
+                )
+            for offset, (
+                source_message_id,
+                source_revision_id,
+            ) in enumerate(provenance_message_revisions, start=len(source_ids)):
+                self._insert_provenance_input(
+                    connection,
+                    provenance_id=provenance_id,
+                    input_entity_id=source_message_id,
+                    input_revision_id=source_revision_id,
+                    input_role="selection_source",
+                    ordinal=offset,
                 )
             connection.execute(
                 """
@@ -1873,6 +1935,8 @@ class ChatRepository:
         operation: str,
         actor_id: uuid.UUID,
         created_at_us: int,
+        model_signature_id: uuid.UUID | None = None,
+        processing_run_id: uuid.UUID | None = None,
     ) -> None:
         connection.execute(
             """
@@ -1887,7 +1951,7 @@ class ChatRepository:
                 processing_run_id,
                 reason,
                 protection_scope_id
-            ) VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, NULL, NULL)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL)
             """,
             (
                 uuid_to_blob(provenance_id),
@@ -1896,6 +1960,16 @@ class ChatRepository:
                 operation,
                 uuid_to_blob(actor_id),
                 created_at_us,
+                (
+                    uuid_to_blob(model_signature_id)
+                    if model_signature_id is not None
+                    else None
+                ),
+                (
+                    uuid_to_blob(processing_run_id)
+                    if processing_run_id is not None
+                    else None
+                ),
             ),
         )
 
