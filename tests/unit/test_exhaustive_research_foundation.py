@@ -11,7 +11,6 @@ from athena.research.models import (
     ResearchScopeState,
     ResearchWorkState,
 )
-from athena.research.repository import ResearchScopeUnsupportedError
 from athena.source.models import SourceType
 
 
