@@ -378,6 +378,108 @@ class CoreApiAsgiApp:
                 )
                 return
 
+            regenerate_resource = _message_action_resource(path, action="regenerate")
+            if method == "POST" and regenerate_resource is not None:
+                chat_id, message_id = regenerate_resource
+                payload = await _read_json_object(receive)
+                unknown = set(payload) - {
+                    "revision_id",
+                    "model_id",
+                    "operation_id",
+                    "effective_context_limit",
+                    "max_output_tokens",
+                    "temperature",
+                    "thinking_enabled",
+                }
+                if unknown:
+                    raise ValueError(
+                        "Chat regenerate request contains unsupported fields."
+                    )
+                revision_id = payload.get("revision_id")
+                if not isinstance(revision_id, str) or not revision_id.strip():
+                    raise ValueError(
+                        "Chat regenerate revision_id must be a non-empty UUID string."
+                    )
+                try:
+                    revision_id = str(uuid.UUID(revision_id))
+                except ValueError as exc:
+                    raise ValueError(
+                        "Chat regenerate revision_id must be a valid UUID."
+                    ) from exc
+                model_id = payload.get("model_id")
+                if model_id is not None and (
+                    not isinstance(model_id, str) or not model_id.strip()
+                ):
+                    raise ValueError(
+                        "Chat regenerate model_id must be a non-empty string or null."
+                    )
+                operation_id = payload.get("operation_id")
+                if operation_id is not None:
+                    if not isinstance(operation_id, str) or not operation_id.strip():
+                        raise ValueError(
+                            "Chat regenerate operation_id must be a non-empty UUID string or null."
+                        )
+                    try:
+                        operation_id = str(uuid.UUID(operation_id))
+                    except ValueError as exc:
+                        raise ValueError(
+                            "Chat regenerate operation_id must be a valid UUID or null."
+                        ) from exc
+                effective_context_limit = payload.get("effective_context_limit")
+                if effective_context_limit is not None and (
+                    isinstance(effective_context_limit, bool)
+                    or not isinstance(effective_context_limit, int)
+                    or effective_context_limit < 1
+                ):
+                    raise ValueError(
+                        "Chat regenerate effective_context_limit must be positive or null."
+                    )
+                max_output_tokens = payload.get("max_output_tokens")
+                if max_output_tokens is not None and (
+                    isinstance(max_output_tokens, bool)
+                    or not isinstance(max_output_tokens, int)
+                    or max_output_tokens < 1
+                ):
+                    raise ValueError(
+                        "Chat regenerate max_output_tokens must be positive or null."
+                    )
+                temperature_value = payload.get("temperature")
+                if temperature_value is not None and (
+                    isinstance(temperature_value, bool)
+                    or not isinstance(temperature_value, (int, float))
+                    or not 0.0 <= float(temperature_value) <= 2.0
+                ):
+                    raise ValueError(
+                        "Chat regenerate temperature must be between 0.0 and 2.0 or null."
+                    )
+                temperature = (
+                    None if temperature_value is None else float(temperature_value)
+                )
+                thinking_enabled = payload.get("thinking_enabled")
+                if thinking_enabled is not None and not isinstance(
+                    thinking_enabled, bool
+                ):
+                    raise ValueError(
+                        "Chat regenerate thinking_enabled must be boolean or null."
+                    )
+                await _send_contract(
+                    send,
+                    self._facade.regenerate_chat_message(
+                        chat_id,
+                        message_id,
+                        revision_id=revision_id,
+                        requested_model_id=model_id,
+                        operation_id=operation_id,
+                        effective_context_limit=effective_context_limit,
+                        max_output_tokens=max_output_tokens,
+                        temperature=temperature,
+                        thinking_enabled=thinking_enabled,
+                    ),
+                    status=201,
+                    request_id=request_id,
+                )
+                return
+
             remember_resource = _message_action_resource(path, action="remember")
             if method == "POST" and remember_resource is not None:
                 chat_id, message_id = remember_resource
@@ -1009,6 +1111,16 @@ class CoreApiAsgiApp:
                 retryable=False,
             )
             return
+        except chat_repository.UnsupportedChatRegenerationError:
+            await _send_problem(
+                send,
+                status=409,
+                code="chat_regenerate_unsupported",
+                message="This assistant response cannot be regenerated through the current path.",
+                request_id=request_id,
+                retryable=False,
+            )
+            return
         except KnowledgeReviewNotFoundError:
             await _send_problem(
                 send,
@@ -1263,6 +1375,8 @@ def _known_path(path: str) -> bool:
     if _message_action_resource(path, action="edit") is not None:
         return True
     if _message_action_resource(path, action="fork") is not None:
+        return True
+    if _message_action_resource(path, action="regenerate") is not None:
         return True
     if _message_action_resource(path, action="remember") is not None:
         return True
