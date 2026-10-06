@@ -530,6 +530,95 @@ class CoreApiAsgiApp:
                 )
                 return
 
+            selection_extraction_id = _single_resource_id(
+                path,
+                prefix="/api/v1/chats/",
+                suffix="/knowledge-extraction/selection",
+            )
+            if method == "POST" and selection_extraction_id is not None:
+                payload = await _read_json_object(receive)
+                unknown = set(payload) - {
+                    "message_revisions",
+                    "model_id",
+                    "effective_context_limit",
+                    "max_output_tokens",
+                }
+                if unknown:
+                    raise ValueError(
+                        "Knowledge selection extraction contains unsupported fields."
+                    )
+                raw_selection = payload.get("message_revisions")
+                if (
+                    not isinstance(raw_selection, list)
+                    or not raw_selection
+                    or len(raw_selection) > 50
+                ):
+                    raise ValueError(
+                        "Knowledge selection extraction requires 1 to 50 message revisions."
+                    )
+                parsed_selection: list[tuple[str, str]] = []
+                for item in raw_selection:
+                    if not isinstance(item, dict) or set(item) != {
+                        "message_id",
+                        "revision_id",
+                    }:
+                        raise ValueError(
+                            "Each Knowledge selection item requires message_id and revision_id."
+                        )
+                    message_id = item.get("message_id")
+                    revision_id = item.get("revision_id")
+                    if (
+                        not isinstance(message_id, str)
+                        or not message_id.strip()
+                        or not isinstance(revision_id, str)
+                        or not revision_id.strip()
+                    ):
+                        raise ValueError(
+                            "Knowledge selection IDs must be non-empty strings."
+                        )
+                    parsed_selection.append((message_id, revision_id))
+                if len(set(parsed_selection)) != len(parsed_selection):
+                    raise ValueError("Knowledge selection contains duplicates.")
+
+                model_id = payload.get("model_id")
+                if model_id is not None and (
+                    not isinstance(model_id, str) or not model_id.strip()
+                ):
+                    raise ValueError(
+                        "Knowledge extraction model_id must be a non-empty string or null."
+                    )
+                effective_context_limit = payload.get("effective_context_limit")
+                if effective_context_limit is not None and (
+                    isinstance(effective_context_limit, bool)
+                    or not isinstance(effective_context_limit, int)
+                    or effective_context_limit < 1
+                ):
+                    raise ValueError(
+                        "Knowledge extraction effective_context_limit must be positive or null."
+                    )
+                max_output_tokens = payload.get("max_output_tokens")
+                if max_output_tokens is not None and (
+                    isinstance(max_output_tokens, bool)
+                    or not isinstance(max_output_tokens, int)
+                    or max_output_tokens < 1
+                ):
+                    raise ValueError(
+                        "Knowledge extraction max_output_tokens must be positive or null."
+                    )
+                await _send_contract(
+                    send,
+                    self._facade.extract_chat_message_selection_knowledge(
+                        selection_extraction_id,
+                        message_revisions=tuple(parsed_selection),
+                        requested_model_id=model_id,
+                        effective_context_limit=effective_context_limit,
+                        max_output_tokens=max_output_tokens,
+                    ),
+                    status=201,
+                    request_id=request_id,
+                )
+                return
+
             extraction_resource = _message_action_resource(
                 path,
                 action="knowledge-extraction",
@@ -1470,6 +1559,12 @@ def _known_path(path: str) -> bool:
             "/messages/unified-local"
         )
         return bool(chat_id) and "/" not in chat_id
+    if _single_resource_id(
+        path,
+        prefix="/api/v1/chats/",
+        suffix="/knowledge-extraction/selection",
+    ) is not None:
+        return True
     if _message_action_resource(path, action="edit") is not None:
         return True
     if _message_action_resource(path, action="fork") is not None:
