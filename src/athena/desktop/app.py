@@ -140,7 +140,8 @@ def create_application(argv: Sequence[str] | None = None) -> QApplication:
 
     existing = QApplication.instance()
     if isinstance(existing, QApplication):
-        _apply_application_presentation(existing)
+        if existing is not _APPLICATION_INSTANCE:
+            _apply_application_presentation(existing)
         return existing
     if existing is not None:
         raise RuntimeError("pATHENA desktop requires QApplication ownership.")
