@@ -979,21 +979,21 @@ class _ChatTask(QRunnable):
                     raise ValueError(
                         "Selection Knowledge extraction requires stable message revisions."
                     )
-                extraction = self.gateway.extract_chat_selection_knowledge(
+                selection_extraction = self.gateway.extract_chat_selection_knowledge(
                     resolved_chat_id,
                     message_revisions=self.message_revisions,
                     model_id=self.model_id,
                     effective_context_limit=self.effective_context_limit,
                     max_output_tokens=self.max_output_tokens,
                 )
-                if extraction.chat_id != resolved_chat_id:
+                if selection_extraction.chat_id != resolved_chat_id:
                     raise RuntimeError(
                         "Selection Knowledge extraction belongs to another chat."
                     )
                 expected = set(self.message_revisions)
                 actual = {
                     (item.message_id, item.revision_id)
-                    for item in extraction.source_messages
+                    for item in selection_extraction.source_messages
                 }
                 if actual != expected:
                     raise RuntimeError(
@@ -1001,26 +1001,26 @@ class _ChatTask(QRunnable):
                     )
                 outcome = _ChatOperationOutcome(
                     operation=self.operation,
-                    selection_knowledge_extraction=extraction,
+                    selection_knowledge_extraction=selection_extraction,
                 )
             elif self.operation == "summarize_selection":
                 if resolved_chat_id is None or not self.message_revisions:
                     raise ValueError(
                         "Selection summary requires stable message revisions."
                     )
-                summary = self.gateway.summarize_chat_selection(
+                selection_summary = self.gateway.summarize_chat_selection(
                     resolved_chat_id,
                     message_revisions=self.message_revisions,
                     model_id=self.model_id,
                     effective_context_limit=self.effective_context_limit,
                     max_output_tokens=self.max_output_tokens,
                 )
-                if summary.chat_id != resolved_chat_id:
+                if selection_summary.chat_id != resolved_chat_id:
                     raise RuntimeError("Selection summary belongs to another chat.")
                 expected = set(self.message_revisions)
                 actual = {
                     (item.message_id, item.revision_id)
-                    for item in summary.source_messages
+                    for item in selection_summary.source_messages
                 }
                 if actual != expected:
                     raise RuntimeError(
@@ -1028,7 +1028,7 @@ class _ChatTask(QRunnable):
                     )
                 outcome = _ChatOperationOutcome(
                     operation=self.operation,
-                    selection_summary=summary,
+                    selection_summary=selection_summary,
                 )
             elif self.operation == "prepare_knowledge_review":
                 processing_run_id = self.processing_run_id
@@ -1069,13 +1069,13 @@ class _ChatTask(QRunnable):
             elif self.operation == "pin":
                 if resolved_chat_id is None or self.pinned_state is None:
                     raise ValueError("Chat pin mutation requires a chat ID and state.")
-                summary = self.gateway.set_chat_pinned(
+                pinned_summary = self.gateway.set_chat_pinned(
                     resolved_chat_id,
                     pinned=self.pinned_state,
                 )
                 if (
-                    summary.chat_id != resolved_chat_id
-                    or summary.pinned is not self.pinned_state
+                    pinned_summary.chat_id != resolved_chat_id
+                    or pinned_summary.pinned is not self.pinned_state
                 ):
                     raise RuntimeError("Chat pin result is inconsistent.")
                 outcome = _ChatOperationOutcome(
