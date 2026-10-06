@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Protocol
 
 from athena.api.contracts import (
+    ChatLifecycleTransitionResponse,
     CapabilitiesResponse,
     ChatOperationRecoveryResponse,
     ChatSummaryResponse,
