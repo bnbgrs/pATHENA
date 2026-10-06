@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import uuid
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from typing import Any, Protocol
 
 from athena.api.contracts import (
@@ -36,11 +36,14 @@ from athena.api.contracts import (
     KnowledgeReviewResponse,
     KnowledgeUnitProposalResponse,
     MessageKnowledgeExtractionResponse,
+    MessageSelectionKnowledgeExtractionResponse,
+    MessageSelectionSummaryResponse,
     ModelResponse,
     NewsProfileResponse,
     ProviderHealthResponse,
     RelationProposalResponse,
     RememberedChatMessageResponse,
+    SelectedChatMessageResponse,
 )
 from athena.api.knowledge_explanation import KnowledgeProvenanceExplanationResponse
 from athena.api.knowledge_history import KnowledgeHistoryResponse
@@ -72,6 +75,7 @@ from athena.knowledge.deduplication import (
 )
 from athena.knowledge.extraction_models import ChatExtractionResult
 from athena.knowledge.extraction_service import (
+    ChatSelectionSummaryResult,
     ExtractionMessageNotFoundError,
     ExtractionMessageRevisionMismatchError,
 )
@@ -175,6 +179,26 @@ class MessageKnowledgeExtractor(Protocol):
         context_limit: int | None = None,
         output_reserve: int | None = None,
     ) -> ChatExtractionResult: ...
+
+    def extract_messages(
+        self,
+        *,
+        chat_id: uuid.UUID,
+        message_revisions: Sequence[tuple[uuid.UUID, uuid.UUID]],
+        requested_model_id: str | None = None,
+        context_limit: int | None = None,
+        output_reserve: int | None = None,
+    ) -> ChatExtractionResult: ...
+
+    def summarize_messages(
+        self,
+        *,
+        chat_id: uuid.UUID,
+        message_revisions: Sequence[tuple[uuid.UUID, uuid.UUID]],
+        requested_model_id: str | None = None,
+        context_limit: int | None = None,
+        output_reserve: int | None = None,
+    ) -> ChatSelectionSummaryResult: ...
 
 
 class ChatMessageNotFoundError(LookupError):
@@ -1232,6 +1256,158 @@ class CoreApiFacade:
             message_id=parsed_message_id,
             revision_id=parsed_revision_id,
         )
+
+    def extract_chat_selection_knowledge(
+        self,
+        chat_id: str,
+        *,
+        message_revisions: Sequence[tuple[str, str]],
+        requested_model_id: str | None = None,
+        effective_context_limit: int | None = None,
+        max_output_tokens: int | None = None,
+    ) -> MessageSelectionKnowledgeExtractionResponse:
+        extraction = self._knowledge_extraction
+        if extraction is None:
+            raise RuntimeError(
+                "Knowledge extraction is unavailable in this Core process."
+            )
+        parsed_chat_id, source_messages = self._resolve_message_selection(
+            chat_id=chat_id,
+            message_revisions=message_revisions,
+        )
+        selected = tuple(
+            (message.message_id, message.revision_id)
+            for message in source_messages
+        )
+        try:
+            result = extraction.extract_messages(
+                chat_id=parsed_chat_id,
+                message_revisions=selected,
+                requested_model_id=requested_model_id,
+                context_limit=effective_context_limit,
+                output_reserve=max_output_tokens,
+            )
+        except ExtractionMessageNotFoundError as exc:
+            raise ChatMessageNotFoundError(str(exc)) from exc
+        except ExtractionMessageRevisionMismatchError as exc:
+            raise ChatMessageRevisionMismatchError(str(exc)) from exc
+        if result.chat_id != parsed_chat_id:
+            raise RuntimeError("Knowledge extraction returned another chat.")
+        projected = _message_knowledge_extraction_response(
+            result,
+            message_id=source_messages[0].message_id,
+            revision_id=source_messages[0].revision_id,
+        )
+        return MessageSelectionKnowledgeExtractionResponse(
+            chat_id=projected.chat_id,
+            source_messages=tuple(
+                SelectedChatMessageResponse(
+                    message_id=str(message.message_id),
+                    revision_id=str(message.revision_id),
+                    sequence_no=message.sequence_no,
+                )
+                for message in source_messages
+            ),
+            processing_run_id=projected.processing_run_id,
+            model_id=projected.model_id,
+            model_signature_id=projected.model_signature_id,
+            knowledge_units=projected.knowledge_units,
+            claims=projected.claims,
+            relations=projected.relations,
+            extractor_merge_candidates=projected.extractor_merge_candidates,
+        )
+
+    def summarize_chat_selection(
+        self,
+        chat_id: str,
+        *,
+        message_revisions: Sequence[tuple[str, str]],
+        requested_model_id: str | None = None,
+        effective_context_limit: int | None = None,
+        max_output_tokens: int | None = None,
+    ) -> MessageSelectionSummaryResponse:
+        extraction = self._knowledge_extraction
+        if extraction is None:
+            raise RuntimeError(
+                "Message selection summarization is unavailable in this Core process."
+            )
+        parsed_chat_id, source_messages = self._resolve_message_selection(
+            chat_id=chat_id,
+            message_revisions=message_revisions,
+        )
+        selected = tuple(
+            (message.message_id, message.revision_id)
+            for message in source_messages
+        )
+        try:
+            result = extraction.summarize_messages(
+                chat_id=parsed_chat_id,
+                message_revisions=selected,
+                requested_model_id=requested_model_id,
+                context_limit=effective_context_limit,
+                output_reserve=max_output_tokens,
+            )
+        except ExtractionMessageNotFoundError as exc:
+            raise ChatMessageNotFoundError(str(exc)) from exc
+        except ExtractionMessageRevisionMismatchError as exc:
+            raise ChatMessageRevisionMismatchError(str(exc)) from exc
+        if result.chat_id != parsed_chat_id:
+            raise RuntimeError("Selection summary returned another chat.")
+        if tuple(
+            (item.message_id, item.revision_id)
+            for item in result.source_messages
+        ) != selected:
+            raise RuntimeError("Selection summary returned another message selection.")
+        return MessageSelectionSummaryResponse(
+            chat_id=str(parsed_chat_id),
+            source_messages=tuple(
+                SelectedChatMessageResponse(
+                    message_id=str(message.message_id),
+                    revision_id=str(message.revision_id),
+                    sequence_no=message.sequence_no,
+                )
+                for message in source_messages
+            ),
+            processing_run_id=str(result.processing_run.processing_run_id),
+            model_id=result.model.backend_model_id,
+            model_signature_id=str(result.model_signature.model_signature_id),
+            summary=result.summary,
+        )
+
+    def _resolve_message_selection(
+        self,
+        *,
+        chat_id: str,
+        message_revisions: Sequence[tuple[str, str]],
+    ) -> tuple[uuid.UUID, tuple[ChatMessage, ...]]:
+        if not message_revisions:
+            raise ValueError("Message selection must contain at least one message.")
+        if len(message_revisions) > 100:
+            raise ValueError("Message selection cannot exceed 100 messages.")
+        parsed_chat_id = uuid.UUID(chat_id)
+        parsed: list[tuple[uuid.UUID, uuid.UUID]] = []
+        for message_id, revision_id in message_revisions:
+            parsed.append((uuid.UUID(message_id), uuid.UUID(revision_id)))
+        message_ids = [message_id for message_id, _revision_id in parsed]
+        if len(set(message_ids)) != len(message_ids):
+            raise ValueError("Message selection must not contain duplicate message IDs.")
+
+        thread = self._chat.load_chat(parsed_chat_id)
+        by_id = {message.message_id: message for message in thread.messages}
+        selected: list[ChatMessage] = []
+        for message_id, revision_id in parsed:
+            message = by_id.get(message_id)
+            if message is None:
+                raise ChatMessageNotFoundError(
+                    "The requested chat message does not exist in this chat."
+                )
+            if message.revision_id != revision_id:
+                raise ChatMessageRevisionMismatchError(
+                    "The requested chat message revision is stale."
+                )
+            selected.append(message)
+        selected.sort(key=lambda item: item.sequence_no)
+        return parsed_chat_id, tuple(selected)
 
     def _resolve_message_revision(
         self,
