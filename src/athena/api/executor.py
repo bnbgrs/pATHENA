@@ -249,6 +249,16 @@ class SerializedCoreApiSurface:
             lambda: self._surface.list_chats(limit=limit, offset=offset)
         )
 
+    def list_trashed_chats(
+        self,
+        *,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> tuple[ChatSummaryResponse, ...]:
+        return self._executor.call(
+            lambda: self._surface.list_trashed_chats(limit=limit, offset=offset)
+        )
+
     def set_chat_pinned(
         self,
         chat_id: str,
@@ -431,6 +441,12 @@ class SerializedCoreApiSurface:
                 decision=decision,
             )
         )
+
+    def trash_chat(self, chat_id: str) -> ChatLifecycleTransitionResponse:
+        return self._executor.call(lambda: self._surface.trash_chat(chat_id))
+
+    def restore_chat(self, chat_id: str) -> ChatLifecycleTransitionResponse:
+        return self._executor.call(lambda: self._surface.restore_chat(chat_id))
 
     def preview_chat_deletion(self, chat_id: str) -> DeletionPreviewResponse:
         return self._executor.call(lambda: self._surface.preview_chat_deletion(chat_id))
