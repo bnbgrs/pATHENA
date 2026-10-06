@@ -313,6 +313,63 @@ def test_client_forks_chat_from_exact_message_revision(
     ]
 
 
+def test_client_regenerates_exact_assistant_revision_with_generation_controls(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runtime_root = tmp_path / "api"
+    _bootstrap(runtime_root)
+    chat_id = "11111111-1111-1111-1111-111111111111"
+    message_id = "22222222-2222-2222-2222-222222222222"
+    revision_id = "33333333-3333-3333-3333-333333333333"
+    operation_id = "55555555-5555-4555-8555-555555555555"
+    branch_chat_id = "66666666-6666-6666-6666-666666666666"
+    seen: list[tuple[str, str, dict[str, Any]]] = []
+
+    def fake_urlopen(request: Any, timeout: float) -> _Response:
+        del timeout
+        body = json.loads(request.data.decode("utf-8"))
+        seen.append((request.get_method(), request.full_url, body))
+        return _Response(_chat_thread_payload(chat_id=branch_chat_id), status=201)
+
+    monkeypatch.setattr(client_module, "urlopen", fake_urlopen)
+
+    thread = CoreApiClient(runtime_root).regenerate_chat_message(
+        chat_id,
+        message_id,
+        revision_id=revision_id,
+        model_id="local-model",
+        operation_id=operation_id,
+        effective_context_limit=8192,
+        max_output_tokens=512,
+        temperature=0.4,
+        thinking_enabled=True,
+    )
+
+    assert thread.chat_id == branch_chat_id
+    assert seen == [
+        (
+            "POST",
+            (
+                "http://127.0.0.1:32123/api/v1/chats/"
+                + chat_id
+                + "/messages/"
+                + message_id
+                + "/regenerate"
+            ),
+            {
+                "revision_id": revision_id,
+                "model_id": "local-model",
+                "operation_id": operation_id,
+                "effective_context_limit": 8192,
+                "max_output_tokens": 512,
+                "temperature": 0.4,
+                "thinking_enabled": True,
+            },
+        )
+    ]
+
+
 def test_client_chat_edit_and_fork_reject_invalid_revision_ids(
     tmp_path: Path,
 ) -> None:
@@ -332,6 +389,13 @@ def test_client_chat_edit_and_fork_reject_invalid_revision_ids(
 
     with pytest.raises(ValueError, match="Fork message revision"):
         client.fork_chat_from_message(
+            chat_id,
+            message_id,
+            revision_id="not-a-uuid",
+        )
+
+    with pytest.raises(ValueError, match="Regenerate message revision"):
+        client.regenerate_chat_message(
             chat_id,
             message_id,
             revision_id="not-a-uuid",
