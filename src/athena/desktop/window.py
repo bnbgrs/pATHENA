@@ -2213,6 +2213,10 @@ class AthenaMainWindow(QMainWindow):
         self._commit_loaded_chat_identity(
             thread.chat_id
         )
+        self._current_thread = thread
+        self.related_knowledge_state.setText(
+            "Select RELATED to search canonical Knowledge."
+        )
         self.prompt_input.clear()
         self._clear_pending_images()
         self._render_chat_thread(thread)
@@ -2226,6 +2230,10 @@ class AthenaMainWindow(QMainWindow):
 
         self._commit_loaded_chat_identity(
             response.thread.chat_id
+        )
+        self._current_thread = response.thread
+        self.related_knowledge_state.setText(
+            "Select RELATED to search canonical Knowledge."
         )
         self.prompt_input.clear()
         self._render_chat_thread(
