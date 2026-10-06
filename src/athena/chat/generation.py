@@ -404,6 +404,7 @@ class ChatGenerationService:
         context_package: ContextPackage,
         operation_id: uuid.UUID | None = None,
         on_delta: Callable[[str], None] | None = None,
+        on_uncommitted_delta: Callable[[str], None] | None = None,
         grounding_contract: GroundingContract | None = None,
         on_before_provider_call: Callable[[], None] | None = None,
         cancel_requested: Callable[[], bool] | None = None,
@@ -481,6 +482,7 @@ class ChatGenerationService:
                     model=model,
                     history=history,
                     on_delta=on_delta,
+                    on_uncommitted_delta=on_uncommitted_delta,
                     grounding_contract=grounding_contract,
                     max_output_tokens=max_output_tokens,
                     reasoning_mode=reasoning_mode,
@@ -498,6 +500,7 @@ class ChatGenerationService:
             model=model,
             history=history,
             on_delta=on_delta,
+            on_uncommitted_delta=on_uncommitted_delta,
             grounding_contract=grounding_contract,
             max_output_tokens=max_output_tokens,
             reasoning_mode=reasoning_mode,
@@ -517,6 +520,7 @@ class ChatGenerationService:
         model: ModelInfo,
         history: tuple[ModelChatMessage, ...],
         on_delta: Callable[[str], None] | None,
+        on_uncommitted_delta: Callable[[str], None] | None,
         grounding_contract: GroundingContract | None,
         max_output_tokens: int | None,
         reasoning_mode: str | None,
@@ -672,6 +676,9 @@ class ChatGenerationService:
                         )
 
                     chunks.append(chunk)
+
+                    if on_uncommitted_delta is not None:
+                        on_uncommitted_delta(chunk)
 
                     if grounding_contract is None and on_delta is not None:
                         on_delta(chunk)
