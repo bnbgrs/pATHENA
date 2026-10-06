@@ -1144,3 +1144,116 @@ def test_client_lists_chat_trash_with_stable_identities(
     assert len(trash) == 1
     assert trash[0].chat_id == chat_id
     assert trash[0].lifecycle_state == "trashed"
+
+
+def test_client_message_selection_actions_pin_exact_revisions(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runtime_root = tmp_path / "api"
+    _bootstrap(runtime_root)
+    chat_id = "11111111-1111-4111-8111-111111111111"
+    message_revisions = (
+        (
+            "22222222-2222-4222-8222-222222222222",
+            "33333333-3333-4333-8333-333333333333",
+        ),
+        (
+            "44444444-4444-4444-8444-444444444444",
+            "55555555-5555-4555-8555-555555555555",
+        ),
+    )
+    seen: list[tuple[str, str, dict[str, Any]]] = []
+
+    def fake_urlopen(request: Any, timeout: float) -> _Response:
+        assert timeout == 5.0
+        body = json.loads((request.data or b"{}").decode("utf-8"))
+        assert isinstance(body, dict)
+        seen.append((request.get_method(), request.full_url, body))
+        source_messages = [
+            {
+                "message_id": message_id,
+                "revision_id": revision_id,
+                "sequence_no": index,
+            }
+            for index, (message_id, revision_id) in enumerate(
+                message_revisions,
+                start=2,
+            )
+        ]
+        if request.full_url.endswith("/message-selection/knowledge-extraction"):
+            return _Response(
+                {
+                    "chat_id": chat_id,
+                    "source_messages": source_messages,
+                    "processing_run_id": "66666666-6666-4666-8666-666666666666",
+                    "model_id": "local/model",
+                    "model_signature_id": "77777777-7777-4777-8777-777777777777",
+                    "knowledge_units": [],
+                    "claims": [],
+                    "relations": [],
+                    "extractor_merge_candidates": [],
+                }
+            )
+        assert request.full_url.endswith("/message-selection/summary")
+        return _Response(
+            {
+                "chat_id": chat_id,
+                "source_messages": source_messages,
+                "processing_run_id": "88888888-8888-4888-8888-888888888888",
+                "model_id": "local/model",
+                "model_signature_id": "77777777-7777-4777-8777-777777777777",
+                "summary": "Two selected persisted messages.",
+            }
+        )
+
+    monkeypatch.setattr(client_module, "urlopen", fake_urlopen)
+    client = CoreApiClient(runtime_root)
+
+    extraction = client.extract_chat_selection_knowledge(
+        chat_id,
+        message_revisions=message_revisions,
+        model_id="local/model",
+        effective_context_limit=8192,
+        max_output_tokens=1024,
+    )
+    summary = client.summarize_chat_selection(
+        chat_id,
+        message_revisions=message_revisions,
+        model_id="local/model",
+        effective_context_limit=8192,
+        max_output_tokens=1024,
+    )
+
+    assert tuple(
+        (item.message_id, item.revision_id)
+        for item in extraction.source_messages
+    ) == message_revisions
+    assert summary.summary == "Two selected persisted messages."
+    expected_body = {
+        "messages": [
+            {"message_id": message_id, "revision_id": revision_id}
+            for message_id, revision_id in message_revisions
+        ],
+        "model_id": "local/model",
+        "effective_context_limit": 8192,
+        "max_output_tokens": 1024,
+    }
+    assert seen == [
+        (
+            "POST",
+            (
+                f"http://127.0.0.1:32123/api/v1/chats/{chat_id}"
+                "/message-selection/knowledge-extraction"
+            ),
+            expected_body,
+        ),
+        (
+            "POST",
+            (
+                f"http://127.0.0.1:32123/api/v1/chats/{chat_id}"
+                "/message-selection/summary"
+            ),
+            expected_body,
+        ),
+    ]
