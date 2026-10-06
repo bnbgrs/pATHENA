@@ -3017,7 +3017,6 @@ class AthenaMainWindow(QMainWindow):
         header = QHBoxLayout()
         header.setContentsMargins(0, 0, 0, 0)
         header.setSpacing(8)
-        header.addWidget(select_message)
         header.addWidget(meta)
         header.addStretch(1)
         header.addWidget(copy_button)
@@ -3438,6 +3437,7 @@ class AthenaMainWindow(QMainWindow):
             )
         )
 
+        header.addWidget(select_message)
         header.addWidget(meta)
         header.addStretch(1)
         if edit_button is not None:
