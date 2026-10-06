@@ -429,7 +429,7 @@ class CoreApiClient:
         if thinking_enabled is not None and not isinstance(thinking_enabled, bool):
             raise TypeError("Regenerate thinking_enabled must be boolean.")
 
-        body: dict[str, object] = {"revision_id": canonical_revision_id}
+        body: dict[str, JsonValue] = {"revision_id": canonical_revision_id}
         if model_id is not None:
             body["model_id"] = model_id
         if canonical_operation_id is not None:
