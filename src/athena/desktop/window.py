@@ -2447,15 +2447,42 @@ class AthenaMainWindow(QMainWindow):
 
     @Slot(object)
     def apply_knowledge_extraction_ready(self, response: object) -> None:
-        if not isinstance(response, MessageKnowledgeExtractionResponse):
+        if not isinstance(
+            response,
+            (
+                MessageKnowledgeExtractionResponse,
+                MessageSelectionKnowledgeExtractionResponse,
+            ),
+        ):
             return
 
         request = self._knowledge_review_request
-        response_identity = (
-            response.chat_id,
-            response.message_id,
-            response.message_revision_id,
-        )
+        if isinstance(response, MessageKnowledgeExtractionResponse):
+            response_identity: object = (
+                response.chat_id,
+                response.message_id,
+                response.message_revision_id,
+            )
+            provenance = (
+                "Frozen extraction from persisted chat message "
+                f"{response.message_id[:8].upper()} revision "
+                f"{response.message_revision_id[:8].upper()}."
+            )
+        else:
+            response_pairs = tuple(
+                (item.message_id, item.revision_id)
+                for item in response.selected_messages
+            )
+            response_identity = (response.chat_id, response_pairs)
+            provenance = (
+                "Frozen extraction from "
+                f"{len(response.selected_messages)} exact persisted message revisions: "
+                + ", ".join(
+                    f"{item.sequence_no}:{item.message_id[:8].upper()}"
+                    for item in response.selected_messages
+                )
+                + "."
+            )
 
         if request is None or response_identity != request:
             return
@@ -2475,10 +2502,8 @@ class AthenaMainWindow(QMainWindow):
         self.inspector_heading.setText("Knowledge extraction review")
         self.inspector_mode.set_value("KNOWLEDGE REVIEW")
         self.inspector_provenance.setText(
-            "Frozen extraction from persisted chat message "
-            f"{response.message_id[:8].upper()} revision "
-            f"{response.message_revision_id[:8].upper()}. "
-            "Canonical Knowledge is unchanged until an explicit acceptance step."
+            provenance
+            + " Canonical Knowledge is unchanged until an explicit acceptance step."
         )
         self.connection_detail.setText(
             "Knowledge extraction complete · canonical deduplication preflight pending."
@@ -2574,6 +2599,7 @@ class AthenaMainWindow(QMainWindow):
 
         knowledge_operations = {
             "extract_knowledge",
+            "extract_knowledge_selection",
             "prepare_knowledge_review",
             "load_merge_review",
             "resolve_merge_review",
@@ -2604,7 +2630,7 @@ class AthenaMainWindow(QMainWindow):
             else "Chat loading"
             if operation == "load"
             else "Knowledge extraction"
-            if operation == "extract_knowledge"
+            if operation in {"extract_knowledge", "extract_knowledge_selection"}
             else "Knowledge review"
             if operation in {
                 "prepare_knowledge_review",
@@ -2627,6 +2653,7 @@ class AthenaMainWindow(QMainWindow):
                 "fork",
                 "remember",
                 "extract_knowledge",
+                "extract_knowledge_selection",
                 "prepare_knowledge_review",
                 "resolve_merge_review",
             }
@@ -3768,10 +3795,14 @@ class AthenaMainWindow(QMainWindow):
                 f"MODEL {extraction.model_id}"
             ),
             body=(
-                f"Message {extraction.message_id[:8].upper()} · "
-                f"{len(extraction.knowledge_units)} Knowledge · "
-                f"{len(extraction.claims)} Claims · "
-                f"{len(extraction.relations)} Relations"
+                (
+                    f"Message {extraction.message_id[:8].upper()}"
+                    if isinstance(extraction, MessageKnowledgeExtractionResponse)
+                    else f"{len(extraction.selected_messages)} selected messages"
+                )
+                + f" · {len(extraction.knowledge_units)} Knowledge"
+                + f" · {len(extraction.claims)} Claims"
+                + f" · {len(extraction.relations)} Relations"
             ),
         )
 
