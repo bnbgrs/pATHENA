@@ -420,6 +420,88 @@ def test_message_scoped_extraction_uses_only_selected_stable_revision(tmp_path) 
         database.stop()
 
 
+def test_multi_message_extraction_uses_only_exact_selected_revisions(tmp_path) -> None:
+    database = SQLiteDatabase(tmp_path / "athena.db")
+    database.start()
+    provider = FakeStructuredProvider(_valid_payload())
+    chat, extraction = _service(database, provider)
+
+    try:
+        chat_id = chat.create_chat()
+        first = chat.add_user_message(
+            chat_id=chat_id,
+            content="The project uses SQLite for local transactional state.",
+        )
+        omitted = chat.add_user_message(
+            chat_id=chat_id,
+            content="This message must not enter the selected extraction.",
+        )
+        third = chat.add_user_message(
+            chat_id=chat_id,
+            content="The selected scope also contains this third message.",
+        )
+
+        result = extraction.extract_messages(
+            chat_id=chat_id,
+            message_revisions=(
+                (first.message_id, first.revision_id),
+                (third.message_id, third.revision_id),
+            ),
+        )
+
+        assert result.processing_run.status == "succeeded"
+        prompt = provider.calls[0][1][1].content
+        assert "[1] user:" in prompt
+        assert "[3] user:" in prompt
+        assert omitted.content not in prompt
+
+        row = database.connection.execute(
+            "SELECT input_snapshot_json FROM processing_runs "
+            "WHERE run_type = 'knowledge_extraction'"
+        ).fetchone()
+        assert row is not None
+        snapshot = json.loads(str(row["input_snapshot_json"]))
+        assert [
+            (item["message_id"], item["revision_id"])
+            for item in snapshot["messages"]
+        ] == [
+            (str(first.message_id), str(first.revision_id)),
+            (str(third.message_id), str(third.revision_id)),
+        ]
+    finally:
+        database.stop()
+
+
+def test_multi_message_extraction_rejects_stale_revision_before_model_call(
+    tmp_path,
+) -> None:
+    database = SQLiteDatabase(tmp_path / "athena.db")
+    database.start()
+    provider = FakeStructuredProvider(_valid_payload())
+    chat, extraction = _service(database, provider)
+
+    try:
+        chat_id = chat.create_chat()
+        first = chat.add_user_message(chat_id=chat_id, content="First persisted message.")
+        second = chat.add_user_message(chat_id=chat_id, content="Second persisted message.")
+
+        with pytest.raises(
+            ExtractionMessageRevisionMismatchError,
+            match="selected chat-message revision is stale",
+        ):
+            extraction.extract_messages(
+                chat_id=chat_id,
+                message_revisions=(
+                    (first.message_id, first.revision_id),
+                    (second.message_id, uuid.uuid4()),
+                ),
+            )
+
+        assert provider.calls == []
+    finally:
+        database.stop()
+
+
 def test_message_scoped_extraction_rejects_message_from_outside_chat(tmp_path) -> None:
     database = SQLiteDatabase(tmp_path / "athena.db")
     database.start()
