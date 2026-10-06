@@ -36,6 +36,8 @@ from athena.api.contracts import (
     KnowledgeReviewResponse,
     KnowledgeUnitProposalResponse,
     MessageKnowledgeExtractionResponse,
+    MessageSelectionKnowledgeExtractionResponse,
+    SelectedMessageRevisionResponse,
     ModelResponse,
     NewsProfileResponse,
     ProviderHealthResponse,
@@ -171,6 +173,16 @@ class MessageKnowledgeExtractor(Protocol):
         chat_id: uuid.UUID,
         message_id: uuid.UUID,
         revision_id: uuid.UUID,
+        requested_model_id: str | None = None,
+        context_limit: int | None = None,
+        output_reserve: int | None = None,
+    ) -> ChatExtractionResult: ...
+
+    def extract_messages(
+        self,
+        *,
+        chat_id: uuid.UUID,
+        message_revisions: tuple[tuple[uuid.UUID, uuid.UUID], ...],
         requested_model_id: str | None = None,
         context_limit: int | None = None,
         output_reserve: int | None = None,
@@ -1250,6 +1262,69 @@ class CoreApiFacade:
             revision_id=parsed_revision_id,
         )
 
+    def extract_chat_message_selection_knowledge(
+        self,
+        chat_id: str,
+        *,
+        message_revisions: tuple[tuple[str, str], ...],
+        requested_model_id: str | None = None,
+        effective_context_limit: int | None = None,
+        max_output_tokens: int | None = None,
+    ) -> MessageSelectionKnowledgeExtractionResponse:
+        if self._knowledge_extraction is None:
+            raise RuntimeError(
+                "Knowledge extraction is unavailable in this Core process."
+            )
+        if not message_revisions:
+            raise ValueError("Knowledge extraction selection must not be empty.")
+        if len(message_revisions) > 50:
+            raise ValueError("Knowledge extraction selection is limited to 50 messages.")
+        parsed_chat_id = uuid.UUID(chat_id)
+        parsed_pairs = tuple(
+            (uuid.UUID(message_id), uuid.UUID(revision_id))
+            for message_id, revision_id in message_revisions
+        )
+        if len(set(parsed_pairs)) != len(parsed_pairs):
+            raise ValueError("Knowledge extraction selection contains duplicates.")
+
+        thread = self._chat.load_chat(parsed_chat_id)
+        by_id = {item.message_id: item for item in thread.messages}
+        selected: list[ChatMessage] = []
+        for message_id, revision_id in parsed_pairs:
+            message = by_id.get(message_id)
+            if message is None:
+                raise ChatMessageNotFoundError(
+                    "A selected chat message does not exist in this chat."
+                )
+            if message.revision_id != revision_id:
+                raise ChatMessageRevisionMismatchError(
+                    "A selected chat message revision is stale."
+                )
+            selected.append(message)
+        selected.sort(key=lambda item: item.sequence_no)
+
+        try:
+            result = self._knowledge_extraction.extract_messages(
+                chat_id=parsed_chat_id,
+                message_revisions=tuple(
+                    (item.message_id, item.revision_id)
+                    for item in selected
+                ),
+                requested_model_id=requested_model_id,
+                context_limit=effective_context_limit,
+                output_reserve=max_output_tokens,
+            )
+        except ExtractionMessageNotFoundError as exc:
+            raise ChatMessageNotFoundError(str(exc)) from exc
+        except ExtractionMessageRevisionMismatchError as exc:
+            raise ChatMessageRevisionMismatchError(str(exc)) from exc
+        if result.chat_id != parsed_chat_id:
+            raise RuntimeError("Knowledge extraction returned another chat.")
+        return _message_selection_knowledge_extraction_response(
+            result,
+            selected_messages=tuple(selected),
+        )
+
     def _resolve_message_revision(
         self,
         *,
@@ -1483,6 +1558,105 @@ class CoreApiFacade:
         )
 
 
+def _message_selection_knowledge_extraction_response(
+    result: ChatExtractionResult,
+    *,
+    selected_messages: tuple[ChatMessage, ...],
+) -> MessageSelectionKnowledgeExtractionResponse:
+    common = _proposal_response_parts(result)
+    return MessageSelectionKnowledgeExtractionResponse(
+        chat_id=str(result.chat_id),
+        selected_messages=tuple(
+            SelectedMessageRevisionResponse(
+                message_id=str(item.message_id),
+                revision_id=str(item.revision_id),
+                sequence_no=item.sequence_no,
+            )
+            for item in selected_messages
+        ),
+        processing_run_id=str(result.processing_run.processing_run_id),
+        model_id=result.model.backend_model_id,
+        model_signature_id=str(result.model_signature.model_signature_id),
+        **common,
+    )
+
+
+def _proposal_response_parts(
+    result: ChatExtractionResult,
+) -> dict[str, tuple[Any, ...]]:
+    return {
+        "knowledge_units": tuple(
+            KnowledgeUnitProposalResponse(
+                proposal_index=index,
+                source_sequence_no=item.source_sequence_no,
+                source_quote=item.source_quote,
+                knowledge_kind=item.knowledge_kind.value,
+                title=item.title,
+                body=item.body,
+                epistemic_status=item.epistemic_status.value,
+                confidence=item.confidence,
+            )
+            for index, item in enumerate(result.proposals.knowledge_units)
+        ),
+        "claims": tuple(
+            ClaimProposalResponse(
+                proposal_index=index,
+                source_sequence_no=item.source_sequence_no,
+                source_quote=item.source_quote,
+                claim_kind=item.claim_kind.value,
+                statement=item.statement,
+                epistemic_status=item.epistemic_status.value,
+                confidence=item.confidence,
+            )
+            for index, item in enumerate(result.proposals.claims)
+        ),
+        "relations": tuple(
+            RelationProposalResponse(
+                relation_index=index,
+                left_type=item.left_type.value,
+                left_index=item.left_index,
+                relation_type=item.relation_type,
+                right_type=item.right_type.value,
+                right_index=item.right_index,
+                confidence=item.confidence,
+            )
+            for index, item in enumerate(result.proposals.relations)
+        ),
+        "extractor_merge_candidates": tuple(
+            ExtractorMergeCandidateResponse(
+                candidate_index=index,
+                proposal_type=item.proposal_type.value,
+                proposal_index=item.proposal_index,
+                reason=item.reason,
+                confidence=item.confidence,
+            )
+            for index, item in enumerate(result.proposals.merge_candidates)
+        ),
+    }
+
+
+def _message_selection_knowledge_extraction_response(
+    result: ChatExtractionResult,
+    *,
+    selected_messages: tuple[ChatMessage, ...],
+) -> MessageSelectionKnowledgeExtractionResponse:
+    return MessageSelectionKnowledgeExtractionResponse(
+        chat_id=str(result.chat_id),
+        selected_messages=tuple(
+            SelectedMessageRevisionResponse(
+                message_id=str(item.message_id),
+                revision_id=str(item.revision_id),
+                sequence_no=item.sequence_no,
+            )
+            for item in selected_messages
+        ),
+        processing_run_id=str(result.processing_run.processing_run_id),
+        model_id=result.model.backend_model_id,
+        model_signature_id=str(result.model_signature.model_signature_id),
+        **_proposal_response_parts(result),
+    )
+
+
 def _message_knowledge_extraction_response(
     result: ChatExtractionResult,
     *,
@@ -1496,132 +1670,8 @@ def _message_knowledge_extraction_response(
         processing_run_id=str(result.processing_run.processing_run_id),
         model_id=result.model.backend_model_id,
         model_signature_id=str(result.model_signature.model_signature_id),
-        knowledge_units=tuple(
-            KnowledgeUnitProposalResponse(
-                proposal_index=index,
-                source_sequence_no=item.source_sequence_no,
-                source_quote=item.source_quote,
-                knowledge_kind=item.knowledge_kind.value,
-                title=item.title,
-                body=item.body,
-                epistemic_status=item.epistemic_status.value,
-                confidence=item.confidence,
-            )
-            for index, item in enumerate(result.proposals.knowledge_units)
-        ),
-        claims=tuple(
-            ClaimProposalResponse(
-                proposal_index=index,
-                source_sequence_no=item.source_sequence_no,
-                source_quote=item.source_quote,
-                claim_kind=item.claim_kind.value,
-                statement=item.statement,
-                epistemic_status=item.epistemic_status.value,
-                confidence=item.confidence,
-            )
-            for index, item in enumerate(result.proposals.claims)
-        ),
-        relations=tuple(
-            RelationProposalResponse(
-                relation_index=index,
-                left_type=item.left_type.value,
-                left_index=item.left_index,
-                relation_type=item.relation_type,
-                right_type=item.right_type.value,
-                right_index=item.right_index,
-                confidence=item.confidence,
-            )
-            for index, item in enumerate(result.proposals.relations)
-        ),
-        extractor_merge_candidates=tuple(
-            ExtractorMergeCandidateResponse(
-                candidate_index=index,
-                proposal_type=item.proposal_type.value,
-                proposal_index=item.proposal_index,
-                reason=item.reason,
-                confidence=item.confidence,
-            )
-            for index, item in enumerate(result.proposals.merge_candidates)
-        ),
+        **_proposal_response_parts(result),
     )
-
-
-def _dedup_decision_response(
-    decision: DedupDecision,
-) -> DedupDecisionResponse:
-    return DedupDecisionResponse(
-        proposal_type=decision.proposal_type.value,
-        proposal_index=decision.proposal_index,
-        action=decision.action.value,
-        existing_entity_id=(
-            None
-            if decision.existing_entity_id is None
-            else str(decision.existing_entity_id)
-        ),
-        existing_revision_id=(
-            None
-            if decision.existing_revision_id is None
-            else str(decision.existing_revision_id)
-        ),
-        duplicate_of_proposal_index=decision.duplicate_of_proposal_index,
-    )
-
-
-def _canonical_merge_review_response(
-    *,
-    candidate_index: int,
-    candidate: CanonicalMergeCandidate,
-    review_id: uuid.UUID,
-) -> CanonicalMergeReviewResponse:
-    return CanonicalMergeReviewResponse(
-        candidate_index=candidate_index,
-        review_id=str(review_id),
-        proposal_type=candidate.proposal_type.value,
-        proposal_index=candidate.proposal_index,
-        existing_entity_id=str(candidate.existing_entity_id),
-        existing_revision_id=str(candidate.existing_revision_id),
-        similarity=candidate.similarity,
-        reason=candidate.reason,
-    )
-
-
-def _dedup_plan_digest(plan: DeduplicationPlan) -> str:
-    payload = {
-        "knowledge": [
-            item.to_dict()
-            for item in (
-                _dedup_decision_response(decision)
-                for decision in plan.knowledge
-            )
-        ],
-        "claims": [
-            item.to_dict()
-            for item in (
-                _dedup_decision_response(decision)
-                for decision in plan.claims
-            )
-        ],
-        "merge_candidates": [
-            {
-                "proposal_type": candidate.proposal_type.value,
-                "proposal_index": candidate.proposal_index,
-                "existing_entity_id": str(candidate.existing_entity_id),
-                "existing_revision_id": str(candidate.existing_revision_id),
-                "similarity": candidate.similarity,
-                "reason": candidate.reason,
-            }
-            for candidate in plan.merge_candidates
-        ],
-    }
-    encoded = json.dumps(
-        payload,
-        ensure_ascii=False,
-        sort_keys=True,
-        separators=(",", ":"),
-        allow_nan=False,
-    ).encode("utf-8")
-    return hashlib.sha256(encoded).hexdigest()
-
 
 def _knowledge_review_response(
     *,
