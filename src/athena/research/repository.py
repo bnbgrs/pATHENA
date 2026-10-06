@@ -8,8 +8,8 @@ import json
 import sqlite3
 import uuid
 from collections.abc import Mapping, Sequence
-from urllib.parse import urlsplit
 from typing import Any
+from urllib.parse import urlsplit
 
 from athena.common.ids import new_uuid7, uuid_from_blob, uuid_to_blob
 from athena.common.time import utc_now_us
