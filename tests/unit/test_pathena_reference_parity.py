@@ -216,7 +216,7 @@ def test_reference_parity_styles_pallas_jobs_system_and_settings_surfaces() -> N
         window.close()
 
 
-def test_reference_parity_uses_v4_chartreuse_action_accent_not_warning() -> None:
-    assert PALETTE.accent == "#C7FF52"
-    assert PALETTE.warning == "#E9A84D"
+def test_reference_parity_uses_v4_cobalt_action_accent_not_warning() -> None:
+    assert PALETTE.accent == "#6F8CFF"
+    assert PALETTE.warning == "#E8B15B"
     assert PALETTE.accent != PALETTE.warning

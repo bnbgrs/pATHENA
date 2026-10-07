@@ -32,13 +32,13 @@ def test_v3_shell_is_structurally_distinct_and_keeps_route_contract() -> None:
     assert shell.findChild(QFrame, "v2Sidebar") is None
 
     assert controller._header.height() == 52
-    assert "#C7FF52" in PATHENA_V3_STYLESHEET
-    assert "#7C9CFF" not in PATHENA_V3_STYLESHEET
+    assert "#6F8CFF" in PATHENA_V3_STYLESHEET
+    assert "#C7FF52" not in PATHENA_V3_STYLESHEET
     assert (
         'QToolButton[v3Nav="true"]:focus {\n'
-        "    color: #F4F1E8;\n"
-        "    background: #1D1F1A;\n"
-        "    border-color: #45483D;"
+        "    color: #F4F6FB;\n"
+        "    background: #171B24;\n"
+        "    border-color: #384354;"
         in PATHENA_V3_STYLESHEET
     )
     assert "QFrame#v3ChatMeta {\n    background: transparent;" in PATHENA_V3_STYLESHEET
@@ -78,7 +78,7 @@ def test_v3_shell_is_structurally_distinct_and_keeps_route_contract() -> None:
     assert window.prompt_input.parent().objectName() == "v3Composer"
     assert isinstance(window.prompt_input, QPlainTextEdit)
     assert window.prompt_input.minimumHeight() == 56
-    assert window.prompt_input.maximumHeight() == 120
+    assert window.prompt_input.maximumHeight() == 88
     window.prompt_input.setText("first line\nsecond line")
     assert window.prompt_input.text() == "first line\nsecond line"
 
@@ -194,11 +194,11 @@ def test_v3_shell_keeps_core_chat_controls_visible_at_minimum_desktop_size() -> 
         assert window.new_chat_button.accessibleName() == "New conversation"
         assert window.delete_chat_button.accessibleName() == "Delete conversation"
         assert window.prompt_input.isVisible()
-        assert window.prompt_input.maximumHeight() == 120
+        assert window.prompt_input.maximumHeight() == 88
         assert window.ground_button.isVisible()
         assert window.send_button.isVisible()
-        assert window.send_button.width() == 36
-        assert window.send_button.height() == 36
+        assert window.send_button.width() == 40
+        assert window.send_button.height() == 40
         assert window.ground_button.text() == "Sources"
         assert window.send_button.text() == "↑"
         assert "color: rgba(0, 0, 0, 0)" in window.ground_button.styleSheet()

@@ -17,28 +17,28 @@ from typing import Final
 class Palette:
     """Reference-family colors shared by all pATHENA desktop surfaces."""
 
-    # V4: neutral graphite/ink foundation. Chartreuse is reserved for precise
-    # interaction emphasis; semantic colors remain distinct and truthful.
-    canvas: str = "#111210"
-    surface: str = "#171815"
-    surface_raised: str = "#1D1F1A"
-    surface_hover: str = "#252820"
-    surface_selected: str = "#2B3022"
-    border: str = "#30322C"
-    border_strong: str = "#45483D"
-    text: str = "#F4F1E8"
-    text_muted: str = "#C7C3B8"
-    text_subtle: str = "#98968E"
-    text_quiet: str = "#706F68"
-    accent: str = "#C7FF52"
-    accent_hover: str = "#D3FF78"
-    accent_pressed: str = "#A9DC3E"
-    accent_soft: str = "#29351C"
-    success: str = "#45C58A"
-    info: str = "#52B7E8"
-    question: str = "#A98BFF"
-    warning: str = "#E9A84D"
-    error: str = "#F06D6A"
+    # V4 finishing pass: deep neutral ink with one calm cobalt interaction
+    # accent. Semantic colors remain distinct so status never depends on accent.
+    canvas: str = "#0B0D12"
+    surface: str = "#11141B"
+    surface_raised: str = "#171B24"
+    surface_hover: str = "#1D2330"
+    surface_selected: str = "#202A40"
+    border: str = "#252B36"
+    border_strong: str = "#384354"
+    text: str = "#F4F6FB"
+    text_muted: str = "#C0C6D2"
+    text_subtle: str = "#929AA9"
+    text_quiet: str = "#697181"
+    accent: str = "#6F8CFF"
+    accent_hover: str = "#8AA3FF"
+    accent_pressed: str = "#5874E0"
+    accent_soft: str = "#1A2342"
+    success: str = "#4BCB91"
+    info: str = "#60B7F4"
+    question: str = "#B08CFF"
+    warning: str = "#E8B15B"
+    error: str = "#F07D79"
 
 
 @dataclass(frozen=True, slots=True)
@@ -68,10 +68,10 @@ class Spacing:
 
 @dataclass(frozen=True, slots=True)
 class Radii:
-    control: int = 6
-    panel: int = 8
-    prominent: int = 14
-    composer: int = 12
+    control: int = 8
+    panel: int = 10
+    prominent: int = 16
+    composer: int = 16
 
 
 @dataclass(frozen=True, slots=True)
@@ -90,7 +90,7 @@ class ShellGeometry:
     secondary_nav_width: int = 232
     inspector_width: int = 320
     composer_min_height: int = 56
-    composer_action_size: int = 36
+    composer_action_size: int = 40
 
 
 PALETTE: Final = Palette()
