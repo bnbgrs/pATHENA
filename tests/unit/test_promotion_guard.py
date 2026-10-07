@@ -226,8 +226,9 @@ def test_promotion_workflow_aggregates_exact_sha_release_evidence_fail_closed() 
         '"/repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$CANDIDATE_SHA&per_page=100"'
         in workflow
     )
-    assert 'exact_green("ATHENA Quality Gate")' in workflow
-    assert 'exact_green("pATHENA Windows Package")' in workflow
+    assert 'exact_green_run("ATHENA Quality Gate")' in workflow
+    assert 'exact_green_run("pATHENA Windows Package")' in workflow
+    assert 'promotion_guard_green = os.environ["PROMOTION_GUARD"] == "success"' in workflow
     assert "ReleaseReadinessEvidence(" in workflow
     assert "assess_release_readiness(evidence)" in workflow
     assert "storage_regressions=quality_green" in workflow
