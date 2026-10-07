@@ -1,8 +1,9 @@
-# pATHENA Feature-Gap Backlog
+# pATHENA Feature-Gap Backlog — Historical Snapshot
 
-Central hand-off between the Feature-Gap Scout and BACKEND, UI, and QUALITY owners.
+This file preserves the Feature-Gap Scout handoff as it stood on 2026-08-24.
 Status vocabulary: `FOUND` · `PARTIAL` · `READY` · `BLOCKED` · `IN_PROGRESS` · `IMPLEMENTED` · `VERIFIED` · `STALE`.
-Last refresh: 2026-08-24.
+
+> **Do not use the entries below as the current work queue.** They are historical and may contradict the present code. Current work must come from the exact `develop/pathena-next` tree, open GitHub issues/PRs, `docs/development/ALPHA_BETA_PROGRESS.md`, the current error handoff/ledger, and exact-SHA release-readiness evidence.
 
 ## Findings
 
