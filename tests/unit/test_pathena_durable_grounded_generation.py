@@ -12,6 +12,7 @@ from athena.chat.durable_grounded_generation import (
     DurableGroundedGenerationService,
 )
 from athena.chat.generation import ChatGenerationService
+from athena.chat.grounded_partial_output import GroundedPartialOutputRepository
 from athena.chat.grounded_recovery import GroundedRecoveryState, GroundedSendRecovery
 from athena.chat.grounded_send import GroundedProviderBoundaryError, GroundedSendCoordinator
 from athena.chat.grounding import GroundingContract
@@ -327,6 +328,142 @@ def test_grounding_retry_is_fenced_before_second_provider_call(tmp_path: Path) -
             fingerprint=fingerprint,
         ).state is GroundedRecoveryState.PARTIAL_AVAILABLE
         assert len(chats.load_chat(chat_id).messages) == 1
+    finally:
+        database.stop()
+
+
+class _ContinuationProvider(_Provider):
+    def __init__(self) -> None:
+        super().__init__()
+        self.messages: tuple[ModelChatMessage, ...] = ()
+
+    def stream_chat(
+        self,
+        *,
+        model_id: str,
+        messages: Sequence[ModelChatMessage],
+        max_output_tokens: int | None = None,
+        reasoning_mode: str | None = None,
+        temperature: float | None = None,
+    ) -> Iterator[str]:
+        assert model_id == "primary"
+        assert max_output_tokens == 1000
+        assert reasoning_mode == "off"
+        assert temperature is None
+        self.calls += 1
+        self.messages = tuple(messages)
+        yield " continued"
+
+
+def test_partial_output_continuation_uses_exact_prefix_and_new_processing_run(
+    tmp_path: Path,
+) -> None:
+    database = SQLiteDatabase(tmp_path / "athena.db")
+    database.start()
+    try:
+        chats = ChatRepository(database)
+        user = chats.create_actor(actor_type="user")
+        chat_id = chats.create_chat(actor_id=user)
+        operation_id = uuid.uuid4()
+        fingerprint = _fingerprint(chat_id)
+        coordinator = GroundedSendCoordinator(database)
+        started = coordinator.start(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            actor_id=user,
+            content="hello",
+            fingerprint=fingerprint,
+        )
+        package, first_run_id = _package_and_run(database, started.user_message)
+        first_provider = _Provider()
+        first_generation = DurableGroundedGenerationService(
+            ChatGenerationService(ChatService(chats), first_provider),
+            coordinator,
+        )
+        with pytest.raises(GroundedProviderBoundaryError):
+            first_generation.send_context_package(
+                operation_id=operation_id,
+                chat_id=chat_id,
+                user_message=started.user_message,
+                context_package=package,
+                processing_run_id=first_run_id,
+                fingerprint=fingerprint,
+                receipt_payload_builder=lambda content, provider_id, model_id: json.dumps(
+                    {
+                        "assistant_text": content,
+                        "provider_id": provider_id,
+                        "model_id": model_id,
+                    }
+                ),
+                grounding_contract=GroundingContract(
+                    evidence_refs=(),
+                    allow_model_prior=False,
+                    require_provenance_markers=True,
+                ),
+            )
+        partial = coordinator.recover(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            fingerprint=fingerprint,
+        )
+        assert partial.state is GroundedRecoveryState.PARTIAL_AVAILABLE
+        assert partial.partial_output is not None
+        assert partial.partial_output.content == "durable answer"
+        assert ModelRunRepository(database).load_run(first_run_id).status == "failed"
+
+        continuation_run = ModelRunRepository(database).start_run(
+            run_type="chat.unified_local_context_package",
+            trigger_actor_id=user,
+            pipeline_version="durable-grounded-test-v1.partial-continuation-v1",
+            input_snapshot=package.run_snapshot(),
+            configuration={"context_package_version": 1},
+            model_signature_id=package.model_signature.model_signature_id,
+            prompt_template_id="durable-grounded-test",
+            prompt_template_version="1",
+        )
+        continuation_provider = _ContinuationProvider()
+        continuation = DurableGroundedGenerationService(
+            ChatGenerationService(ChatService(chats), continuation_provider),
+            coordinator,
+        )
+        result = continuation.continue_partial_context_package(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            user_message=started.user_message,
+            context_package=package,
+            processing_run_id=continuation_run.processing_run_id,
+            fingerprint=fingerprint,
+            receipt_payload_builder=lambda content, provider_id, model_id: json.dumps(
+                {
+                    "assistant_text": content,
+                    "provider_id": provider_id,
+                    "model_id": model_id,
+                }
+            ),
+        )
+
+        assert continuation_provider.calls == 1
+        assert continuation_provider.messages[-2].role == "assistant"
+        assert continuation_provider.messages[-2].content == "durable answer"
+        assert continuation_provider.messages[-1].role == "user"
+        assert "missing suffix" in continuation_provider.messages[-1].content
+        assert result.assistant_message.content == "durable answer continued"
+        cumulative = GroundedPartialOutputRepository(database).load_cumulative(operation_id)
+        assert cumulative is not None
+        assert cumulative.attempt_no == 1
+        assert cumulative.content == "durable answer continued"
+        claim = GroundedPartialOutputRepository(database).load_latest_continuation(
+            operation_id
+        )
+        assert claim is not None
+        assert claim.processing_run_id == continuation_run.processing_run_id
+        assert claim.attempt_no == 1
+        operation = coordinator.operations.load(operation_id)
+        assert operation is not None
+        assert operation.processing_run_id == continuation_run.processing_run_id
+        assert ModelRunRepository(database).load_run(
+            continuation_run.processing_run_id
+        ).status == "succeeded"
     finally:
         database.stop()
 
