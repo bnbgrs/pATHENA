@@ -438,8 +438,13 @@ jobs:
           $zip = Join-Path $env:RUNNER_TEMP "$env:PACKAGE_NAME-$env:CANDIDATE_SHA.zip"
           Compress-Archive -Path $stage -DestinationPath $zip -CompressionLevel Optimal
           $hash = (Get-FileHash -Algorithm SHA256 $zip).Hash.ToLowerInvariant()
+          $productVersion = (& .\.venv\Scripts\python.exe -c "from athena.version import __version__; print(__version__)").Trim()
+          if ([string]::IsNullOrWhiteSpace($productVersion)) {
+            throw "pATHENA product version could not be resolved."
+          }
           $manifest = [ordered]@{
             source_sha = $env:CANDIDATE_SHA
+            version = $productVersion
             package = [System.IO.Path]::GetFileName($zip)
             sha256 = $hash
             native_windows_build = $true
