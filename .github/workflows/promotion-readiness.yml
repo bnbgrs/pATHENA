@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: promotion-readiness-${{ github.ref }}
@@ -68,3 +69,158 @@ jobs:
 
       - name: Test promotion guard
         run: uv run --locked --extra dev --no-sync pytest -q tests/unit/test_promotion_guard.py
+
+  windows-release-contracts:
+    name: Candidate Windows release contracts
+    runs-on: windows-2022
+    timeout-minutes: 25
+
+    steps:
+      - name: Check out exact candidate
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: ${{ env.CANDIDATE_SHA }}
+          persist-credentials: false
+
+      - name: Prove immutable checked-out identity
+        shell: pwsh
+        run: |
+          $checkedOut = (git rev-parse HEAD).Trim().ToLowerInvariant()
+          $expected = "$env:CANDIDATE_SHA".Trim().ToLowerInvariant()
+          if ($checkedOut -ne $expected) {
+            throw "Checked out $checkedOut instead of exact candidate $expected."
+          }
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.12"
+          check-latest: false
+          cache: "pip"
+
+      - name: Install pinned resolver
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check "pip==26.1.2"
+          python -m pip install --disable-pip-version-check "uv==0.11.21"
+
+      - name: Validate dependency lock
+        run: uv lock --check
+
+      - name: Install locked Windows release environment
+        run: uv sync --locked --extra dev --extra desktop
+
+      - name: Run exact candidate Windows release contracts
+        run: >-
+          uv run --locked --extra dev --extra desktop --no-sync pytest -q
+          tests/unit/test_windows_runtime_root_boundary.py
+          tests/unit/test_windows_check_script_contract.py
+          tests/unit/test_packaged_app_dispatch.py
+          tests/unit/test_packaged_process_launch.py
+          tests/unit/test_windows_packaging_contract.py
+          tests/unit/test_chat_context_reserve_contract.py
+          tests/unit/test_job_lane_lock_scalar_validation.py
+          tests/unit/test_lane_lock_ancestor_boundaries.py
+          tests/unit/test_scheduler_lane_lock_boundaries.py
+
+      - name: Execute supported Windows diagnostic wrapper
+        shell: pwsh
+        run: |
+          $env:ATHENA_LOCAL_ROOT = Join-Path $env:RUNNER_TEMP "pathena-promotion-state"
+          $smokeRoot = Join-Path $env:RUNNER_TEMP "pathena-promotion-wrapper-smoke"
+          & .\scripts\check_windows.ps1 -NoSync -SmokeRoot $smokeRoot -RestartCycles 1
+          if ($LASTEXITCODE -ne 0) {
+            throw "check_windows.ps1 failed with exit code $LASTEXITCODE."
+          }
+
+  release-readiness:
+    name: Exact-SHA release readiness
+    runs-on: ubuntu-latest
+    needs:
+      - promotion-guard
+      - windows-release-contracts
+    timeout-minutes: 5
+
+    steps:
+      - name: Check out exact candidate
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: ${{ env.CANDIDATE_SHA }}
+          persist-credentials: false
+
+      - name: Prove immutable checked-out identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          checked_out="$(git rev-parse HEAD)"
+          if [ "$checked_out" != "$CANDIDATE_SHA" ]; then
+            echo "Checked out $checked_out instead of exact candidate $CANDIDATE_SHA." >&2
+            exit 1
+          fi
+
+      - name: Fetch exact-SHA workflow evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .release-evidence
+          gh api \
+            -H "Accept: application/vnd.github+json" \
+            "/repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$CANDIDATE_SHA&per_page=100" \
+            > .release-evidence/runs.json
+
+      - name: Enforce fail-closed release readiness
+        env:
+          WINDOWS_RELEASE_CONTRACTS: ${{ needs.windows-release-contracts.result }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          PYTHONPATH=src python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          from athena.release_readiness import (
+              ReleaseReadinessEvidence,
+              assess_release_readiness,
+          )
+
+          exact_sha = os.environ["CANDIDATE_SHA"]
+          payload = json.loads(Path(".release-evidence/runs.json").read_text(encoding="utf-8"))
+
+          def exact_green(workflow_name: str) -> bool:
+              return any(
+                  run.get("name") == workflow_name
+                  and run.get("head_sha") == exact_sha
+                  and run.get("status") == "completed"
+                  and run.get("conclusion") == "success"
+                  for run in payload.get("workflow_runs", ())
+              )
+
+          quality_green = exact_green("ATHENA Quality Gate")
+          package_green = exact_green("pATHENA Windows Package")
+          windows_green = os.environ["WINDOWS_RELEASE_CONTRACTS"] == "success"
+
+          evidence = ReleaseReadinessEvidence(
+              exact_sha=exact_sha,
+              canonical_quality=quality_green,
+              windows_runtime=windows_green,
+              packaging=package_green,
+              frozen_argv=windows_green,
+              two_exe_topology=windows_green,
+              single_desktop_bounded_workers=windows_green,
+              adaptive_2048_context_reserve=windows_green,
+              windows_lane_lock=windows_green,
+              storage_regressions=quality_green,
+          )
+          result = assess_release_readiness(evidence)
+          print(f"release readiness exact_sha={result.exact_sha}")
+          print(f"canonical quality: {quality_green}")
+          print(f"windows package: {package_green}")
+          print(f"candidate Windows release contracts: {windows_green}")
+          if not result.ready:
+              print("release readiness: FAIL — " + ", ".join(result.blockers))
+              raise SystemExit(1)
+          print("release readiness: PASS")
+          PY
