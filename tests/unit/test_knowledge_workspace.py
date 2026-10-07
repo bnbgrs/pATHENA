@@ -8,6 +8,7 @@ from PySide6.QtCore import QProcess, Qt
 from PySide6.QtWidgets import QApplication, QListWidgetItem
 
 import athena.desktop.knowledge_workspace as knowledge_workspace_module
+from athena.desktop.canonical_memory_extensions import install_canonical_memory_extensions
 from athena.desktop.knowledge_workspace import KnowledgeWorkspace
 
 
@@ -82,6 +83,29 @@ def _workspace(qapp: QApplication) -> KnowledgeWorkspace:
     workspace._selected_knowledge_id = "00000000-0000-0000-0000-000000000001"
     workspace.obsidian_export_button.setEnabled(True)
     return workspace
+
+
+def test_semantic_decision_mode_dropdown_popup_opens(
+    qapp: QApplication,
+) -> None:
+    workspace = KnowledgeWorkspace(_FakeWindow(), None)
+    workspace._knowledge_refresh_timer.stop()
+    extension = install_canonical_memory_extensions(workspace)
+    try:
+        workspace.show()
+        qapp.processEvents()
+        selector = extension.decision_mode
+        assert selector.isVisible()
+        assert selector.isEnabled()
+        assert selector.count() == 2
+        selector.showPopup()
+        qapp.processEvents()
+        assert selector.view().window().isVisible()
+        selector.hidePopup()
+    finally:
+        workspace.close()
+        workspace.deleteLater()
+        qapp.processEvents()
 
 
 def test_obsidian_export_button_is_visible_but_disabled_without_selection(
