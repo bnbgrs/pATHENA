@@ -8,6 +8,7 @@ import pytest
 from athena.desktop import (
     canonical_memory_cli,
     jobs_cli,
+    knowledge_cli,
     research_cli,
     sources_cli,
 )
@@ -15,6 +16,7 @@ from athena.desktop import (
 _HELPERS: tuple[tuple[ModuleType, tuple[str, ...], str], ...] = (
     (canonical_memory_cli, ("merge-list",), "CANONICAL_MEMORY_ERROR"),
     (jobs_cli, ("list",), "JOBS_ERROR"),
+    (knowledge_cli, ("list",), "KNOWLEDGE_ERROR"),
     (research_cli, ("list",), "RESEARCH_ERROR"),
     (sources_cli, ("list",), "SOURCES_ERROR"),
 )
@@ -52,6 +54,7 @@ class _HelperApp:
     ids=(
         "canonical-memory",
         "jobs",
+        "knowledge",
         "research",
         "sources",
     ),
