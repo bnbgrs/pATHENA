@@ -101,6 +101,26 @@ def _assert_no_sqlite_sidecars(path: Path, *, label: str) -> None:
         )
 
 
+def _assert_source_sqlite_sidecars_safe(path: Path) -> None:
+    """Allow regular source WAL/SHM files while rejecting redirecting boundaries.
+
+    Clone migrations use SQLite's Online Backup API, which reads the source through
+    SQLite itself and therefore includes committed WAL content. A regular WAL/SHM
+    pair can remain after an interrupted or recently closed process and must not,
+    by itself, make startup unrecoverable.
+    """
+    for sidecar in _sqlite_sidecars(path):
+        if is_link_boundary(sidecar):
+            raise MigrationCoordinatorError(
+                "Migration source SQLite sidecar is a symlink, junction, or "
+                "reparse-point boundary."
+            )
+        if sidecar.exists() and not sidecar.is_file():
+            raise MigrationCoordinatorError(
+                "Migration source SQLite sidecar is not a regular file."
+            )
+
+
 def _verify_migrated_candidate(
     candidate: Path,
     *,
@@ -188,7 +208,7 @@ def run_clone_migration(
         raise MigrationCoordinatorError("Migration source must be a real database file.")
     if not root.is_dir():
         raise MigrationCoordinatorError("Migration root must be a real directory.")
-    _assert_no_sqlite_sidecars(source, label="Migration source")
+    _assert_source_sqlite_sidecars_safe(source)
 
     database_size = source.stat().st_size
     if available_bytes is None:
