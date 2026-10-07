@@ -5,7 +5,7 @@ import json
 from unittest.mock import patch
 
 from PySide6.QtWidgets import QApplication, QLabel
-from shiboken6 import delete
+from shiboken6 import delete, isValid
 
 from athena.api.asgi import CoreApiAsgiApp
 from athena.api.client import CoreApiClient
@@ -82,6 +82,7 @@ def _dispose_window(app: QApplication, window: AthenaMainWindow) -> None:
     window.close()
     app.processEvents()
     delete(window)
+    app.processEvents()
 
 
 def _snapshot() -> DesktopApiSnapshot:
@@ -104,6 +105,27 @@ def _snapshot() -> DesktopApiSnapshot:
             ),
         ),
     )
+
+
+def test_ascii_panel_is_owned_by_window_native_lifecycle() -> None:
+    app = QApplication.instance() or QApplication([])
+    first = AthenaMainWindow(api_controller=None)
+    panel = first.ascii_panel
+    try:
+        assert panel.parent() is first
+        assert panel.isHidden()
+        assert isValid(panel)
+    finally:
+        _dispose_window(app, first)
+
+    assert not isValid(panel)
+
+    second = AthenaMainWindow(api_controller=None)
+    try:
+        assert second.ascii_panel.parent() is second
+        assert isValid(second.ascii_panel)
+    finally:
+        _dispose_window(app, second)
 
 
 def test_desktop_starts_and_refreshes_in_explicit_new_chat_state() -> None:

@@ -285,6 +285,36 @@ class MessageKnowledgeExtractionResponse(ApiContract):
 
 
 @dataclass(frozen=True, slots=True)
+class SelectedChatMessageResponse(ApiContract):
+    message_id: str
+    revision_id: str
+    sequence_no: int
+
+
+@dataclass(frozen=True, slots=True)
+class MessageSelectionKnowledgeExtractionResponse(ApiContract):
+    chat_id: str
+    source_messages: tuple[SelectedChatMessageResponse, ...]
+    processing_run_id: str
+    model_id: str
+    model_signature_id: str
+    knowledge_units: tuple[KnowledgeUnitProposalResponse, ...]
+    claims: tuple[ClaimProposalResponse, ...]
+    relations: tuple[RelationProposalResponse, ...]
+    extractor_merge_candidates: tuple[ExtractorMergeCandidateResponse, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class MessageSelectionSummaryResponse(ApiContract):
+    chat_id: str
+    source_messages: tuple[SelectedChatMessageResponse, ...]
+    processing_run_id: str
+    model_id: str
+    model_signature_id: str
+    summary: str
+
+
+@dataclass(frozen=True, slots=True)
 class DedupDecisionResponse(ApiContract):
     proposal_type: str
     proposal_index: int

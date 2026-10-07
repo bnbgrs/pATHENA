@@ -39,11 +39,14 @@ from athena.api.contracts import (
     KnowledgeReviewResponse,
     KnowledgeUnitProposalResponse,
     MessageKnowledgeExtractionResponse,
+    MessageSelectionKnowledgeExtractionResponse,
+    MessageSelectionSummaryResponse,
     ModelResponse,
     NewsProfileResponse,
     ProviderHealthResponse,
     RelationProposalResponse,
     RememberedChatMessageResponse,
+    SelectedChatMessageResponse,
     StorageHealthResponse,
 )
 from athena.api.search_contracts import (
@@ -942,6 +945,72 @@ class CoreApiClient:
             )
         return result
 
+    def extract_chat_selection_knowledge(
+        self,
+        chat_id: str,
+        *,
+        message_revisions: tuple[tuple[str, str], ...],
+        model_id: str | None = None,
+        effective_context_limit: int | None = None,
+        max_output_tokens: int | None = None,
+    ) -> MessageSelectionKnowledgeExtractionResponse:
+        payload = _message_selection_request_payload(
+            chat_id=chat_id,
+            message_revisions=message_revisions,
+            model_id=model_id,
+            effective_context_limit=effective_context_limit,
+            max_output_tokens=max_output_tokens,
+        )
+        result = _message_selection_knowledge_extraction(
+            self._request(
+                "POST",
+                f"/api/v1/chats/{chat_id}/message-selection/knowledge-extraction",
+                expected_status=201,
+                json_body=payload,
+                timeout_seconds=self.generation_timeout_seconds,
+            )
+        )
+        _validate_selection_identity(
+            result.chat_id,
+            result.source_messages,
+            chat_id=chat_id,
+            message_revisions=message_revisions,
+        )
+        return result
+
+    def summarize_chat_selection(
+        self,
+        chat_id: str,
+        *,
+        message_revisions: tuple[tuple[str, str], ...],
+        model_id: str | None = None,
+        effective_context_limit: int | None = None,
+        max_output_tokens: int | None = None,
+    ) -> MessageSelectionSummaryResponse:
+        payload = _message_selection_request_payload(
+            chat_id=chat_id,
+            message_revisions=message_revisions,
+            model_id=model_id,
+            effective_context_limit=effective_context_limit,
+            max_output_tokens=max_output_tokens,
+        )
+        result = _message_selection_summary(
+            self._request(
+                "POST",
+                f"/api/v1/chats/{chat_id}/message-selection/summary",
+                expected_status=201,
+                json_body=payload,
+                timeout_seconds=self.generation_timeout_seconds,
+            )
+        )
+        _validate_selection_identity(
+            result.chat_id,
+            result.source_messages,
+            chat_id=chat_id,
+            message_revisions=message_revisions,
+        )
+        return result
+
     def prepare_knowledge_review(
         self,
         processing_run_id: str,
@@ -1688,6 +1757,219 @@ def _extractor_merge_candidate(
     )
 
 
+def _message_selection_request_payload(
+    *,
+    chat_id: str,
+    message_revisions: tuple[tuple[str, str], ...],
+    model_id: str | None,
+    effective_context_limit: int | None,
+    max_output_tokens: int | None,
+) -> dict[str, JsonValue]:
+    _require_path_segment(chat_id, label="Chat ID")
+    if not message_revisions:
+        raise ValueError("Message selection must contain at least one message.")
+    if len(message_revisions) > 100:
+        raise ValueError("Message selection cannot exceed 100 messages.")
+    if len({message_id for message_id, _revision_id in message_revisions}) != len(
+        message_revisions
+    ):
+        raise ValueError("Message selection must not contain duplicate message IDs.")
+    messages: list[JsonValue] = []
+    for message_id, revision_id in message_revisions:
+        _require_path_segment(message_id, label="Message ID")
+        if not revision_id.strip():
+            raise ValueError("Message revision_id must be non-empty.")
+        messages.append(
+            {
+                "message_id": message_id,
+                "revision_id": revision_id,
+            }
+        )
+    if model_id is not None and not model_id.strip():
+        raise ValueError("Selection model_id must be non-empty when provided.")
+    if effective_context_limit is not None and (
+        isinstance(effective_context_limit, bool)
+        or not isinstance(effective_context_limit, int)
+        or effective_context_limit < 1
+    ):
+        raise ValueError(
+            "Selection effective_context_limit must be positive when provided."
+        )
+    if max_output_tokens is not None and (
+        isinstance(max_output_tokens, bool)
+        or not isinstance(max_output_tokens, int)
+        or max_output_tokens < 1
+    ):
+        raise ValueError(
+            "Selection max_output_tokens must be positive when provided."
+        )
+    payload: dict[str, JsonValue] = {"messages": messages}
+    if model_id is not None:
+        payload["model_id"] = model_id
+    if effective_context_limit is not None:
+        payload["effective_context_limit"] = effective_context_limit
+    if max_output_tokens is not None:
+        payload["max_output_tokens"] = max_output_tokens
+    return payload
+
+
+def _selected_chat_message(payload: dict[str, JsonValue]) -> SelectedChatMessageResponse:
+    return SelectedChatMessageResponse(
+        message_id=_required_str(payload, "message_id"),
+        revision_id=_required_str(payload, "revision_id"),
+        sequence_no=_required_int(payload, "sequence_no"),
+    )
+
+
+def _selected_chat_messages(
+    payload: dict[str, JsonValue],
+) -> tuple[SelectedChatMessageResponse, ...]:
+    items = tuple(
+        _selected_chat_message(item)
+        for item in _object_items(payload, "source_messages")
+    )
+    if not items:
+        raise CoreApiClientError(
+            "ATHENA Core returned an empty message selection.",
+            code="invalid_response",
+        )
+    if len({item.message_id for item in items}) != len(items):
+        raise CoreApiClientError(
+            "ATHENA Core returned duplicate selected message identities.",
+            code="invalid_response",
+        )
+    if tuple(item.sequence_no for item in items) != tuple(
+        sorted(item.sequence_no for item in items)
+    ):
+        raise CoreApiClientError(
+            "ATHENA Core returned a non-canonical message selection order.",
+            code="invalid_response",
+        )
+    return items
+
+
+def _validate_selection_identity(
+    result_chat_id: str,
+    source_messages: tuple[SelectedChatMessageResponse, ...],
+    *,
+    chat_id: str,
+    message_revisions: tuple[tuple[str, str], ...],
+) -> None:
+    expected = set(message_revisions)
+    actual = {(item.message_id, item.revision_id) for item in source_messages}
+    if result_chat_id != chat_id or actual != expected or len(actual) != len(expected):
+        raise CoreApiClientError(
+            "ATHENA Core returned data for another message selection.",
+            code="invalid_response",
+        )
+
+
+def _validate_extraction_projection(
+    knowledge_units: tuple[KnowledgeUnitProposalResponse, ...],
+    claims: tuple[ClaimProposalResponse, ...],
+    relations: tuple[RelationProposalResponse, ...],
+    extractor_merge_candidates: tuple[ExtractorMergeCandidateResponse, ...],
+) -> None:
+    if tuple(item.proposal_index for item in knowledge_units) != tuple(
+        range(len(knowledge_units))
+    ):
+        raise CoreApiClientError(
+            "ATHENA Core returned non-contiguous Knowledge proposal indexes.",
+            code="invalid_response",
+        )
+    if tuple(item.proposal_index for item in claims) != tuple(
+        range(len(claims))
+    ):
+        raise CoreApiClientError(
+            "ATHENA Core returned non-contiguous Claim proposal indexes.",
+            code="invalid_response",
+        )
+    if tuple(item.relation_index for item in relations) != tuple(
+        range(len(relations))
+    ):
+        raise CoreApiClientError(
+            "ATHENA Core returned non-contiguous relation indexes.",
+            code="invalid_response",
+        )
+    if tuple(
+        item.candidate_index for item in extractor_merge_candidates
+    ) != tuple(range(len(extractor_merge_candidates))):
+        raise CoreApiClientError(
+            "ATHENA Core returned non-contiguous merge-candidate indexes.",
+            code="invalid_response",
+        )
+    proposal_counts = {
+        "knowledge": len(knowledge_units),
+        "claim": len(claims),
+    }
+    for relation in relations:
+        left_count = proposal_counts.get(relation.left_type)
+        right_count = proposal_counts.get(relation.right_type)
+        if (
+            left_count is None
+            or right_count is None
+            or not 0 <= relation.left_index < left_count
+            or not 0 <= relation.right_index < right_count
+        ):
+            raise CoreApiClientError(
+                "ATHENA Core returned an invalid proposal relation reference.",
+                code="invalid_response",
+            )
+    for candidate in extractor_merge_candidates:
+        proposal_count = proposal_counts.get(candidate.proposal_type)
+        if proposal_count is None or not 0 <= candidate.proposal_index < proposal_count:
+            raise CoreApiClientError(
+                "ATHENA Core returned an invalid extractor merge-candidate reference.",
+                code="invalid_response",
+            )
+
+
+def _message_selection_knowledge_extraction(
+    payload: dict[str, JsonValue],
+) -> MessageSelectionKnowledgeExtractionResponse:
+    result = MessageSelectionKnowledgeExtractionResponse(
+        chat_id=_required_str(payload, "chat_id"),
+        source_messages=_selected_chat_messages(payload),
+        processing_run_id=_required_str(payload, "processing_run_id"),
+        model_id=_required_str(payload, "model_id"),
+        model_signature_id=_required_str(payload, "model_signature_id"),
+        knowledge_units=tuple(
+            _knowledge_unit_proposal(item)
+            for item in _object_items(payload, "knowledge_units")
+        ),
+        claims=tuple(
+            _claim_proposal(item) for item in _object_items(payload, "claims")
+        ),
+        relations=tuple(
+            _relation_proposal(item) for item in _object_items(payload, "relations")
+        ),
+        extractor_merge_candidates=tuple(
+            _extractor_merge_candidate(item)
+            for item in _object_items(payload, "extractor_merge_candidates")
+        ),
+    )
+    _validate_extraction_projection(
+        result.knowledge_units,
+        result.claims,
+        result.relations,
+        result.extractor_merge_candidates,
+    )
+    return result
+
+
+def _message_selection_summary(
+    payload: dict[str, JsonValue],
+) -> MessageSelectionSummaryResponse:
+    return MessageSelectionSummaryResponse(
+        chat_id=_required_str(payload, "chat_id"),
+        source_messages=_selected_chat_messages(payload),
+        processing_run_id=_required_str(payload, "processing_run_id"),
+        model_id=_required_str(payload, "model_id"),
+        model_signature_id=_required_str(payload, "model_signature_id"),
+        summary=_required_str(payload, "summary"),
+    )
+
+
 def _message_knowledge_extraction(
     payload: dict[str, JsonValue],
 ) -> MessageKnowledgeExtractionResponse:
@@ -1713,58 +1995,12 @@ def _message_knowledge_extraction(
             for item in _object_items(payload, "extractor_merge_candidates")
         ),
     )
-    if tuple(item.proposal_index for item in result.knowledge_units) != tuple(
-        range(len(result.knowledge_units))
-    ):
-        raise CoreApiClientError(
-            "ATHENA Core returned non-contiguous Knowledge proposal indexes.",
-            code="invalid_response",
-        )
-    if tuple(item.proposal_index for item in result.claims) != tuple(
-        range(len(result.claims))
-    ):
-        raise CoreApiClientError(
-            "ATHENA Core returned non-contiguous Claim proposal indexes.",
-            code="invalid_response",
-        )
-    if tuple(item.relation_index for item in result.relations) != tuple(
-        range(len(result.relations))
-    ):
-        raise CoreApiClientError(
-            "ATHENA Core returned non-contiguous relation indexes.",
-            code="invalid_response",
-        )
-    if tuple(
-        item.candidate_index for item in result.extractor_merge_candidates
-    ) != tuple(range(len(result.extractor_merge_candidates))):
-        raise CoreApiClientError(
-            "ATHENA Core returned non-contiguous merge-candidate indexes.",
-            code="invalid_response",
-        )
-    proposal_counts = {
-        "knowledge": len(result.knowledge_units),
-        "claim": len(result.claims),
-    }
-    for relation in result.relations:
-        left_count = proposal_counts.get(relation.left_type)
-        right_count = proposal_counts.get(relation.right_type)
-        if (
-            left_count is None
-            or right_count is None
-            or not 0 <= relation.left_index < left_count
-            or not 0 <= relation.right_index < right_count
-        ):
-            raise CoreApiClientError(
-                "ATHENA Core returned an invalid proposal relation reference.",
-                code="invalid_response",
-            )
-    for candidate in result.extractor_merge_candidates:
-        proposal_count = proposal_counts.get(candidate.proposal_type)
-        if proposal_count is None or not 0 <= candidate.proposal_index < proposal_count:
-            raise CoreApiClientError(
-                "ATHENA Core returned an invalid extractor merge-candidate reference.",
-                code="invalid_response",
-            )
+    _validate_extraction_projection(
+        result.knowledge_units,
+        result.claims,
+        result.relations,
+        result.extractor_merge_candidates,
+    )
     return result
 
 
