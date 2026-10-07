@@ -93,6 +93,7 @@ def test_semantic_decision_mode_dropdown_popup_opens(
     extension = install_canonical_memory_extensions(workspace)
     try:
         workspace.show()
+        workspace.browser_tabs.setCurrentIndex(2)
         qapp.processEvents()
         selector = extension.decision_mode
         assert selector.isVisible()
