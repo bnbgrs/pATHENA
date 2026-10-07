@@ -505,7 +505,12 @@ class _UnifiedDurableGenerationAdapter(ChatGenerationService):
         on_before_provider_call: Callable[[], None] | None = None,
         cancel_requested: Callable[[], bool] | None = None,
         image_inputs: tuple[ModelImageInput, ...] = (),
+        assistant_prefix: str | None = None,
     ) -> ChatGenerationResult:
+        if assistant_prefix is not None:
+            raise RuntimeError(
+                "Unified initial generation cannot inject an assistant prefix."
+            )
         if image_inputs:
             raise RuntimeError(
                 "Unified durable chat does not support vision image inputs."
