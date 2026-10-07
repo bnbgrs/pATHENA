@@ -20,6 +20,7 @@ from athena.chat.models import ChatMessage
 from athena.chat.repository import ChatRepository
 from athena.chat.request_fingerprint import ChatSendMode, build_chat_request_fingerprint
 from athena.chat.service import ChatService
+from athena.chat.send_operation import ChatSendOperationRepository
 from athena.common.ids import uuid_to_blob
 from athena.model.domain import ModelChatMessage, ModelInfo, ProviderHealth, ProviderHealthStatus
 from athena.model.provenance import ModelRunRepository
@@ -458,7 +459,7 @@ def test_partial_output_continuation_uses_exact_prefix_and_new_processing_run(
         assert claim is not None
         assert claim.processing_run_id == continuation_run.processing_run_id
         assert claim.attempt_no == 1
-        operation = coordinator.operations.load(operation_id)
+        operation = ChatSendOperationRepository(database).load(operation_id)
         assert operation is not None
         assert operation.processing_run_id == continuation_run.processing_run_id
         assert ModelRunRepository(database).load_run(
