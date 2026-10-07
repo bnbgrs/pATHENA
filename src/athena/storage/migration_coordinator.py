@@ -106,8 +106,10 @@ def _checkpoint_source_sqlite_sidecars(path: Path) -> None:
 
     SQLite may leave WAL/SHM files after an interrupted process. They cannot remain
     beside the source through activation because stale sidecars could then be
-    replayed against the newly activated database. Let SQLite own recovery and
-    truncation; never unlink sidecars directly.
+    replayed against the newly activated database. Let SQLite checkpoint the WAL and
+    switch the migration source to DELETE journaling before cloning; normal database
+    startup restores ATHENA's required WAL policy after activation. Never unlink
+    sidecars directly.
     """
     sidecars = _sqlite_sidecars(path)
     if not any(sidecar.exists() or is_link_boundary(sidecar) for sidecar in sidecars):
@@ -145,6 +147,11 @@ def _checkpoint_source_sqlite_sidecars(path: Path) -> None:
         if busy != 0 or log_frames < 0 or checkpointed_frames < log_frames:
             raise MigrationCoordinatorError(
                 "Migration source WAL checkpoint is blocked; recovery review is required."
+            )
+        journal_row = connection.execute("PRAGMA journal_mode = DELETE").fetchone()
+        if journal_row is None or str(journal_row[0]).casefold() != "delete":
+            raise MigrationCoordinatorError(
+                "Migration source could not leave WAL mode safely before activation."
             )
     except MigrationCoordinatorError:
         raise
