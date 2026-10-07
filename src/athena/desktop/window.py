@@ -2264,18 +2264,18 @@ class AthenaMainWindow(QMainWindow):
             return
 
         self._recovery_status = response
-        if response.can_continue:
+        if response.state == "partial_available" and response.can_continue:
+            self.recovery_state_label.setText(
+                "Interrupted response recovered · persisted output is preserved. "
+                "Continue generates only the missing suffix from that exact prefix."
+            )
+            self.recovery_continue_button.show()
+            self.recovery_bar.show()
+        elif response.can_continue:
             self.recovery_state_label.setText(
                 "Interrupted grounded response · persisted checkpoint available."
             )
             self.recovery_continue_button.show()
-            self.recovery_bar.show()
-        elif response.state == "partial_available":
-            self.recovery_state_label.setText(
-                "Interrupted response recovered · partial provider output is "
-                "durably preserved, but the original stream cannot be resumed safely."
-            )
-            self.recovery_continue_button.hide()
             self.recovery_bar.show()
         elif response.state in {"ambiguous", "conflict"}:
             self.recovery_state_label.setText(

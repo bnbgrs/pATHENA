@@ -74,10 +74,15 @@ class _ServiceDouble:
     def __init__(self) -> None:
         self.model_runs = SimpleNamespace(database=object())
         self.resume_calls: list[dict[str, object]] = []
+        self.partial_calls: list[dict[str, object]] = []
 
     def _resume_from_checkpoint(self, **kwargs: object) -> str:
         self.resume_calls.append(dict(kwargs))
         return "continued"
+
+    def _continue_from_partial(self, **kwargs: object) -> str:
+        self.partial_calls.append(dict(kwargs))
+        return "partial-continued"
 
     def _replay_complete(self, *, status: GroundedRecoveryStatus) -> str:
         return f"complete:{status.state.value}"
@@ -118,6 +123,40 @@ def test_continue_operation_uses_only_persisted_recovery_inputs(
     status = call["status"]
     assert isinstance(status, GroundedRecoveryStatus)
     assert status.state is GroundedRecoveryState.RESUMABLE
+
+
+def test_continue_operation_routes_partial_output_to_suffix_continuation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    service = _ServiceDouble()
+    coordinator = _Coordinator(
+        service.model_runs.database,
+        state=GroundedRecoveryState.PARTIAL_AVAILABLE,
+    )
+    monkeypatch.setattr(
+        unified_module,
+        "UnifiedSendPlanRepository",
+        lambda database: _PlanRepository(database),
+    )
+    monkeypatch.setattr(
+        unified_module,
+        "GroundedSendCoordinator",
+        lambda database: coordinator,
+    )
+
+    result = UnifiedLocalChatService.continue_operation(
+        service,  # type: ignore[arg-type]
+        chat_id=_CHAT_ID,
+        operation_id=_OPERATION_ID,
+    )
+
+    assert result == "partial-continued"
+    assert len(service.partial_calls) == 1
+    call = service.partial_calls[0]
+    assert call["fingerprint"] is _FINGERPRINT
+    status = call["status"]
+    assert isinstance(status, GroundedRecoveryStatus)
+    assert status.state is GroundedRecoveryState.PARTIAL_AVAILABLE
 
 
 def test_continue_operation_refuses_ambiguous_provider_boundary(

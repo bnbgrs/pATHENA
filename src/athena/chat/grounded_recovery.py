@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import uuid
 from dataclasses import dataclass
 from enum import Enum
@@ -248,7 +249,8 @@ class GroundedSendRecovery:
                 processing_run_id=operation.processing_run_id,
             )
         try:
-            partial_output = self.partial_outputs.load_latest(operation_id)
+            partial_output = self.partial_outputs.load_cumulative(operation_id)
+            continuation = self.partial_outputs.load_latest_continuation(operation_id)
         except GroundedPartialOutputError:
             return self._status(
                 operation_id,
@@ -263,6 +265,37 @@ class GroundedSendRecovery:
                 GroundedRecoveryState.CONFLICT,
                 processing_run_id=operation.processing_run_id,
             )
+        if continuation is not None:
+            if continuation.chat_id != chat_id or partial_output is None:
+                return self._status(
+                    operation_id,
+                    chat_id,
+                    GroundedRecoveryState.CONFLICT,
+                    processing_run_id=operation.processing_run_id,
+                )
+            if continuation.attempt_no > partial_output.attempt_no + 1:
+                return self._status(
+                    operation_id,
+                    chat_id,
+                    GroundedRecoveryState.CONFLICT,
+                    processing_run_id=operation.processing_run_id,
+                )
+            prefix = self.partial_outputs.load_through_attempt(
+                operation_id,
+                max_attempt_no=continuation.attempt_no - 1,
+            )
+            if (
+                prefix is None
+                or hashlib.sha256(prefix.content.encode("utf-8")).hexdigest()
+                != continuation.prefix_content_sha256
+                or len(prefix.content) != continuation.prefix_length
+            ):
+                return self._status(
+                    operation_id,
+                    chat_id,
+                    GroundedRecoveryState.CONFLICT,
+                    processing_run_id=operation.processing_run_id,
+                )
         if not self._operation_processing_run_is_valid(
             operation=operation,
             context_record=context_record,
@@ -320,7 +353,12 @@ class GroundedSendRecovery:
         if attempt is None:
             state = GroundedRecoveryState.RESUMABLE
         elif partial_output is not None:
-            state = GroundedRecoveryState.PARTIAL_AVAILABLE
+            state = (
+                GroundedRecoveryState.AMBIGUOUS
+                if continuation is not None
+                and continuation.attempt_no > partial_output.attempt_no
+                else GroundedRecoveryState.PARTIAL_AVAILABLE
+            )
         else:
             state = GroundedRecoveryState.AMBIGUOUS
         return self._status(

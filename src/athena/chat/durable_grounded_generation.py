@@ -19,6 +19,7 @@ from athena.chat.grounded_processing_run import (
     cancel_grounded_processing_run,
     complete_grounded_processing_run,
     fail_grounded_processing_run,
+    validate_grounded_processing_run,
 )
 from athena.chat.grounded_provider_result_contract import validate_provider_result_contract
 from athena.chat.grounded_recovery import GroundedRecoveryState
@@ -399,6 +400,180 @@ class DurableGroundedGenerationService:
             if persisted_content is None:
                 raise DurableGroundedGenerationError(
                     "Durable Grounded assistant has no persisted content to publish."
+                )
+            on_delta(persisted_content)
+        return result
+
+
+    def continue_partial_context_package(
+        self,
+        *,
+        operation_id: uuid.UUID,
+        chat_id: uuid.UUID,
+        user_message: ChatMessage,
+        context_package: ContextPackage,
+        processing_run_id: uuid.UUID,
+        fingerprint: ChatRequestFingerprint,
+        receipt_payload_builder: ReceiptPayloadBuilder,
+        on_delta: Callable[[str], None] | None = None,
+        grounding_contract: GroundingContract | None = None,
+        on_before_provider_call: Callable[[], None] | None = None,
+        cancel_requested: Callable[[], bool] | None = None,
+    ) -> ChatGenerationResult:
+        """Continue from the exact durable assistant prefix with a fresh suffix call."""
+        if user_message.message_id != operation_id or user_message.actor_id is None:
+            raise DurableGroundedGenerationError(
+                "Grounded continuation requires the original durable user identity."
+            )
+        recovery = self.coordinator.recover(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            fingerprint=fingerprint,
+        )
+        prefix = recovery.partial_output
+        if (
+            recovery.state is not GroundedRecoveryState.PARTIAL_AVAILABLE
+            or prefix is None
+            or not prefix.content
+        ):
+            raise DurableGroundedGenerationError(
+                "Grounded continuation requires durable partial provider output."
+            )
+        try:
+            validate_grounded_request_context_binding(
+                package=context_package,
+                fingerprint=fingerprint,
+            )
+            validate_grounded_processing_run(
+                self.coordinator.database,
+                processing_run_id=processing_run_id,
+                package=context_package,
+                trigger_actor_id=user_message.actor_id,
+            )
+        except (GroundedRequestContextBindingError, GroundedProcessingRunError) as exc:
+            raise DurableGroundedGenerationError(
+                "Grounded continuation provenance is not valid."
+            ) from exc
+        self._require_current_snapshot(
+            context_package=context_package,
+            operation_id=operation_id,
+            message="Grounded continuation ContextPackage is no longer current.",
+        )
+        partials = GroundedPartialOutputRepository(self.coordinator.database)
+        cumulative = partials.load_cumulative(operation_id)
+        if (
+            cumulative is None
+            or cumulative.chat_id != chat_id
+            or cumulative.content != prefix.content
+        ):
+            raise DurableGroundedGenerationError(
+                "Grounded continuation prefix changed during preflight."
+            )
+        next_attempt_no = cumulative.attempt_no + 1
+        durable_chat = _DurableAssistantChatService(
+            self.generation.chat,
+            coordinator=self.coordinator,
+            operation_id=operation_id,
+            chat_id=chat_id,
+            processing_run_id=processing_run_id,
+            fingerprint=fingerprint,
+            receipt_payload_builder=receipt_payload_builder,
+        )
+        provider = GroundedCheckpointingProvider(
+            self.generation.provider,
+            partial_output=partials,
+            operation_id=operation_id,
+            chat_id=chat_id,
+            initial_attempt_no=next_attempt_no,
+        )
+        delegated = ChatGenerationService(
+            durable_chat,
+            provider,
+            interactive_demand=self.generation.interactive_demand,
+        )
+
+        def before_provider() -> None:
+            before = self.coordinator.recover(
+                operation_id=operation_id,
+                chat_id=chat_id,
+                fingerprint=fingerprint,
+            )
+            if (
+                before.state is not GroundedRecoveryState.PARTIAL_AVAILABLE
+                or before.partial_output is None
+                or before.partial_output.content != prefix.content
+            ):
+                raise GroundedProviderBoundaryError(before)
+            self._require_current_snapshot(
+                context_package=context_package,
+                operation_id=operation_id,
+                message="Canonical state changed before continuation provider call.",
+            )
+            if on_before_provider_call is not None:
+                on_before_provider_call()
+            self._require_current_snapshot(
+                context_package=context_package,
+                operation_id=operation_id,
+                message="Canonical state changed during continuation preflight.",
+            )
+            partials.claim_continuation(
+                operation_id=operation_id,
+                chat_id=chat_id,
+                processing_run_id=processing_run_id,
+                context_package_request_id=context_package.request_id,
+                expected_prefix=prefix.content,
+            )
+
+        try:
+            result = delegated.send_context_package(
+                chat_id=chat_id,
+                user_message=user_message,
+                context_package=context_package,
+                operation_id=operation_id,
+                on_delta=None,
+                grounding_contract=grounding_contract,
+                on_before_provider_call=before_provider,
+                cancel_requested=cancel_requested,
+                assistant_prefix=prefix.content,
+            )
+        except KeyboardInterrupt as exc:
+            self._reconcile_processing_run_after_error(
+                operation_id=operation_id,
+                chat_id=chat_id,
+                fingerprint=fingerprint,
+                context_package=context_package,
+                processing_run_id=processing_run_id,
+                trigger_actor_id=user_message.actor_id,
+                error=exc,
+            )
+            raise
+        except Exception as exc:
+            self._reconcile_processing_run_after_error(
+                operation_id=operation_id,
+                chat_id=chat_id,
+                fingerprint=fingerprint,
+                context_package=context_package,
+                processing_run_id=processing_run_id,
+                trigger_actor_id=user_message.actor_id,
+                error=exc,
+            )
+            raise
+        try:
+            complete_grounded_processing_run(
+                self.coordinator.database,
+                processing_run_id=processing_run_id,
+                package=context_package,
+                trigger_actor_id=user_message.actor_id,
+            )
+        except GroundedProcessingRunError as exc:
+            raise DurableGroundedGenerationError(
+                "Grounded continuation is durable, but ProcessingRun finalization failed."
+            ) from exc
+        if on_delta is not None:
+            persisted_content = result.assistant_message.content
+            if persisted_content is None:
+                raise DurableGroundedGenerationError(
+                    "Durable continued assistant has no persisted content."
                 )
             on_delta(persisted_content)
         return result

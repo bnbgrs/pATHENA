@@ -505,7 +505,12 @@ class _UnifiedDurableGenerationAdapter(ChatGenerationService):
         on_before_provider_call: Callable[[], None] | None = None,
         cancel_requested: Callable[[], bool] | None = None,
         image_inputs: tuple[ModelImageInput, ...] = (),
+        assistant_prefix: str | None = None,
     ) -> ChatGenerationResult:
+        if assistant_prefix is not None:
+            raise RuntimeError(
+                "Unified initial generation cannot inject an assistant prefix."
+            )
         if image_inputs:
             raise RuntimeError(
                 "Unified durable chat does not support vision image inputs."
@@ -720,6 +725,13 @@ class UnifiedLocalChatService(_LegacyUnifiedLocalChatService):
                 on_delta=None,
                 cancel_requested=cancel_requested,
             )
+        if recovery.state is GroundedRecoveryState.PARTIAL_AVAILABLE:
+            return self._continue_from_partial(
+                coordinator=coordinator,
+                status=recovery,
+                fingerprint=plan.fingerprint,
+                cancel_requested=cancel_requested,
+            )
         raise UnifiedGroundedRecoveryRequiredError(recovery)
 
     def _replay_complete(
@@ -820,6 +832,134 @@ class UnifiedLocalChatService(_LegacyUnifiedLocalChatService):
             evidence_selection=projection.evidence_selection,
             budget=_budget_from_package(package),
         )
+
+    def _continue_from_partial(
+        self,
+        *,
+        coordinator: GroundedSendCoordinator,
+        status: GroundedRecoveryStatus,
+        fingerprint: ChatRequestFingerprint,
+        cancel_requested: Callable[[], bool] | None,
+    ) -> UnifiedLocalChatResult:
+        if (
+            status.state is not GroundedRecoveryState.PARTIAL_AVAILABLE
+            or status.partial_output is None
+            or status.processing_run_id is None
+        ):
+            raise UnifiedGroundedRecoveryRequiredError(status)
+        context_record = GroundedContextPackageRepository(
+            self.model_runs.database
+        ).load(status.operation_id)
+        if context_record is None or context_record.chat_id != status.chat_id:
+            raise UnifiedGroundedRecoveryRequiredError(status)
+        checkpoint = UnifiedReplayInputRepository(
+            self.model_runs.database
+        ).load(status.operation_id)
+        if (
+            checkpoint is None
+            or checkpoint.chat_id != status.chat_id
+            or checkpoint.processing_run_id != status.processing_run_id
+            or checkpoint.context_package_request_id
+            != context_record.package.request_id
+        ):
+            raise UnifiedGroundedRecoveryRequiredError(status)
+
+        thread = self.chat_generation.chat.load_chat(status.chat_id)
+        user_message = next(
+            (item for item in thread.messages if item.message_id == status.operation_id),
+            None,
+        )
+        if user_message is None or user_message.actor_id is None:
+            raise UnifiedReplayProjectionError(
+                "Unified partial continuation is missing its durable trigger user."
+            )
+        previous_run = self.model_runs.load_run(status.processing_run_id)
+        package = context_record.package
+        continuation_run = self.model_runs.start_run(
+            run_type=previous_run.run_type,
+            trigger_actor_id=user_message.actor_id,
+            pipeline_version=f"{previous_run.pipeline_version}.partial-continuation-v1",
+            input_snapshot=package.run_snapshot(),
+            configuration=_context_configuration(package),
+            model_signature_id=package.model_signature.model_signature_id,
+            prompt_template_id=previous_run.prompt_template_id,
+            prompt_template_version=previous_run.prompt_template_version,
+        )
+        projection = checkpoint.projection
+        replay_projection = build_unified_replay_projection(
+            operation_id=status.operation_id,
+            chat_id=status.chat_id,
+            processing_run_id=continuation_run.processing_run_id,
+            context_package=package,
+            primary_model=projection.primary_model,
+            embedding_model=projection.embedding_model,
+            memory_context=projection.memory_context,
+            source_context=projection.source_context,
+            evidence_selection=projection.evidence_selection,
+        )
+        embedding_model_id = _embedding_model_id(package)
+
+        def receipt_payload_builder(
+            assistant_text: str,
+            provider_id: str,
+            model_id: str,
+        ) -> str:
+            return build_unified_grounded_receipt(
+                assistant_text=assistant_text,
+                provider_id=provider_id,
+                model_id=model_id,
+                operation_id=status.operation_id,
+                processing_run_id=continuation_run.processing_run_id,
+                context_package_request_id=package.request_id,
+                embedding_model_id=embedding_model_id,
+                replay_projection=replay_projection,
+            )
+
+        grounding_contract = _LegacyUnifiedLocalChatService._grounding_contract(
+            memory_context=projection.memory_context,
+            source_context=projection.source_context,
+            evidence_selection=projection.evidence_selection,
+            allow_model_prior=_allow_model_prior(package),
+        )
+        durable = DurableGroundedGenerationService(
+            self.chat_generation,
+            coordinator,
+        )
+        try:
+            durable.continue_partial_context_package(
+                operation_id=status.operation_id,
+                chat_id=status.chat_id,
+                user_message=user_message,
+                context_package=package,
+                processing_run_id=continuation_run.processing_run_id,
+                fingerprint=fingerprint,
+                receipt_payload_builder=receipt_payload_builder,
+                grounding_contract=grounding_contract,
+                cancel_requested=cancel_requested,
+            )
+        except BaseException as exc:
+            run = self.model_runs.load_run(continuation_run.processing_run_id)
+            if run.status == "running" and run.finished_at_us is None:
+                self.model_runs.finish_run(
+                    continuation_run.processing_run_id,
+                    status="cancelled" if isinstance(exc, KeyboardInterrupt) else "failed",
+                    error_detail=type(exc).__name__,
+                )
+            raise
+
+        coordinator.finalize_recorded_result(
+            operation_id=status.operation_id,
+            chat_id=status.chat_id,
+            fingerprint=fingerprint,
+        )
+        complete = coordinator.recover(
+            operation_id=status.operation_id,
+            chat_id=status.chat_id,
+            fingerprint=fingerprint,
+        )
+        if complete.state is not GroundedRecoveryState.COMPLETE:
+            raise UnifiedGroundedRecoveryRequiredError(complete)
+        return self._replay_complete(status=complete)
 
     def _resume_from_checkpoint(
         self,
