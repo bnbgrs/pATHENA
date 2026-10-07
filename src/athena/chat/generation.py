@@ -73,6 +73,10 @@ class ChatGenerationResult:
 
 GROUNDING_RETRY_POLICY = "validate_before_display_same_primary_v2_max_2_retries"
 _GROUNDING_GENERATION_ATTEMPTS = 3
+_PARTIAL_CONTINUATION_INSTRUCTION = (
+    "Continue the assistant response from exactly where the persisted prefix ends. "
+    "Do not repeat, revise, summarize, or restart the prefix. Return only the missing suffix."
+)
 
 
 def _grounding_retry_history(
@@ -408,6 +412,7 @@ class ChatGenerationService:
         on_before_provider_call: Callable[[], None] | None = None,
         cancel_requested: Callable[[], bool] | None = None,
         image_inputs: tuple[ModelImageInput, ...] = (),
+        assistant_prefix: str | None = None,
     ) -> ChatGenerationResult:
         """Generate strictly from ContextPackage sections, without DB history access."""
         if user_message.chat_id != chat_id:
@@ -467,6 +472,22 @@ class ChatGenerationService:
             raise ValueError(
                 "ContextPackage must end with the exact persisted current user message."
             )
+        if assistant_prefix is not None:
+            if not assistant_prefix.strip():
+                raise ValueError("Persisted assistant continuation prefix must be non-empty.")
+            if image_inputs:
+                raise ModelSelectionError(
+                    "Partial-output continuation does not support vision image inputs."
+                )
+            history = (
+                *history,
+                ModelChatMessage(role="assistant", content=assistant_prefix),
+                ModelChatMessage(
+                    role="user",
+                    content=_PARTIAL_CONTINUATION_INSTRUCTION,
+                ),
+            )
+
         max_output_tokens, reasoning_mode = context_package.generation_controls()
         temperature = context_package.generation_temperature()
 
@@ -489,6 +510,7 @@ class ChatGenerationService:
                     cancel_requested=cancel_requested,
                     interactive_lease=lease,
                     image_inputs=image_inputs,
+                    assistant_prefix=assistant_prefix,
                 )
 
         return self._generate_and_persist(
@@ -506,6 +528,7 @@ class ChatGenerationService:
             cancel_requested=cancel_requested,
             interactive_lease=None,
             image_inputs=image_inputs,
+            assistant_prefix=assistant_prefix,
         )
 
     def _generate_and_persist(
@@ -525,6 +548,7 @@ class ChatGenerationService:
         cancel_requested: Callable[[], bool] | None,
         interactive_lease: InteractiveDemandLease | None,
         image_inputs: tuple[ModelImageInput, ...],
+        assistant_prefix: str | None,
     ) -> ChatGenerationResult:
         if max_output_tokens is not None and max_output_tokens < 1:
             raise ValueError("max_output_tokens must be positive when provided.")
@@ -537,7 +561,11 @@ class ChatGenerationService:
             )
 
         attempt_limit = (
-            _GROUNDING_GENERATION_ATTEMPTS if grounding_contract is not None else 1
+            1
+            if assistant_prefix is not None
+            else _GROUNDING_GENERATION_ATTEMPTS
+            if grounding_contract is not None
+            else 1
         )
 
         attempt_history = history
@@ -691,12 +719,13 @@ class ChatGenerationService:
                         ) from close_exc
                 raise
 
-            assistant_text = "".join(chunks)
+            suffix_text = "".join(chunks)
 
-            if not assistant_text.strip():
+            if not suffix_text.strip():
                 raise ValueError(
                     "The model completed without returning assistant text."
                 )
+            assistant_text = (assistant_prefix or "") + suffix_text
 
             grounding_report = None
 
