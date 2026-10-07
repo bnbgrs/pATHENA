@@ -21,12 +21,21 @@ class GroundedCheckpointingProvider:
         partial_output: GroundedPartialOutputRepository,
         operation_id: uuid.UUID,
         chat_id: uuid.UUID,
+        initial_attempt_no: int = 0,
     ) -> None:
         self._base = base
         self._partial_output = partial_output
         self._operation_id = operation_id
+        if (
+            isinstance(initial_attempt_no, bool)
+            or not isinstance(initial_attempt_no, int)
+            or initial_attempt_no < 0
+        ):
+            raise ValueError(
+                "Grounded checkpoint initial_attempt_no must be non-negative."
+            )
         self._chat_id = chat_id
-        self._next_attempt_no = 0
+        self._next_attempt_no = initial_attempt_no
 
     def __getattr__(self, name: str) -> Any:
         if name == "stream_chat_cancellable":
