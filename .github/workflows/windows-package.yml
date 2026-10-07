@@ -452,7 +452,7 @@ jobs:
             knowledge_restart_smoke = "pass"
             graceful_shutdown_smoke = "pass"
             real_provider_inference = "not_claimed"
-            release_status = "candidate_pending_full_v0.1_gates"
+            release_status = "package_smoke_passed_exact_release_readiness_not_claimed"
           }
           $manifestPath = Join-Path $env:RUNNER_TEMP "$env:PACKAGE_NAME-$env:CANDIDATE_SHA.json"
           $manifest | ConvertTo-Json | Set-Content -LiteralPath $manifestPath -Encoding UTF8

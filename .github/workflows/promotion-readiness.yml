@@ -172,6 +172,7 @@ jobs:
 
       - name: Enforce fail-closed release readiness
         env:
+          PROMOTION_GUARD: ${{ needs.promotion-guard.result }}
           WINDOWS_RELEASE_CONTRACTS: ${{ needs.windows-release-contracts.result }}
         shell: bash
         run: |
@@ -185,21 +186,27 @@ jobs:
               ReleaseReadinessEvidence,
               assess_release_readiness,
           )
+          from athena.version import __version__
 
           exact_sha = os.environ["CANDIDATE_SHA"]
           payload = json.loads(Path(".release-evidence/runs.json").read_text(encoding="utf-8"))
 
-          def exact_green(workflow_name: str) -> bool:
-              return any(
-                  run.get("name") == workflow_name
-                  and run.get("head_sha") == exact_sha
-                  and run.get("status") == "completed"
-                  and run.get("conclusion") == "success"
-                  for run in payload.get("workflow_runs", ())
-              )
+          def exact_green_run(workflow_name: str) -> dict[str, object] | None:
+              for run in payload.get("workflow_runs", ()):
+                  if (
+                      run.get("name") == workflow_name
+                      and run.get("head_sha") == exact_sha
+                      and run.get("status") == "completed"
+                      and run.get("conclusion") == "success"
+                  ):
+                      return run
+              return None
 
-          quality_green = exact_green("ATHENA Quality Gate")
-          package_green = exact_green("pATHENA Windows Package")
+          quality_run = exact_green_run("ATHENA Quality Gate")
+          package_run = exact_green_run("pATHENA Windows Package")
+          quality_green = quality_run is not None
+          package_green = package_run is not None
+          promotion_guard_green = os.environ["PROMOTION_GUARD"] == "success"
           windows_green = os.environ["WINDOWS_RELEASE_CONTRACTS"] == "success"
 
           evidence = ReleaseReadinessEvidence(
@@ -218,9 +225,52 @@ jobs:
           print(f"release readiness exact_sha={result.exact_sha}")
           print(f"canonical quality: {quality_green}")
           print(f"windows package: {package_green}")
+          print(f"promotion guard: {promotion_guard_green}")
           print(f"candidate Windows release contracts: {windows_green}")
+          if not promotion_guard_green:
+              print("release readiness: FAIL — promotion_guard")
+              raise SystemExit(1)
           if not result.ready:
               print("release readiness: FAIL — " + ", ".join(result.blockers))
               raise SystemExit(1)
+
+          assert quality_run is not None
+          assert package_run is not None
+          certification = {
+              "source_sha": exact_sha,
+              "version": __version__,
+              "release_status": "release_ready",
+              "canonical_quality_run_id": quality_run["id"],
+              "windows_package_run_id": package_run["id"],
+              "promotion_workflow_run_id": int(os.environ["GITHUB_RUN_ID"]),
+              "promotion_workflow_run_number": int(os.environ["GITHUB_RUN_NUMBER"]),
+              "promotion_guard": promotion_guard_green,
+              "candidate_windows_release_contracts": windows_green,
+              "release_guards": {
+                  "canonical_quality": evidence.canonical_quality,
+                  "windows_runtime": evidence.windows_runtime,
+                  "packaging": evidence.packaging,
+                  "frozen_argv": evidence.frozen_argv,
+                  "two_exe_topology": evidence.two_exe_topology,
+                  "single_desktop_bounded_workers": evidence.single_desktop_bounded_workers,
+                  "adaptive_2048_context_reserve": evidence.adaptive_2048_context_reserve,
+                  "windows_lane_lock": evidence.windows_lane_lock,
+                  "storage_regressions": evidence.storage_regressions,
+              },
+          }
+          Path(".release-evidence/release-certification.json").write_text(
+              json.dumps(certification, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
           print("release readiness: PASS")
           PY
+
+      - name: Upload exact-SHA release certification
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: pATHENA-release-certification-${{ env.CANDIDATE_SHA }}
+          path: |
+            .release-evidence/release-certification.json
+            .release-evidence/runs.json
+          if-no-files-found: error
+          retention-days: 30
