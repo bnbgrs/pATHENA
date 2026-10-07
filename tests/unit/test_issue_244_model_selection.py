@@ -167,6 +167,8 @@ def test_issue_244_empty_and_unavailable_model_states_remain_explicit() -> None:
     try:
         install_settings_secondary_navigation(window)
         _attach_chat_recorder(window)
+        window.show()
+        app.processEvents()
 
         window.apply_api_snapshot(
             _snapshot(
@@ -211,6 +213,8 @@ def test_issue_244_core_failure_keeps_dropdowns_inspectable() -> None:
     window = PathenaMainWindow()
     try:
         _attach_chat_recorder(window)
+        window.show()
+        app.processEvents()
         window.apply_api_failure("Core failed to start")
 
         for selector in (
