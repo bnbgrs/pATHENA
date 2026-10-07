@@ -8,7 +8,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 pytest.importorskip("PySide6")
 
 from PySide6.QtCore import QCoreApplication, QEvent, Qt
-from PySide6.QtWidgets import QApplication, QFrame, QListWidgetItem, QSplitter
+from PySide6.QtWidgets import QApplication, QFrame, QLabel, QListWidgetItem, QSplitter
 
 from athena.desktop.app import create_application
 from athena.desktop.files_workspace import FilesWorkspace
@@ -65,6 +65,9 @@ def test_research_polish_keeps_real_controls_and_clear_action_hierarchy() -> Non
         assert workspace.jobs.minimumWidth() == 260
         assert workspace.jobs.maximumWidth() == 360
         assert controller.empty_state.accessibleName() == "Research empty state"
+        research_empty_title = controller.empty_state.findChild(QLabel, "v3EmptyTitle")
+        assert research_empty_title is not None
+        assert research_empty_title.geometry().center().y() < controller.empty_state.height() // 2
         assert workspace.start_button.y() < workspace.cancel_button.y()
         assert workspace.refresh_button.y() == workspace.cancel_button.y()
         assert (
@@ -120,6 +123,10 @@ def test_jobs_and_sources_polish_group_status_before_actions() -> None:
         assert jobs_split is not None
         assert jobs_split.accessibleName() == "Job queue and job details"
         assert jobs_controller.empty_state.accessibleName() == "Jobs empty state"
+        jobs_empty_title = jobs_controller.empty_state.findChild(QLabel, "v3EmptyTitle")
+        assert jobs_empty_title is not None
+        assert jobs_empty_title.geometry().center().y() < jobs_controller.empty_state.height() // 2
+        assert jobs.status.geometry().center().y() == jobs.wake_button.geometry().center().y()
         assert jobs_controller.progress.isHidden()
 
         running_job = QListWidgetItem("RUNNING")
@@ -163,6 +170,9 @@ def test_jobs_and_sources_polish_group_status_before_actions() -> None:
         assert sources_split is not None
         assert sources_split.accessibleName() == "Source list and source details"
         assert sources_controller.empty_state.accessibleName() == "Sources empty state"
+        sources_empty_title = sources_controller.empty_state.findChild(QLabel, "v3EmptyTitle")
+        assert sources_empty_title is not None
+        assert sources_empty_title.geometry().center().y() < sources_controller.empty_state.height() // 2
         assert sources_controller.progress.isHidden()
 
         processing = QListWidgetItem("PROCESSING")

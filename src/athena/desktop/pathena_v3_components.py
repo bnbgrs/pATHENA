@@ -394,9 +394,9 @@ class V3EmptyState(QFrame):
         super().__init__()
         self.setObjectName("v3EmptyState")
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(32, 32, 32, 32)
+        layout.setContentsMargins(32, 24, 32, 32)
         layout.setSpacing(10)
-        layout.addStretch(2)
+        layout.addSpacing(72)
 
         kicker_label = QLabel(kicker.upper())
         kicker_label.setObjectName("v3Kicker")
@@ -419,7 +419,7 @@ class V3EmptyState(QFrame):
         row.addWidget(body_label)
         row.addStretch(1)
         layout.addLayout(row)
-        layout.addStretch(3)
+        layout.addStretch(1)
 
 
 class V3ControlRow(QFrame):
