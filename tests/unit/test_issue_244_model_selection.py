@@ -251,6 +251,11 @@ def test_issue_244_model_chooser_renders_in_chat_and_settings_at_release_sizes(
         assert window.model_selector.isVisible()
         assert not window.model_selector.visibleRegion().isEmpty()
         assert window.model_selector.currentData() == "qwen-loaded"
+        for selector in (window.chat_selector, window.model_selector):
+            selector.showPopup()
+            app.processEvents()
+            assert selector.view().window().isVisible()
+            selector.hidePopup()
         chat_capture = window.grab()
         assert not chat_capture.isNull()
         assert chat_capture.save(
@@ -264,6 +269,10 @@ def test_issue_244_model_chooser_renders_in_chat_and_settings_at_release_sizes(
         assert window.settings_model_selector.isVisible()
         assert not window.settings_model_selector.visibleRegion().isEmpty()
         assert window.settings_model_selector.currentData() == "qwen-loaded"
+        window.settings_model_selector.showPopup()
+        app.processEvents()
+        assert window.settings_model_selector.view().window().isVisible()
+        window.settings_model_selector.hidePopup()
         settings_capture = window.grab()
         assert not settings_capture.isNull()
         assert settings_capture.save(
