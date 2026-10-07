@@ -190,3 +190,46 @@ def test_promotion_workflow_pins_runtime_inputs() -> None:
     assert '"pip==26.1.2"' in workflow
     assert '"uv==0.11.21"' in workflow
     assert "        run: uv lock --check\n" in workflow
+
+def test_promotion_workflow_runs_exact_candidate_windows_release_contracts() -> None:
+    workflow = _promotion_workflow_text()
+
+    assert "  actions: read\n" in workflow
+    assert "  windows-release-contracts:\n" in workflow
+    assert "    name: Candidate Windows release contracts\n" in workflow
+    for required_test in (
+        "tests/unit/test_windows_runtime_root_boundary.py",
+        "tests/unit/test_windows_check_script_contract.py",
+        "tests/unit/test_packaged_app_dispatch.py",
+        "tests/unit/test_packaged_process_launch.py",
+        "tests/unit/test_windows_packaging_contract.py",
+        "tests/unit/test_chat_context_reserve_contract.py",
+        "tests/unit/test_job_lane_lock_scalar_validation.py",
+        "tests/unit/test_lane_lock_ancestor_boundaries.py",
+        "tests/unit/test_scheduler_lane_lock_boundaries.py",
+    ):
+        assert required_test in workflow
+    assert (
+        "& .\\scripts\\check_windows.ps1 -NoSync -SmokeRoot $smokeRoot -RestartCycles 1"
+        in workflow
+    )
+
+
+def test_promotion_workflow_aggregates_exact_sha_release_evidence_fail_closed() -> None:
+    workflow = _promotion_workflow_text()
+
+    assert "  release-readiness:\n" in workflow
+    assert "    name: Exact-SHA release readiness\n" in workflow
+    assert "      - promotion-guard\n" in workflow
+    assert "      - windows-release-contracts\n" in workflow
+    assert (
+        '"/repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$CANDIDATE_SHA&per_page=100"'
+        in workflow
+    )
+    assert 'exact_green("ATHENA Quality Gate")' in workflow
+    assert 'exact_green("pATHENA Windows Package")' in workflow
+    assert "ReleaseReadinessEvidence(" in workflow
+    assert "assess_release_readiness(evidence)" in workflow
+    assert "storage_regressions=quality_green" in workflow
+    assert "raise SystemExit(1)" in workflow
+
