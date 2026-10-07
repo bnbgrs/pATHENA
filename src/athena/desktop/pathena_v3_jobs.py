@@ -89,33 +89,27 @@ class PathenaV3JobsController(QObject):
         workspace.scheduler_status.show()
         state_row.addWidget(workspace.scheduler_status)
         state_row.addStretch(1)
-        command_layout.addLayout(state_row)
-
-        actions = QHBoxLayout()
-        actions.setContentsMargins(0, 0, 0, 0)
-        actions.setSpacing(8)
-        actions.addStretch(1)
 
         workspace.refresh_button.setParent(command)
         workspace.refresh_button.setText("Refresh")
         workspace.refresh_button.setAccessibleName("Refresh background work")
         workspace.refresh_button.setToolTip("Refresh job and scheduler state")
         workspace.refresh_button.show()
-        actions.addWidget(workspace.refresh_button)
+        state_row.addWidget(workspace.refresh_button)
 
         workspace.pause_button.setParent(command)
         workspace.pause_button.setText("Pause")
         workspace.pause_button.setAccessibleName("Pause scheduler")
         workspace.pause_button.setToolTip("Pause automatic background execution")
         workspace.pause_button.show()
-        actions.addWidget(workspace.pause_button)
+        state_row.addWidget(workspace.pause_button)
 
         workspace.resume_button.setParent(command)
         workspace.resume_button.setText("Resume")
         workspace.resume_button.setAccessibleName("Resume scheduler")
         workspace.resume_button.setToolTip("Resume automatic background execution")
         workspace.resume_button.show()
-        actions.addWidget(workspace.resume_button)
+        state_row.addWidget(workspace.resume_button)
 
         workspace.wake_button.setParent(command)
         workspace.wake_button.setObjectName("jobsRunNowButton")
@@ -125,7 +119,7 @@ class PathenaV3JobsController(QObject):
         workspace.wake_button.setToolTip("Wake the scheduler and process ready work now")
         workspace.wake_button.setProperty("v3PrimaryAction", True)
         workspace.wake_button.show()
-        actions.addWidget(workspace.wake_button)
+        state_row.addWidget(workspace.wake_button)
 
         workspace.cancel_button.setParent(command)
         workspace.cancel_button.setText("Cancel")
@@ -133,7 +127,7 @@ class PathenaV3JobsController(QObject):
         workspace.cancel_button.setToolTip("Cancel the selected background job")
         workspace.cancel_button.setProperty("v3DestructiveAction", True)
         workspace.cancel_button.show()
-        actions.addWidget(workspace.cancel_button)
+        state_row.addWidget(workspace.cancel_button)
         for button in (
             workspace.refresh_button,
             workspace.pause_button,
@@ -145,7 +139,7 @@ class PathenaV3JobsController(QObject):
             button.show()
             button.raise_()
             button.update()
-        command_layout.addLayout(actions)
+        command_layout.addLayout(state_row)
         command.bind_actions(
             workspace.refresh_button,
             workspace.pause_button,

@@ -65,6 +65,11 @@ def test_research_polish_keeps_real_controls_and_clear_action_hierarchy() -> Non
         assert workspace.jobs.minimumWidth() == 260
         assert workspace.jobs.maximumWidth() == 360
         assert controller.empty_state.accessibleName() == "Research empty state"
+        research_empty_layout = controller.empty_state.layout()
+        assert research_empty_layout is not None
+        research_top_spacer = research_empty_layout.itemAt(0).spacerItem()
+        assert research_top_spacer is not None
+        assert research_top_spacer.sizeHint().height() == 72
         assert workspace.start_button.y() < workspace.cancel_button.y()
         assert workspace.refresh_button.y() == workspace.cancel_button.y()
         assert (
@@ -120,6 +125,12 @@ def test_jobs_and_sources_polish_group_status_before_actions() -> None:
         assert jobs_split is not None
         assert jobs_split.accessibleName() == "Job queue and job details"
         assert jobs_controller.empty_state.accessibleName() == "Jobs empty state"
+        jobs_empty_layout = jobs_controller.empty_state.layout()
+        assert jobs_empty_layout is not None
+        jobs_top_spacer = jobs_empty_layout.itemAt(0).spacerItem()
+        assert jobs_top_spacer is not None
+        assert jobs_top_spacer.sizeHint().height() == 72
+        assert jobs.status.geometry().center().y() == jobs.wake_button.geometry().center().y()
         assert jobs_controller.progress.isHidden()
 
         running_job = QListWidgetItem("RUNNING")
@@ -163,6 +174,11 @@ def test_jobs_and_sources_polish_group_status_before_actions() -> None:
         assert sources_split is not None
         assert sources_split.accessibleName() == "Source list and source details"
         assert sources_controller.empty_state.accessibleName() == "Sources empty state"
+        sources_empty_layout = sources_controller.empty_state.layout()
+        assert sources_empty_layout is not None
+        sources_top_spacer = sources_empty_layout.itemAt(0).spacerItem()
+        assert sources_top_spacer is not None
+        assert sources_top_spacer.sizeHint().height() == 72
         assert sources_controller.progress.isHidden()
 
         processing = QListWidgetItem("PROCESSING")
