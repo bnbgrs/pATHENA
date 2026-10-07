@@ -162,7 +162,7 @@ def test_issue_244_model_selectors_use_real_snapshot_and_stay_synchronized() -> 
 
 
 def test_issue_244_empty_and_unavailable_model_states_remain_explicit() -> None:
-    _app()
+    app = _app()
     window = PathenaMainWindow()
     try:
         install_settings_secondary_navigation(window)
@@ -183,7 +183,11 @@ def test_issue_244_empty_and_unavailable_model_states_remain_explicit() -> None:
             assert selector.count() == 1
             assert selector.itemData(0) is None
             assert "unavailable" in selector.itemText(0).casefold()
-            assert not selector.isEnabled()
+            assert selector.isEnabled()
+            selector.showPopup()
+            app.processEvents()
+            assert selector.view().window().isVisible()
+            selector.hidePopup()
 
         window.apply_api_snapshot(_snapshot(()))
         for selector in (
@@ -193,7 +197,35 @@ def test_issue_244_empty_and_unavailable_model_states_remain_explicit() -> None:
             assert selector.count() == 1
             assert selector.itemData(0) is None
             assert "no local llm models" in selector.itemText(0).casefold()
-            assert not selector.isEnabled()
+            assert selector.isEnabled()
+            selector.showPopup()
+            app.processEvents()
+            assert selector.view().window().isVisible()
+            selector.hidePopup()
+    finally:
+        window.close()
+
+
+def test_issue_244_core_failure_keeps_dropdowns_inspectable() -> None:
+    app = _app()
+    window = PathenaMainWindow()
+    try:
+        _attach_chat_recorder(window)
+        window.apply_api_failure("Core failed to start")
+
+        for selector in (
+            window.chat_selector,
+            window.model_selector,
+            window.settings_model_selector,
+        ):
+            assert selector.count() == 1
+            assert selector.itemData(0) is None
+            assert "unavailable" in selector.itemText(0).casefold()
+            assert selector.isEnabled()
+            selector.showPopup()
+            app.processEvents()
+            assert selector.view().window().isVisible()
+            selector.hidePopup()
     finally:
         window.close()
 
