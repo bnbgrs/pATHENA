@@ -101,15 +101,19 @@ def _assert_no_sqlite_sidecars(path: Path, *, label: str) -> None:
         )
 
 
-def _assert_source_sqlite_sidecars_safe(path: Path) -> None:
-    """Allow regular source WAL/SHM files while rejecting redirecting boundaries.
+def _checkpoint_source_sqlite_sidecars(path: Path) -> None:
+    """Fold a regular source WAL into the main DB before clone activation.
 
-    Clone migrations use SQLite's Online Backup API, which reads the source through
-    SQLite itself and therefore includes committed WAL content. A regular WAL/SHM
-    pair can remain after an interrupted or recently closed process and must not,
-    by itself, make startup unrecoverable.
+    SQLite may leave WAL/SHM files after an interrupted process. They cannot remain
+    beside the source through activation because stale sidecars could then be
+    replayed against the newly activated database. Let SQLite own recovery and
+    truncation; never unlink sidecars directly.
     """
-    for sidecar in _sqlite_sidecars(path):
+    sidecars = _sqlite_sidecars(path)
+    if not any(sidecar.exists() or is_link_boundary(sidecar) for sidecar in sidecars):
+        return
+
+    for sidecar in sidecars:
         if is_link_boundary(sidecar):
             raise MigrationCoordinatorError(
                 "Migration source SQLite sidecar is a symlink, junction, or "
@@ -119,6 +123,39 @@ def _assert_source_sqlite_sidecars_safe(path: Path) -> None:
             raise MigrationCoordinatorError(
                 "Migration source SQLite sidecar is not a regular file."
             )
+
+    try:
+        connection = sqlite3.connect(
+            path,
+            timeout=5.0,
+            autocommit=True,
+        )
+    except (OSError, sqlite3.Error) as exc:
+        raise MigrationCoordinatorError(
+            "Migration source WAL/SHM recovery could not open SQLite safely."
+        ) from exc
+
+    try:
+        row = connection.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchone()
+        if row is None or len(row) != 3:
+            raise MigrationCoordinatorError(
+                "Migration source WAL checkpoint returned an invalid result."
+            )
+        busy, log_frames, checkpointed_frames = map(int, row)
+        if busy != 0 or log_frames < 0 or checkpointed_frames < log_frames:
+            raise MigrationCoordinatorError(
+                "Migration source WAL checkpoint is blocked; recovery review is required."
+            )
+    except MigrationCoordinatorError:
+        raise
+    except (sqlite3.Error, TypeError, ValueError) as exc:
+        raise MigrationCoordinatorError(
+            "Migration source WAL checkpoint could not be completed safely."
+        ) from exc
+    finally:
+        connection.close()
+
+    _assert_no_sqlite_sidecars(path, label="Migration source")
 
 
 def _verify_migrated_candidate(
@@ -208,7 +245,7 @@ def run_clone_migration(
         raise MigrationCoordinatorError("Migration source must be a real database file.")
     if not root.is_dir():
         raise MigrationCoordinatorError("Migration root must be a real directory.")
-    _assert_source_sqlite_sidecars_safe(source)
+    _checkpoint_source_sqlite_sidecars(source)
 
     database_size = source.stat().st_size
     if available_bytes is None:
