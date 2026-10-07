@@ -19,8 +19,8 @@ from athena.chat.grounding import GroundingContract
 from athena.chat.models import ChatMessage
 from athena.chat.repository import ChatRepository
 from athena.chat.request_fingerprint import ChatSendMode, build_chat_request_fingerprint
-from athena.chat.service import ChatService
 from athena.chat.send_operation import ChatSendOperationRepository
+from athena.chat.service import ChatService
 from athena.common.ids import uuid_to_blob
 from athena.model.domain import ModelChatMessage, ModelInfo, ProviderHealth, ProviderHealthStatus
 from athena.model.provenance import ModelRunRepository
