@@ -1528,5 +1528,13 @@ QFrame#v3Composer {{
     background: {PALETTE.surface};
     border-color: {PALETTE.border_strong};
 }}
+
+QPushButton#sendButton {{
+    min-width: {SHELL.composer_action_size}px;
+    max-width: {SHELL.composer_action_size}px;
+    min-height: {SHELL.composer_action_size}px;
+    max-height: {SHELL.composer_action_size}px;
+    border-radius: {SHELL.composer_action_size // 2}px;
+}}
 """
 
