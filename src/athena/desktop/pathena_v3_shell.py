@@ -16,7 +16,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from athena.desktop.pathena_design_tokens import RADII, SHELL
+from athena.desktop.pathena_design_tokens import SHELL
 from athena.desktop.pathena_v3_components import (
     V3ComposerFrame,
     V3ControlRow,
