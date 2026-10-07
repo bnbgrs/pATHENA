@@ -78,6 +78,11 @@ try {
         }
     }
 
+    $productVersion = (& $python -c "from athena.version import __version__; print(__version__)").Trim()
+    if ([string]::IsNullOrWhiteSpace($productVersion)) {
+        throw "pATHENA product version could not be resolved."
+    }
+
     # PyInstaller is a build-only dependency. Pin it exactly so the package format is
     # reproducible without changing the product runtime dependency lock.
     & $uv.Source pip install --python $python "pyinstaller==6.15.0"
@@ -165,8 +170,8 @@ exit /b %PATHENA_HW_EXIT%
     }
 
     @"
-pATHENA Windows Portable
-========================
+pATHENA Windows Portable v$productVersion
+==========================================
 
 Start:
   pATHENA.exe
