@@ -1,4 +1,4 @@
-"""V4 visual system: graphite/ink canvas, warm-white type and chartreuse accents."""
+"""V4 visual system: deep ink canvas, warm-white type and calm cobalt accents."""
 
 from __future__ import annotations
 
@@ -1517,6 +1517,16 @@ QFrame#helpCapabilityRow {{
 QFrame#helpCapabilityRow:hover {{
     background: {PALETTE.surface_hover};
     border-bottom-color: {PALETTE.border_strong};
+}}
+
+QFrame#v3Workbar {{
+    background: {PALETTE.surface};
+    border-bottom: 1px solid {PALETTE.border};
+}}
+
+QFrame#v3Composer {{
+    background: {PALETTE.surface};
+    border-color: {PALETTE.border_strong};
 }}
 """
 

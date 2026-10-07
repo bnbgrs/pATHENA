@@ -22,11 +22,11 @@ pathena_theme = pytest.importorskip(
 )
 
 
-def test_palette_matches_the_v4_graphite_foundation() -> None:
-    assert PALETTE.canvas == "#111210"
-    assert PALETTE.surface == "#171815"
-    assert PALETTE.text == "#F4F1E8"
-    assert PALETTE.accent == "#C7FF52"
+def test_palette_matches_the_v4_ink_foundation() -> None:
+    assert PALETTE.canvas == "#0B0D12"
+    assert PALETTE.surface == "#11141B"
+    assert PALETTE.text == "#F4F6FB"
+    assert PALETTE.accent == "#6F8CFF"
     assert PALETTE.success != PALETTE.accent
     assert PALETTE.warning != PALETTE.accent
     assert PALETTE.error != PALETTE.accent

@@ -43,13 +43,13 @@ def test_quiet_text_remains_visually_below_subtle_metadata() -> None:
     assert _relative_luminance(PALETTE.text_subtle) < _relative_luminance(PALETTE.text_muted)
 
 
-def test_v4_palette_is_graphite_with_precise_chartreuse_accent() -> None:
-    assert PALETTE.canvas == "#111210"
-    assert PALETTE.surface == "#171815"
-    assert PALETTE.surface_raised == "#1D1F1A"
-    assert PALETTE.text == "#F4F1E8"
-    assert PALETTE.accent == "#C7FF52"
-    assert PALETTE.warning == "#E9A84D"
+def test_v4_palette_is_deep_ink_with_calm_cobalt_accent() -> None:
+    assert PALETTE.canvas == "#0B0D12"
+    assert PALETTE.surface == "#11141B"
+    assert PALETTE.surface_raised == "#171B24"
+    assert PALETTE.text == "#F4F6FB"
+    assert PALETTE.accent == "#6F8CFF"
+    assert PALETTE.warning == "#E8B15B"
     assert PALETTE.success != PALETTE.accent
     assert PALETTE.info != PALETTE.accent
     assert PALETTE.question != PALETTE.accent

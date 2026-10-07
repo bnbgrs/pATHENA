@@ -342,12 +342,12 @@ class PathenaV3ShellController(QObject):
         composer.setObjectName("v3Composer")
         composer.setAccessibleName("Message composer")
         composer_layout = QHBoxLayout(composer)
-        composer_layout.setContentsMargins(14, 10, 10, 10)
+        composer_layout.setContentsMargins(14, 8, 10, 8)
         composer_layout.setSpacing(8)
 
         window.prompt_input.setParent(composer)
         window.prompt_input.setMinimumHeight(SHELL.composer_min_height)
-        window.prompt_input.setMaximumHeight(120)
+        window.prompt_input.setMaximumHeight(88)
         window.prompt_input.setPlaceholderText("Ask, research, or build…")
         window.prompt_input.show()
         composer_layout.addWidget(window.prompt_input, 1)
@@ -377,7 +377,7 @@ class PathenaV3ShellController(QObject):
         window.send_button.setToolTip("Send message · Ctrl+Enter")
         window.send_button.setStyleSheet(
             f"QPushButton {{ color: rgba(0, 0, 0, 0); background: transparent; border: 0; "
-            f"border-radius: {RADII.control}px; padding: 0; font-size: 15pt; "
+            f"border-radius: {SHELL.composer_action_size // 2}px; padding: 0; font-size: 15pt; "
             "font-weight: 800; } "
             "QPushButton:disabled { color: rgba(0, 0, 0, 0); background: transparent; "
             "border: 0; }"

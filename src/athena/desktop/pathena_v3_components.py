@@ -379,7 +379,7 @@ class V3ComposerFrame(QFrame):
                 foreground = QColor(PALETTE.text_subtle)
             painter.setPen(QPen(border, 1.0))
             painter.setBrush(background)
-            painter.drawRoundedRect(rect, RADII.control, RADII.control)
+            painter.drawRoundedRect(rect, side / 2.0, side / 2.0)
             painter.setPen(foreground)
             painter.setFont(send.font())
             painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, send.text())
