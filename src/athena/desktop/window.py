@@ -319,7 +319,7 @@ class AthenaMainWindow(QMainWindow):
         self.api_controller = api_controller
         self.navigation = QListWidget()
         self.pages = QStackedWidget()
-        self.ascii_panel = AsciiPanel()
+        self.ascii_panel = AsciiPanel(self)
         self.pallas_visual = PallasVisualPlaceholder()
         self.page_title = QLabel("CHAT")
         self.status_text = QLabel("LOCAL / CORE DISCONNECTED")

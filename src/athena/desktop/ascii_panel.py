@@ -128,13 +128,14 @@ class AsciiPanel(QPlainTextEdit):
     The shell retains a lightweight 9:16 canvas widget in ``window.py``. This
     controller binds only to the PALLAS canvas owned by its own top-level window,
     then keeps it animated and semantically synchronized without a model call or
-    network dependency. The local lookup also serves as recovery for unusual widget
-    construction order without ever crossing into another window's Qt lifecycle.
+    network dependency. The controller is a hidden native child of that window so
+    its document and timers are destroyed with the same Qt lifecycle.
     """
 
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
         self.setObjectName("asciiPanel")
+        self.hide()
         self.setReadOnly(True)
         self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
@@ -156,8 +157,6 @@ class AsciiPanel(QPlainTextEdit):
         self._timer.timeout.connect(self._tick)
         self._timer.start()
         self._refresh_text_surface()
-
-        QTimer.singleShot(0, self._bind_pallas_target)
 
     def bind_semantic_root(self, root: QWidget | None) -> None:
         """Bind PALLAS sampling and painting to one explicit top-level window.
