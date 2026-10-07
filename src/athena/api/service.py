@@ -1020,6 +1020,7 @@ class CoreApiFacade:
             state=status.state.value,
             can_continue=status.state in {
                 GroundedRecoveryState.RESUMABLE,
+                GroundedRecoveryState.PARTIAL_AVAILABLE,
                 GroundedRecoveryState.RESULT_AVAILABLE,
                 GroundedRecoveryState.FINALIZATION_REQUIRED,
             },
