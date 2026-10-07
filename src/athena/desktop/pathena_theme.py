@@ -296,6 +296,14 @@ QComboBox#settingsModelSelector:hover {{
     border-color: {PALETTE.border_strong};
 }}
 
+QComboBox#chatSelector:disabled,
+QComboBox#modelSelector:disabled,
+QComboBox#settingsModelSelector:disabled {{
+    color: {PALETTE.text_quiet};
+    background: {PALETTE.surface};
+    border-color: {PALETTE.border};
+}}
+
 QLabel#commandPaletteTitle,
 QLabel#helpDialogTitle {{
     color: {PALETTE.text};
