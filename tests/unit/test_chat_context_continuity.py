@@ -220,3 +220,31 @@ def test_protected_older_message_is_never_projected_as_recapped_text() -> None:
     assert projection.recap_sections == ()
     assert projection.recap_refs == ()
     assert projection.included_count == 0
+
+
+def test_recap_uses_query_matching_passage_not_just_first_240_chars() -> None:
+    chat_id = uuid.uuid4()
+    old = ChatMessage(
+        message_id=uuid.uuid4(),
+        chat_id=chat_id,
+        sequence_no=1,
+        message_type=MessageType.USER,
+        actor_id=None,
+        created_at_us=1,
+        revision_id=uuid.uuid4(),
+        content=(
+            "unrelated " * 200
+            + "zeppelins blueprint location is GREEN DRAWER. "
+            + "unrelated " * 200
+        ),
+        content_format="text/plain",
+    )
+    selection = budgeted_continuity(
+        all_messages=(old,),
+        initial_recent=(),
+        current_query="Where is the zeppelins blueprint?",
+        history_budget=512,
+    )
+    assert len(selection.recap_sections) == 1
+    assert "GREEN DRAWER" in selection.recap_sections[0].content
+    assert selection.recap_refs[0].entity_id == old.message_id
