@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import re
+import uuid
 from dataclasses import dataclass
 
 from athena.chat.models import ChatMessage, MessageType
@@ -105,7 +106,7 @@ def _archival_text(message: ChatMessage) -> str | None:
 def _recall_candidates(
     archive: tuple[ChatMessage, ...],
     *,
-    selected_ids: set[object],
+    selected_ids: set[uuid.UUID],
     query: str,
 ) -> tuple[tuple[ChatMessage, str], ...]:
     terms = _topic_terms(query)
