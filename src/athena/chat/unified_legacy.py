@@ -9,8 +9,8 @@ import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from athena.chat.continuity import budgeted_continuity
 from athena.chat.direct import (
-    _estimate_persisted_messages,
     _prior_chat_sections,
     _resolve_context_limit,
     _select_recent_conversation_window,
@@ -573,9 +573,6 @@ class UnifiedLocalChatService:
                     recent_messages=preflight_recent,
                 )
             )
-        preflight_conversation_tokens = _estimate_persisted_messages(
-            preflight_recent
-        )
         current_user_tokens = estimate_tokens(content) + _MESSAGE_WRAPPER_ESTIMATE
         grounding_reserve = (
             estimate_tokens(
@@ -597,6 +594,21 @@ class UnifiedLocalChatService:
             * _GROUNDING_REF_TOKEN_RESERVE
         )
 
+        # A previous oversized turn must not block a later question. Reserve
+        # both grounded retrieval domains before selecting model-facing history.
+        history_budget = max(
+            0,
+            context_limit - current_user_tokens - output_reserve
+            - safety_margin - grounding_reserve - 2 * _MIN_CONTEXT_BUDGET,
+        )
+        preflight_selection = budgeted_continuity(
+            all_messages=preflight_thread.messages,
+            initial_recent=preflight_recent,
+            current_query=content,
+            history_budget=history_budget,
+            allow_recap=False,  # Grounding must not treat chat as external evidence.
+        )
+        preflight_conversation_tokens = preflight_selection.recent_tokens
         available_payload_tokens = (
             context_limit
             - preflight_conversation_tokens
@@ -673,8 +685,16 @@ class UnifiedLocalChatService:
             max_turns=max_recent_conversation_turns,
             include_assistant=False,
         )
+        selected_history = budgeted_continuity(
+            all_messages=thread.messages,
+            initial_recent=recent_messages,
+            current_query=content,
+            history_budget=history_budget,
+            allow_recap=False,
+        )
+        recent_messages = selected_history.recent
         prior_sections, prior_refs = _prior_chat_sections(recent_messages)
-        conversation_tokens = _estimate_persisted_messages(recent_messages)
+        conversation_tokens = selected_history.recent_tokens
 
         memories = self.personal_memory.context_candidates(
             scope_kind=memory_scope_kind,
@@ -810,10 +830,34 @@ class UnifiedLocalChatService:
             estimated_input_tokens + output_reserve + safety_margin
         )
         if estimated_total_tokens > context_limit:
-            raise ContextBuilderError(
-                "Unified local ContextPackage exceeds the active model context "
-                "after exact deterministic accounting."
+            # Retrieval metadata can exceed its preliminary token reserve.
+            # Trim complete older user turns again; never modify raw messages.
+            remaining_history_budget = max(
+                0,
+                context_limit - current_user_tokens - system_tokens
+                - output_reserve - safety_margin,
             )
+            final_selection = budgeted_continuity(
+                all_messages=thread.messages,
+                initial_recent=recent_messages,
+                current_query=content,
+                history_budget=remaining_history_budget,
+                allow_recap=False,
+            )
+            recent_messages = final_selection.recent
+            prior_sections, prior_refs = _prior_chat_sections(recent_messages)
+            conversation_tokens = final_selection.recent_tokens
+            estimated_input_tokens = (
+                conversation_tokens + current_user_tokens + system_tokens
+            )
+            estimated_total_tokens = (
+                estimated_input_tokens + output_reserve + safety_margin
+            )
+            if estimated_total_tokens > context_limit:
+                raise ContextBuilderError(
+                    "Unified local ContextPackage exceeds the active model context "
+                    "after exact deterministic accounting."
+                )
 
         self.context_packages.assert_snapshot_current(
             retrieval_snapshot_commit_seq,
@@ -830,6 +874,13 @@ class UnifiedLocalChatService:
             "max_memory_items": max_memory_items,
             "max_source_context_items": max_source_context_items,
             "max_recent_conversation_turns": max_recent_conversation_turns,
+            "continuity_recent_count": len(recent_messages),
+            "continuity_omitted_count": (
+                len(thread.messages) - len(recent_messages)
+            ),
+            "estimated_context_utilization": (
+                estimated_total_tokens / context_limit
+            ),
             "safety_margin": safety_margin,
             "conversation_history_policy": "grounded_user_only",
             "grounding_retry_policy": GROUNDING_RETRY_POLICY,
