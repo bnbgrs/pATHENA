@@ -274,6 +274,9 @@ class DirectChatService:
             effective_output_reserve=effective_output_reserve,
             safety_margin=validated_safety_margin,
         )
+        context_configuration["continuity_recap_estimated_tokens"] = (
+            selection.recap_tokens
+        )
         context_configuration["continuity_recap_count"] = len(selection.recap_refs)
         context_configuration["continuity_recent_count"] = len(recent_messages)
         context_configuration["estimated_context_utilization"] = (
@@ -336,7 +339,7 @@ class DirectChatService:
             conversation_tokens=conversation_tokens,
             current_user_tokens=current_user_tokens,
             system_tokens=0,
-            context_tokens=selection.recap_tokens,
+            context_tokens=0,
             estimated_input_tokens=estimated_input_tokens,
             estimated_total_tokens=estimated_total_tokens,
         )
