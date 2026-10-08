@@ -245,20 +245,24 @@ class JobsWorkspace(QWidget):
             self.refresh()
 
     def _refresh_scheduler_status(self) -> None:
+        """Report the owned process state, never inferred job/scheduler health."""
         supervisor = self._scheduler_supervisor
+        self.scheduler_status.setToolTip(
+            "Local scheduler process only; this is not a job-health or queue-health check."
+        )
         if supervisor is None:
-            self.scheduler_status.setText("SCHEDULER · EXTERNAL")
-            set_pathena_ui_state(self.scheduler_status, "idle")
+            self.scheduler_status.setText("SCHEDULER PROCESS · NOT OBSERVED")
+            set_pathena_ui_state(self.scheduler_status, "empty")
             return
         if supervisor.stopping:
-            self.scheduler_status.setText("SCHEDULER · STOPPING")
+            self.scheduler_status.setText("SCHEDULER PROCESS · STOPPING")
             set_pathena_ui_state(self.scheduler_status, "busy")
         elif supervisor.child_active:
-            self.scheduler_status.setText("SCHEDULER · ACTIVE")
-            set_pathena_ui_state(self.scheduler_status, "success")
-        else:
-            self.scheduler_status.setText("SCHEDULER · RECOVERY PENDING")
+            self.scheduler_status.setText("SCHEDULER PROCESS · RUNNING")
             set_pathena_ui_state(self.scheduler_status, "busy")
+        else:
+            self.scheduler_status.setText("SCHEDULER PROCESS · NOT RUNNING")
+            set_pathena_ui_state(self.scheduler_status, "empty")
 
     def _busy(self) -> bool:
         return self._process.state() != QProcess.ProcessState.NotRunning
