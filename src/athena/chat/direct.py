@@ -7,13 +7,13 @@ import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from athena.chat.continuity import budgeted_continuity
 from athena.chat.generation import (
     ChatGenerationResult,
     ChatGenerationService,
     GenerationCancelledError,
     ModelSelectionError,
 )
-from athena.chat.continuity import budgeted_continuity
 from athena.chat.models import ChatMessage, MessageType
 from athena.chat.provenance import (
     strip_model_facing_assistant_trace,
