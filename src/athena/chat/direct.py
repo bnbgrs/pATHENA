@@ -7,6 +7,7 @@ import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from athena.chat.context_continuity import build_direct_continuity
 from athena.chat.generation import (
     ChatGenerationResult,
     ChatGenerationService,
@@ -220,12 +221,21 @@ class DirectChatService:
         )
         retrieval_snapshot_commit_seq = self.context_packages.current_commit_seq()
         thread = self.chat_generation.chat.load_chat(chat_id)
-        recent_messages = _select_recent_conversation_window(
+        recent_candidates = _select_recent_conversation_window(
             thread.messages,
             max_turns=validated_turns,
         )
+        continuity = build_direct_continuity(
+            archive=thread.messages,
+            recent_candidates=recent_candidates,
+            query=content,
+            context_limit=context_limit,
+            requested_output_reserve=validated_output_reserve,
+            safety_margin=validated_safety_margin,
+        )
+        recent_messages = continuity.recent_messages
         prior_sections, prior_refs = _prior_chat_sections(recent_messages)
-        conversation_tokens = _estimate_persisted_messages(recent_messages)
+        conversation_tokens = continuity.history_tokens
         current_user_tokens = estimate_tokens(content) + _MESSAGE_WRAPPER_ESTIMATE
         estimated_input_tokens = conversation_tokens + current_user_tokens
         effective_output_reserve = _effective_output_reserve(
@@ -251,6 +261,20 @@ class DirectChatService:
             requested_output_reserve=validated_output_reserve,
             effective_output_reserve=effective_output_reserve,
             safety_margin=validated_safety_margin,
+        )
+        context_configuration["continuity_policy_version"] = 1
+        context_configuration["continuity_recent_messages"] = len(recent_messages)
+        context_configuration["continuity_recalled_messages"] = len(
+            continuity.recall_refs
+        )
+        context_configuration["continuity_excluded_messages"] = (
+            len(thread.messages) - continuity.included_message_count
+        )
+        context_configuration["continuity_history_budget_tokens"] = (
+            continuity.history_budget
+        )
+        context_configuration["context_usage_estimate_pct"] = round(
+            100 * estimated_total_tokens / context_limit, 1
         )
         if image_inputs:
             context_configuration["vision_input_count"] = len(image_inputs)
@@ -284,6 +308,7 @@ class DirectChatService:
             revision_id=user_message.revision_id,
         )
         sections = (
+            *continuity.recall_sections,
             *prior_sections,
             ContextSection(
                 name="current_user",
@@ -292,7 +317,7 @@ class DirectChatService:
                 included_ref_ids=(current_ref.ref_id,),
             ),
         )
-        included_refs = (*prior_refs, current_ref)
+        included_refs = (*continuity.recall_refs, *prior_refs, current_ref)
         excluded = ExcludedCandidateSummary(
             retrieval_candidate_count=0,
             retrieval_included_count=0,
@@ -301,8 +326,10 @@ class DirectChatService:
             memory_included_count=0,
             memory_excluded_count=0,
             conversation_candidate_count=len(thread.messages),
-            conversation_included_count=len(recent_messages),
-            conversation_excluded_count=len(thread.messages) - len(recent_messages),
+            conversation_included_count=continuity.included_message_count,
+            conversation_excluded_count=(
+                len(thread.messages) - continuity.included_message_count
+            ),
         )
         token_estimates = ContextTokenEstimates(
             conversation_tokens=conversation_tokens,
