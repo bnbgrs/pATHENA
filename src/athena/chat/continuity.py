@@ -69,15 +69,32 @@ def _query_terms(text: str) -> frozenset[str]:
     )
 
 
-def _excerpt(message: ChatMessage) -> str:
+def _excerpt(message: ChatMessage, *, terms: frozenset[str]) -> str:
     if message.content is None:
         return ""
     clean = strip_turn_local_grounding_markers(message.content)
     clean = re.sub(r"\s+", " ", clean).strip()
-    if len(clean) > _MAX_EXCERPT_CHARS:
-        clean = clean[:_MAX_EXCERPT_CHARS].rsplit(" ", 1)[0].strip() + " […]"
-    return clean
-
+    if len(clean) <= _MAX_EXCERPT_CHARS:
+        return clean
+    # Quote the relevant passage, rather than always taking the first lines.
+    positions = [
+        match.start()
+        for term in terms
+        if (match := re.search(
+            rf"(?<!\w){re.escape(term)}(?!\w)", clean, re.IGNORECASE
+        )) is not None
+    ]
+    start = max(0, min(positions) - 60) if positions else 0
+    if start:
+        space = clean.find(" ", start)
+        start = space + 1 if space >= 0 else start
+    end = min(len(clean), start + _MAX_EXCERPT_CHARS)
+    excerpt = clean[start:end].strip()
+    if start:
+        excerpt = "[…] " + excerpt
+    if end < len(clean):
+        excerpt += " […]"
+    return excerpt
 
 def budgeted_continuity(
     *,
@@ -128,7 +145,7 @@ def budgeted_continuity(
     for message in ranked:
         if len(included) >= _MAX_EXCERPTS:
             break
-        snippet = _excerpt(message)
+        snippet = _excerpt(message, terms=terms)
         if not snippet:
             continue
         next_text = "\n".join((
