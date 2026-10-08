@@ -11,7 +11,6 @@ from dataclasses import dataclass
 
 from athena.chat.continuity import budgeted_continuity
 from athena.chat.direct import (
-    _estimate_persisted_messages,
     _prior_chat_sections,
     _resolve_context_limit,
     _select_recent_conversation_window,
