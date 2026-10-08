@@ -223,3 +223,124 @@ def test_direct_chat_pre_provider_drift_makes_zero_provider_calls(tmp_path) -> N
         assert "ContextSnapshotDriftError" in str(row["error_detail"])
     finally:
         database.stop()
+
+
+
+def test_direct_long_chat_recalls_archived_original_without_losing_output_reserve(
+    tmp_path,
+) -> None:
+    provider = FakeProvider()
+    database, chat, _, service = _runtime(tmp_path, provider)
+    try:
+        chat_id = chat.create_chat()
+        original = chat.add_user_message(
+            chat_id=chat_id,
+            content="Unser geheimes Codewort ist Elefantenbruecke.",
+        )
+        chat.add_assistant_message(
+            chat_id=chat_id,
+            content="Ich habe Elefantenbruecke notiert.",
+            provider_id="lm_studio",
+            model_id="primary",
+        )
+        for index in range(12):
+            chat.add_user_message(
+                chat_id=chat_id,
+                content=f"Fuellthema {index}: " + ("Banane " * 180),
+            )
+            chat.add_assistant_message(
+                chat_id=chat_id,
+                content="Verstanden. " * 100,
+                provider_id="lm_studio",
+                model_id="primary",
+            )
+        before = chat.load_chat(chat_id).messages
+
+        result = service.send_message(
+            chat_id=chat_id,
+            content="Welches Codewort mit Elefantenbruecke war vereinbart?",
+            output_reserve=1000,
+            safety_margin=100,
+        )
+
+        sent = provider.requests[0]
+        assert any(
+            message.role == "user"
+            and "Elefantenbruecke" in message.content
+            and "Historical" in message.content
+            for message in sent
+        )
+        assert result.context_package.budget.output_reserve == 1000
+        assert result.context_package.token_estimates.estimated_total_tokens <= 4096
+        original_refs = (
+            ref
+            for ref in result.context_package.included_refs
+            if ref.entity_id == original.message_id
+        )
+        assert any(ref.revision_id == original.revision_id for ref in original_refs)
+        summary = result.context_package.excluded_candidate_summary
+        assert summary.conversation_included_count + summary.conversation_excluded_count == len(before)
+        assert summary.conversation_excluded_count > 0
+        after = chat.load_chat(chat_id).messages
+        assert len(after) == len(before) + 2
+        assert tuple(item.message_id for item in after[:len(before)]) == tuple(
+            item.message_id for item in before
+        )
+        audit = json.loads(result.processing_run.input_snapshot_json)
+        assert audit["excluded_candidate_summary"]["conversation_included_count"] == (
+            summary.conversation_included_count
+        )
+    finally:
+        database.stop()
+
+
+def test_direct_unfittable_current_input_has_no_provider_call_or_persistence(
+    tmp_path,
+) -> None:
+    from athena.retrieval.context import ContextBuilderError
+
+    provider = FakeProvider()
+    database, chat, _, service = _runtime(tmp_path, provider)
+    try:
+        chat_id = chat.create_chat()
+        with pytest.raises(ContextBuilderError, match="Current user input"):
+            service.send_message(
+                chat_id=chat_id,
+                content="Riesenwort " * 5000,
+                output_reserve=1000,
+                safety_margin=100,
+            )
+        assert provider.stream_calls == 0
+        assert chat.load_chat(chat_id).messages == ()
+    finally:
+        database.stop()
+
+
+def test_continuity_does_not_materialize_protected_archived_text(
+    tmp_path,
+) -> None:
+    from dataclasses import replace
+
+    from athena.chat.context_continuity import build_direct_continuity
+
+    provider = FakeProvider()
+    database, chat, _, _ = _runtime(tmp_path, provider)
+    try:
+        chat_id = chat.create_chat()
+        archived = chat.add_user_message(
+            chat_id=chat_id,
+            content="Elefantenbruecke is confidential.",
+        )
+        protected = replace(archived, content=None)
+        plan = build_direct_continuity(
+            archive=(protected,),
+            recent_candidates=(),
+            query="Was war Elefantenbruecke?",
+            context_limit=4096,
+            requested_output_reserve=1000,
+            safety_margin=100,
+        )
+        assert plan.recall_refs == ()
+        assert plan.recall_sections == ()
+    finally:
+        database.stop()
