@@ -133,7 +133,7 @@ def budgeted_continuity(
             continue
         next_text = "\n".join((
             _RECAP_HEADER,
-            *(f"[message {item.sequence_no}] {text}" for item, text in zip(included, snippets)),
+            *(f"[message {item.sequence_no}] {text}" for item, text in zip(included, snippets, strict=True)),
             f"[message {message.sequence_no}] {snippet}",
         ))
         if estimate_tokens(next_text) + _WRAPPER_TOKENS > spare:
@@ -144,7 +144,7 @@ def budgeted_continuity(
     if not included:
         return ContinuitySelection(recent, (), (), recent_tokens, 0)
     # Preserve chronological order in the excerpt even though ranking is by relevance.
-    ordered = sorted(zip(included, snippets), key=lambda pair: pair[0].sequence_no)
+    ordered = sorted(zip(included, snippets, strict=True), key=lambda pair: pair[0].sequence_no)
     text = "\n".join((
         _RECAP_HEADER,
         *(f"[message {item.sequence_no}] {snippet}" for item, snippet in ordered),
