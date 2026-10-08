@@ -363,3 +363,22 @@ def test_packaging_guard_rejects_existing_junction_output(tmp_path: Path) -> Non
     )
     assert result.returncode != 0
     assert "junction or reparse point" in result.stderr
+
+
+def test_windows_package_pr_trigger_covers_dropdown_and_migration_paths() -> None:
+    """Native package evidence must run for release-critical UI and WAL changes."""
+    workflow = (
+        _REPO_ROOT / ".github" / "workflows" / "windows-package.yml"
+    ).read_text(encoding="utf-8")
+    pr_section = workflow.split("\n  pull_request:\n", 1)[1].split(
+        "\npermissions:\n", 1
+    )[0]
+    paths = set(re.findall(r'^\s+- "([^"]+)"\s*$', pr_section, re.MULTILINE))
+    assert {
+        "src/athena/desktop/pathena_theme.py",
+        "src/athena/desktop/window.py",
+        "src/athena/storage/migration_coordinator.py",
+        "tests/unit/test_issue_244_model_selection.py",
+        "tests/unit/test_knowledge_workspace.py",
+        "tests/unit/test_migration_coordinator.py",
+    } <= paths
