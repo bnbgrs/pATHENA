@@ -93,6 +93,56 @@ def test_clone_migration_completes_with_rollback_and_activated_journal(
     assert persisted == result.final_journal
 
 
+def test_clone_migration_checkpoints_regular_source_wal_sidecars(
+    tmp_path: Path,
+) -> None:
+    source = (tmp_path / "athena.db").absolute()
+    root = (tmp_path / "migration").absolute()
+    root.mkdir()
+
+    connection = sqlite3.connect(source, autocommit=True)
+    try:
+        assert connection.execute("PRAGMA journal_mode = WAL").fetchone() == ("wal",)
+        connection.execute(
+            "CREATE TABLE items (id INTEGER PRIMARY KEY, value TEXT NOT NULL)"
+        )
+        connection.execute("INSERT INTO items (value) VALUES ('old')")
+        connection.execute("PRAGMA user_version = 1")
+        wal = source.with_name(f"{source.name}-wal")
+        shm = source.with_name(f"{source.name}-shm")
+        wal_bytes = wal.read_bytes()
+        shm_bytes = shm.read_bytes()
+    finally:
+        connection.close()
+
+    wal.write_bytes(wal_bytes)
+    shm.write_bytes(shm_bytes)
+    assert wal.exists()
+    assert shm.exists()
+
+    result = run_clone_migration(
+        source_db=source,
+        migration_root=root,
+        descriptor=_descriptor(),
+        emergency_reserve_bytes=0,
+        started_at_us=123,
+        executor=_successful_executor,
+        available_bytes=10**12,
+    )
+
+    assert result.final_journal.phase is MigrationPhase.ACTIVATED
+    assert not wal.exists()
+    assert not shm.exists()
+    active = sqlite3.connect(source, autocommit=True)
+    try:
+        assert active.execute("PRAGMA user_version").fetchone() == (2,)
+        assert active.execute("SELECT value, migrated FROM items").fetchall() == [
+            ("old", 1)
+        ]
+    finally:
+        active.close()
+
+
 def test_clone_migration_blocks_before_journal_when_space_is_insufficient(
     tmp_path: Path,
 ) -> None:

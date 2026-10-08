@@ -334,6 +334,9 @@ class AthenaMainWindow(QMainWindow):
         self.chat_selector = QComboBox()
         self.model_selector = QComboBox()
         self.settings_model_selector = QComboBox()
+        self.chat_selector.addItem("CONNECTING…", None)
+        self.model_selector.addItem("CONNECTING…", None)
+        self.settings_model_selector.addItem("CONNECTING…", None)
         self.context_slider = QSlider(Qt.Orientation.Horizontal)
         self.context_value_label = QLabel("—")
         self.trash_chat_button = QPushButton("TRASH")
@@ -2069,6 +2072,17 @@ class AthenaMainWindow(QMainWindow):
         self._model_freshness = "unavailable"
         self._last_model_error = None
         self._models_by_id = {}
+        self.chat_selector.blockSignals(True)
+        try:
+            self.chat_selector.clear()
+            self.chat_selector.addItem("CORE UNAVAILABLE", None)
+            self.chat_selector.setItemData(
+                0,
+                "ATHENA Core is unavailable, so conversations cannot be loaded.",
+                Qt.ItemDataRole.ToolTipRole,
+            )
+        finally:
+            self.chat_selector.blockSignals(False)
         for selector in (self.model_selector, self.settings_model_selector):
             selector.blockSignals(True)
             try:
@@ -3094,7 +3108,11 @@ class AthenaMainWindow(QMainWindow):
             "Unpin conversation" if pinned else "Pin conversation"
         )
         model_available = controls_available and self._selected_model() is not None
-        model_selectors_enabled = controls_available and bool(self._models_by_id)
+        model_selectors_enabled = (
+            controls_available
+            and self.model_selector.count() > 0
+            and self.settings_model_selector.count() > 0
+        )
         self.model_selector.setEnabled(model_selectors_enabled)
         self.settings_model_selector.setEnabled(model_selectors_enabled)
         self.new_chat_button.setEnabled(controls_available)
