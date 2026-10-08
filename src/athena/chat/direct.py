@@ -13,6 +13,7 @@ from athena.chat.generation import (
     GenerationCancelledError,
     ModelSelectionError,
 )
+from athena.chat.continuity import budgeted_continuity
 from athena.chat.models import ChatMessage, MessageType
 from athena.chat.provenance import (
     strip_model_facing_assistant_trace,
@@ -220,13 +221,34 @@ class DirectChatService:
         )
         retrieval_snapshot_commit_seq = self.context_packages.current_commit_seq()
         thread = self.chat_generation.chat.load_chat(chat_id)
-        recent_messages = _select_recent_conversation_window(
+        initial_recent = _select_recent_conversation_window(
             thread.messages,
             max_turns=validated_turns,
         )
-        prior_sections, prior_refs = _prior_chat_sections(recent_messages)
-        conversation_tokens = _estimate_persisted_messages(recent_messages)
         current_user_tokens = estimate_tokens(content) + _MESSAGE_WRAPPER_ESTIMATE
+        # Preserve the requested generation reserve whenever possible.
+        # Continuity may discard old model-facing turns, never stored records.
+        available_after_current = (
+            context_limit - current_user_tokens - validated_safety_margin
+        )
+        if available_after_current < 1:
+            raise ContextBuilderError(
+                "Current user input and safety margin exhaust the active model "
+                "context before any output can be generated."
+            )
+        target_output_reserve = min(
+            validated_output_reserve, available_after_current
+        )
+        selection = budgeted_continuity(
+            all_messages=thread.messages,
+            initial_recent=initial_recent,
+            current_query=content,
+            history_budget=max(0, available_after_current - target_output_reserve),
+            allow_recap=validated_turns == _DEFAULT_RECENT_CONVERSATION_TURNS,
+        )
+        recent_messages = selection.recent
+        prior_sections, prior_refs = _prior_chat_sections(recent_messages)
+        conversation_tokens = selection.recent_tokens + selection.recap_tokens
         estimated_input_tokens = conversation_tokens + current_user_tokens
         effective_output_reserve = _effective_output_reserve(
             context_limit=context_limit,
@@ -251,6 +273,11 @@ class DirectChatService:
             requested_output_reserve=validated_output_reserve,
             effective_output_reserve=effective_output_reserve,
             safety_margin=validated_safety_margin,
+        )
+        context_configuration["continuity_recap_count"] = len(selection.recap_refs)
+        context_configuration["continuity_recent_count"] = len(recent_messages)
+        context_configuration["estimated_context_utilization"] = (
+            estimated_total_tokens / context_limit
         )
         if image_inputs:
             context_configuration["vision_input_count"] = len(image_inputs)
@@ -284,6 +311,7 @@ class DirectChatService:
             revision_id=user_message.revision_id,
         )
         sections = (
+            *selection.recap_sections,
             *prior_sections,
             ContextSection(
                 name="current_user",
@@ -292,7 +320,7 @@ class DirectChatService:
                 included_ref_ids=(current_ref.ref_id,),
             ),
         )
-        included_refs = (*prior_refs, current_ref)
+        included_refs = (*selection.recap_refs, *prior_refs, current_ref)
         excluded = ExcludedCandidateSummary(
             retrieval_candidate_count=0,
             retrieval_included_count=0,
@@ -301,14 +329,14 @@ class DirectChatService:
             memory_included_count=0,
             memory_excluded_count=0,
             conversation_candidate_count=len(thread.messages),
-            conversation_included_count=len(recent_messages),
-            conversation_excluded_count=len(thread.messages) - len(recent_messages),
+            conversation_included_count=selection.included_count,
+            conversation_excluded_count=len(thread.messages) - selection.included_count,
         )
         token_estimates = ContextTokenEstimates(
             conversation_tokens=conversation_tokens,
             current_user_tokens=current_user_tokens,
             system_tokens=0,
-            context_tokens=0,
+            context_tokens=selection.recap_tokens,
             estimated_input_tokens=estimated_input_tokens,
             estimated_total_tokens=estimated_total_tokens,
         )
@@ -332,7 +360,7 @@ class DirectChatService:
         processing_run = self.model_runs.start_run(
             run_type="chat.direct_context_package",
             trigger_actor_id=user_message.actor_id,
-            pipeline_version="direct-chat-context-package-v1",
+            pipeline_version="direct-chat-context-package-v2",
             input_snapshot=package.run_snapshot(),
             configuration=context_configuration,
             model_signature_id=signature.model_signature_id,
