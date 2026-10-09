@@ -9,6 +9,7 @@ from athena.desktop import (
     canonical_memory_cli,
     jobs_cli,
     knowledge_cli,
+    knowledge_obsidian_export,
     research_cli,
     sources_cli,
 )
@@ -17,6 +18,11 @@ _HELPERS: tuple[tuple[ModuleType, tuple[str, ...], str], ...] = (
     (canonical_memory_cli, ("merge-list",), "CANONICAL_MEMORY_ERROR"),
     (jobs_cli, ("list",), "JOBS_ERROR"),
     (knowledge_cli, ("list",), "KNOWLEDGE_ERROR"),
+    (
+        knowledge_obsidian_export,
+        ("preview", "00000000-0000-0000-0000-000000000001", "--vault", "unused-vault"),
+        "OBSIDIAN_EXPORT_ERROR",
+    ),
     (research_cli, ("list",), "RESEARCH_ERROR"),
     (sources_cli, ("list",), "SOURCES_ERROR"),
 )
@@ -55,6 +61,7 @@ class _HelperApp:
         "canonical-memory",
         "jobs",
         "knowledge",
+        "obsidian-export",
         "research",
         "sources",
     ),
@@ -83,6 +90,7 @@ def test_desktop_helpers_use_storage_only_lifecycle(
         "canonical-memory",
         "jobs",
         "knowledge",
+        "obsidian-export",
         "research",
         "sources",
     ),
@@ -120,6 +128,7 @@ def test_desktop_helpers_stop_storage_after_command_failure(
         "canonical-memory",
         "jobs",
         "knowledge",
+        "obsidian-export",
         "research",
         "sources",
     ),
